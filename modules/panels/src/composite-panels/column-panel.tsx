@@ -1,12 +1,13 @@
 /** @jsxImportSource preact */
 import {PanelThemeScope} from '../panels/panel-theme-scope';
 import {Panel} from '../panels/panel';
+import type {PanelProps} from '../panels/panel';
 
 import type {JSX} from 'preact';
 import type {PanelListContainerProps, PanelTheme} from '../panels/panel';
 
 /** Props for the composite `ColumnPanel` definition. */
-export type ColumnPanelProps = {
+export type ColumnPanelProps = PanelProps & {
   panels: ReadonlyArray<Panel>;
   id?: string;
   title?: string;
@@ -17,14 +18,23 @@ export type ColumnPanelProps = {
 export type ColumnPanelContainerProps = PanelListContainerProps;
 
 /** Panel definition that renders child panels in one vertical column. */
-export class ColumnPanel extends Panel {
-  constructor({
-    panels,
-    id = 'column-panels',
-    title = 'Panels',
-    theme = 'inherit'
-  }: ColumnPanelProps) {
-    super({id, title, theme, content: <ColumnPanelContainer panels={panels} />});
+export class ColumnPanel extends Panel<ColumnPanelProps> {
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    id: 'column-panels',
+    title: 'Panels',
+    theme: 'inherit'
+  } satisfies PanelProps & Partial<ColumnPanelProps>;
+
+  override getChildPanels(): ReadonlyArray<Panel> {
+    return this.props.panels;
+  }
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {panels} = this.props;
+    return <ColumnPanelContainer panels={panels} />;
   }
 }
 

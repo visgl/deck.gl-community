@@ -50,6 +50,7 @@ existing deck.gl widget styling and theming instead.
 ```ts
 type PanelManagerProps = {
   parentElement: HTMLElement;
+  components?: (PanelComponent | null | undefined)[];
   contentElement?: HTMLElement;
   deck?: unknown | null;
   className?: string;
@@ -62,6 +63,7 @@ type PanelManagerProps = {
 new PanelManager({
   parentElement,
   contentElement,
+  components,
   deck,
   className
 });
@@ -104,3 +106,21 @@ Pass optional `contentElement`, an application-created direct child of `parentEl
 [permanent chrome and pinnable panels](../panel-containers/canvas-chrome.md). The manager arranges
 this canvas host alongside docked panels inside the outer boundary, preserving the application's
 positioning of `parentElement`. Omit it to retain overlay-only behavior; docked chrome stays hidden.
+
+## Declarative lifecycle
+
+Supply `components` in the constructor to mount the initial UI in one expression. Later
+`setProps({components})` calls replace that list. `null` and `undefined` entries are ignored,
+so conditional entries can stay inline. `[]` removes every declarative component;
+omitting `components` leaves the list unchanged. Components added with `addDefault` are
+independent of that list.
+
+The manager observes its parent for size changes when `ResizeObserver` is available.
+Overlay placement hosts follow the available area automatically; applications do not need
+an observer just to reposition panels. Canvas chrome also observes its content region.
+The renderer still needs to follow `contentElement` size through its own resize support.
+All manager-owned observers are disconnected by `finalize()`.
+
+Only `components` is mutable through `setProps`. Recreate the manager to change its host
+configuration. See [state and updates](../../developer-guide/using-panels.md#state-and-updates)
+for a complete reconciliation example.

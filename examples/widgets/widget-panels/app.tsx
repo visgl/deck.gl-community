@@ -13,7 +13,7 @@ import {
 import {Stats} from '@probe.gl/stats';
 import {render} from 'preact';
 import {
-  AccordeonPanel,
+  AccordionPanel,
   ColumnPanel,
   CustomPanel,
   KeyboardShortcutsPanel,
@@ -46,7 +46,7 @@ export type WidgetPanelsExampleHighlight =
   | 'stats-panel'
   | 'keyboard-shortcuts-panel'
   | 'text-editor-panel'
-  | 'accordeon-panel'
+  | 'accordion-panel'
   | 'tabbed-panel'
   | 'column-panel'
   | 'custom-panel'
@@ -181,7 +181,7 @@ const HIGHLIGHT_LABELS: Record<WidgetPanelsExampleHighlight, string> = {
   'stats-panel': 'StatsPanel',
   'keyboard-shortcuts-panel': 'KeyboardShortcutsPanel',
   'text-editor-panel': 'TextEditorPanel',
-  'accordeon-panel': 'AccordeonPanel',
+  'accordion-panel': 'AccordionPanel',
   'tabbed-panel': 'TabbedPanel',
   'column-panel': 'ColumnPanel',
   'custom-panel': 'CustomPanel',
@@ -198,7 +198,7 @@ const MODAL_HIGHLIGHTS = new Set<WidgetPanelsExampleHighlight>([
 const SIDEBAR_HIGHLIGHTS = new Set<WidgetPanelsExampleHighlight>([
   'sidebar-panel-widget',
   'settings-panel',
-  'accordeon-panel'
+  'accordion-panel'
 ]);
 
 const SETTINGS_SCHEMA: SettingsSchema = {
@@ -742,7 +742,7 @@ function buildSidebarPanel(
     ].join('\n')
   });
 
-  return new AccordeonPanel({
+  return new AccordionPanel({
     id: 'sidebar-controls',
     title: 'Sidebar controls',
     panels: [
@@ -1240,7 +1240,7 @@ function buildHighlightedPanel(
     case 'full-screen-panel-widget':
       return buildInfoBoxPanel(state, handlers, highlight);
     case 'sidebar-panel-widget':
-    case 'accordeon-panel':
+    case 'accordion-panel':
     case 'settings-panel':
       return buildSidebarPanel(state, handlers, highlight);
     case 'stats-panel':

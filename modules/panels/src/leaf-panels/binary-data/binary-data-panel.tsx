@@ -3,6 +3,7 @@
 import {useMemo} from 'preact/hooks';
 
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 import {useEffectivePanelThemeMode} from '../../panels/panel-theme-scope';
 
 import type {PanelTheme} from '../../panels/panel';
@@ -19,9 +20,9 @@ const DEFAULT_MAX_BYTE_LENGTH = 10_000;
  * `byteOffset` and `byteLength` first select the source range from `data`.
  * `maxByteLength` then caps how many selected bytes are rendered.
  */
-export type BinaryDataPanelProps = {
+export type BinaryDataPanelProps = PanelProps & {
   /** Stable panel id used by parent containers. */
-  id: string;
+  id?: string;
   /** Visible heading text for the panel. */
   title: string;
   /** Binary data rendered by this panel as offset, hex, and optional ASCII rows. */
@@ -43,15 +44,13 @@ export type BinaryDataPanelProps = {
 };
 
 /** Panel that renders binary data as offset, hex, and ASCII rows. */
-export class BinaryDataPanel extends Panel {
-  /** Creates a binary data panel for caller-supplied bytes. */
-  constructor(props: BinaryDataPanelProps) {
-    super({
-      id: props.id,
-      title: props.title,
-      theme: props.theme ?? 'inherit',
-      content: <BinaryDataPanelContent {...props} />
-    });
+export class BinaryDataPanel extends Panel<BinaryDataPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'binary-data-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    return <BinaryDataPanelContent {...this.props} />;
   }
 }
 

@@ -38,11 +38,11 @@ export {
 } from './lib/panel-theme';
 
 export {
-  AccordeonPanel,
-  AccordeonPanelContainer,
-  type AccordeonPanelContainerProps,
-  type AccordeonPanelProps
-} from './composite-panels/accordeon-panel';
+  AccordionPanel,
+  AccordionPanelContainer,
+  type AccordionPanelContainerProps,
+  type AccordionPanelProps
+} from './composite-panels/accordion-panel';
 export {
   ColumnPanel,
   ColumnPanelContainer,
@@ -281,11 +281,6 @@ export {
   FooterPanelContainer,
   type FooterPanelContainerProps
 } from './panel-mounts/footer-panel-container';
-
-export {
-  SidePanelContainer,
-  type SidePanelContainerProps
-} from './panel-mounts/side-panel-container';
 
 export {
   usePanelContainerState,

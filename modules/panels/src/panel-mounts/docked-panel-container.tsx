@@ -39,6 +39,10 @@ export abstract class DockedPanelContainer<
 
   className = 'deck-panel-chrome';
   placement: PanelPlacement = 'top-left';
+  /** @internal Floating host bucket; drawers need a host that fills the content region. */
+  get overlayPlacement(): PanelPlacement {
+    return this.placement;
+  }
   private resizedWidth?: number;
   private resizedHeight?: number;
   private stopDrag?: () => void;
@@ -83,6 +87,31 @@ export abstract class DockedPanelContainer<
   }
 
   override onRenderHTML(root: HTMLElement): void {
+    this.prepareRoot(root);
+    const {panel, title} = this.props;
+    const state = {pinned: this.isPinned, side: this.side, canPin: this.canPin};
+    render(
+      <PanelContainerStateContext.Provider value={state}>
+        <section className="deck-panel-chrome-shell" aria-label={title ?? 'Panel'}>
+          {title || this.isPinnable || this.hasHeaderActions ? (
+            <header className="deck-panel-chrome-header">
+              {this.renderHeaderTitle()}
+              {this.renderHeaderActions()}
+              {this.renderPinControl()}
+            </header>
+          ) : null}
+          <div className="deck-panel-chrome-content" hidden={!this.isContentOpen}>
+            {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
+          </div>
+          {this.renderResizeHandle()}
+        </section>
+      </PanelContainerStateContext.Provider>,
+      root
+    );
+  }
+
+  /** Prepare shared layout, dimensions and gesture containment without rendering a body. */
+  protected prepareRoot(root: HTMLElement): void {
     if (this.eventRoot !== root) {
       this.removeEventListeners();
       this.eventRoot = root;
@@ -94,7 +123,7 @@ export abstract class DockedPanelContainer<
     root.style.margin = this.isDocked ? '0' : `${this.floatingOffsetPx}px`;
     (this.panelManager as PanelManager | undefined)?.updateDockedContainer?.(this);
     root.hidden = this.isPinned && !this.canPin;
-    const {panel, title, fitContent, resizable} = this.props;
+    const {fitContent} = this.props;
     const horizontal = this.side === 'left' || this.side === 'right';
     const width = this.resizedWidth ?? normalizeSize(this.props.widthPx, 320);
     const height = this.resizedHeight ?? normalizeSize(this.props.heightPx, 240);
@@ -114,83 +143,76 @@ export abstract class DockedPanelContainer<
           ? 'max-content'
           : `${height}px`
         : '';
-    const state = {pinned: this.isPinned, side: this.side, canPin: this.canPin};
-    render(
-      <PanelContainerStateContext.Provider value={state}>
-        <section className="deck-panel-chrome-shell" aria-label={title ?? 'Panel'}>
-          {title || this.isPinnable || this.hasHeaderActions ? (
-            <header className="deck-panel-chrome-header">
-              {this.renderHeaderTitle()}
-              {this.renderHeaderActions()}
-              {this.isPinnable ? (
-                <button
-                  type="button"
-                  disabled={!this.canPin}
-                  aria-label={this.isPinned ? 'Unpin panel' : 'Pin panel'}
-                  title={this.isPinned ? 'Unpin panel' : 'Pin panel'}
-                  aria-pressed={this.isPinned}
-                  onClick={() => this.changePinned(!this.isPinned)}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill={this.isPinned ? 'currentColor' : 'none'}
-                    stroke="currentColor"
-                    strokeWidth="1.75"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    focusable="false"
-                    style={{transform: this.isPinned ? 'none' : 'rotate(45deg)'}}
-                  >
-                    <path d="M9 3h6l-1 7 4 4v2H6v-2l4-4-1-7Z" />
-                    <path d="M12 16v5" />
-                  </svg>
-                </button>
-              ) : null}
-            </header>
-          ) : null}
-          <div className="deck-panel-chrome-content" hidden={!this.isContentOpen}>
-            {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
-          </div>
-          {this.isDocked && this.canPin && resizable ? (
-            <div
-              className="deck-panel-chrome-divider"
-              role="separator"
-              tabIndex={0}
-              aria-label={`Resize ${title ?? 'panel'}`}
-              aria-orientation={horizontal ? 'vertical' : 'horizontal'}
-              aria-valuemin={0}
-              aria-valuemax={Math.floor(this.getSizeLimit())}
-              aria-valuenow={Math.round(
-                horizontal
-                  ? root.getBoundingClientRect().width
-                  : root.getBoundingClientRect().height
-              )}
-              onPointerDown={event => this.startResize(event)}
-              onKeyDown={event => {
-                const direction = horizontal
-                  ? {ArrowLeft: -1, ArrowRight: 1}
-                  : {ArrowUp: -1, ArrowDown: 1};
-                const delta = direction[event.key];
-                if (delta) {
-                  event.preventDefault();
-                  const bounds = root.getBoundingClientRect();
-                  this.resizePanel(
-                    (horizontal ? bounds.width : bounds.height) + delta * 10 * this.getResizeSign()
-                  );
-                }
-              }}
-            />
-          ) : null}
-        </section>
-      </PanelContainerStateContext.Provider>,
-      root
-    );
+  }
+
+  /** Shared pin action for chrome and overlay sidebars. */
+  protected renderPinControl(): ComponentChildren {
+    return this.isPinnable ? (
+      <button
+        type="button"
+        disabled={!this.canPin}
+        aria-label={this.isPinned ? 'Unpin panel' : 'Pin panel'}
+        title={this.isPinned ? 'Unpin panel' : 'Pin panel'}
+        aria-pressed={this.isPinned}
+        onClick={() => this.changePinned(!this.isPinned)}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill={this.isPinned ? 'currentColor' : 'none'}
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          focusable="false"
+          style={{transform: this.isPinned ? 'none' : 'rotate(45deg)'}}
+        >
+          <path d="M9 3h6l-1 7 4 4v2H6v-2l4-4-1-7Z" />
+          <path d="M12 16v5" />
+        </svg>
+      </button>
+    ) : null;
+  }
+
+  /** Shared resize divider; its mounted owner supplies the surrounding shell. */
+  protected renderResizeHandle(): ComponentChildren {
+    const root = this.rootElement!;
+    const title = this.props.title;
+    const horizontal = this.side === 'left' || this.side === 'right';
+    return this.isDocked && this.canPin && this.props.resizable ? (
+      <div
+        className="deck-panel-chrome-divider"
+        role="separator"
+        tabIndex={0}
+        aria-label={`Resize ${title ?? 'panel'}`}
+        aria-orientation={horizontal ? 'vertical' : 'horizontal'}
+        aria-valuemin={0}
+        aria-valuemax={Math.floor(this.getSizeLimit())}
+        aria-valuenow={Math.round(
+          horizontal ? root.getBoundingClientRect().width : root.getBoundingClientRect().height
+        )}
+        onPointerDown={event => this.startResize(event)}
+        onKeyDown={event => {
+          const direction = horizontal
+            ? {ArrowLeft: -1, ArrowRight: 1}
+            : {ArrowUp: -1, ArrowDown: 1};
+          const delta = direction[event.key];
+          if (delta) {
+            event.preventDefault();
+            const bounds = root.getBoundingClientRect();
+            this.resizePanel(
+              (horizontal ? bounds.width : bounds.height) + delta * 10 * this.getResizeSign()
+            );
+          }
+        }}
+      />
+    ) : null;
   }
 
   override onRemove(): void {
+    super.onRemove();
     this.stopDrag?.();
     this.removeEventListeners();
     if (this.rootElement) render(null, this.rootElement);

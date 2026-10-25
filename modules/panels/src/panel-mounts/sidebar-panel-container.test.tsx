@@ -296,7 +296,7 @@ describe('SidebarPanelContainer', () => {
     const container = new SidebarPanelContainer({
       id: 'settings-sidebar-focus',
       panel,
-      open: true,
+      defaultOpen: true,
       showBackdrop: true
     });
     container.deck = {canvas};

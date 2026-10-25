@@ -11,7 +11,7 @@ import {
   setValueAtPath
 } from '../../lib/settings/settings';
 import {SelectComponent} from '../../preact/select-component';
-import {Panel} from '../../panels/panel';
+import {Panel, type PanelProps} from '../../panels/panel';
 
 import type {
   SettingsChangeDescriptor,
@@ -57,7 +57,7 @@ export type StudioSettingsIconProps = {
 };
 
 /** Props accepted by the schema-driven Studio settings panel. */
-export type StudioSettingsPanelProps = {
+export type StudioSettingsPanelProps = PanelProps & {
   /** Settings schema that supplies available controls. */
   schema: SettingsSchema;
   /** Optional local-storage-backed application settings shown in a separate rail group. */
@@ -78,15 +78,23 @@ export type StudioSettingsPanelProps = {
 };
 
 /** Creates a panel wrapper for the Studio settings panel. */
-export function createStudioSettingsPanel(props: StudioSettingsPanelProps): Panel {
-  return new StudioSettingsContentPanel({
-    id: 'studio-settings-panel',
-    title: 'Settings',
-    content: <StudioSettingsPanel {...props} />
-  });
+export function createStudioSettingsPanel(
+  props: StudioSettingsPanelProps
+): Panel<StudioSettingsPanelProps> {
+  return new StudioSettingsContentPanel(props);
 }
 
-class StudioSettingsContentPanel extends Panel {}
+class StudioSettingsContentPanel extends Panel<StudioSettingsPanelProps> {
+  static defaultProps = {
+    ...Panel.defaultProps,
+    id: 'studio-settings-panel',
+    title: 'Settings'
+  } satisfies PanelProps & Partial<StudioSettingsPanelProps>;
+
+  override renderContent() {
+    return <StudioSettingsPanel {...this.props} />;
+  }
+}
 
 /** Renders a schema-driven settings panel styled with deck widget theme variables. */
 export function StudioSettingsPanel({

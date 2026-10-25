@@ -131,7 +131,10 @@ export function createVegaPanel() {
         value: text,
         language: 'json',
         theme: 'inherit',
-        onValueChange: nextText => void updatePreview(nextText)
+        onValueChange: nextText => {
+          editor.setProps({value: nextText});
+          void updatePreview(nextText);
+        }
       });
       editor.onRenderHTML(editorHost);
     }
