@@ -267,13 +267,11 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
   maxCanopyPixels: z.number().positive().optional()
 });
 
-/** Prepared Gaussian buffers and hierarchies remain host-owned constants. */
+/** Prepared Gaussian assets, including their hierarchies, remain host-owned constants. */
 export const SplatLayerPropsSchema = CompositeLayerPropsSchema.extend({
-  source: ConstantSchema.optional(),
   getSource: createAccessorSchema(ConstantSchema).optional(),
   transparency: z.enum(['weighted', 'sorted']).optional(),
   maxTotalSplats: z.number().nonnegative().optional(),
-  hierarchy: ConstantSchema.optional(),
   getPosition: PositionAccessorSchema.optional(),
   getOrientation: createAccessorSchema(Vector3Schema).optional(),
   getScale: createAccessorSchema(Vector3Schema).optional(),
