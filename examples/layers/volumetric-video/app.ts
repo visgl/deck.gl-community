@@ -7,7 +7,7 @@ import {Deck, OrbitView, type DeckProps, type OrbitViewState} from '@deck.gl/cor
 import {
   PanelManager,
   applyPanelTheme,
-  SidePanelContainer,
+  SidebarPanelContainer,
   CustomPanel,
   SettingsPanel,
   type SettingsSchema
@@ -228,7 +228,8 @@ export function mountVolumetricVideoExample(
     chrome = new PanelManager({parentElement: root, contentElement: content});
     chrome.setProps({
       components: [
-        new SidePanelContainer({
+        new SidebarPanelContainer({
+          pinned: true,
           title: 'Video controls',
           side: 'left',
           widthPx: 300,

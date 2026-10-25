@@ -1,12 +1,15 @@
 /* eslint react/react-in-jsx-scope: 0, react/no-unknown-property: 0 */
 /** @jsxImportSource preact */
-import {render} from 'preact';
+import {render, type ComponentChildren} from 'preact';
 import {KeyboardShortcutsManager} from '../lib/keyboard-shortcuts/keyboard-shortcuts-manager';
 import {
-  PanelContainer,
-  type PanelContainerProps,
-  type PanelPlacement
-} from '../panels/panel-container';
+  DockedPanelContainer,
+  PANEL_INTERACTION_EVENTS,
+  type DockedPanelContainerProps
+} from './docked-panel-container';
+import type {PanelPlacement} from '../panels/panel-container';
+import type {PanelManager} from '../panels/panel-manager';
+import {PanelContainerStateContext} from '../panels/panel-container-state';
 import {PanelThemeScope} from '../panels/panel-theme-scope';
 import {getMaskIconStyle, isMaskIcon} from './trigger-icon';
 
@@ -18,7 +21,7 @@ import type {JSX} from 'preact';
 /**
  * Props for {@link SidebarPanelContainer}.
  */
-export type SidebarPanelContainerProps = PanelContainerProps & {
+export type SidebarPanelContainerProps = DockedPanelContainerProps & {
   /** Panel content rendered inside the sidebar shell. */
   panel?: Panel;
   /** Edge from which the sidebar opens. */
@@ -35,6 +38,16 @@ export type SidebarPanelContainerProps = PanelContainerProps & {
   open?: boolean;
   /** Callback fired when the open state changes. */
   onOpenChange?: (open: boolean) => void;
+  /** Show user pin/unpin controls. Defaults to false. */
+  pinnable?: boolean;
+  /** Controlled docking state, independent of whether the user can toggle it. */
+  pinned?: boolean;
+  /** Initial local docking state. Defaults to false. */
+  defaultPinned?: boolean;
+  /** Requested docking state after a user pin action. */
+  onPinnedChange?: (pinned: boolean) => void;
+  /** Enable user hide/restore controls. Defaults to true; programmatic open still applies. */
+  hidable?: boolean;
   /** Label used for the trigger affordance. */
   triggerLabel?: string;
   /** Optional trigger icon glyph or data/http(s) mask image URL. */
@@ -64,7 +77,7 @@ const SIDEBAR_OVERLAY_Z_INDEX = '35';
 const SIDEBAR_OPEN_Z_INDEX = '2100';
 
 function normalizeSidebarWidthPx(widthPx: number): number {
-  const clamped = Math.max(220, Math.floor(widthPx));
+  const clamped = Math.max(0, Math.floor(widthPx));
   return Number.isFinite(clamped) ? clamped : 360;
 }
 
@@ -113,6 +126,8 @@ function SidebarPanelContainerView({
   triggerLabel,
   triggerIcon,
   open,
+  pinned,
+  hidable,
   button,
   hideTrigger,
   showTitleBar,
@@ -120,6 +135,8 @@ function SidebarPanelContainerView({
   viewportMarginPx,
   dockTriggerWhenOpen,
   showBackdrop,
+  pinControl,
+  resizeHandle,
   onOpenChange
 }: {
   panel?: Panel;
@@ -128,6 +145,8 @@ function SidebarPanelContainerView({
   triggerLabel: string;
   triggerIcon?: string;
   open: boolean;
+  pinned: boolean;
+  hidable: boolean;
   button: boolean;
   hideTrigger: boolean;
   showTitleBar: boolean;
@@ -135,133 +154,164 @@ function SidebarPanelContainerView({
   viewportMarginPx: number;
   dockTriggerWhenOpen: boolean;
   showBackdrop: boolean;
+  pinControl: ComponentChildren;
+  resizeHandle: ComponentChildren;
   onOpenChange: (next: boolean) => void;
 }) {
-  const shouldRenderShell = open || !hideTrigger;
-  const panelWidthWithHandlePx = hideTrigger
-    ? panelWidthPx
-    : panelWidthPx + SIDEBAR_HANDLE_WIDTH_PX + SIDEBAR_HANDLE_GAP_PX;
-  const handleChevron = getSidebarHandleChevron(side, open);
+  const handleVisible = hidable && !hideTrigger && !pinned;
+  const panelWidthWithHandlePx = handleVisible
+    ? panelWidthPx + SIDEBAR_HANDLE_WIDTH_PX + SIDEBAR_HANDLE_GAP_PX
+    : panelWidthPx;
   const handleLabel = open ? `Close ${triggerLabel}` : triggerLabel;
-
   return (
-    <div>
-      {open && showBackdrop ? (
+    <div style={pinned ? {height: '100%', minHeight: 0} : undefined}>
+      {open && !pinned && hidable && showBackdrop ? (
         <button
           aria-label={`Close ${title ?? triggerLabel}`}
           type="button"
           style={SIDEBAR_BACKDROP_STYLE}
-          onPointerDown={() => onOpenChange(false)}
-          onPointerUp={() => onOpenChange(false)}
           onClick={() => onOpenChange(false)}
         />
       ) : null}
-      {!shouldRenderShell ? null : (
-        <aside
-          style={SIDEBAR_PANEL_WRAPPER_STYLE(viewportMarginPx)}
-          aria-label={title ?? triggerLabel}
+      <aside
+        style={pinned ? PINNED_WRAPPER_STYLE : SIDEBAR_PANEL_WRAPPER_STYLE(viewportMarginPx)}
+        aria-label={title ?? triggerLabel}
+      >
+        <div
+          data-sidebar-shell=""
+          style={
+            pinned
+              ? PINNED_WRAPPER_STYLE
+              : SIDEBAR_SHELL_STYLE(side, panelWidthPx, panelWidthWithHandlePx, open)
+          }
+          onPointerDown={stopSidebarEventPropagation}
+          onPointerMove={stopSidebarEventPropagation}
+          onPointerUp={stopSidebarEventPropagation}
+          onMouseDown={stopSidebarEventPropagation}
+          onMouseMove={stopSidebarEventPropagation}
+          onMouseUp={stopSidebarEventPropagation}
+          onTouchStart={stopSidebarEventPropagation}
+          onTouchMove={stopSidebarEventPropagation}
+          onTouchEnd={stopSidebarEventPropagation}
+          onClick={stopSidebarEventPropagation}
+          onDblClick={stopSidebarEventPropagation}
+          onContextMenu={stopSidebarEventPropagation}
+          onWheel={stopSidebarEventPropagation}
         >
           <div
-            data-sidebar-shell=""
-            style={SIDEBAR_SHELL_STYLE(side, panelWidthPx, panelWidthWithHandlePx, open)}
-            onPointerDown={stopSidebarEventPropagation}
-            onPointerMove={stopSidebarEventPropagation}
-            onPointerUp={stopSidebarEventPropagation}
-            onMouseDown={stopSidebarEventPropagation}
-            onMouseMove={stopSidebarEventPropagation}
-            onMouseUp={stopSidebarEventPropagation}
-            onTouchStart={stopSidebarEventPropagation}
-            onTouchMove={stopSidebarEventPropagation}
-            onTouchEnd={stopSidebarEventPropagation}
-            onClick={stopSidebarEventPropagation}
-            onDblClick={stopSidebarEventPropagation}
-            onContextMenu={stopSidebarEventPropagation}
-            onWheel={stopSidebarEventPropagation}
+            data-sidebar-handle=""
+            style={{...SIDEBAR_HANDLE_WRAPPER_STYLE, display: handleVisible ? 'flex' : 'none'}}
           >
-            {!hideTrigger && (
-              <div data-sidebar-handle="" style={SIDEBAR_HANDLE_WRAPPER_STYLE}>
-                {button ? (
-                  <button
-                    type="button"
-                    data-sidebar-handle-button=""
-                    aria-label={handleLabel}
-                    title={handleLabel}
-                    style={SIDEBAR_HANDLE_BUTTON_STYLE(
-                      open,
-                      side,
-                      panelWidthPx,
-                      viewportMarginPx,
-                      dockTriggerWhenOpen
-                    )}
-                    onClick={() => onOpenChange(!open)}
-                  >
-                    {triggerIcon ? (
-                      <span aria-hidden="true" style={getSidebarHandleIconStyle(triggerIcon, open)}>
-                        {!isMaskIcon(triggerIcon) ? triggerIcon : null}
-                      </span>
-                    ) : null}
-                    <span aria-hidden="true" style={getSidebarHandleChevronStyle(open)}>
-                      {handleChevron}
+            {handleVisible ? (
+              button ? (
+                <button
+                  type="button"
+                  data-sidebar-handle-button=""
+                  aria-label={handleLabel}
+                  title={handleLabel}
+                  style={SIDEBAR_HANDLE_BUTTON_STYLE(
+                    open,
+                    side,
+                    panelWidthPx,
+                    viewportMarginPx,
+                    dockTriggerWhenOpen
+                  )}
+                  onClick={() => onOpenChange(!open)}
+                >
+                  {triggerIcon ? (
+                    <span aria-hidden="true" style={getSidebarHandleIconStyle(triggerIcon, open)}>
+                      {!isMaskIcon(triggerIcon) ? triggerIcon : null}
                     </span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    aria-label={handleLabel}
-                    style={SIDEBAR_TRIGGER_STYLE}
-                    onPointerUp={() => onOpenChange(!open)}
-                  >
-                    {triggerLabel}
-                  </button>
-                )}
-              </div>
-            )}
-            <div
-              style={SIDEBAR_PANEL_STYLE(side, panelWidthPx, open)}
-              role="dialog"
-              aria-hidden={open ? 'false' : 'true'}
-            >
-              {title && showTitleBar ? (
-                <header style={SIDEBAR_HEADER_STYLE}>
-                  <span>{title}</span>
-                  <button
-                    type="button"
-                    aria-label="Close"
-                    style={SIDEBAR_CLOSE_BUTTON_STYLE}
-                    onPointerDown={stopSidebarEventPropagation}
-                    onClick={() => onOpenChange(false)}
-                  >
-                    ×
-                  </button>
-                </header>
-              ) : null}
-              <div style={SIDEBAR_CONTENT_STYLE}>
-                {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
-              </div>
-            </div>
+                  ) : null}
+                  <span aria-hidden="true" style={getSidebarHandleChevronStyle(open)}>
+                    {getSidebarHandleChevron(side, open)}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  aria-label={handleLabel}
+                  style={SIDEBAR_TRIGGER_STYLE}
+                  onPointerUp={() => onOpenChange(!open)}
+                >
+                  {triggerLabel}
+                </button>
+              )
+            ) : null}
           </div>
-        </aside>
-      )}
+          <div
+            className={pinned ? 'deck-panel-chrome-shell' : undefined}
+            style={pinned ? PINNED_PANEL_STYLE : SIDEBAR_PANEL_STYLE(side, panelWidthPx, open)}
+            role={pinned ? 'complementary' : 'dialog'}
+            aria-hidden={!open}
+            inert={!open}
+          >
+            {(title || pinControl || (pinned && hidable)) && showTitleBar ? (
+              <header
+                className={pinned ? 'deck-panel-chrome-header' : undefined}
+                style={SIDEBAR_HEADER_STYLE}
+              >
+                <span>{title ?? panel?.title ?? 'Panel'}</span>
+                <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                  {pinControl}
+                  {hidable ? (
+                    <button
+                      type="button"
+                      className={pinned ? 'deck-panel-chrome-hide' : undefined}
+                      aria-label={pinned ? `Hide ${title ?? 'sidebar'}` : 'Close'}
+                      title={pinned ? `Hide ${title ?? 'sidebar'}` : 'Close'}
+                      style={SIDEBAR_CLOSE_BUTTON_STYLE}
+                      onClick={() => onOpenChange(false)}
+                    >
+                      {pinned ? (
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.75"
+                          aria-hidden="true"
+                        >
+                          <path d={side === 'left' ? 'm15 18-6-6 6-6' : 'm9 18 6-6-6-6'} />
+                        </svg>
+                      ) : (
+                        '×'
+                      )}
+                    </button>
+                  ) : null}
+                </span>
+              </header>
+            ) : null}
+            <div data-sidebar-content="" style={SIDEBAR_CONTENT_STYLE}>
+              {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
+            </div>
+            {resizeHandle}
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }
 
-/**
- * Edge-attached panel container with an optional side handle for open/close control.
- */
-export class SidebarPanelContainer extends PanelContainer<SidebarPanelContainerProps> {
-  /** Default props applied before caller-provided sidebar container props. */
+/** A single edge drawer that can overlay the content or be pinned beside it. */
+export class SidebarPanelContainer extends DockedPanelContainer<SidebarPanelContainerProps> {
   static defaultProps: Required<SidebarPanelContainerProps> = {
-    ...PanelContainer.defaultProps,
+    ...DockedPanelContainer.defaultProps,
     id: 'sidebar-panel-container',
-    panel: undefined!,
     side: 'right',
     widthPx: 360,
     placement: 'top-right',
     title: undefined!,
+    panel: undefined!,
     defaultOpen: true,
     open: undefined!,
     onOpenChange: undefined!,
+    pinnable: false,
+    pinned: undefined!,
+    defaultPinned: false,
+    onPinnedChange: undefined!,
+    hidable: true,
     hideTrigger: false,
     triggerLabel: 'Open sidebar',
     triggerIcon: undefined!,
@@ -274,258 +324,287 @@ export class SidebarPanelContainer extends PanelContainer<SidebarPanelContainerP
     showBackdrop: false
   };
 
-  /** Root CSS class applied to the mounted sidebar container. */
   className = 'deck-widget-sidebar';
-  /** Placement anchor used for the trigger shell. */
-  placement: PanelPlacement = SidebarPanelContainer.defaultProps.placement;
-  /** Edge from which the sidebar opens. */
-  side: 'left' | 'right' = SidebarPanelContainer.defaultProps.side;
-  /** Normalized preferred sidebar width in pixels. */
-  widthPx = SidebarPanelContainer.defaultProps.widthPx;
-  /** Optional header title shown above sidebar content. */
-  title: string | undefined = SidebarPanelContainer.defaultProps.title;
-  /** Label used for the trigger affordance. */
-  triggerLabel = SidebarPanelContainer.defaultProps.triggerLabel;
-  /** Optional trigger icon glyph. */
-  triggerIcon: string | undefined = SidebarPanelContainer.defaultProps.triggerIcon;
-  /** Whether sidebar title bar chrome is rendered. */
-  showTitleBar = SidebarPanelContainer.defaultProps.showTitleBar;
-  /** Whether the trigger affordance is hidden. */
-  hideTrigger = SidebarPanelContainer.defaultProps.hideTrigger;
-  /** Whether the compact side-handle trigger style is rendered. */
-  button = SidebarPanelContainer.defaultProps.button;
-  /** Outer viewport margin applied to the docked panel. */
-  viewportMarginPx = SidebarPanelContainer.defaultProps.viewportMarginPx;
-  /** Whether the trigger slides beside the panel while open. */
-  dockTriggerWhenOpen = SidebarPanelContainer.defaultProps.dockTriggerWhenOpen;
-  /** Whether the sidebar renders a document backdrop while open. */
-  showBackdrop = SidebarPanelContainer.defaultProps.showBackdrop;
-  /** Current controlled or uncontrolled open state. */
-  isOpen = false;
-  #hasOpenStateInitialized = false;
-  #panel: Panel | undefined = SidebarPanelContainer.defaultProps.panel;
-  #isControlled = false;
-  #openChange: ((open: boolean) => void) | undefined = undefined;
-  #rootElement: HTMLElement | null = null;
-  #isDocumentKeyListenerAttached = false;
-  #keyboardShortcutsManager: KeyboardShortcutsManager | null = null;
-  #openShortcuts: KeyboardShortcut[] = SidebarPanelContainer.defaultProps.openShortcuts;
-  #shortcuts: KeyboardShortcut[] = SidebarPanelContainer.defaultProps.shortcuts;
+  private uncontrolledOpen: boolean;
+  private uncontrolledPinned: boolean;
+  private renderedRoot?: HTMLElement;
+  private restoreHost?: HTMLElement;
+  private keyDocument?: Document;
+  private keyboardShortcutsManager?: KeyboardShortcutsManager;
+  private scrollPositions = new Map<HTMLElement, {top: number; left: number}>();
 
-  /** Creates one edge-attached sidebar panel container. */
-  constructor(props: Partial<SidebarPanelContainerProps> = {}) {
-    super({
-      ...SidebarPanelContainer.defaultProps,
-      ...props
-    } as SidebarPanelContainerProps);
-    this.setProps(this.props);
+  constructor(props: SidebarPanelContainerProps = {}) {
+    super(props);
+    this.placement = this.props.placement;
+    this.uncontrolledOpen = this.props.defaultOpen;
+    this.uncontrolledPinned = this.props.defaultPinned;
   }
 
-  /** Updates sidebar container props and refreshes mounted content when present. */
+  placement: PanelPlacement = 'top-right';
+  get side(): 'left' | 'right' {
+    return this.props.side;
+  }
+  get widthPx(): number {
+    return normalizeSidebarWidthPx(this.props.widthPx);
+  }
+  get title(): string | undefined {
+    return this.props.title;
+  }
+  get isOpen(): boolean {
+    return this.props.open ?? this.uncontrolledOpen;
+  }
+  override get isPinned(): boolean {
+    return this.props.pinned ?? this.uncontrolledPinned;
+  }
+  override get isDocked(): boolean {
+    return this.isPinned && this.isOpen;
+  }
+  override get overlayPlacement(): PanelPlacement {
+    return 'fill';
+  }
+  protected override get isPinnable(): boolean {
+    return this.props.pinnable;
+  }
+
   override setProps(props: Partial<SidebarPanelContainerProps>): void {
-    if (props.placement !== undefined) {
-      this.placement = props.placement;
-    }
-    if ('title' in props) {
-      this.title = props.title;
-    }
-    if (props.side !== undefined) {
-      this.side = props.side;
-    }
-    if (props.widthPx !== undefined) {
-      this.widthPx = normalizeSidebarWidthPx(props.widthPx);
-    }
-    if (props.triggerLabel !== undefined) {
-      this.triggerLabel = props.triggerLabel;
-    }
-    if (props.triggerIcon !== undefined) {
-      this.triggerIcon = props.triggerIcon;
-    }
-    if (props.showTitleBar !== undefined) {
-      this.showTitleBar = props.showTitleBar;
-    }
-    if (props.hideTrigger !== undefined) {
-      this.hideTrigger = props.hideTrigger;
-    }
-    if (props.button !== undefined) {
-      this.button = props.button;
-    }
-    if (props.viewportMarginPx !== undefined) {
-      this.viewportMarginPx = Math.max(0, Math.floor(props.viewportMarginPx));
-    }
-    if (props.dockTriggerWhenOpen !== undefined) {
-      this.dockTriggerWhenOpen = props.dockTriggerWhenOpen;
-    }
-    if (props.showBackdrop !== undefined) {
-      this.showBackdrop = props.showBackdrop;
-    }
-    if ('panel' in props) {
-      this.#panel = props.panel;
-    }
-    if (props.onOpenChange !== undefined) {
-      this.#openChange = props.onOpenChange;
-    }
-    if (props.openShortcuts !== undefined) {
-      this.#openShortcuts = props.openShortcuts;
-      this.#restartKeyboardShortcutsManager();
-    }
-    if (props.shortcuts !== undefined) {
-      this.#shortcuts = props.shortcuts;
-      this.#restartKeyboardShortcutsManager();
-    }
-    this.#setOpenProps(props);
-    this.#render();
+    if (props.placement !== undefined) this.placement = props.placement;
+    if ('open' in props && props.open === undefined && this.props.open !== undefined)
+      this.uncontrolledOpen = this.props.open;
+    if ('pinned' in props && props.pinned === undefined && this.props.pinned !== undefined)
+      this.uncontrolledPinned = this.props.pinned;
     super.setProps(props);
+    if ('openShortcuts' in props || 'shortcuts' in props) this.restartKeyboardShortcutsManager();
   }
 
-  /** Starts sidebar keyboard shortcut handling when the host mounts the container. */
   override onAdd(_params: {deck: unknown; viewId: string | null}): void {
-    this.#restartKeyboardShortcutsManager();
+    this.restartKeyboardShortcutsManager();
   }
 
-  /** Stops sidebar listeners and unmounts sidebar content from the current root. */
   override onRemove(): void {
-    this.#detachDocumentKeyListener();
-    if (this.#keyboardShortcutsManager) {
-      this.#keyboardShortcutsManager.stop();
-      this.#keyboardShortcutsManager = null;
+    this.detachDocumentKeyListener();
+    this.keyboardShortcutsManager?.stop();
+    this.keyboardShortcutsManager = undefined;
+    if (this.restoreHost) {
+      render(null, this.restoreHost);
+      this.restoreHost.remove();
     }
-    if (this.#rootElement) {
-      render(null, this.#rootElement);
-      this.#rootElement = null;
-    }
+    this.restoreHost = undefined;
+    super.onRemove();
+    if (this.renderedRoot) render(null, this.renderedRoot);
+    this.renderedRoot = undefined;
+    this.scrollPositions.clear();
   }
 
-  /** Renders sidebar trigger, backdrop, and panel content into a mounted root element. */
-  override onRenderHTML(rootElement: HTMLElement): void {
-    if (this.#rootElement !== rootElement) reparentToOverlayRoot(rootElement);
-    this.#rootElement = rootElement;
-    rootElement.style.position = 'absolute';
-    rootElement.style.top = 'var(--widget-margin, 12px)';
-    rootElement.style.bottom = 'var(--widget-margin, 12px)';
-    rootElement.style.left = this.side === 'left' ? '-1px' : 'var(--widget-margin, 12px)';
-    rootElement.style.right = this.side === 'right' ? '-1px' : 'var(--widget-margin, 12px)';
-    rootElement.style.width = 'auto';
-    rootElement.style.height = 'auto';
-    rootElement.style.margin = '0';
-    rootElement.style.overflow = 'hidden';
-    rootElement.style.pointerEvents = 'none';
-    rootElement.style.zIndex = this.isOpen ? SIDEBAR_OPEN_Z_INDEX : SIDEBAR_OVERLAY_Z_INDEX;
-    this.#render();
+  override onRenderHTML(root: HTMLElement): void {
+    const activeElement = root.ownerDocument.activeElement;
+    // Browsers may clamp scroll offsets while the host is temporarily detached or hidden.
+    if (!root.hidden) {
+      this.scrollPositions.clear();
+      for (const element of root.querySelectorAll<HTMLElement>('*')) {
+        if (element.scrollTop || element.scrollLeft) {
+          this.scrollPositions.set(element, {top: element.scrollTop, left: element.scrollLeft});
+        }
+      }
+    }
+    const isNewRoot = this.renderedRoot !== root;
+    this.rootElement = root as HTMLDivElement;
+    this.renderedRoot = root;
+    this.prepareRoot(root);
+    const manager = this.panelManager as PanelManager | undefined;
+    if (!manager && isNewRoot) reparentToOverlayRoot(root);
+    const panelWidthPx = normalizeSidebarWidthPx(parseFloat(root.style.width) || this.widthPx);
+    root.classList.toggle('deck-panel-chrome', this.isPinned);
+    root.hidden =
+      (this.isPinned && (!this.canPin || !this.isOpen)) ||
+      (!this.isOpen && (this.props.hideTrigger || !this.props.hidable));
+    Object.assign(
+      root.style,
+      this.isPinned
+        ? {
+            position: 'relative',
+            top: '',
+            right: '',
+            bottom: '',
+            left: '',
+            height: '100%',
+            margin: '0',
+            overflow: 'visible',
+            pointerEvents: 'auto',
+            zIndex: '2'
+          }
+        : {
+            position: 'absolute',
+            top: 'var(--widget-margin, 12px)',
+            bottom: 'var(--widget-margin, 12px)',
+            left: this.side === 'left' ? '-1px' : 'var(--widget-margin, 12px)',
+            right: this.side === 'right' ? '-1px' : 'var(--widget-margin, 12px)',
+            width: 'auto',
+            height: 'auto',
+            margin: '0',
+            overflow: 'hidden',
+            pointerEvents: 'none',
+            zIndex: this.isOpen ? SIDEBAR_OPEN_Z_INDEX : SIDEBAR_OVERLAY_Z_INDEX
+          }
+    );
+    this.syncDocumentKeyListener();
+    render(
+      <PanelContainerStateContext.Provider
+        value={{pinned: this.isPinned, side: this.side, canPin: this.canPin}}
+      >
+        <SidebarPanelContainerView
+          panel={this.props.panel}
+          side={this.side}
+          title={this.props.title}
+          triggerLabel={this.props.triggerLabel}
+          triggerIcon={this.props.triggerIcon}
+          open={this.isOpen}
+          pinned={this.isPinned}
+          hidable={this.props.hidable}
+          button={this.props.button}
+          hideTrigger={this.props.hideTrigger}
+          showTitleBar={this.props.showTitleBar}
+          panelWidthPx={panelWidthPx}
+          viewportMarginPx={Math.max(0, this.props.viewportMarginPx)}
+          dockTriggerWhenOpen={this.props.dockTriggerWhenOpen}
+          showBackdrop={this.props.showBackdrop}
+          pinControl={this.renderPinControl()}
+          resizeHandle={this.renderResizeHandle()}
+          onOpenChange={this.changeOpen}
+        />
+      </PanelContainerStateContext.Provider>,
+      root
+    );
+    this.syncRestoreControl();
+    if (this.isOpen && !root.hidden) {
+      for (const [element, position] of this.scrollPositions) {
+        if (root.contains(element)) {
+          element.scrollTop = position.top;
+          element.scrollLeft = position.left;
+        } else this.scrollPositions.delete(element);
+      }
+    }
+    if (this.isOpen && activeElement instanceof HTMLElement && root.contains(activeElement))
+      activeElement.focus({preventScroll: true});
   }
 
-  #handleOpenChange = (nextOpen: boolean) => {
-    if (!this.#isControlled) {
-      this.isOpen = nextOpen;
-    }
-    this.#openChange?.(nextOpen);
-    this.#render();
-    if (!nextOpen) {
-      focusDeckCanvas(this.deck);
+  protected override changePinned(pinned: boolean): void {
+    if (!this.props.pinnable || !this.canPin) return;
+    if (this.props.pinned === undefined) this.uncontrolledPinned = pinned;
+    this.props.onPinnedChange?.(pinned);
+    this.updateHTML();
+  }
+
+  private changeOpen = (open: boolean): void => {
+    if (!this.props.hidable) return;
+    if (this.props.open === undefined) this.uncontrolledOpen = open;
+    this.props.onOpenChange?.(open);
+    this.updateHTML();
+    if (!this.isOpen) {
+      if (this.isPinned) this.restoreHost?.querySelector('button')?.focus({preventScroll: true});
+      else focusDeckCanvas(this.deck);
     }
   };
 
-  #handleKeyboardOpen = (): void => {
-    this.#handleOpenChange(true);
-  };
-
-  #setOpenProps(props: Partial<SidebarPanelContainerProps>): void {
-    this.#isControlled = props.open !== undefined;
-    if (props.open !== undefined) {
-      this.isOpen = props.open;
-      this.#hasOpenStateInitialized = true;
-      return;
-    }
-    if (!this.#hasOpenStateInitialized && props.defaultOpen !== undefined) {
-      this.isOpen = props.defaultOpen;
-      this.#hasOpenStateInitialized = true;
-    }
-  }
-
-  #handleDocumentKeyDown = (event: KeyboardEvent) => {
-    if (!this.isOpen || event.key !== 'Escape') {
-      return;
-    }
-
+  private handleDocumentKeyDown = (event: KeyboardEvent): void => {
+    if (event.key !== 'Escape' || !this.isOpen || this.isPinned || !this.props.hidable) return;
     event.preventDefault();
-    this.#handleOpenChange(false);
+    this.changeOpen(false);
   };
 
-  #syncDocumentKeyListener(): void {
-    if (this.isOpen) {
-      if (!this.#isDocumentKeyListenerAttached) {
-        document.addEventListener('keydown', this.#handleDocumentKeyDown);
-        this.#isDocumentKeyListenerAttached = true;
+  private syncDocumentKeyListener(): void {
+    const document = this.rootElement?.ownerDocument;
+    if (this.isOpen && !this.isPinned && this.props.hidable && document) {
+      if (this.keyDocument !== document) {
+        this.detachDocumentKeyListener();
+        document.addEventListener('keydown', this.handleDocumentKeyDown);
+        this.keyDocument = document;
+      }
+    } else this.detachDocumentKeyListener();
+  }
+
+  private detachDocumentKeyListener(): void {
+    this.keyDocument?.removeEventListener('keydown', this.handleDocumentKeyDown);
+    this.keyDocument = undefined;
+  }
+
+  private restartKeyboardShortcutsManager(): void {
+    this.keyboardShortcutsManager?.stop();
+    this.keyboardShortcutsManager = undefined;
+    const eventManager = getDeckEventManager(this.deck);
+    if (!eventManager || (!this.props.openShortcuts.length && !this.props.shortcuts.length)) return;
+    this.keyboardShortcutsManager = new KeyboardShortcutsManager(eventManager, [
+      ...this.props.openShortcuts.map(shortcut => ({
+        ...shortcut,
+        onKeyPress: () => this.changeOpen(true)
+      })),
+      ...this.props.shortcuts
+    ]);
+    this.keyboardShortcutsManager.start();
+  }
+
+  private syncRestoreControl(): void {
+    const manager = this.panelManager as PanelManager | undefined;
+    const center = manager?.contentElement?.parentElement;
+    if (
+      !this.isPinned ||
+      this.isOpen ||
+      !this.canPin ||
+      !center ||
+      !this.props.hidable ||
+      this.props.hideTrigger
+    ) {
+      if (this.restoreHost) {
+        render(null, this.restoreHost);
+        this.restoreHost.remove();
       }
       return;
     }
-
-    this.#detachDocumentKeyListener();
-  }
-
-  #detachDocumentKeyListener(): void {
-    if (!this.#isDocumentKeyListenerAttached) {
-      return;
+    if (!this.restoreHost) {
+      this.restoreHost = center.ownerDocument.createElement('div');
+      Object.assign(this.restoreHost.style, {
+        position: 'absolute',
+        inset: '0',
+        pointerEvents: 'none'
+      });
+      for (const type of PANEL_INTERACTION_EVENTS)
+        this.restoreHost.addEventListener(type, stopSidebarEventPropagation);
     }
-
-    document.removeEventListener('keydown', this.#handleDocumentKeyDown);
-    this.#isDocumentKeyListenerAttached = false;
-  }
-
-  #restartKeyboardShortcutsManager(): void {
-    if (this.#keyboardShortcutsManager) {
-      this.#keyboardShortcutsManager.stop();
-      this.#keyboardShortcutsManager = null;
-    }
-    const eventManager = getDeckEventManager(this.deck);
-    if (!eventManager || (this.#openShortcuts.length === 0 && this.#shortcuts.length === 0)) {
-      return;
-    }
-
-    this.#keyboardShortcutsManager = new KeyboardShortcutsManager(eventManager, [
-      ...this.#openShortcuts.map(shortcut => ({
-        ...shortcut,
-        onKeyPress: this.#handleKeyboardOpen
-      })),
-      ...this.#shortcuts
-    ]);
-    this.#keyboardShortcutsManager.start();
-  }
-
-  #render = () => {
-    if (!this.#rootElement) {
-      return;
-    }
-
-    this.#syncDocumentKeyListener();
-    this.#rootElement.style.zIndex = this.isOpen ? SIDEBAR_OPEN_Z_INDEX : SIDEBAR_OVERLAY_Z_INDEX;
+    if (this.restoreHost.parentElement !== center) center.append(this.restoreHost);
     render(
-      <SidebarPanelContainerView
-        panel={this.#panel}
-        side={this.side}
-        title={this.title}
-        triggerLabel={this.triggerLabel}
-        triggerIcon={this.triggerIcon}
-        open={this.isOpen}
-        button={this.button}
-        hideTrigger={this.hideTrigger}
-        showTitleBar={this.showTitleBar}
-        panelWidthPx={this.widthPx}
-        viewportMarginPx={this.viewportMarginPx}
-        dockTriggerWhenOpen={this.dockTriggerWhenOpen}
-        showBackdrop={this.showBackdrop}
-        onOpenChange={this.#handleOpenChange}
-      />,
-      this.#rootElement
+      <button
+        type="button"
+        className="deck-panel-chrome-restore"
+        aria-label={`Show ${this.props.title ?? 'sidebar'}`}
+        title={`Show ${this.props.title ?? 'sidebar'}`}
+        style={{[this.side]: '16px', pointerEvents: 'auto'}}
+        onClick={() => this.changeOpen(true)}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          aria-hidden="true"
+        >
+          <path d={this.side === 'left' ? 'm9 18 6-6-6-6' : 'm15 18-6-6 6-6'} />
+        </svg>
+      </button>,
+      this.restoreHost
     );
-  };
+  }
 }
 
 function reparentToOverlayRoot(rootElement: HTMLElement): HTMLElement | null {
   const placementElement = rootElement.parentElement;
   const overlayElement = placementElement?.parentElement;
 
-  if (!isElementNode(placementElement) || !isElementNode(overlayElement)) {
+  if (
+    !isElementNode(placementElement) ||
+    !isElementNode(overlayElement) ||
+    overlayElement === rootElement.ownerDocument.documentElement
+  ) {
     return null;
   }
 
@@ -725,4 +804,22 @@ const SIDEBAR_CONTENT_STYLE: JSX.CSSProperties = {
   flex: 1,
   overflow: 'auto',
   padding: 'var(--panel-padding, 10px)'
+};
+
+const PINNED_WRAPPER_STYLE: JSX.CSSProperties = {
+  position: 'relative',
+  width: '100%',
+  height: '100%',
+  minWidth: 0,
+  minHeight: 0,
+  pointerEvents: 'auto'
+};
+const PINNED_PANEL_STYLE: JSX.CSSProperties = {
+  ...PINNED_WRAPPER_STYLE,
+  display: 'flex',
+  flexDirection: 'column',
+  background: 'var(--menu-background, #fff)',
+  color: 'var(--menu-text, rgb(24, 24, 26))',
+  borderRadius: 0,
+  overflow: 'hidden'
 };

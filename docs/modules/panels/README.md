@@ -2,8 +2,18 @@
 
 ![From v9.3](https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square)
 
-`@deck.gl-community/panels` provides a modest set of composable UI components intended
-for small data visualization applications.
+`@deck.gl-community/panels` builds inspectors, settings, editors, and application chrome
+around a visualization. Use it with any canvas or DOM renderer; deck.gl is optional.
+
+Build UI in three steps: define **content panels**, compose them, then choose a
+**container** and mount it with **PanelManager**. Application data stays in your
+application. Panel props describe what to show; callbacks report user changes.
+
+```sh
+yarn add @deck.gl-community/panels
+```
+
+The examples below use TypeScript and an application-owned DOM host with a definite size.
 
 - Composable: built on `PanelComponent`, `Panel`, and panel containers.
 - Framework-independent: owns Preact-rendered UI without requiring a React application.
@@ -46,6 +56,24 @@ const inspectorContent = new TabbedPanel({
 `CustomPanel` for imperative application DOM or extend `Panel` for Preact-rendered content.
 The application continues to own its data and behavior.
 
+### Embed content in your own UI
+
+If your application already has a sidebar or inspector surface, mount the content there directly:
+
+```ts
+import {mountPanel} from '@deck.gl-community/panels';
+
+const mounted = mountPanel(inspectorContent, inspectorElement, {showTitle: true});
+// Later, replace the content with another definition:
+mounted.setPanel(nextInspectorContent);
+// During application cleanup:
+mounted.finalize();
+```
+
+Here `inspectorElement` is your application-owned DOM surface and `nextInspectorContent`
+is a new panel definition. [mountPanel](./api-reference/mount-panel.md) adds no positioning
+or outer chrome. Use a container when the panels package should own that shell.
+
 ### Mount content in a container
 
 A container supplies the outer shell. For example, display the composed content in a floating box:
@@ -53,8 +81,7 @@ A container supplies the outer shell. For example, display the composed content 
 ```ts
 import {PanelManager, BoxPanelContainer} from '@deck.gl-community/panels';
 
-const manager = new PanelManager({parentElement});
-manager.setProps({components: [new BoxPanelContainer({
+const manager = new PanelManager({parentElement, components: [new BoxPanelContainer({
   id: 'inspector-box', title: 'Inspector', panel: inspectorContent,
   placement: 'top-right'
 })]});
@@ -64,6 +91,40 @@ manager.setProps({components: [new BoxPanelContainer({
 Boxes, modals, and overlay sidebars can show the same composed content. This overlay-only setup
 needs only an application-positioned `parentElement`; no canvas layout management is required.
 Call `manager.finalize()` when the application is removed.
+
+### Update UI from application state
+
+Every specialized panel renders from its current public props. Update a nested content panel
+directly without rebuilding its surrounding layout:
+
+```ts
+function showSelection(label: string) {
+  selection.setProps({markdown: label});
+}
+```
+
+For applications that render a complete tree from state, pass fresh definitions through
+`manager.setProps({components})`. Stable IDs and types preserve mounted instances and local
+control state. A new ID or type starts a new lifecycle. The list describes the complete desired
+UI: omit a component to remove it, or pass `[]` to clear it. Both update styles use the same
+render-from-props implementation.
+
+For controlled UI state, supply a value and its change callback. For local UI state, use
+`default…` props. See [state and updates](./developer-guide/using-panels.md#state-and-updates)
+for tabs, expansion, visibility, and pinning.
+
+### Choose a container
+
+| Container | Behavior | Needs `contentElement`? |
+| --- | --- | --- |
+| `BoxPanelContainer` | Floating card; optionally pinnable and collapsible | Only for pinning |
+| `ModalPanelContainer` | Dialog opened from a trigger | No |
+| `SidebarPanelContainer` | Overlay drawer, pinnable sidebar, or permanent side chrome | Only for pinning |
+| `FullScreenPanelContainer` | Expanded overlay | No |
+| `HeaderPanelContainer` / `FooterPanelContainer` | Space above / below the content | Yes |
+
+`SidebarPanelContainer` overlays content when unpinned and resizes the content region when pinned.
+Use `pinnable` to expose that choice to the user; use `hidable` for hide/restore controls.
 
 ### Available panels and containers
 
@@ -81,7 +142,7 @@ box, modal, sidebar, or full-screen chrome.
   [URLParametersPanel](./api-reference/url-parameters-panel.md), Arrow
   inspection panels, stats, docs links, binary data, and text editor panels
 - Composite panels:
-  [AccordeonPanel](./api-reference/composite-panels/accordeon-panel.md),
+  [AccordionPanel](./api-reference/composite-panels/accordion-panel.md),
   [ColumnPanel](./api-reference/composite-panels/column-panel.md),
   [SplitterPanel](./api-reference/composite-panels/splitter-panel.md),
   [TabbedPanel](./api-reference/composite-panels/tabbed-panel.md)
@@ -93,7 +154,6 @@ box, modal, sidebar, or full-screen chrome.
   [FullScreenPanelContainer](./api-reference/panel-containers/full-screen-panel-container.md),
   [HeaderPanelContainer](./api-reference/panel-containers/header-panel-container.md),
   [FooterPanelContainer](./api-reference/panel-containers/footer-panel-container.md),
-  [SidePanelContainer](./api-reference/panel-containers/side-panel-container.md),
   optional pinning on [BoxPanelContainer](./api-reference/panel-containers/box-panel-container.md)
 
 ## Build chrome around a canvas
@@ -145,7 +205,7 @@ for application-specific DOM. Each mounted container needs a distinct id.
 ```ts
 import {
   MarkdownPanel, HeaderPanelContainer, FooterPanelContainer,
-  SidePanelContainer, BoxPanelContainer
+  SidebarPanelContainer, BoxPanelContainer
 } from '@deck.gl-community/panels';
 
 const createTextPanel = (id: string, markdown: string) =>
@@ -166,7 +226,7 @@ manager.setProps({components: [
     id: 'status', heightPx: 36,
     panel: createTextPanel('status-text', 'Ready')
   }),
-  new SidePanelContainer({hidable: true, title: 'Tools',
+  new SidebarPanelContainer({pinned: true, hidable: true, title: 'Tools',
     id: 'tools', side: 'left', widthPx: 180, resizable: true,
     panel: createTextPanel('tool-list', 'Layers · Selection · Settings')
   }),
@@ -235,9 +295,9 @@ Use standalone `PanelManager` for canvas chrome, including in deck.gl applicatio
 `PanelWidget` adapters remain useful for existing overlays but do not provide the content layout
 contract needed for docking. The panels package itself does not import deck.gl.
 
-Side panels can opt into hide/restore controls with `hidable: true`. Use `hidden` and
-`onHiddenChange` to control their visibility, or `defaultHidden` for the initial state.
-Hidden panels release canvas space and leave a floating restore button.
+Sidebars support hide/restore controls with `hidable: true` (the default). Use `open` and
+`onOpenChange` to control visibility, or `defaultOpen` for initial local state. Closing a pinned
+sidebar releases canvas space and leaves a floating restore button.
 
 ### Try the complete example
 

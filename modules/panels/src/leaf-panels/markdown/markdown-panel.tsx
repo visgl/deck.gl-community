@@ -1,12 +1,13 @@
 /** @jsxImportSource preact */
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 
 import type {ComponentChildren, JSX} from 'preact';
 import type {PanelTheme} from '../../panels/panel';
 
 /** Props for a markdown-backed panel definition. */
-export type MarkdownPanelProps = {
-  id: string;
+export type MarkdownPanelProps = PanelProps & {
+  id?: string;
   title: string;
   markdown: string;
   disabled?: boolean;
@@ -16,28 +17,18 @@ export type MarkdownPanelProps = {
 };
 
 /** Panel definition that renders the supported markdown subset into panel content. */
-export class MarkdownPanel extends Panel {
-  constructor({
-    id,
-    title,
-    markdown,
-    disabled,
-    keepMounted,
-    className,
-    theme = 'inherit'
-  }: MarkdownPanelProps) {
-    super({
-      id,
-      title,
-      theme,
-      disabled,
-      keepMounted,
-      content: (
-        <div className={className} style={MARKDOWN_PANEL_STYLE}>
-          {renderMarkdownBlocks(markdown)}
-        </div>
-      )
-    });
+export class MarkdownPanel extends Panel<MarkdownPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'markdown-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {markdown, className} = this.props;
+    return (
+      <div className={className} style={MARKDOWN_PANEL_STYLE}>
+        {renderMarkdownBlocks(markdown)}
+      </div>
+    );
   }
 }
 

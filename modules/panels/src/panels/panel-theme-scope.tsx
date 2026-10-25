@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import {createContext} from 'preact';
-import {useContext, useLayoutEffect, useRef, useState} from 'preact/hooks';
+import {useContext, useLayoutEffect, useReducer, useRef, useState} from 'preact/hooks';
 
 import {
   PANEL_THEME_PRESETS,
@@ -26,6 +26,8 @@ export function useEffectivePanelThemeMode(): PanelThemeMode {
  * Applies a panel-level theme override and exposes the resolved mode to descendants.
  */
 export function PanelThemeScope({panel, children}: {panel: Panel; children?: ComponentChildren}) {
+  const [, refresh] = useReducer((value: number) => value + 1, 0);
+  useLayoutEffect(() => panel.subscribe(() => refresh(undefined), false), [panel]);
   const inheritedPreset = useContext(PanelThemePresetContext);
   const hostElementRef = useRef<HTMLDivElement | null>(null);
   const [hasHostPreset, setHasHostPreset] = useState(false);

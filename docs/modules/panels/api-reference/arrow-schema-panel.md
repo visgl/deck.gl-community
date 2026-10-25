@@ -6,11 +6,11 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square" alt="from v9.4" />
 </p>
 
-<PanelLiveExample highlight="arrow-schema-panel" />
-
 `ArrowSchemaPanel` renders an Apache Arrow schema as a table with one row per
 field. It is deck.gl-independent and works with structural Arrow schema-like
 objects.
+
+<PanelLiveExample highlight="arrow-schema-panel" />
 
 ## Usage
 
@@ -41,12 +41,12 @@ panelManager.setProps({
 ## Props
 
 ```ts
-type ArrowSchemaPanelProps = {
-  id: string;
+type ArrowSchemaPanelProps = PanelProps & {
+  id?: string;
   title: string;
   schema?: ArrowSchemaLike | null;
   className?: string;
-  theme?: 'inherit' | 'light' | 'dark' | 'invert';
+  theme?: PanelTheme;
 };
 ```
 
@@ -68,3 +68,5 @@ keys such as `luma.gl:temporal-kind` and `luma.gl:temporal-unit`.
 - Shows schema-level metadata above the field table when metadata is present.
 - Highlights known `luma.gl:*` metadata keys for matrix and temporal Arrow
   columns.
+
+`PanelTheme` is shared across panels; see [Panel Themes](./panel-theme.md) for presets and custom definitions.

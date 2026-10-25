@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import {render} from 'preact';
-import {afterEach, describe, expect, it} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {PanelManager} from './panel-manager';
 import {PanelComponent} from './panel-component';
@@ -71,6 +71,56 @@ function createHostRoot() {
 }
 
 describe('PanelManager', () => {
+  it('mounts initial definitions and reconciles replacements by stable id', () => {
+    const root = createHostRoot();
+    const first = new TestPanelComponent({id: 'summary', text: 'Initial'});
+    const host = new PanelManager({parentElement: root, components: [null, first, undefined]});
+    const element = first.rootElement;
+    expect(root.textContent).toContain('Initial');
+    host.setProps({components: [new TestPanelComponent({id: 'summary', text: 'Updated'})]});
+    expect(host.getComponents()).toEqual([first]);
+    expect(first.rootElement).toBe(element);
+    expect(root.textContent).toContain('Updated');
+    host.finalize();
+  });
+
+  it('updates overlay bounds on host resize and disconnects on finalization', () => {
+    let notifyResize: (() => void) | undefined;
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          notifyResize = callback;
+        }
+        observe = observe;
+        disconnect = disconnect;
+      }
+    );
+    const root = createHostRoot();
+    let width = 900;
+    Object.defineProperty(root, 'clientWidth', {get: () => width});
+    let host: PanelManager | undefined;
+    try {
+      host = new PanelManager({
+        parentElement: root,
+        components: [new TestPanelComponent({text: 'Responsive'})]
+      });
+      const placementHost =
+        root.querySelector<HTMLElement>('.deck-widget-test')?.parentElement?.parentElement;
+      expect(observe).toHaveBeenCalledWith(root);
+      expect(placementHost?.style.width).toBe('900px');
+      width = 420;
+      notifyResize?.();
+      expect(placementHost?.style.width).toBe('420px');
+    } finally {
+      host?.finalize();
+      vi.unstubAllGlobals();
+    }
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
   it('mounts standalone panel components without a Deck instance', () => {
     const root = createHostRoot();
     const host = new PanelManager({parentElement: root});

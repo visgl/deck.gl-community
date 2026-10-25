@@ -6,10 +6,10 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<PanelLiveExample highlight="documentation-links-panel" />
-
 `DocumentationLinksPanel` renders a compact list of documentation and resource
 links. It is useful in help modals, sidebars, and other panel containers.
+
+<PanelLiveExample highlight="documentation-links-panel" />
 
 ## Usage
 
@@ -48,7 +48,7 @@ const panel = new DocumentationLinksPanel({links});
 ```ts
 type DocumentationLink = {
   kind?: 'link';
-  id: string;
+  id?: string;
   title: string;
   href: string;
   description?: string;
@@ -62,9 +62,9 @@ type DocumentationLinkSpacer = {
 
 type DocumentationLinkItem = DocumentationLink | DocumentationLinkSpacer;
 
-type DocumentationLinksPanelProps = {
+type DocumentationLinksPanelProps = PanelProps & {
   links?: readonly DocumentationLinkItem[];
-  theme?: 'inherit' | 'light' | 'dark' | 'invert';
+  theme?: PanelTheme;
 };
 ```
 
@@ -74,3 +74,5 @@ type DocumentationLinksPanelProps = {
 - Spacer items add visual separation between groups.
 - Empty and introductory text is generic so callers can use this panel in open
   source packages and application-specific projects.
+
+`PanelTheme` is shared across panels; see [Panel Themes](./panel-theme.md) for presets and custom definitions.
