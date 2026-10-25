@@ -20,6 +20,15 @@ This page lists module additions and major changes in each release. For detailed
 - Community examples and inline demos use shared sleek-dark panel chrome. Playground accepts a
   panel preset or custom theme through `theme`, including its editors and example picker.
 
+- Shorter [`TreeLayer`](/docs/modules/layers/api-reference/tree-layer) and
+  [`SplatLayer`](/docs/modules/layers/api-reference/splat-layer) reference pages. The
+  [Seasonal Farm](/examples/layers/seasonal-farm) TreeLayer demo uses a settings panel for season,
+  crops, wind, size, crown characteristics and canopy budgets, with no text drawn over the canvas.
+  The Tree Lab example is removed.
+
+- **Breaking:** `SplatLayer` drops the legacy top-level `source` and `hierarchy` props. Pass
+  sources through `getSource`; see the [upgrade guide](./upgrade-guide.md).
+
 - New [`@deck.gl-community/extensions`](/docs/modules/extensions) module for deck.gl layer
   extensions. [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension),
   released in v9.4.7 from `@deck.gl-community/layers`, moves there and is no longer exported from
@@ -133,7 +142,7 @@ This page lists module additions and major changes in each release. For detailed
   outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
   mask synchronously instead of waiting 250 ms.
 
-- Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
+- Added a compact TreeLayer demo with eight species, seasons, crops, wind and picking.
 
 - Editable layers support overlaid MapLibre/Mapbox input targets. Selection masks the full lasso,
   keeps `guideType` features selectable, and resumes editing after two-finger navigation.

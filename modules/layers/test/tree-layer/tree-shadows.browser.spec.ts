@@ -400,7 +400,7 @@ describe('TreeLayer deck.gl shadows (WebGL2)', () => {
         new SplatLayer({
           id: `splats-${transparency}`,
           data: [owner],
-          source,
+          getSource: source,
           transparency,
           coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
           coordinateOrigin: [0, 0, 0],

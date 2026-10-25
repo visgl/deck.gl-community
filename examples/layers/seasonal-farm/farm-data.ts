@@ -4,7 +4,7 @@
 
 import {addMetersToLngLat} from '@math.gl/web-mercator';
 import type {Color} from '@deck.gl/core';
-import type {CropConfig, Season, TreeType} from '@deck.gl-community/layers';
+import type {CropConfig, CropKind, Season, TreeType} from '@deck.gl-community/layers';
 
 export type Species = 'date' | 'orange' | 'cherry' | 'pine' | 'birch' | 'cork-oak' | 'almond';
 export type FarmTree = {
@@ -26,7 +26,6 @@ export type FarmTree = {
   phenology: number;
   cropLoad: number;
   fruitSize: number;
-  branchPhase: number;
 };
 
 const SPECIES: Record<
@@ -35,7 +34,7 @@ const SPECIES: Record<
 > = {
   date: {type: 'palm', label: 'Date palm', height: 17, radius: 4.8, trunk: 0.45, fraction: 0.8},
   orange: {
-    type: 'cherry',
+    type: 'citrus',
     label: 'Orange tree',
     height: 4.8,
     radius: 4,
@@ -147,8 +146,7 @@ export function createTreeSamples(plots = createFarmPlots()): FarmTree[] {
         barkTone: random(),
         phenology: random(),
         cropLoad: maturity === 'sapling' ? 0 : (0.25 + random() * 1.4) * vigor * growth,
-        fruitSize: 0.7 + random() * 0.6,
-        branchPhase: random() * Math.PI * 2
+        fruitSize: 0.7 + random() * 0.6
       };
     });
   });
@@ -199,6 +197,11 @@ export function getFoliageColor(tree: FarmTree, season: Season): Color {
   );
 }
 
+/** Cork oak is evergreen, but TreeLayer's oak template drops its leaves in winter. */
+export function getTreeSeason(tree: FarmTree, season: Season): Season {
+  return tree.species === 'cork-oak' && season === 'winter' ? 'summer' : season;
+}
+
 function getSeasonColor(tree: FarmTree, season: Season): Color {
   if (tree.species === 'date') return season === 'spring' ? [91, 145, 55, 255] : [62, 122, 49, 255];
   if (tree.species === 'orange') return [46, 111, 40, 255];
@@ -216,65 +219,55 @@ function getSeasonColor(tree: FarmTree, season: Season): Color {
   return season === 'spring' ? [143, 191, 88, 255] : [65, 130, 53, 255];
 }
 
-type CropPreset = [color: Color, count: number, radius: number, droppedCount?: number];
+type CropPreset = {
+  kind: CropKind;
+  color: Color;
+  count: number;
+  /** Enclosing radius in metres, close to life size. */
+  radius: number;
+  droppedCount?: number;
+};
+const BLOSSOM = [255, 250, 225, 255] satisfies Color;
 const CROPS: Partial<Record<Species, Partial<Record<Season, CropPreset>>>> = {
   date: {
-    summer: [[216, 167, 52, 255], 34, 0.1],
-    autumn: [[169, 82, 29, 255], 48, 0.12, 8]
+    summer: {kind: 'fruit', color: [216, 167, 52, 255], count: 120, radius: 0.02},
+    autumn: {kind: 'fruit', color: [169, 82, 29, 255], count: 160, radius: 0.02, droppedCount: 20}
   },
   orange: {
-    spring: [[255, 250, 225, 255], 34, 0.13],
-    summer: [[121, 160, 40, 255], 22, 0.14],
-    autumn: [[255, 151, 18, 255], 40, 0.18, 2],
-    winter: [[255, 151, 18, 255], 40, 0.18, 7]
+    spring: {kind: 'flower', color: BLOSSOM, count: 120, radius: 0.02},
+    summer: {kind: 'fruit', color: [121, 160, 40, 255], count: 90, radius: 0.03},
+    autumn: {kind: 'fruit', color: [255, 151, 18, 255], count: 120, radius: 0.04, droppedCount: 6},
+    winter: {kind: 'fruit', color: [255, 151, 18, 255], count: 120, radius: 0.04, droppedCount: 15}
   },
-  cherry: {spring: [[255, 225, 238, 255], 46, 0.16, 14]},
+  cherry: {
+    spring: {
+      kind: 'flower',
+      color: [255, 225, 238, 255],
+      count: 200,
+      radius: 0.02,
+      droppedCount: 40
+    }
+  },
   almond: {
-    summer: [[184, 142, 81, 255], 30, 0.13],
-    autumn: [[184, 142, 81, 255], 30, 0.13, 14],
-    spring: [[255, 239, 242, 255], 38, 0.14]
+    spring: {kind: 'flower', color: [255, 239, 242, 255], count: 160, radius: 0.018},
+    summer: {kind: 'fruit', color: [140, 165, 80, 255], count: 90, radius: 0.02},
+    autumn: {kind: 'fruit', color: [184, 142, 81, 255], count: 90, radius: 0.02, droppedCount: 30}
   },
-  'cork-oak': {autumn: [[126, 80, 33, 255], 28, 0.15, 16]}
+  'cork-oak': {
+    autumn: {kind: 'acorn', color: [126, 80, 33, 255], count: 100, radius: 0.015, droppedCount: 40}
+  }
 };
 
-/** Illustrative seasons; fruit is enlarged for visibility. */
+/** Illustrative seasonal crops at close to life size. */
 export function getSeasonalCrop(tree: FarmTree, season: Season): CropConfig | null {
   const preset = CROPS[tree.species]?.[season];
   if (!preset || tree.cropLoad === 0) return null;
-  const [color, count, radius, droppedCount = 0] = preset;
+  const {kind, color, count, radius, droppedCount = 0} = preset;
   return {
+    kind,
     color: mixColor(color, [246, 219, 127, 255], tree.phenology * 0.24),
     count: Math.round(count * tree.cropLoad),
-    radius: radius * tree.fruitSize * 2.5,
+    radius: radius * tree.fruitSize,
     droppedCount: Math.round(droppedCount * tree.cropLoad * (0.35 + tree.phenology))
   };
-}
-
-export type TreeBranch = {source: [number, number, number]; target: [number, number, number]};
-
-/** A lightweight branching scaffold for winter's leafless orchard silhouettes. */
-export function createWinterBranches(trees: FarmTree[]): TreeBranch[] {
-  return trees
-    .filter(tree => ['cherry', 'birch', 'almond'].includes(tree.species))
-    .flatMap(tree => {
-      const h = tree.height;
-      const base = h * tree.trunkFraction;
-      return Array.from({length: 5 + tree.branchLevels * 2}, (_, index) => {
-        const angle = tree.branchPhase + index * 2.39996;
-        const level = 0.25 + (index % 3) * 0.24;
-        const radius = tree.canopyRadius * 0.45 * (1 - level * 0.55);
-        return {
-          source: [tree.position[0], tree.position[1], base + (h - base) * level * 0.4] as [
-            number,
-            number,
-            number
-          ],
-          target: addMetersToLngLat(tree.position, [
-            Math.cos(angle) * radius,
-            Math.sin(angle) * radius,
-            base + (h - base) * level
-          ]) as [number, number, number]
-        };
-      });
-    });
 }

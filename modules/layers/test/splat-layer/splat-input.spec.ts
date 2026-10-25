@@ -68,19 +68,13 @@ it('rejects conflicting channels, missing assets and unsupported scene inputs ex
   expect(() =>
     resolveSplatInput({data: [{position: [0, 0, 0]}], getSource: DEFAULT_GET_SOURCE})
   ).toThrow('prepared Gaussian asset');
-  expect(() => resolveSplatInput({data: source, source, getSource: DEFAULT_GET_SOURCE})).toThrow(
-    'cannot be combined'
+  expect(() => resolveSplatInput({data: source, getSource: source})).toThrow(
+    'not direct asset data'
   );
-  expect(() => resolveSplatInput({data: [], source, getSource: source})).toThrow(
-    'cannot be combined'
-  );
-  expect(() =>
-    resolveSplatInput({data: [], hierarchy: [{source, error: 0}], getSource: source})
-  ).toThrow('Put a hierarchy');
   expect(() =>
     resolveSplatInput({data: '/scene.rad' as any, getSource: DEFAULT_GET_SOURCE})
   ).toThrow('prepared asset');
-  expect(resolveSplatInput({data: [], source, getSource: DEFAULT_GET_SOURCE}).data).toEqual([]);
+  expect(resolveSplatInput({data: [], getSource: source}).data).toEqual([]);
 });
 
 it('gives affine matrices precedence and bounds shear without decomposing covariance', () => {
