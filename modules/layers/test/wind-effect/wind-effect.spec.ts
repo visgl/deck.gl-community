@@ -399,8 +399,18 @@ describe('WindExtension', () => {
     const injected = shaders.modules[1].inject['vs:DECKGL_FILTER_GL_POSITION'];
     expect(injected.order).toBeLessThan(0);
     expect(injected.injection).toContain('splatDeform');
-    const webgpu = createExtended({}, 'webgpu');
+    const deck = {};
+    const effect = new WindEffect({strength: 0.05});
+    effect.setup({deck, device} as any);
+    // On WebGPU the layer stays exactly as it was: no shaders, attributes, uniforms or frames.
+    const webgpu = createExtended(deck, 'webgpu');
     expect(webgpu.extension.getShaders.call(webgpu.layer, webgpu.extension)).toEqual({});
+    webgpu.extension.initializeState.call(webgpu.layer, webgpu.layer.context, webgpu.extension);
+    expect(webgpu.attributes).toEqual({});
+    webgpu.extension.draw.call(webgpu.layer, {}, webgpu.extension);
+    expect(webgpu.layer.setShaderModuleProps).not.toHaveBeenCalled();
+    expect(webgpu.layer.setNeedsRedraw).not.toHaveBeenCalled();
+    effect.cleanup({deck, device} as any);
   });
 
   it('packs per-object phases and spreads the default phase by index', () => {

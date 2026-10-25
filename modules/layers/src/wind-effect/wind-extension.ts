@@ -84,21 +84,28 @@ ${SPLAT_DEFORMATION_GLSL}`,
   uniformTypes: {ground: 'f32'}
 } as const satisfies ShaderModule<{ground: number}>;
 
+/** deck.gl's WGSL layers have no vertex filter hook, so the extension does nothing on WebGPU. */
+function isWindSupported(layer: Layer): boolean {
+  return layer.context.device.type !== 'webgpu';
+}
+
 /**
  * Bends instanced deck.gl layers (`SimpleMeshLayer`, `ScenegraphLayer`, `ColumnLayer`,
  * `GridCellLayer`, `PointCloudLayer`) with the deck's `WindEffect`, using the same cantilever bend
- * as TreeLayer and SplatLayer. WebGL2 only: deck.gl's WGSL layers have no vertex filter hook.
+ * as TreeLayer and SplatLayer. WebGL2 only: on WebGPU it leaves the layer unchanged, adding no
+ * shaders or attributes and requesting no frames.
  */
 export class WindExtension extends LayerExtension {
   static extensionName = 'WindExtension';
   static defaultProps = defaultProps;
 
   getShaders(this: Layer<WindExtensionProps>): {modules?: ShaderModule[]} {
-    if (this.context.device.type === 'webgpu') return {};
+    if (!isWindSupported(this)) return {};
     return {modules: [wind, windExtension]};
   }
 
   initializeState(this: Layer<WindExtensionProps>) {
+    if (!isWindSupported(this)) return;
     this.getAttributeManager()?.addInstanced({
       instanceWindExtension: {size: 4, accessor: 'getWind', transform: getWindExtensionPhases}
     });
@@ -106,6 +113,7 @@ export class WindExtension extends LayerExtension {
 
   // Every pass, shadows included, draws with this frame's wind.
   draw(this: Layer<WindExtensionProps>) {
+    if (!isWindSupported(this)) return;
     const {wind: windProps, animated} = getLayerWind(
       this,
       this.props.windStrength,
