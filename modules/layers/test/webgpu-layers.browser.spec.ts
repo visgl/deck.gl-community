@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
+import {ScatterplotLayer} from '@deck.gl/layers';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
@@ -28,6 +29,7 @@ import {
   PathOutlineLayer,
   SkyboxLayer
 } from '../src';
+import {ZoomOpacityExtension} from '../../extensions/src';
 import {GeometryLayer} from '../src/dependency-arrow-layer/geometry-layer';
 
 type NativeGpuError = {error?: {message?: string}};
@@ -85,6 +87,17 @@ function createPortableLayers() {
       widthUnits: 'pixels'
     }),
     new SkyboxLayer({id: 'webgpu-test-skybox', cubemap: null}),
+    new ScatterplotLayer({
+      id: 'webgpu-test-zoom-opacity',
+      data: [{position: [0, 0]}],
+      getPosition: d => d.position,
+      getRadius: 8,
+      extensions: [new ZoomOpacityExtension()],
+      zoomOpacity: [
+        [-1, 0],
+        [1, 1]
+      ]
+    } as any),
     new BlockLayer({
       id: 'webgpu-test-block',
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,

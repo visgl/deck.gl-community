@@ -1035,6 +1035,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/extensions@workspace:modules/extensions"
   dependencies:
+    "@deck.gl/aggregation-layers": "npm:~9.4.0"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/extensions": "npm:~9.4.0"
     "@deck.gl/layers": "npm:~9.4.0"

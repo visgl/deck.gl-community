@@ -34,6 +34,12 @@ This page lists module additions and major changes in each release. For detailed
   released in v9.4.7 from `@deck.gl-community/layers`, moves there and is no longer exported from
   `layers`; import it from `@deck.gl-community/extensions`. See the [upgrade guide](./upgrade-guide.md).
 
+- `@deck.gl-community/extensions` adds [`ZoomOpacityExtension`](/docs/modules/extensions/api-reference/zoom-opacity-extension),
+  which fades a layer by viewport zoom using MapLibre-style `zoomOpacity: [zoom, opacity][]` stops.
+  The `zoomBand` helper builds crossfading zoom bands. Fully faded layers are not drawn or
+  pickable. The extension works with aggregation layers, including GPU aggregation, on WebGL2
+  and WebGPU.
+
 ## v9.4.8
 
 - `BasemapLayer` reads glyph bitmaps containing only the border without treating their ink as missing.
