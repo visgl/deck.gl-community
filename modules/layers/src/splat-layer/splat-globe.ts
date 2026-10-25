@@ -99,6 +99,10 @@ export function classifySplatHorizon(
 /**
  * GLSL helpers for owner-local metres in any deck.gl projection. Planar projections take the
  * identity frame and keep deck.gl's own `project_position_to_clipspace` arithmetic.
+ *
+ * Callers project each anchor once and pass its frame to the helpers. Software rasterizers such
+ * as SwiftShader compile and run both sides of a uniform branch, so every extra
+ * `project_position` adds its mercator and globe arithmetic to each vertex in every projection.
  */
 export const SPLAT_GLOBE_GLSL = `
 // East-north-up at a common-space position on deck.gl's globe, identity in planar projections.
@@ -110,16 +114,15 @@ mat3 splatTangentFrame(vec3 commonPosition) {
   vec3 eastAxis = eastLength > ${POLE_EPSILON} ? vec3(east / eastLength, 0.0) : vec3(1.0, 0.0, 0.0);
   return mat3(eastAxis, cross(up, eastAxis), up);
 }
-// project_position_to_clipspace with the offset in metres east, north and up of the anchor.
-vec4 splatProjectOffset(vec3 position, vec3 position64Low, vec3 offset, out vec4 commonPosition) {
-  vec3 anchor = project_position(position, position64Low);
-  commonPosition = vec4(anchor + splatTangentFrame(anchor) * offset, 1.0);
+// project_position_to_clipspace with the offset in metres along the anchor's tangent frame.
+vec4 splatProjectOffset(vec3 anchor, mat3 frame, vec3 offset, out vec4 commonPosition) {
+  commonPosition = vec4(anchor + frame * offset, 1.0);
   return project_common_position_to_clipspace(commonPosition);
 }
-// project_normal for a direction in the east-north-up frame at a common-space position.
-vec3 splatProjectNormal(vec3 normal, vec3 commonPosition) {
+// project_normal for a direction in an anchor's tangent frame.
+vec3 splatProjectNormal(vec3 normal, mat3 frame) {
   if (project.projectionMode != PROJECTION_MODE_GLOBE) return project_normal(normal);
-  return normalize(splatTangentFrame(commonPosition) * (project.modelMatrix * vec4(normal, 0.0)).xyz);
+  return normalize(frame * (project.modelMatrix * vec4(normal, 0.0)).xyz);
 }
 // Whether the sea-level globe hides a common-space point from the camera: the sightline's nearest
 // approach to the globe center lies between them, and inside the globe.
@@ -146,14 +149,13 @@ fn splatTangentFrame(commonPosition: vec3<f32>) -> mat3x3<f32> {
   if (eastLength > ${POLE_EPSILON}) { eastAxis = vec3<f32>(east / eastLength, 0.0); }
   return mat3x3<f32>(eastAxis, cross(up, eastAxis), up);
 }
-fn splatProjectOffset(position: vec3<f32>, position64Low: vec3<f32>, offset: vec3<f32>) -> ProjectResult {
-  let anchor = project_position_vec3_f64(position, position64Low);
-  let commonPosition = vec4<f32>(anchor + splatTangentFrame(anchor) * offset, 1.0);
+fn splatProjectOffset(anchor: vec3<f32>, frame: mat3x3<f32>, offset: vec3<f32>) -> ProjectResult {
+  let commonPosition = vec4<f32>(anchor + frame * offset, 1.0);
   return ProjectResult(project_common_position_to_clipspace(commonPosition), commonPosition);
 }
-fn splatProjectNormal(normal: vec3<f32>, commonPosition: vec3<f32>) -> vec3<f32> {
+fn splatProjectNormal(normal: vec3<f32>, frame: mat3x3<f32>) -> vec3<f32> {
   if (project.projectionMode != PROJECTION_MODE_GLOBE) { return project_normal(normal); }
-  return normalize(splatTangentFrame(commonPosition) * (project.modelMatrix * vec4<f32>(normal, 0.0)).xyz);
+  return normalize(frame * (project.modelMatrix * vec4<f32>(normal, 0.0)).xyz);
 }
 fn splatBehindGlobe(position: vec3<f32>) -> bool {
   if (project.projectionMode != PROJECTION_MODE_GLOBE) { return false; }

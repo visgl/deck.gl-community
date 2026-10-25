@@ -163,22 +163,18 @@ const WGSL_WIND = `
 // SimpleMeshLayer rotates its metre offsets and normals by deck.gl's globe frame, which points west
 // and south. Trees use the east-north-up frame of their splat canopies instead, so wood, crops and
 // foliage keep one pose, and the same pose as in Web Mercator views. The composed (metre-offset)
-// branch sets normals before geometry.position, so both branches orient them at the anchor.
-const GLSL_GLOBE = `${SPLAT_GLOBE_GLSL}
-vec3 treeProjectNormal(vec3 normal) {
-  return project.projectionMode == PROJECTION_MODE_GLOBE
-    ? splatProjectNormal(normal, project_position(instancePositions, instancePositions64Low))
-    : project_normal(normal);
-}`;
-const WGSL_GLOBE = `${SPLAT_GLOBE_WGSL}
-fn treeProjectNormal(normal: vec3<f32>, position: vec3<f32>, position64Low: vec3<f32>) -> vec3<f32> {
-  if (project.projectionMode != PROJECTION_MODE_GLOBE) { return project_normal(normal); }
-  return splatProjectNormal(normal, project_position_vec3_f64(position, position64Low));
-}`;
+// branch sets normals before geometry.position, so both branches orient them at the anchor. Each
+// vertex projects that anchor once: SwiftShader compiles and runs both branches.
+const GLSL_ANCHOR = `
+  vec3 treeAnchor = project_position(instancePositions, instancePositions64Low);
+  mat3 treeFrame = splatTangentFrame(treeAnchor);`;
+const WGSL_ANCHOR = `
+  let treeAnchor = project_position_vec3_f64(attributes.instancePositions, attributes.instancePositions64Low);
+  let treeFrame = splatTangentFrame(treeAnchor);`;
 const GLSL_OFFSET_PROJECTION =
   'project_position_to_clipspace(instancePositions, instancePositions64Low, pos, position_commonspace)';
 const WGSL_OFFSET_PROJECTION =
-  'project_position_to_clipspace_and_commonspace(\n      attributes.instancePositions,\n';
+  'project_position_to_clipspace_and_commonspace(\n      attributes.instancePositions,\n      attributes.instancePositions64Low,\n      project_size_vec3(meshPosition)\n    )';
 
 /** Shared shader deformation for trunks, crowns and attached crops. */
 export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT>> {
@@ -271,7 +267,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       return {
         ...shaders,
         modules: [...shaders.modules, wind, TREE_WIND],
-        source: `${SPLAT_DEFORMATION_WGSL}\n${WGSL_GLOBE}\n${shaders.source}`
+        source: `${SPLAT_DEFORMATION_WGSL}\n${SPLAT_GLOBE_WGSL}\n${shaders.source}`
           .replace(
             '  @location(10) instanceTranslation: vec3<f32>,',
             '  @location(10) instanceTranslation: vec3<f32>,\n  @location(11) instanceTreeWind: vec4<f32>,\n  @location(12) instanceStemRadius: f32,\n  @location(13) instanceRootLength: f32,\n  @location(14) instanceTreeCrownWind: vec2<f32>,\n  @location(15) instanceTreeCoverage: vec2<f32>,'
@@ -309,17 +305,14 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
             '  color = vec4<f32>(',
             '  if (treeWind.twoSided > 0.5 && !frontFacing) { normal = -normal; }\n  color = vec4<f32>('
           )
-          .replace(anchor, `${anchor}\n${WGSL_WIND}`)
+          .replace(anchor, `${anchor}\n${WGSL_WIND}\n${WGSL_ANCHOR}`)
           .replace(
             WGSL_OFFSET_PROJECTION,
-            WGSL_OFFSET_PROJECTION.replace(
-              'project_position_to_clipspace_and_commonspace',
-              'splatProjectOffset'
-            )
+            'splatProjectOffset(treeAnchor, treeFrame, project_size_vec3(meshPosition))'
           )
           .replaceAll(
             'project_normal(instanceModelMatrix * attributes.normals)',
-            'treeProjectNormal(treeNormal, attributes.instancePositions, attributes.instancePositions64Low)'
+            'splatProjectNormal(treeNormal, treeFrame)'
           )
       };
     }
@@ -337,7 +330,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       vs: shaders.vs
         .replace(
           'void main(void) {',
-          `in vec2 instanceTreeCoverage;\nout vec2 treeCoverage;\nout vec3 treeDitherPosition;\nout vec2 treeDitherTexCoord;\n${SPLAT_DEFORMATION_GLSL}\n${GLSL_GLOBE}\nvoid main(void) {\n  treeCoverage = instanceTreeCoverage;\n  treeDitherTexCoord = texCoords;`
+          `in vec2 instanceTreeCoverage;\nout vec2 treeCoverage;\nout vec3 treeDitherPosition;\nout vec2 treeDitherTexCoord;\n${SPLAT_DEFORMATION_GLSL}\n${SPLAT_GLOBE_GLSL}\nvoid main(void) {\n  treeCoverage = instanceTreeCoverage;\n  treeDitherTexCoord = texCoords;`
         )
         .replace(
           'in vec3 instanceTranslation;',
@@ -345,15 +338,15 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
         )
         .replace(
           anchor,
-          `${GLSL_STEM}\n treeDitherPosition = instanceModelMatrix * treePosition + fract(instancePositions * vec3(0.1031,0.11369,0.13787));\n${anchor.replace('instanceModelMatrix * positions', 'instanceModelMatrix * treePosition')}\n${GLSL_WIND}`
+          `${GLSL_STEM}\n treeDitherPosition = instanceModelMatrix * treePosition + fract(instancePositions * vec3(0.1031,0.11369,0.13787));\n${anchor.replace('instanceModelMatrix * positions', 'instanceModelMatrix * treePosition')}\n${GLSL_WIND}\n${GLSL_ANCHOR}`
         )
         .replace(
           GLSL_OFFSET_PROJECTION,
-          GLSL_OFFSET_PROJECTION.replace('project_position_to_clipspace', 'splatProjectOffset')
+          'splatProjectOffset(treeAnchor, treeFrame, pos, position_commonspace)'
         )
         .replaceAll(
           'project_normal(instanceModelMatrix * normals)',
-          'treeProjectNormal(treeNormal)'
+          'splatProjectNormal(treeNormal, treeFrame)'
         )
         .replace(
           'colors * instanceColors.rgb',
