@@ -37,8 +37,9 @@ reuse the same descriptors or state.
 ## Canvas chrome
 
 `PanelManager` accepts optional `contentElement` to arrange `HeaderPanelContainer`,
-`FooterPanelContainer`, `SidePanelContainer`, and `BoxPanelContainer` around a canvas host.
-Enable box pinning with `pinnable: true`; use `offsetPx` to inset floating boxes.
-Side panels opt into hide/restore controls with `hidable: true` and support controlled `hidden` state.
-Without it, floating panels remain available and docked chrome stays hidden. Descendants can
+`FooterPanelContainer`, pinned `SidebarPanelContainer`, and `BoxPanelContainer` around a canvas host.
+Enable user pinning with `pinnable: true`; use `offsetPx` to inset floating boxes.
+Sidebars use `open` / `onOpenChange` for visibility in either mode. `hidable: false` removes
+user hide/restore controls. Without `contentElement`, floating panels remain available and
+configured docked chrome stays hidden. Descendants can
 use `usePanelContainerState()` to adapt to pin state and docking edge changes.

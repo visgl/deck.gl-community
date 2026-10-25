@@ -1,6 +1,7 @@
 /** @jsxImportSource preact */
 
 import {Panel} from '../panels/panel';
+import type {PanelProps} from '../panels/panel';
 
 import type {PanelTheme} from '../panels/panel';
 import type {JSX} from 'preact';
@@ -41,7 +42,7 @@ export type DocumentationLinkItem = DocumentationLink | DocumentationLinkSpacer;
 /**
  * Props used to construct a documentation links panel.
  */
-export type DocumentationLinksPanelProps = {
+export type DocumentationLinksPanelProps = PanelProps & {
   /** Documentation links rendered in insertion order. */
   links?: readonly DocumentationLinkItem[];
   /** Optional panel theme override. */
@@ -51,17 +52,27 @@ export type DocumentationLinksPanelProps = {
 /**
  * A panel definition that renders documentation and resource links.
  */
-export class DocumentationLinksPanel extends Panel {
+export class DocumentationLinksPanel extends Panel<DocumentationLinksPanelProps> {
   /**
    * Creates a documentation links panel.
    */
-  constructor({links = [], theme = 'inherit'}: DocumentationLinksPanelProps = {}) {
-    super({
-      id: 'documentation-links',
-      title: 'Documentation',
-      theme,
-      content: <DocumentationLinksPanelContent links={links} />
-    });
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    links: [],
+    theme: 'inherit',
+    id: 'documentation-links',
+    title: 'Documentation'
+  } satisfies PanelProps & Partial<DocumentationLinksPanelProps>;
+
+  constructor(props: DocumentationLinksPanelProps = {}) {
+    super(props);
+  }
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {links} = this.props;
+    return <DocumentationLinksPanelContent links={links} />;
   }
 }
 

@@ -313,6 +313,11 @@ describe('Playground rendering lifecycle', () => {
       {label: 'edited-second'},
       '{"label":"edited-second"}'
     );
+    await Promise.resolve();
+    expect(secondModel.getValue()).toBe('{"label":"edited-second"}');
+    secondModel.setValue('{invalid draft');
+    await Promise.resolve();
+    expect(secondModel.getValue()).toBe('{invalid draft');
     second.finalize();
     expect(secondModel.isDisposed()).toBe(true);
   });

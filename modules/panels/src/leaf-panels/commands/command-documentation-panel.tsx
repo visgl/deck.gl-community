@@ -1,13 +1,14 @@
 /** @jsxImportSource preact */
 
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 
 import type {CommandDescriptor, CommandManager} from '../../lib/commands/command-manager';
 import type {PanelTheme} from '../../panels/panel';
 import type {JSX} from 'preact';
 
 /** Props used to construct a command documentation panel. */
-export type CommandDocumentationPanelProps = {
+export type CommandDocumentationPanelProps = PanelProps & {
   /** Command manager whose registered command metadata is rendered. */
   manager: CommandManager;
   /** Optional panel theme override. */
@@ -17,17 +18,22 @@ export type CommandDocumentationPanelProps = {
 /**
  * A panel definition that renders command metadata from a command manager.
  */
-export class CommandDocumentationPanel extends Panel {
+export class CommandDocumentationPanel extends Panel<CommandDocumentationPanelProps> {
   /**
    * Creates a command documentation panel.
    */
-  constructor({manager, theme = 'inherit'}: CommandDocumentationPanelProps) {
-    super({
-      id: 'command-documentation',
-      title: 'Commands',
-      theme,
-      content: <CommandDocumentationPanelContent manager={manager} />
-    });
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    theme: 'inherit',
+    id: 'command-documentation',
+    title: 'Commands'
+  } satisfies PanelProps & Partial<CommandDocumentationPanelProps>;
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {manager} = this.props;
+    return <CommandDocumentationPanelContent manager={manager} />;
   }
 }
 

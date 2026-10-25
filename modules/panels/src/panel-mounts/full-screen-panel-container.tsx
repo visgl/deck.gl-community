@@ -123,6 +123,7 @@ export class FullScreenPanelContainer extends PanelContainer<FullScreenPanelCont
 
   /** Unmounts full-screen content from the current root element. */
   override onRemove(): void {
+    super.onRemove();
     if (this.#rootElement) {
       render(null, this.#rootElement);
     }

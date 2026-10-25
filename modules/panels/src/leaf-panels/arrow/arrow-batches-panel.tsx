@@ -4,6 +4,7 @@ import {useMemo} from 'preact/hooks';
 
 import {createArrowBatchPreview, type ArrowTableInput} from './arrow-preview-utils';
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 import {useEffectivePanelThemeMode} from '../../panels/panel-theme-scope';
 
 import type {PanelTheme} from '../../panels/panel';
@@ -16,9 +17,9 @@ export type {
 } from './arrow-preview-utils';
 
 /** Props for {@link ArrowBatchesPanel}. */
-export type ArrowBatchesPanelProps = {
+export type ArrowBatchesPanelProps = PanelProps & {
   /** Stable panel id used by parent containers. */
-  id: string;
+  id?: string;
   /** Visible heading text for the panel. */
   title: string;
   /** Arrow table to inspect. Accepts Apache Arrow Table-like objects and loaders.gl wrappers. */
@@ -34,15 +35,13 @@ export type ArrowBatchesPanelProps = {
 };
 
 /** Panel that renders one summary row per Arrow record batch. */
-export class ArrowBatchesPanel extends Panel {
-  /** Creates an Arrow record batch inspection panel. */
-  constructor(props: ArrowBatchesPanelProps) {
-    super({
-      id: props.id,
-      title: props.title,
-      theme: props.theme ?? 'inherit',
-      content: <ArrowBatchesPanelContent {...props} />
-    });
+export class ArrowBatchesPanel extends Panel<ArrowBatchesPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'arrow-batches-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    return <ArrowBatchesPanelContent {...this.props} />;
   }
 }
 

@@ -32,6 +32,8 @@ export type PanelManagerProps = {
    * Root HTML element that receives placement hosts and panel component DOM.
    */
   parentElement: HTMLElement;
+  /** Initial declarative component list, reconciled just like setProps({components}). */
+  components?: (PanelComponent | null | undefined)[];
   /** Optional direct child containing the canvas. Enables docked chrome layout. */
   contentElement?: HTMLElement;
   /**
@@ -67,6 +69,7 @@ export class PanelManager {
   /** Application-owned canvas host. Omit to retain overlay-only behavior. */
   readonly contentElement?: HTMLElement;
   private layout?: PanelLayout;
+  private resizeObserver?: ResizeObserver;
   private className?: string;
   private defaultComponents: PanelComponent[] = [];
   private components: PanelComponent[] = [];
@@ -79,7 +82,13 @@ export class PanelManager {
   /**
    * Creates a standalone panel host rooted in the supplied HTML element.
    */
-  constructor({parentElement, contentElement, deck = null, className}: PanelManagerProps) {
+  constructor({
+    parentElement,
+    contentElement,
+    components,
+    deck = null,
+    className
+  }: PanelManagerProps) {
     if (contentElement && contentElement.parentElement !== parentElement) {
       throw new Error('PanelManager contentElement must be a direct child of parentElement');
     }
@@ -92,6 +101,11 @@ export class PanelManager {
     if (className) {
       this.parentElement.classList.add(className);
     }
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => this._updateContainers());
+      this.resizeObserver.observe(parentElement);
+    }
+    this.setProps({components});
   }
 
   /**
@@ -118,6 +132,8 @@ export class PanelManager {
    * Removes all mounted instances and internal placement hosts.
    */
   finalize() {
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = undefined;
     for (const component of this.getComponents()) {
       this._removeComponent(component);
     }
@@ -231,7 +247,10 @@ export class PanelManager {
     const destination =
       component.isDocked && this.layout
         ? this.layout.edges[component.side]
-        : this._getContainer(component._container ?? component.viewId ?? null, component.placement);
+        : this._getContainer(
+            component._container ?? component.viewId ?? null,
+            component.overlayPlacement
+          );
     if (root.parentElement !== destination) {
       const activeElement = root.ownerDocument.activeElement;
       const componentIndex = this.resolvedComponents.indexOf(component);

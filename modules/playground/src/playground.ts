@@ -425,6 +425,7 @@ export class Playground {
 
   private readonly handleTextChange = (text: string, templateSelected = false) => {
     if (this.finalized) return;
+    this.editorPanel?.setProps({value: text});
     const previousController = this.updateController;
     const controller = new AbortController();
     this.updateController = controller;
