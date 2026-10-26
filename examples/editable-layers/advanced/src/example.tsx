@@ -51,9 +51,9 @@ import {
   SnappableMode,
   ElevatedEditHandleLayer,
   GeoJsonEditMode,
-  Color,
-  FeatureCollection
+  Color
 } from '@deck.gl-community/editable-layers';
+import type {FeatureCollection} from 'geojson';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 

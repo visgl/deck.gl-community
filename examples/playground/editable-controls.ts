@@ -4,6 +4,7 @@
 
 import type {PickingInfo} from '@deck.gl/core';
 import type {DeckPlayground} from '@deck.gl-community/playground';
+import type {FeatureCollection} from 'geojson';
 import {
   EditModeTrayWidget,
   ViewMode,
@@ -12,8 +13,7 @@ import {
   DrawPointMode,
   DrawLineStringMode,
   DrawPolygonMode,
-  type EditAction,
-  type FeatureCollection
+  type EditAction
 } from '@deck.gl-community/editable-layers';
 
 const MODES = [

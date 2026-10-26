@@ -8,5 +8,9 @@
     "skipLibCheck": true,
     "types": []
   },
-  "include": ["edit-mode-constructors.ts"]
+  "include": [
+    "edit-mode-constructors.ts",
+    "public-exports.ts",
+    "../../../../examples/playground/editable-controls.ts"
+  ]
 }

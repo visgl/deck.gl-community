@@ -5,8 +5,16 @@
 // Smoke test: verify the public API surface exports resolve without errors.
 // This runs in Node (no WebGL) to catch broken re-exports early.
 
+import {existsSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
 import {it, expect} from 'vitest';
 import * as EditableLayers from '../src/index';
+
+const DIST_ESM_ENTRY = new URL('../dist/index.js', import.meta.url);
+const DIST_CJS_ENTRY = new URL('../dist/index.cjs', import.meta.url);
+const hasBuiltBundles =
+  existsSync(fileURLToPath(DIST_ESM_ENTRY)) && existsSync(fileURLToPath(DIST_CJS_ENTRY));
 
 it('exports ImmutableFeatureCollection', () => {
   expect(EditableLayers.ImmutableFeatureCollection).toBeDefined();
@@ -58,4 +66,17 @@ it('exports composite modes', () => {
   expect(EditableLayers.CompositeMode).toBeDefined();
   expect(EditableLayers.SnappableMode).toBeDefined();
   expect(EditableLayers.ViewMode).toBeDefined();
+});
+
+it.skipIf(!hasBuiltBundles)('ships the same supported runtime exports in ESM and CJS', async () => {
+  const builtEditableLayers = await import(/* @vite-ignore */ DIST_ESM_ENTRY.href);
+  const require = createRequire(import.meta.url);
+  const commonJsExports = require(fileURLToPath(DIST_CJS_ENTRY));
+  const expectedExports = Object.keys(EditableLayers).sort();
+
+  expect(Object.keys(builtEditableLayers).sort()).toEqual(expectedExports);
+  expect(Object.keys(commonJsExports).sort()).toEqual(expectedExports);
+  for (const name of ['toDeckColor', 'utils', '_memoize']) {
+    expect(expectedExports).not.toContain(name);
+  }
 });
