@@ -411,7 +411,7 @@ describe('MVTLabelLayer line label rendering', () => {
   test('turns line labels to their lines on a globe in the shader', () => {
     const onGlobe = (layer: MVTLabelLayer, bearing: number) => {
       layer.state = {labelData: [{position: [0.5, 0.5], angle: 170} as any]};
-      layer.context = {viewport: {bearing, resolution: 1}} as any;
+      layer.context = {viewport: {bearing, projectionMode: 2}} as any;
       layer.internalState = {subLayers: []} as any;
       return layer.renderLayers().at(-1);
     };
@@ -698,7 +698,7 @@ describe('icons along lines', () => {
       layer.state = {
         labelData: [{position: [0.5, 0.5], angle: 170, __source: {object: feature}} as any]
       };
-      layer.context = {viewport: {bearing: 120, resolution: 1}} as any;
+      layer.context = {viewport: {bearing: 120, projectionMode: 2}} as any;
       layer.internalState = {subLayers: []} as any;
       const icons = layer.renderIconLayers()[0];
       return icons.props.extensions.find(
@@ -782,7 +782,7 @@ describe('icon-rotate at points', () => {
     expect(icons.props.getAngle(icons.props.data[0])).toBe(-90);
     expect(pin({'icon-rotation-alignment': 'map'}).props.billboard).toBe(false);
     // On a globe they stay billboards.
-    const globe = pin({'icon-rotate': 90, 'icon-rotation-alignment': 'map'}, {resolution: 10});
+    const globe = pin({'icon-rotate': 90, 'icon-rotation-alignment': 'map'}, {projectionMode: 2});
     expect(globe.props.billboard).toBe(true);
   });
 

@@ -9,6 +9,7 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {afterEach, describe, expect, test} from 'vitest';
 import {BasemapLayer} from '../src/basemap-layer';
 import {MVTLabelLayer} from '../src/mvt-label-layer';
+import {isGlobeViewport} from '@deck.gl-community/geo-layers';
 import {encodeBoxTile} from '../../geo-layers/test/shared-mvt-layer/mvt-test-tile';
 import {loadSpriteAtlases} from '../src/sprite';
 import type {SpriteAtlas} from '../src/sprite';
@@ -410,7 +411,7 @@ describe('vector tiles across a switch between map and globe views', () => {
     deck.setProps({views: new GlobeView({id: 'view'}), layers: [getBasemap('globe')]});
     const image = await globeFrame;
     const globeViewport = deck.getViewports()[0];
-    expect(globeViewport.resolution, 'a globe viewport').toBeTruthy();
+    expect(isGlobeViewport(globeViewport), 'a globe viewport').toBe(true);
     // The box's north-west corner, where map and globe projections differ most, falls outside
     // the box's globe bounds as drawn on the map: a box left in map positions is caught.
     const [cornerX, cornerY] = mapViewport.project([BOX[0], BOX[3]]);

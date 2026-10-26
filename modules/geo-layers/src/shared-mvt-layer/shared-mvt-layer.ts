@@ -18,6 +18,7 @@ import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {SharedTile2DLayer, type SharedTile2DLayerProps} from '../shared-tile-2d-layer/index';
 import type {SharedTile2DHeader, TileLoadProps} from '../tileset/index';
 import {getURLFromTemplate} from '../shared-tile-2d-layer/url-template';
+import {isGlobeViewport} from '../utils/is-globe-viewport';
 
 /** GeoJSON features decoded in normalized tile-local coordinates. */
 export type SharedMVTData = Array<any>;
@@ -154,7 +155,7 @@ export class SharedMVTLayer extends SharedTile2DLayer<
 
   /** View changes invalidate render geometry, never the shared decoded cache. */
   updateState(params: UpdateParameters<this>): void {
-    const geographic = Boolean(this.context.viewport.resolution);
+    const geographic = isGlobeViewport(this.context.viewport);
     const {projectionMode} = this.context.viewport;
     if (this.state.geographic !== geographic || this.state.projectionMode !== projectionMode) {
       this.state.tileLayers.clear();
@@ -169,7 +170,7 @@ export class SharedMVTLayer extends SharedTile2DLayer<
     if (!props.data) return null;
     const {x, y, z} = props.tile.index;
     const scale = WORLD_SIZE / 2 ** z;
-    const geographic = Boolean(this.context.viewport.resolution);
+    const geographic = isGlobeViewport(this.context.viewport);
     return super.renderSubLayers({
       ...props,
       autoHighlight: false,

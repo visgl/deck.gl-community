@@ -1,5 +1,5 @@
 import type {GlyphStore} from './glyph-store';
-import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
+import {isGlobeViewport, SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
 import {
   COORDINATE_SYSTEM,
   type Layer,
@@ -1197,7 +1197,7 @@ class StyledMVTLayer extends SharedMVTLayer {
   getPickingInfo(params: any): any {
     const {sourceLayer} = params;
     if (sourceLayer && !sourceLayer.props.tile) {
-      const coordinateSystem = this.context.viewport?.resolution
+      const coordinateSystem = isGlobeViewport(this.context.viewport)
         ? COORDINATE_SYSTEM.LNGLAT
         : COORDINATE_SYSTEM.CARTESIAN;
       const info = super.getPickingInfo({

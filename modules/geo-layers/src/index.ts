@@ -60,3 +60,5 @@ export {QuadkeyGrid} from './global-grid-systems/grids/quadkey-grid';
 
 export {SharedMVTLayer} from './shared-mvt-layer/shared-mvt-layer';
 export type {SharedMVTLayerProps, SharedMVTData} from './shared-mvt-layer/shared-mvt-layer';
+
+export {isGlobeViewport} from './utils/is-globe-viewport';
