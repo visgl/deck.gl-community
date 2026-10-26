@@ -89,8 +89,8 @@ yarn conformance-report
 The scorer writes `__output__/report.md`, `scores.json` (which adds the missing and extra labels
 per scene and candidate), `images/<scene>.png` (all renderers side by side, the reference first)
 and `images/<scene>--<renderer>.png` (reference, candidate, SSIM map, edge overlay). CI runs both
-steps in the `test-headless` job and uploads `__output__` as the `basemap-conformance` artifact.
-Neither step can fail the job.
+steps in the `basemap-conformance` job, outside the required `test-headless` check, and uploads
+`__output__` as the `basemap-conformance` artifact. Neither step can fail the job.
 
 ## Using it from another repository
 
