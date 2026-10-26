@@ -12,6 +12,7 @@ import {EditableGeoJsonLayer} from './editable-geojson-layer';
 import {DrawRectangleMode} from '../edit-modes/draw-rectangle-mode';
 import {DrawPolygonMode} from '../edit-modes/draw-polygon-mode';
 import {ViewMode} from '../edit-modes/view-mode';
+import {projectOnTargetPlane, unprojectOnTargetPlane} from '../utils/camera-target';
 
 export const SELECTION_TYPE = {
   NONE: null,
@@ -116,8 +117,9 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
 
   _selectRectangleObjects(coordinates: any) {
     const {layerIds, onSelect} = this.props;
-    const [x1, y1] = this.context.viewport.project(coordinates[0][0]);
-    const [x2, y2] = this.context.viewport.project(coordinates[0][2]);
+    // The corners are pointer map coordinates, so they project back from the camera target's plane.
+    const [x1, y1] = projectOnTargetPlane(this.context.viewport, coordinates[0][0]);
+    const [x2, y2] = projectOnTargetPlane(this.context.viewport, coordinates[0][2]);
     const pickingInfos = this.context.deck.pickObjects({
       x: Math.min(x1, x2),
       y: Math.min(y1, y2),
@@ -131,7 +133,7 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
 
   _selectPolygonObjects(coordinates: any) {
     const {layerIds, onSelect} = this.props;
-    const mousePoints = coordinates[0].map(c => this.context.viewport.project(c));
+    const mousePoints = coordinates[0].map(c => projectOnTargetPlane(this.context.viewport, c));
 
     const allX = mousePoints.map(mousePoint => mousePoint[0]);
     const allY = mousePoints.map(mousePoint => mousePoint[1]);
@@ -143,13 +145,14 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
     // The blocker must cover the entire picking rectangle, regardless of the
     // lasso's geographic size or shape. Unproject a padded screen-space rectangle
     // instead of using a fixed-distance buffer that leaves holes in wide lassos.
+    // The ring shares the lasso's plane, the one through the camera target.
     const outerRing = [
       [x - 1, y - 1],
       [maxX + 1, y - 1],
       [maxX + 1, maxY + 1],
       [x - 1, maxY + 1],
       [x - 1, y - 1]
-    ].map(position => this.context.viewport.unproject(position));
+    ].map(position => unprojectOnTargetPlane(this.context.viewport, position));
 
     this.setState({selectionMask: [[outerRing, coordinates[0]]], isSelecting: true});
     let pickingInfos;

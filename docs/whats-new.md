@@ -4,6 +4,11 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- `EditableGeoJsonLayer` and `SelectionLayer` read the pointer on the level of the point a map
+  camera orbits when no layer is `pickable: '3d'`. Before, a camera lifted with viewState
+  `position: [0, 0, z]`, as deck.gl's terrain controller sets it, drew, edited and selected
+  metres from the cursor, more with pitch and towards the edges of the view.
+
 - **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
   independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
   aliases; migrate visibility to `open` / `onOpenChange`. Content stays mounted across modes.

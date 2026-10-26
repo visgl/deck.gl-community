@@ -11,9 +11,16 @@ import {
   mix,
   nearestPointOnProjectedLine
 } from '../../../src/utils/utils';
-import {nearestPointOnLine} from '../../../src/edit-modes/utils';
+import {WebMercatorViewport} from '@deck.gl/core';
+import {
+  nearestPointOnLine,
+  nearestPointOnProjectedLine as nearestPointOnElevatedLine
+} from '../../../src/edit-modes/utils';
 import {Position} from '../../../src/utils/geojson-types';
-import {CartesianCoordinateSystem} from '../../../src/edit-modes/coordinate-system';
+import {
+  CartesianCoordinateSystem,
+  geoCoordinateSystem
+} from '../../../src/edit-modes/coordinate-system';
 
 const Point = {
   type: 'Feature' as const,
@@ -257,5 +264,45 @@ describe('nearestPointOnLine()', () => {
     expect(result.geometry.coordinates[0]).toBeCloseTo(102.25, 3);
     expect(result.geometry.coordinates[1]).toBeCloseTo(0.25, 3);
     expect(result.properties.index).toEqual(0);
+  });
+});
+
+describe('edit-mode nearestPointOnProjectedLine()', () => {
+  it('Meets the pointer on the elevated line when the camera target is lifted', () => {
+    const viewport = new WebMercatorViewport({
+      width: 800,
+      height: 600,
+      longitude: -122.4194,
+      latitude: 37.7749,
+      zoom: 18,
+      pitch: 45,
+      position: [0, 0, 30]
+    });
+    // A line on terrain 30 m up, and the pointer as the editable layer reads it there.
+    const at = ([x, y]: number[]) => viewport.unproject([x, y], {targetZ: 30}).slice(0, 2);
+    const line = {
+      type: 'Feature' as const,
+      geometry: {
+        type: 'LineString' as const,
+        coordinates: [
+          [...at([300, 300]), 30],
+          [...at([500, 300]), 30]
+        ]
+      },
+      properties: {}
+    };
+    const pointer = at([400, 300]);
+    const inPoint = {
+      type: 'Feature' as const,
+      geometry: {type: 'Point' as const, coordinates: pointer},
+      properties: {}
+    };
+
+    const result = nearestPointOnElevatedLine(line, inPoint, viewport, geoCoordinateSystem);
+
+    expect(result.properties.dist).toBeCloseTo(0, 4);
+    expect(result.geometry.coordinates[0]).toBeCloseTo(pointer[0], 8);
+    expect(result.geometry.coordinates[1]).toBeCloseTo(pointer[1], 8);
+    expect(result.geometry.coordinates[2]).toBeCloseTo(30, 3);
   });
 });

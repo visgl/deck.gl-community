@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {WebMercatorViewport} from '@deck.gl/core';
 import {expect, test, vi} from 'vitest';
 import {SelectionLayer} from '../../src/editable-layers/selection-layer';
 
@@ -78,6 +79,63 @@ test('polygon picking cleans up the blocker if GPU picking throws', () => {
   expect(layer.state.isSelecting).toBe(false);
   expect(updateLayers).toHaveBeenCalledTimes(2);
   expect(onSelect).not.toHaveBeenCalled();
+});
+
+test('picking follows the pointer on screen when the camera target is lifted', () => {
+  const {layer, pickObjects} = makeSelectionLayer();
+  const viewport = new WebMercatorViewport({
+    width: 800,
+    height: 600,
+    longitude: -122.4194,
+    latitude: 37.7749,
+    zoom: 18,
+    pitch: 45,
+    position: [0, 0, 30]
+  });
+  layer.context.viewport = viewport;
+  // The editable layer reads pointer map coordinates on the camera target's plane.
+  const at = ([x, y]: number[]) => viewport.unproject([x, y], {targetZ: 30}).slice(0, 2);
+  const onScreen = ([lng, lat]: number[]) => viewport.project([lng, lat, 30]).slice(0, 2);
+  const expectPixels = (actual: number[][], expected: number[][]) =>
+    actual.forEach((pixel, i) => pixel.forEach((v, j) => expect(v).toBeCloseTo(expected[i][j], 2)));
+  let outerRing: number[][] = [];
+  pickObjects.mockImplementation(() => {
+    outerRing = layer.state.selectionMask[0][0];
+    return [];
+  });
+
+  layer._selectPolygonObjects([
+    [
+      [300, 200],
+      [500, 220],
+      [480, 400],
+      [300, 200]
+    ].map(at)
+  ]);
+  const lasso = pickObjects.mock.calls[0][0];
+  expectPixels([[lasso.x, lasso.y, lasso.width, lasso.height]], [[300, 200, 200, 200]]);
+  expectPixels(outerRing.map(onScreen), [
+    [299, 199],
+    [501, 199],
+    [501, 401],
+    [299, 401],
+    [299, 199]
+  ]);
+
+  layer._selectRectangleObjects([
+    [
+      [320, 240],
+      [460, 240],
+      [460, 360],
+      [320, 360],
+      [320, 240]
+    ].map(at)
+  ]);
+  const rectangle = pickObjects.mock.calls[1][0];
+  expectPixels(
+    [[rectangle.x, rectangle.y, rectangle.width, rectangle.height]],
+    [[320, 240, 140, 120]]
+  );
 });
 
 test('the blocker only renders in picking passes while a polygon selection is pending', () => {
