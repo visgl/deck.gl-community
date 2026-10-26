@@ -180,7 +180,7 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     if (coverage && coverage !== params.oldProps._coverageRanges)
       for (const range of coverage)
         this.getAttributeManager()!.invalidate('getCoverageWeight', range);
-    if (params.props.source !== params.oldProps.source || params.changeFlags.extensionsChanged) {
+    if (this.shouldRebuildModels(params)) {
       this.state.model?.destroy();
       this.state.accumulationModel?.destroy();
       this.state.transmissionModel?.destroy();
@@ -210,6 +210,11 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
       });
       this.getAttributeManager()!.invalidateAll();
     }
+  }
+
+  /** Whether the models must be recreated. A subclass whose shaders depend on more props extends it. */
+  protected shouldRebuildModels({props, oldProps, changeFlags}: UpdateParameters<this>): boolean {
+    return props.source !== oldProps.source || Boolean(changeFlags.extensionsChanged);
   }
 
   getModels(): Model[] {

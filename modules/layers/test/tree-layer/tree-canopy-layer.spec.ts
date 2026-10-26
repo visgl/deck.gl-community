@@ -114,3 +114,20 @@ it('patches the bend into both SplatLayer shaders, and leaves sorted canopies un
   expect(sorted.modules.map(module => module.name)).not.toContain('wind');
   expect(sorted.vs).toBe(plain.vs);
 });
+
+it('recompiles a canopy when transparency switches, but plain splats only for a new source', () => {
+  const params = (transparency: string, previous: string, source = SOURCE) =>
+    ({
+      props: {source, transparency},
+      oldProps: {source: SOURCE, transparency: previous},
+      changeFlags: {}
+    }) as any;
+  const canopy = Object.create(TreeCanopyPrimitiveLayer.prototype);
+  const plain = Object.create(SplatPrimitiveLayer.prototype);
+  // The canopy's wind patch depends on transparency: a switch must not keep the old program.
+  expect(canopy.shouldRebuildModels(params('sorted', 'weighted'))).toBe(true);
+  expect(canopy.shouldRebuildModels(params('weighted', 'sorted'))).toBe(true);
+  expect(canopy.shouldRebuildModels(params('weighted', 'weighted'))).toBe(false);
+  expect(plain.shouldRebuildModels(params('sorted', 'weighted'))).toBe(false);
+  expect(plain.shouldRebuildModels(params('weighted', 'weighted', {...SOURCE}))).toBe(true);
+});

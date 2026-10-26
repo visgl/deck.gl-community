@@ -85,6 +85,14 @@ export class TreeCanopyPrimitiveLayer<DataT = unknown> extends SplatPrimitiveLay
     });
   }
 
+  // The wind patch depends on transparency, so switching it recompiles the canopy.
+  protected shouldRebuildModels(params: UpdateParameters<this>): boolean {
+    return (
+      super.shouldRebuildModels(params) ||
+      params.props.transparency !== params.oldProps.transparency
+    );
+  }
+
   getShaders() {
     const shaders = super.getShaders();
     // The sorted renderer packs only SplatLayer's own attributes: sorted canopies stay still.
