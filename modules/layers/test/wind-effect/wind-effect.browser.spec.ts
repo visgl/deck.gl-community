@@ -262,3 +262,64 @@ it('stills every tree part when the WindEffect calms, is removed, or the layer o
     cleanup();
   }
 }, 90000);
+
+it('draws every tree part with the layer wind overrides, not the effect values', async () => {
+  // The effect pushes its own wind props before each draw; layers resolve their overrides in draw().
+  const windStrength = 0.03;
+  const windTime = 3;
+  const shadows = new LightingEffect({
+    ambient: new AmbientLight({intensity: 1}),
+    sun: new DirectionalLight({direction: [-1, -1, -1], intensity: 1, _shadow: true})
+  });
+  const trees = new TreeLayer({
+    ...METER_OFFSETS,
+    id: 'overrides',
+    data: [{position: [0, 0, 0], species: 'oak'}],
+    getHeight: 12,
+    getCanopyRadius: 4,
+    getCrop: {kind: 'fruit', color: [230, 120, 40], count: 6, radius: 0.3},
+    windStrength,
+    windTime,
+    maxCanopySplats: 0,
+    maxCanopyPixels: SIZE * SIZE
+  });
+  const {deck, view, settle, cleanup} = createDeck({
+    initialViewState: {longitude: 0, latitude: 0, zoom: 19.5, pitch: 60, bearing: 30},
+    effects: [shadows, new WindEffect({strength: 0.1, gust: 0, direction: 120})],
+    layers: [trees]
+  });
+  try {
+    await settle(6);
+    await expect
+      .poll(() => (deck.props.layers as TreeLayer[])[0].isLoaded, {timeout: 30000})
+      .toBe(true);
+    await settle();
+    const expected = getWindUniforms({strength: windStrength, direction: 120, time: windTime});
+    // Record the wind each model holds at the moment it draws, in every pass (shadow included).
+    const drawn: {name: string; wind: {strength: number; wave: number[]}}[] = [];
+    for (const layer of collectLeaves((deck.props.layers as Layer[])[0]))
+      for (const model of layer.getModels()) {
+        if (!model.shaderInputs.getModules().some(module => module.name === 'wind')) continue;
+        const draw = model.draw.bind(model);
+        model.draw = (...args: Parameters<typeof model.draw>) => {
+          const wind = model.shaderInputs.getUniformValues().wind as {
+            strength: number;
+            wave: number[];
+          };
+          drawn.push({name: (layer.constructor as typeof Layer).layerName, wind: {...wind}});
+          return draw(...args);
+        };
+      }
+    await settle();
+    expect(new Set(drawn.map(({name}) => name))).toEqual(
+      new Set(['TreeMeshLayer', 'SplatPrimitiveLayer'])
+    );
+    for (const {name, wind} of drawn) {
+      expect(wind.strength, name).toBeCloseTo(expected.strength, 6);
+      wind.wave.forEach((value, i) => expect(value, name).toBeCloseTo(expected.wave[i], 5));
+    }
+    expect(view.errors).toEqual([]);
+  } finally {
+    cleanup();
+  }
+}, 60000);
