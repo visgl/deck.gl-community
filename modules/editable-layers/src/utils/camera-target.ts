@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {WebMercatorViewport} from '@deck.gl/core';
+import {WebMercatorViewport as MathWebMercatorViewport} from '@math.gl/web-mercator';
 import type {Position} from './geojson-types';
 
 /** The projection methods shared by deck.gl and math.gl viewports. */
@@ -14,10 +15,13 @@ type ProjectingViewport = {
 /**
  * Height in meters of the point a map camera orbits. Map views lift it with viewState
  * `position: [0, 0, z]`, as deck.gl's terrain controller does to orbit the terrain at the
- * center of the view. Other views use `position` for the eye or not at all, so they stay at 0.
+ * center of the view. A math.gl viewport built from such a viewState keeps it as `meterOffset`.
+ * Other views use `position` for the eye or not at all, so they stay at 0.
  */
 export function getCameraTargetZ(viewport: unknown): number {
-  return (viewport instanceof WebMercatorViewport && viewport.position?.[2]) || 0;
+  if (viewport instanceof WebMercatorViewport) return viewport.position?.[2] || 0;
+  if (viewport instanceof MathWebMercatorViewport) return viewport.meterOffset[2] || 0;
+  return 0;
 }
 
 /**

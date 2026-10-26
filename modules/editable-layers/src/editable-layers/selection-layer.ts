@@ -12,7 +12,7 @@ import {EditableGeoJsonLayer} from './editable-geojson-layer';
 import {DrawRectangleMode} from '../edit-modes/draw-rectangle-mode';
 import {DrawPolygonMode} from '../edit-modes/draw-polygon-mode';
 import {ViewMode} from '../edit-modes/view-mode';
-import {projectOnTargetPlane, unprojectOnTargetPlane} from '../utils/camera-target';
+import {projectOnTargetPlane} from '../utils/camera-target';
 
 export const SELECTION_TYPE = {
   NONE: null,
@@ -145,16 +145,18 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
     // The blocker must cover the entire picking rectangle, regardless of the
     // lasso's geographic size or shape. Unproject a padded screen-space rectangle
     // instead of using a fixed-distance buffer that leaves holes in wide lassos.
-    // The ring shares the lasso's plane, the one through the camera target.
+    // The blocker draws its 2D rings at sea level, so both rings unproject there
+    // from screen pixels; the lasso's own coordinates lie on the camera target's plane.
     const outerRing = [
       [x - 1, y - 1],
       [maxX + 1, y - 1],
       [maxX + 1, maxY + 1],
       [x - 1, maxY + 1],
       [x - 1, y - 1]
-    ].map(position => unprojectOnTargetPlane(this.context.viewport, position));
+    ].map(position => this.context.viewport.unproject(position));
+    const innerRing = mousePoints.map(position => this.context.viewport.unproject(position));
 
-    this.setState({selectionMask: [[outerRing, coordinates[0]]], isSelecting: true});
+    this.setState({selectionMask: [[outerRing, innerRing]], isSelecting: true});
     let pickingInfos;
     try {
       // Picking renders its own framebuffer. Initialize the new blocker now,

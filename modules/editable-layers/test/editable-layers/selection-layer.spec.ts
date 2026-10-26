@@ -93,14 +93,15 @@ test('picking follows the pointer on screen when the camera target is lifted', (
     position: [0, 0, 30]
   });
   layer.context.viewport = viewport;
-  // The editable layer reads pointer map coordinates on the camera target's plane.
+  // The editable layer reads pointer map coordinates on the camera target's plane,
+  // while the blocker draws its 2D rings at sea level.
   const at = ([x, y]: number[]) => viewport.unproject([x, y], {targetZ: 30}).slice(0, 2);
-  const onScreen = ([lng, lat]: number[]) => viewport.project([lng, lat, 30]).slice(0, 2);
+  const blockerOnScreen = ([lng, lat]: number[]) => viewport.project([lng, lat]);
   const expectPixels = (actual: number[][], expected: number[][]) =>
     actual.forEach((pixel, i) => pixel.forEach((v, j) => expect(v).toBeCloseTo(expected[i][j], 2)));
-  let outerRing: number[][] = [];
+  let mask: number[][][] = [];
   pickObjects.mockImplementation(() => {
-    outerRing = layer.state.selectionMask[0][0];
+    mask = layer.state.selectionMask[0];
     return [];
   });
 
@@ -114,12 +115,19 @@ test('picking follows the pointer on screen when the camera target is lifted', (
   ]);
   const lasso = pickObjects.mock.calls[0][0];
   expectPixels([[lasso.x, lasso.y, lasso.width, lasso.height]], [[300, 200, 200, 200]]);
-  expectPixels(outerRing.map(onScreen), [
+  const [outerRing, innerRing] = mask;
+  expectPixels(outerRing.map(blockerOnScreen), [
     [299, 199],
     [501, 199],
     [501, 401],
     [299, 401],
     [299, 199]
+  ]);
+  expectPixels(innerRing.map(blockerOnScreen), [
+    [300, 200],
+    [500, 220],
+    [480, 400],
+    [300, 200]
   ]);
 
   layer._selectRectangleObjects([

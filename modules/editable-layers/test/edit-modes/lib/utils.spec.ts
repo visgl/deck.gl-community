@@ -268,16 +268,21 @@ describe('nearestPointOnLine()', () => {
 });
 
 describe('edit-mode nearestPointOnProjectedLine()', () => {
-  it('Meets the pointer on the elevated line when the camera target is lifted', () => {
-    const viewport = new WebMercatorViewport({
-      width: 800,
-      height: 600,
-      longitude: -122.4194,
-      latitude: 37.7749,
-      zoom: 18,
-      pitch: 45,
-      position: [0, 0, 30]
-    });
+  const viewState = {
+    width: 800,
+    height: 600,
+    longitude: -122.4194,
+    latitude: 37.7749,
+    zoom: 18,
+    pitch: 45,
+    position: [0, 0, 30]
+  };
+
+  it.each([
+    ['viewport', new WebMercatorViewport(viewState)],
+    ['viewState', viewState]
+  ])('Meets the pointer on the elevated line when the camera target is lifted (%s)', (_, modeViewport) => {
+    const viewport = new WebMercatorViewport(viewState);
     // A line on terrain 30 m up, and the pointer as the editable layer reads it there.
     const at = ([x, y]: number[]) => viewport.unproject([x, y], {targetZ: 30}).slice(0, 2);
     const line = {
@@ -298,7 +303,7 @@ describe('edit-mode nearestPointOnProjectedLine()', () => {
       properties: {}
     };
 
-    const result = nearestPointOnElevatedLine(line, inPoint, viewport, geoCoordinateSystem);
+    const result = nearestPointOnElevatedLine(line, inPoint, modeViewport, geoCoordinateSystem);
 
     expect(result.properties.dist).toBeCloseTo(0, 4);
     expect(result.geometry.coordinates[0]).toBeCloseTo(pointer[0], 8);

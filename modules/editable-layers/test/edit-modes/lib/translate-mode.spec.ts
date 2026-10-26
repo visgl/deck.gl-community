@@ -72,16 +72,21 @@ test('Selected polygon feature can be translated in screen space', () => {
   expect(props.data.features[2]).not.toEqual(movedFeature);
 });
 
-test('Screen-space translation follows the pointer when the camera target is lifted', () => {
-  const viewport = new WebMercatorViewport({
-    width: 800,
-    height: 600,
-    longitude: -122.4194,
-    latitude: 37.7749,
-    zoom: 18,
-    pitch: 45,
-    position: [0, 0, 30]
-  });
+const LIFTED_VIEW_STATE = {
+  width: 800,
+  height: 600,
+  longitude: -122.4194,
+  latitude: 37.7749,
+  zoom: 18,
+  pitch: 45,
+  position: [0, 0, 30]
+};
+
+test.each([
+  ['viewport', new WebMercatorViewport(LIFTED_VIEW_STATE)],
+  ['viewState', LIFTED_VIEW_STATE]
+])('Screen-space translation follows the pointer when the camera target is lifted (%s)', (_, modeViewport) => {
+  const viewport = new WebMercatorViewport(LIFTED_VIEW_STATE);
   // The editable layer reads pointer map coordinates on the camera target's plane.
   const at = ([x, y]: number[]) => viewport.unproject([x, y], {targetZ: 30}).slice(0, 2);
   const mockOnEdit = vi.fn();
@@ -94,7 +99,7 @@ test('Screen-space translation follows the pointer when the camera target is lif
     },
     selectedIndexes: [0],
     onEdit: mockOnEdit,
-    modeConfig: {screenSpace: true, viewport}
+    modeConfig: {screenSpace: true, viewport: modeViewport}
   });
   const picks = [{index: 0, isGuide: false, object: null}];
   const translateMode = new TranslateMode();
