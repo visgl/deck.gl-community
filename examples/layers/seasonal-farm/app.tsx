@@ -14,7 +14,7 @@ import {
 } from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 import type {Device} from '@luma.gl/core';
-import {TreeLayer} from '@deck.gl-community/layers';
+import {TreeLayer, WindEffect} from '@deck.gl-community/layers';
 import {SettingsPanel, type SettingsState} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
@@ -88,7 +88,7 @@ function getFarmView(width: number, height: number, plots: FarmPlot[]): MapViewS
   };
 }
 
-/** Mount a compact demonstration farm whose TreeLayer props are driven by a settings panel. */
+/** Mount a compact demonstration farm whose TreeLayer and WindEffect props are driven by a settings panel. */
 export function mountSeasonalFarmExample(
   container: HTMLElement,
   options: SeasonalFarmExampleOptions = {}
@@ -145,6 +145,7 @@ export function mountSeasonalFarmExample(
       return currentView as typeof params.viewState;
     },
     useDevicePixels: Math.min(2, container.ownerDocument.defaultView?.devicePixelRatio || 1),
+    effects: createEffects(),
     layers: createLayers(),
     onResize() {
       // A website-managed device starts with a 1×1 canvas before reparenting.
@@ -204,14 +205,18 @@ export function mountSeasonalFarmExample(
 
   function updateLayers() {
     root.dataset.season = settings.season;
-    deck.setProps({layers: createLayers()});
+    deck.setProps({effects: createEffects(), layers: createLayers()});
+  }
+
+  // deck.gl keeps the registered WindEffect and passes it the new props.
+  function createEffects() {
+    return [new WindEffect(settings.wind)];
   }
 
   function createLayers() {
     const {
       season,
       crops,
-      windStrength,
       sizeScale,
       characteristics,
       maxCanopySplats,
@@ -244,7 +249,6 @@ export function mountSeasonalFarmExample(
         getCrop: tree => (crops ? getSeasonalCrop(tree, season) : null),
         sizeScale,
         characteristics,
-        windStrength,
         maxCanopySplats,
         maxCanopyPixels,
         foveationStrength,

@@ -3,10 +3,10 @@
 A compact TreeLayer demo with seven plots and 416 varied trees. It is the live example on the
 TreeLayer docs page. Hover a tree or plot to inspect it.
 
-The **TreeLayer** panel maps directly onto layer props:
+The **TreeLayer** panel maps directly onto layer props and the scene's `WindEffect`:
 
-- **Trees**: season (`getSeason`), fruit and flowers (`getCrop`), wind (`windStrength`) and size
-  (`sizeScale`).
+- **Trees**: season (`getSeason`), fruit and flowers (`getCrop`) and size (`sizeScale`), plus the
+  `WindEffect` strength, direction and gusts, which every tree follows.
 - **Crown**: every shared `characteristics` field, from seed and spread to leaf density.
 - **Rendering**: the shared splat budget (`maxCanopySplats`), canopy pixel cap
   (`maxCanopyPixels`) and foveation strength.

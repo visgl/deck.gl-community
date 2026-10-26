@@ -50,11 +50,13 @@ struct Varyings {
  var normal = mat3x3<f32>(normalAxisX, normalAxisY, normalAxisZ) * attributes.splatNormals;
  normal *= select(1.0, -1.0, normalDeterminant < 0.0) / max(abs(normalDeterminant), 1e-20);
  let height = max(attributes.instanceDeformation.x, 0.001);
- let wave = vec2<f32>(splat.wave.x * attributes.instanceDeformation.w + splat.wave.y * attributes.instanceDeformation.z,
-   splat.wave.z * attributes.instanceCoverageWeight.z + splat.wave.w * attributes.instanceCoverageWeight.y);
- if (splat.strength != 0.0) {
-  let deformation = splatDeform(position, height, splat.strength * attributes.instanceDeformation.y, wave);
-  position = deformation.position;
+ let wave = vec2<f32>(wind.wave.x * attributes.instanceDeformation.w + wind.wave.y * attributes.instanceDeformation.z,
+   wind.wave.z * attributes.instanceCoverageWeight.z + wind.wave.w * attributes.instanceCoverageWeight.y);
+ if (wind.strength != 0.0) {
+  let windStrength = wind.strength * attributes.instanceDeformation.y;
+  let flutter = splatFlutter(position, attributes.splatCenters, height, windStrength, attributes.instanceDeformation.zw, wind.axis, wind.flutter);
+  let deformation = splatDeform(position, height, windStrength, wave, wind.axis, mat2x2<f32>(wind.mode.xy, wind.mode.zw), attributes.instanceDeformation.zw, wind.branch);
+  position = deformation.position + flutter;
   covariance = deformation.jacobian * covariance;
   normal = splatDeformNormal(deformation.jacobian, normal);
  }

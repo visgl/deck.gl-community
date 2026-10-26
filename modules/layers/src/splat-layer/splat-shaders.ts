@@ -6,30 +6,24 @@ import {SPLAT_DEFORMATION_GLSL} from './splat-deformation';
 import {SPLAT_GLOBE_GLSL} from './splat-globe';
 
 const DECLARATION = `uniform splatUniforms {
-  float strength;
-  float time;
   float mode;
   float kernelVariance;
   float alphaCutoff;
   float support;
   float opticalDepthMode;
-  vec4 wave;
 } splat;`;
 export const splatUniforms = {
   name: 'splat',
   vs: DECLARATION,
   fs: DECLARATION,
-  source: `struct SplatUniforms { strength: f32, time: f32, mode: f32, kernelVariance: f32, alphaCutoff: f32, support: f32, opticalDepthMode: f32, wave: vec4<f32> };
+  source: `struct SplatUniforms { mode: f32, kernelVariance: f32, alphaCutoff: f32, support: f32, opticalDepthMode: f32 };
 @group(0) @binding(auto) var<uniform> splat: SplatUniforms;`,
   uniformTypes: {
-    strength: 'f32',
-    time: 'f32',
     mode: 'f32',
     kernelVariance: 'f32',
     alphaCutoff: 'f32',
     support: 'f32',
-    opticalDepthMode: 'f32',
-    wave: 'vec4<f32>'
+    opticalDepthMode: 'f32'
   }
 } as const satisfies ShaderModule;
 
@@ -118,10 +112,15 @@ void main() {
   vec3 normal = mat3(normalAxisX, normalAxisY, normalAxisZ) * splatNormals;
   normal *= (normalDeterminant < 0.0 ? -1.0 : 1.0) / max(abs(normalDeterminant), 1e-20);
   float height = max(instanceDeformation.x, 0.001);
-  vec2 wave = vec2(splat.wave.x * instanceDeformation.w + splat.wave.y * instanceDeformation.z,
-    splat.wave.z * instanceCoverageWeight.z + splat.wave.w * instanceCoverageWeight.y);
+  vec2 wave = vec2(wind.wave.x * instanceDeformation.w + wind.wave.y * instanceDeformation.z,
+    wind.wave.z * instanceCoverageWeight.z + wind.wave.w * instanceCoverageWeight.y);
   mat3 jacobian = mat3(1.0);
-  if (splat.strength != 0.0) jacobian = splatDeform(position, height, splat.strength * instanceDeformation.y, wave);
+  if (wind.strength != 0.0) {
+    float windStrength = wind.strength * instanceDeformation.y;
+    vec3 flutter = splatFlutter(position, splatCenters, height, windStrength, instanceDeformation.zw, wind.axis, wind.flutter);
+    jacobian = splatDeform(position, height, windStrength, wave, wind.axis, mat2(wind.mode), instanceDeformation.zw, wind.branch);
+    position += flutter;
+  }
   covariance = jacobian * covariance;
   normal = splatDeformNormal(jacobian, normal);
   // Owner metres point east, north and up of the anchor, on deck.gl's globe as in planar views.

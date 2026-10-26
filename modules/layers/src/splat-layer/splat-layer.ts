@@ -34,6 +34,7 @@ import type {SplatHierarchy} from './splat-hierarchy';
 import {getSplatRadius, getSplatCenter} from './splat-source';
 import {getSplatTransform, getSplatTransformScale} from './splat-transform';
 import {getSplatDeformationRadius} from './splat-deformation';
+import {getLayerWindBound} from '../wind-effect/wind-effect';
 import {budgetSplatSelections, getSplatLevelCounts, type SplatSelection} from './splat-budget';
 import {SplatRefinementTransition} from './splat-refinement-transition';
 import {retainSplatRows, getSplatChangedRanges, SplatRowSlots} from './splat-row-diff';
@@ -176,6 +177,9 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     slots: SplatRowSlots<Owner<DataT>>[];
     coverage: {data: Owner<DataT>[]; ranges: {startRow: number; endRow: number}[]}[];
     awaitingInitialAllocation: boolean;
+    /** Peak wind and crown scale the owner bounds cover; a `WindEffect` change rebuilds them. */
+    windBound?: string;
+    windKey?: string;
   };
   initializeState() {
     this.state = {
@@ -233,15 +237,21 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       'coordinateOrigin'
     ] as const;
     const triggers = changeFlags.updateTriggersChanged;
-    const geometryChanged = keys.some(
-      key =>
-        (typeof props[key] !== 'function' &&
-          (Array.isArray(props[key]) && Array.isArray(oldProps[key])
-            ? props[key].length !== oldProps[key].length ||
-              props[key].some((value, index) => value !== oldProps[key][index])
-            : props[key] !== oldProps[key])) ||
-        (triggers && (triggers.all || triggers[key]))
-    );
+    const wind = getLayerWindBound(this, props.deformationStrength);
+    const windBound = `${wind.peak}|${wind.turbulence}`;
+    const windBoundChanged = windBound !== this.state.windBound;
+    this.state.windBound = windBound;
+    const geometryChanged =
+      windBoundChanged ||
+      keys.some(
+        key =>
+          (typeof props[key] !== 'function' &&
+            (Array.isArray(props[key]) && Array.isArray(oldProps[key])
+              ? props[key].length !== oldProps[key].length ||
+                props[key].some((value, index) => value !== oldProps[key][index])
+              : props[key] !== oldProps[key])) ||
+          (triggers && (triggers.all || triggers[key]))
+      );
     const refinementChanged =
       props.pixelError !== oldProps.pixelError ||
       props.foveationStrength !== oldProps.foveationStrength ||
@@ -325,7 +335,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           ? getSplatTransformScale(matrix)
           : Math.max(...scale.map(Math.abs));
         const deformation = get(this.props.getDeformation, object, objectInfo);
-        const strength = Math.abs(this.props.deformationStrength * deformation[2]);
+        const strength = wind.peak * Math.abs(deformation[2]);
         const transform = getSplatTransform(
           get(this.props.getOrientation, object, objectInfo),
           scale,
@@ -346,7 +356,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           localCenter,
           maximumScale * sourceRadius,
           deformation[0],
-          strength
+          strength,
+          wind.turbulence
         );
         // On the globe, owner metres point along the east-north-up frame at the anchor.
         const center = offsetSplatCommonPosition(

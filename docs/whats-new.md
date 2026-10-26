@@ -34,6 +34,14 @@ This page lists module additions and major changes in each release. For detailed
 - **Breaking:** `SplatLayer` drops the legacy top-level `source` and `hierarchy` props. Pass
   sources through `getSource`; see the [upgrade guide](./upgrade-guide.md).
 
+- New [`WindEffect`](/docs/modules/layers/api-reference/wind-effect) sets one wind for the scene,
+  with direction, gusts and turbulence. Every `TreeLayer` and `SplatLayer` follows it, including
+  shadows and picking, on WebGL2 and WebGPU. `windStrength` and `deformationStrength` now default
+  to `null` (follow the effect, or no wind without one) and override it per layer. The Seasonal
+  Farm Wind controls drive the effect. `WindExtension` bends `SimpleMeshLayer`, `ScenegraphLayer`,
+  `ColumnLayer`, `GridCellLayer` and `PointCloudLayer` with the same wind (WebGL2); the new
+  [Wind Garden](/examples/layers/wind-garden) example shows them together.
+
 - `SplatLayer` and `TreeLayer` render on `GlobeView`, including MapLibre's globe projection through
   `MapLibreOverlay`. Before, they threw an unsupported-projection error. Gaussians, wood and crops
   keep an east-north-up pose at each owner, unchanged when the globe switches to Web Mercator above
