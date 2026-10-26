@@ -19,6 +19,7 @@ import {
   ScreenCoordinates
 } from '../edit-modes/types';
 import {Position} from '../utils/geojson-types';
+import {unprojectOnTargetPlane} from '../utils/camera-target';
 
 const NATIVE_EVENT_HANDLERS: Record<string, keyof EditableLayer> = {
   pointerdown: '_onNativeClick',
@@ -528,6 +529,8 @@ export abstract class EditableLayer<
         return [position[0], position[1]] as Position;
       }
     }
-    return this.context.viewport.unproject([screenCoords[0], screenCoords[1]]) as Position;
+    // Without a terrain pick, read the pointer on the level of the point the camera orbits,
+    // not on sea level, so input stays under the cursor when viewState `position` lifts it.
+    return unprojectOnTargetPlane(this.context.viewport, [screenCoords[0], screenCoords[1]]);
   }
 }
