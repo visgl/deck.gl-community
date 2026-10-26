@@ -20,17 +20,18 @@ export function createSplatSortScratch(count: number): SplatSortScratch {
 }
 
 /**
- * Back-to-front order of the Gaussians in `[0, limit)` in front of the camera whose bounding
- * spheres (`support` times the largest sigma) reach the frustum, as the 3DGS rasterizer keeps any
- * Gaussian whose footprint touches the image: one 16-bit counting sort on view depth. `bounds`
- * holds XYZ and the largest sigma per Gaussian; `matrix` maps the capture's metres to clip space,
- * column major. Writes `order` and returns how many it holds.
+ * Back-to-front order of the Gaussians in front of the camera whose bounding spheres (`support`
+ * times the largest sigma) reach the frustum, as the 3DGS rasterizer keeps any Gaussian whose
+ * footprint touches the image: one 16-bit counting sort on view depth. At most `budget` are kept:
+ * the first in view, which in a packed capture are the most important. `bounds` holds XYZ and the
+ * largest sigma per Gaussian; `matrix` maps the capture's metres to clip space, column major.
+ * Writes `order` and returns how many it holds.
  *
  * This function is also the sort worker's source, so it references nothing outside its body.
  */
 export function sortSplatCapture(
   bounds: Float32Array,
-  limit: number,
+  budget: number,
   matrix: ArrayLike<number>,
   support: number,
   order: Uint32Array,
@@ -53,7 +54,8 @@ export function sortSplatCapture(
   let visible = 0;
   let near = Infinity;
   let far = -Infinity;
-  for (let i = 0; i < limit; i++) {
+  const count = bounds.length / 4;
+  for (let i = 0; i < count && visible < budget; i++) {
     const x = bounds[i * 4],
       y = bounds[i * 4 + 1],
       z = bounds[i * 4 + 2];
@@ -111,13 +113,13 @@ self.onmessage = event => {
     };
     return;
   }
-  const limit = Math.min(message.limit, bounds.length / 4);
-  const length = Math.ceil(limit / message.rowLength) * message.rowLength;
+  const budget = Math.min(message.budget, bounds.length / 4);
+  const length = Math.ceil(budget / message.rowLength) * message.rowLength;
   const order =
     message.buffer && message.buffer.byteLength >= length * 4
       ? new Uint32Array(message.buffer)
       : new Uint32Array(length);
-  const count = sort(bounds, limit, message.matrix, message.support, order, scratch);
+  const count = sort(bounds, budget, message.matrix, message.support, order, scratch);
   self.postMessage({id: message.id, order, count}, [order.buffer]);
 };`;
 
@@ -145,7 +147,7 @@ export class SplatCaptureSorter {
   private worker: Worker | null = null;
   private scratch: SplatSortScratch | null = null;
   private busy = false;
-  private queued: {id: number; matrix: Float64Array; limit: number; support: number} | null = null;
+  private queued: {id: number; matrix: Float64Array; budget: number; support: number} | null = null;
   private spare: ArrayBuffer | null = null;
   private latest = 0;
   private answered = 0;
@@ -178,11 +180,11 @@ export class SplatCaptureSorter {
     return !this.busy && this.answered === this.latest;
   }
 
-  /** Order the first `limit` Gaussians for a capture-to-clip matrix and support radius. */
-  sort(matrix: Float64Array, limit: number, support = 3) {
+  /** Order at most `budget` Gaussians in view for a capture-to-clip matrix and support radius. */
+  sort(matrix: Float64Array, budget: number, support = 3) {
     const id = ++this.latest;
-    if (this.busy) this.queued = {id, matrix, limit, support};
-    else this.start(id, matrix, limit, support);
+    if (this.busy) this.queued = {id, matrix, budget, support};
+    else this.start(id, matrix, budget, support);
   }
 
   /** Hand an order back for the next sort to fill. */
@@ -198,16 +200,16 @@ export class SplatCaptureSorter {
     this.onOrder = () => {};
   }
 
-  private start(id: number, matrix: Float64Array, limit: number, support: number) {
+  private start(id: number, matrix: Float64Array, budget: number, support: number) {
     this.busy = true;
     if (this.worker) {
       const buffer = this.spare;
       this.spare = null;
-      const message = {id, matrix, limit, support, buffer, rowLength: this.rowLength};
+      const message = {id, matrix, budget, support, buffer, rowLength: this.rowLength};
       this.worker.postMessage(message, buffer ? [buffer] : []);
       return;
     }
-    const count = Math.min(limit, this.bounds.length / 4);
+    const count = Math.min(budget, this.bounds.length / 4);
     this.scratch ||= createSplatSortScratch(this.bounds.length / 4);
     const order = new Uint32Array(Math.ceil(count / this.rowLength) * this.rowLength);
     const visible = sortSplatCapture(this.bounds, count, matrix, support, order, this.scratch);
@@ -220,7 +222,7 @@ export class SplatCaptureSorter {
     const queued = this.queued;
     this.queued = null;
     // a camera that moved during this sort is sorted next
-    if (queued) this.start(queued.id, queued.matrix, queued.limit, queued.support);
+    if (queued) this.start(queued.id, queued.matrix, queued.budget, queued.support);
     this.onOrder(order, count);
   }
 }

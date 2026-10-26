@@ -61,7 +61,8 @@ a capture rather than as instanced templates:
 - Spherical-harmonic bands (degrees 1-3) are evaluated toward the camera in the file's own frame,
   so place a capture with `getTransformMatrix` rather than re-exporting it in another frame.
 - SPZ's antialiased flag selects Mip-Splatting's opacity compensation; classic 3DGS files get none.
-- `maxSplats` keeps the most important Gaussians (opacity times projected area).
+- `maxSplats` caps the Gaussians drawn: the most important in view (opacity times projected area),
+  so a close view keeps its detail while a wide one drops the least important.
 - Each Gaussian takes 32 bytes on the GPU, plus 16-48 bytes of harmonics.
 
 Captures blend every Gaussian, so canvas MSAA multiplies their fill cost for no visible gain, two to

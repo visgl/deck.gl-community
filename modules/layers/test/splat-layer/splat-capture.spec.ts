@@ -142,6 +142,15 @@ it('sorts visible Gaussians back to front and culls behind and beside the camera
   expect(Array.from(order.subarray(0, 2))).toEqual([1, 0]);
 });
 
+it('spends the budget on the most important Gaussians in view', () => {
+  // packed most important first: behind the camera, near, far, beside, mid
+  const bounds = toBounds([0, 0, 2, 0, 0, -1, 0, 0, -5, 20, 0, -2, 0.5, 0, -3]);
+  const order = new Uint32Array(2);
+  const count = sortSplatCapture(bounds, 2, LOOK_DOWN_Z, 3, order, createSplatSortScratch(5));
+  // the first two in view, back to front; the culled ones took no budget
+  expect(Array.from(order.subarray(0, count))).toEqual([2, 1]);
+});
+
 it('keeps a Gaussian beside the frustum whose footprint reaches into it', () => {
   // centred 20 m to the side at 2 m depth: 3 sigma of 10 m reaches the view, of 0.1 m does not
   const order = new Uint32Array(1);

@@ -58,7 +58,7 @@ export type SplatCaptureLayerProps = LayerProps & {
   transform?: number[];
   /** RGBA tint; alpha multiplies opacity. */
   tint?: Color;
-  /** Draw at most this many Gaussians, most important first. */
+  /** Draw at most this many Gaussians: the most important in view. */
   maxSplats?: number;
   kernelVariance?: number;
   alphaCutoff?: number;
@@ -96,12 +96,12 @@ export class SplatCaptureLayer extends Layer<Required<SplatCaptureLayerProps>> {
     count: number;
     /** The last requested sort. */
     matrix?: Float64Array;
-    limit: number;
+    budget: number;
     support?: number;
   };
 
   initializeState() {
-    this.state = {count: 0, limit: 0};
+    this.state = {count: 0, budget: 0};
   }
 
   getShaders() {
@@ -262,20 +262,20 @@ export class SplatCaptureLayer extends Layer<Required<SplatCaptureLayerProps>> {
   private requestSort(matrix: Float64Array) {
     const {capture, sorter} = this.state;
     if (!capture || !sorter) return;
-    const limit = Math.min(capture.count, this.props.maxSplats);
+    const budget = Math.min(capture.count, this.props.maxSplats);
     const {support} = this.props;
     const previous = this.state.matrix;
     if (
       previous &&
-      limit === this.state.limit &&
+      budget === this.state.budget &&
       support === this.state.support &&
       matrix.every((v, i) => v === previous[i])
     )
       return;
     this.state.matrix = matrix;
-    this.state.limit = limit;
+    this.state.budget = budget;
     this.state.support = support;
-    sorter.sort(matrix, limit, support);
+    sorter.sort(matrix, budget, support);
   }
 
   /**
