@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {Matrix4} from '@math.gl/core';
-import {LayerExtension, WebMercatorViewport, OrthographicViewport} from '@deck.gl/core';
+import {
+  LayerExtension,
+  WebMercatorViewport,
+  OrthographicViewport,
+  _GlobeViewport as GlobeViewport,
+  type Viewport
+} from '@deck.gl/core';
 import {expect, it, vi} from 'vitest';
 import {TreeWoodLayer} from '../../src/tree-layer/tree-wood-layer';
 import {getTreeWindPhases, TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
@@ -410,5 +416,67 @@ it('passes shadowEnabled to its near and far wood meshes', () => {
     const children = layer.renderLayers();
     expect(children).toHaveLength(2);
     for (const child of children) expect(child.props.shadowEnabled).toBe(shadowEnabled);
+  }
+});
+
+it('bounds globe wood in its east-north-up frame and omits trees behind the globe', () => {
+  // Continental synthetic trees, so they span pixels on a whole-globe camera.
+  const row = (longitude: number) => ({
+    position: [longitude, 0, 0],
+    scale: [2e5, 2e5, 4e5],
+    translation: [3e5, 0, 0],
+    type: 'oak' as const,
+    levels: 3,
+    characteristics: {},
+    height: 6e5,
+    wind: [0, 0, 0]
+  });
+  const data = [row(0), row(180)];
+  const templateMesh = getTreeWoodMesh('oak');
+  const layer = new TreeWoodLayer({
+    data,
+    mesh: templateMesh,
+    templateMesh,
+    getPosition: value => value.position,
+    getScale: value => value.scale,
+    getTranslation: value => value.translation
+  });
+  layer.initializeState();
+  vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
+  const viewport = new GlobeViewport({width: 512, height: 512, longitude: 0, latitude: 0, zoom: 1});
+  Object.assign(layer, {context: {viewport, deck: {getViewports: () => [viewport]}}});
+  vi.spyOn(layer, 'projectPosition').mockImplementation((point, options) =>
+    (options!.viewport as Viewport).projectPosition(Array.from(point))
+  );
+  layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {dataChanged: true}});
+  const drawn = [...layer.state.near, ...layer.state.far].filter(Boolean);
+  expect(drawn).toEqual([data[0]]);
+  // At longitude 0 on the equator, east is common +x and up is common -y.
+  const [owner] = layer.state.owners;
+  const units = owner.units[0];
+  expect((owner.center[0] - owner.common[0]) / units).toBeCloseTo(3e5, 3);
+  expect((owner.common[1] - owner.center[1]) / units).toBeCloseTo(2.4e5, 3);
+  expect((owner.center[2] - owner.common[2]) / units).toBeCloseTo(0, 3);
+});
+
+it('projects tree mesh offsets and normals in the east-north-up globe frame', () => {
+  for (const type of ['webgl', 'webgpu'] as const) {
+    const layer = Object.assign(Object.create(TreeMeshLayer.prototype), {
+      context: {device: {type}, defaultShaderModules: []},
+      props: {...TreeMeshLayer.defaultProps, extensions: []}
+    });
+    const {vs, source} = layer.getShaders();
+    const code = type === 'webgl' ? vs : source;
+    // deck.gl's globe frame turns SimpleMeshLayer offsets toward the west and south.
+    expect(code).not.toMatch(
+      /project_position_to_clipspace(_and_commonspace)?\(\s*(attributes\.)?instancePositions,/
+    );
+    expect(code).toContain('splatProjectOffset(treeAnchor, treeFrame,');
+    expect(code).not.toContain('project_normal(treeNormal)');
+    expect(code.match(/splatProjectNormal\(treeNormal, treeFrame\)/g)).toHaveLength(2);
+    // SwiftShader compiles and runs both SimpleMeshLayer branches: project the anchor once.
+    expect(
+      code.match(/project_position(_vec3_f64)?\(\s*(attributes\.)?instancePositions,/g)
+    ).toHaveLength(1);
   }
 });

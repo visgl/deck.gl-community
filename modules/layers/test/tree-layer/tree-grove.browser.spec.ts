@@ -28,7 +28,7 @@ const VIEW_STATE = {
     METER_ZOOM + Math.log2(0.75 * Math.min(STAGE_WIDTH / GROVE_EXTENT, STAGE_HEIGHT / GROVE_EXTENT))
 };
 const GRAZING_VIEW_STATE = {
-  // This matches Tree Lab's LOD-detail camera: it culls most of the grove, while a low
+  // A close LOD-detail camera: it culls most of the grove, while a low
   // perspective angle leaves enough depth range to prove per-crown selection.
   ...getMapCenter(0, -GROVE_EXTENT * 0.1),
   position: [0, 0, 3],

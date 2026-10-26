@@ -33,8 +33,7 @@ it('renders an optical transition through a forced crown budget reduction, then 
     new SplatLayer({
       id: 'stable-crown',
       data,
-      source,
-      hierarchy,
+      getSource: {type: 'prepared-splats', source, hierarchy},
       maxSplats,
       pixelError: 0.01,
       getScale: [12, 12, 12],
@@ -141,8 +140,8 @@ it('keeps authored foliage lighting continuous across a grazing camera angle', a
     layers: [
       new SplatLayer({
         id: 'grazing-lit-crown',
-        source,
         data: [{}],
+        getSource: source,
         getPosition: [0, 0, 0],
         getTranslation: [0, 0, 0],
         deformationStrength: 0,

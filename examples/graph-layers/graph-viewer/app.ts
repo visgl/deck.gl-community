@@ -4,10 +4,11 @@
 
 /* eslint-disable max-lines, max-statements, complexity */
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck, OrthographicView, type DeckProps, type PickingInfo} from '@deck.gl/core';
 import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
-  AccordeonPanel,
+  AccordionPanel,
   CustomPanel,
   MarkdownPanel,
   SettingsPanel,
@@ -350,6 +351,7 @@ export function mountGraphViewerExample(
     }
   });
   const sidebarWidget = new SidebarPanelWidget({
+    style: EXAMPLE_PANEL_STYLE,
     id: 'graph-viewer-sidebar',
     placement: 'top-right',
     side: 'right',
@@ -372,6 +374,7 @@ export function mountGraphViewerExample(
     options.showInfoWidget === false
       ? null
       : new BoxPanelWidget({
+          style: EXAMPLE_PANEL_STYLE,
           id: 'graph-viewer-box',
           placement: 'top-left',
           widthPx: 360,
@@ -523,7 +526,7 @@ export function mountGraphViewerExample(
     });
     boxWidget?.setProps({
       title: getGraphViewerBoxTitle(options.graphType),
-      panel: buildInfoBoxPanel(runtime, state.selectedLayout, state.themeMode)
+      panel: buildInfoBoxPanel(runtime, state.selectedLayout)
     });
     zoomWidget.setProps({minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM});
   }
@@ -970,20 +973,22 @@ function buildSidebarPanel(
     })
   );
 
-  panels.push(
-    new TextEditorPanel({
-      id: 'stylesheet-json',
-      title: 'Stylesheet JSON',
-      language: 'json',
-      value: state.stylesheetValue,
-      onValueChange: handlers.onStylesheetChange,
-      readOnly: false,
-      placeholder: DEFAULT_STYLESHEET_MESSAGE,
-      theme: 'invert'
-    })
-  );
+  const stylesheetPanel: TextEditorPanel = new TextEditorPanel({
+    id: 'stylesheet-json',
+    title: 'Stylesheet JSON',
+    language: 'json',
+    value: state.stylesheetValue,
+    onValueChange: value => {
+      stylesheetPanel.setProps({value});
+      handlers.onStylesheetChange(value);
+    },
+    readOnly: false,
+    placeholder: DEFAULT_STYLESHEET_MESSAGE,
+    theme: 'inherit'
+  });
+  panels.push(stylesheetPanel);
 
-  return new AccordeonPanel({
+  return new AccordionPanel({
     id: 'graph-viewer-sidebar-panels',
     title: '',
     panels,
@@ -991,11 +996,7 @@ function buildSidebarPanel(
   });
 }
 
-function buildInfoBoxPanel(
-  runtime: GraphViewerRuntime,
-  selectedLayout: LayoutType,
-  themeMode: 'light' | 'dark'
-): MarkdownPanel {
+function buildInfoBoxPanel(runtime: GraphViewerRuntime, selectedLayout: LayoutType): MarkdownPanel {
   const selectedLayoutLabel = LAYOUT_LABELS[selectedLayout] ?? selectedLayout;
   const markdown = [
     runtime.selectedExample.description,
@@ -1008,7 +1009,7 @@ function buildInfoBoxPanel(
     id: 'graph-viewer-info',
     title: '',
     markdown,
-    theme: themeMode
+    theme: 'sleek-dark'
   });
 }
 

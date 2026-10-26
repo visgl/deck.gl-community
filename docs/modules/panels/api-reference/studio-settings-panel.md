@@ -21,7 +21,7 @@ import {
 ## Props
 
 ```ts
-type StudioSettingsPanelProps = {
+type StudioSettingsPanelProps = PanelProps & {
   schema: SettingsSchema;
   applicationSchema?: SettingsSchema;
   fontFamily?: string;

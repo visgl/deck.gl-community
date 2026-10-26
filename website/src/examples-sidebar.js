@@ -44,7 +44,6 @@ const sidebars = {
       items: [
         'layers/path-outline-and-markers',
         'layers/flame-trail',
-        'layers/tree-lab',
         'layers/seasonal-farm',
         'layers/skybox-map-view',
         'layers/skybox-globe',
@@ -85,6 +84,7 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/widgets',
       items: [
+        'widgets/canvas-chrome',
         'widgets/html-overlays',
         'widgets/overlays',
         'widgets/pan-and-zoom-controls',

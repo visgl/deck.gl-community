@@ -33,7 +33,7 @@ describe('Gaussian canopy rendering', () => {
       new SplatLayer({
         id: 'canopy',
         data,
-        source: SOURCE,
+        getSource: SOURCE,
         pixelError,
         coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
         coordinateOrigin: [0, 0, 0],
@@ -213,7 +213,7 @@ it('truncates culled owner tails without re-uploading unchanged instance attribu
   const layer = new SplatLayer({
     id: 'tail',
     data,
-    source: SOURCE,
+    getSource: SOURCE,
     coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
     coordinateOrigin: [0, 0, 0],
     getTranslation: [0, 0, 5],
@@ -270,7 +270,7 @@ it('moves drawing and picking when a new data array reuses a mutated owner', asy
   const layer = new SplatLayer({
     id: 'mutated-owner',
     data: [row],
-    source: {
+    getSource: {
       ...SOURCE,
       scales: new Float32Array([0.35, 0.35, 0.35]),
       colors: new Uint8Array([255, 255, 255, 255])

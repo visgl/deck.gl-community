@@ -4,6 +4,7 @@ import {useCallback, useEffect, useRef, useState} from 'preact/hooks';
 import {ColumnPanelContainer} from '../composite-panels/column-panel';
 import {PanelThemeScope} from '../panels/panel-theme-scope';
 import {Panel} from '../panels/panel';
+import type {PanelProps} from '../panels/panel';
 
 import type {JSX} from 'preact';
 import type {PanelTheme} from '../panels/panel';
@@ -12,78 +13,99 @@ import type {PanelTheme} from '../panels/panel';
 export type SplitterPanelOrientation = 'horizontal' | 'vertical';
 
 /** Props for the composite `SplitterPanel` definition. */
-export type SplitterPanelProps = {
+export type SplitterPanelProps = PanelProps & {
   panels: ReadonlyArray<Panel>;
   id?: string;
   title?: string;
   theme?: PanelTheme;
   orientation?: SplitterPanelOrientation;
-  initialSplit?: number;
+  /** Controlled ratio; takes precedence over defaultSplit. */
+  split?: number;
+  /** Initial local ratio. Defaults to 0.5 and is read only on mount. */
+  defaultSplit?: number;
   editable?: boolean;
   minSplit?: number;
   maxSplit?: number;
-  onChange?: (split: number) => void;
+  /** Requested clamped ratio during dragging; programmatic updates do not emit it. */
+  onSplitChange?: (split: number) => void;
+  /** Called once on editable pointer down, before split requests. */
   onDragStart?: () => void;
+  /** Called once on pointer up/cancel, after split requests. Unmount is silent. */
   onDragEnd?: () => void;
 };
 
 type SplitterPanelContentProps = {
   panels: ReadonlyArray<Panel>;
   orientation: SplitterPanelOrientation;
-  initialSplit: number;
+  split?: number;
+  defaultSplit: number;
   editable: boolean;
   minSplit: number;
   maxSplit: number;
-  onChange?: (split: number) => void;
+  onSplitChange?: (split: number) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
 };
 
 /** Panel definition that splits one leading panel from the remaining panel stack. */
-export class SplitterPanel extends Panel {
-  constructor({
-    panels,
-    id = 'splitter-panels',
-    title = 'Panels',
-    theme = 'inherit',
-    orientation = 'horizontal',
-    initialSplit = 0.5,
-    editable = true,
-    minSplit = 0.05,
-    maxSplit = 0.95,
-    onChange,
-    onDragStart,
-    onDragEnd
-  }: SplitterPanelProps) {
-    super({
-      id,
-      title,
-      theme,
-      content: (
-        <SplitterPanelContent
-          panels={panels}
-          orientation={orientation}
-          initialSplit={initialSplit}
-          editable={editable}
-          minSplit={minSplit}
-          maxSplit={maxSplit}
-          onChange={onChange}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-        />
-      )
-    });
+export class SplitterPanel extends Panel<SplitterPanelProps> {
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    id: 'splitter-panels',
+    title: 'Panels',
+    theme: 'inherit',
+    orientation: 'horizontal' as SplitterPanelOrientation,
+    defaultSplit: 0.5,
+    editable: true,
+    minSplit: 0.05,
+    maxSplit: 0.95
+  } satisfies PanelProps & Partial<SplitterPanelProps>;
+
+  override getChildPanels(): ReadonlyArray<Panel> {
+    return this.props.panels;
+  }
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {
+      panels,
+      orientation,
+      split,
+      defaultSplit,
+      editable,
+      minSplit,
+      maxSplit,
+      onSplitChange,
+      onDragStart,
+      onDragEnd
+    } = this.props;
+    return (
+      <SplitterPanelContent
+        panels={panels}
+        orientation={orientation}
+        split={split}
+        defaultSplit={defaultSplit}
+        editable={editable}
+        minSplit={minSplit}
+        maxSplit={maxSplit}
+        onSplitChange={onSplitChange}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      />
+    );
   }
 }
 
 function SplitterPanelContent({
   panels,
   orientation,
-  initialSplit,
+  split: controlledSplit,
+  defaultSplit,
   editable,
   minSplit,
   maxSplit,
-  onChange,
+  onSplitChange,
   onDragStart,
   onDragEnd
 }: SplitterPanelContentProps) {
@@ -91,15 +113,35 @@ function SplitterPanelContent({
   const remainingPanels = panels.slice(1);
   const resolvedMinSplit = normalizeSplitBoundary(minSplit, 0);
   const resolvedMaxSplit = Math.max(resolvedMinSplit, normalizeSplitBoundary(maxSplit, 1));
-  const [split, setSplit] = useState(() =>
-    clampSplit(initialSplit, resolvedMinSplit, resolvedMaxSplit)
+  const [localSplit, setLocalSplit] = useState(() =>
+    clampSplit(defaultSplit, resolvedMinSplit, resolvedMaxSplit)
   );
+  const isControlled = controlledSplit !== undefined;
+  const split = clampSplit(controlledSplit ?? localSplit, resolvedMinSplit, resolvedMaxSplit);
+  const latest = useRef({
+    isControlled,
+    orientation,
+    editable,
+    resolvedMinSplit,
+    resolvedMaxSplit,
+    onSplitChange,
+    onDragEnd
+  });
+  latest.current = {
+    isControlled,
+    orientation,
+    editable,
+    resolvedMinSplit,
+    resolvedMaxSplit,
+    onSplitChange,
+    onDragEnd
+  };
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    setSplit(clampSplit(initialSplit, resolvedMinSplit, resolvedMaxSplit));
-  }, [initialSplit, resolvedMinSplit, resolvedMaxSplit]);
+    setLocalSplit(value => clampSplit(value, resolvedMinSplit, resolvedMaxSplit));
+  }, [resolvedMinSplit, resolvedMaxSplit]);
 
   useEffect(() => {
     return () => {
@@ -107,26 +149,25 @@ function SplitterPanelContent({
     };
   }, []);
 
-  const updateSplitFromEvent = useCallback(
-    (event: PointerEvent | MouseEvent) => {
-      const container = containerRef.current;
-      if (!container) {
-        return;
-      }
-      const rect = container.getBoundingClientRect();
-      const size = orientation === 'horizontal' ? rect.width : rect.height;
-      if (size <= 0) {
-        return;
-      }
+  const updateSplitFromEvent = useCallback((event: PointerEvent | MouseEvent) => {
+    const {isControlled, orientation, editable, resolvedMinSplit, resolvedMaxSplit, onSplitChange} =
+      latest.current;
+    const container = containerRef.current;
+    if (!container || !editable) {
+      return;
+    }
+    const rect = container.getBoundingClientRect();
+    const size = orientation === 'horizontal' ? rect.width : rect.height;
+    if (size <= 0) {
+      return;
+    }
 
-      const offset =
-        orientation === 'horizontal' ? event.clientX - rect.left : event.clientY - rect.top;
-      const nextSplit = clampSplit(offset / size, resolvedMinSplit, resolvedMaxSplit);
-      setSplit(nextSplit);
-      onChange?.(nextSplit);
-    },
-    [onChange, orientation, resolvedMinSplit, resolvedMaxSplit]
-  );
+    const offset =
+      orientation === 'horizontal' ? event.clientX - rect.left : event.clientY - rect.top;
+    const nextSplit = clampSplit(offset / size, resolvedMinSplit, resolvedMaxSplit);
+    if (!isControlled) setLocalSplit(nextSplit);
+    onSplitChange?.(nextSplit);
+  }, []);
 
   if (!firstPanel) {
     return <div style={SPLITTER_CONTAINER_STYLE(orientation)} />;
@@ -155,7 +196,7 @@ function SplitterPanelContent({
     const handlePointerEnd = () => {
       dragCleanupRef.current?.();
       dragCleanupRef.current = null;
-      onDragEnd?.();
+      latest.current.onDragEnd?.();
     };
 
     ownerDocument.addEventListener('pointermove', handlePointerMove);
@@ -218,7 +259,7 @@ function SPLITTER_PANE_STYLE(
     minWidth: 0,
     minHeight: 0,
     overflow: 'auto',
-    padding: '0 8px',
+    padding: 'var(--panel-padding, 0 8px)',
     boxSizing: 'border-box'
   };
 }

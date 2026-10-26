@@ -2,6 +2,54 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
+  independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
+  aliases; migrate visibility to `open` / `onOpenChange`. Content stays mounted across modes.
+
+- **Breaking panels API:** specialized panels render from typed live props; rename
+  `AccordeonPanel` to `AccordionPanel`, splitter `onChange` to `onSplitChange`, and
+  `initialSplit` to `defaultSplit`. Controlled `split` is authoritative during dragging.
+  No compatibility names are exported. See the upgrade guide.
+
+- Panels adds constructor components and automatic host resizing to `PanelManager`,
+  declarative accordion expansion and initial tab selection, and an updated guide
+  to composition, controlled state, canvas chrome, and dynamically loaded Monaco.
+
+- Community examples and inline demos use shared sleek-dark panel chrome. Playground accepts a
+  panel preset or custom theme through `theme`, including its editors and example picker.
+
+- Shorter [`TreeLayer`](/docs/modules/layers/api-reference/tree-layer) and
+  [`SplatLayer`](/docs/modules/layers/api-reference/splat-layer) reference pages. The
+  [Seasonal Farm](/examples/layers/seasonal-farm) TreeLayer demo uses a settings panel for season,
+  crops, wind, size, crown characteristics and canopy budgets, with no text drawn over the canvas.
+  The Tree Lab example is removed.
+
+- **Breaking:** `SplatLayer` drops the legacy top-level `source` and `hierarchy` props. Pass
+  sources through `getSource`; see the [upgrade guide](./upgrade-guide.md).
+
+- `SplatLayer` and `TreeLayer` render on `GlobeView`, including MapLibre's globe projection through
+  `MapLibreOverlay`. Before, they threw an unsupported-projection error. Gaussians, wood and crops
+  keep an east-north-up pose at each owner, unchanged when the globe switches to Web Mercator above
+  zoom 12, and the globe hides its far side.
+
+## v9.4.8
+
+- `BasemapLayer` reads glyph bitmaps containing only the border without treating their ink as missing.
+
+- Panels adds compact translucent `sleek-light` and `sleek-dark` presets, custom theme
+  definitions, and preset-aware nested inheritance and inversion.
+
+- Panels adds permanent header, footer, and side chrome and optional pinning on `BoxPanelContainer`.
+  Opt into docking with `PanelManager.contentElement`; nested panels can adapt through
+  `usePanelContainerState()`. See [canvas chrome](./modules/panels/api-reference/panel-containers/canvas-chrome.md).
+
+- Panel content can be embedded with `mountPanel`, `ReactPanel`, and `useReactPanel`.
+  React hosts accept sleek presets and custom theme definitions; React-owned content
+  retains its context and follows panel mount policies. Collapsing a pinned box releases
+  its docked space and leaves a compact title bar for restoring the panel.
+
 ## v9.4.7
 
 - v9.4.7 also publishes the v9.4.6 changes below, whose npm release was interrupted after only
@@ -94,7 +142,7 @@ This page lists module additions and major changes in each release. For detailed
   outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
   mask synchronously instead of waiting 250 ms.
 
-- Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
+- Added a compact TreeLayer demo with eight species, seasons, crops, wind and picking.
 
 - Editable layers support overlaid MapLibre/Mapbox input targets. Selection masks the full lasso,
   keeps `guideType` features selectable, and resumes editing after two-finger navigation.

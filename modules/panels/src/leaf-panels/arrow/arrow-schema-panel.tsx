@@ -3,6 +3,7 @@
 import {useMemo} from 'preact/hooks';
 
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 import {useEffectivePanelThemeMode} from '../../panels/panel-theme-scope';
 import {
   createArrowSchemaPreview,
@@ -17,9 +18,9 @@ export type {ArrowMetadataLike, ArrowSchemaFieldLike, ArrowSchemaLike} from './a
 export type {ArrowMetadataEntry};
 
 /** Props for {@link ArrowSchemaPanel}. */
-export type ArrowSchemaPanelProps = {
+export type ArrowSchemaPanelProps = PanelProps & {
   /** Stable panel id used by parent containers. */
-  id: string;
+  id?: string;
   /** Visible heading text for the panel. */
   title: string;
   /** Schema to display. Accepts Apache Arrow Schema-like objects. */
@@ -31,15 +32,13 @@ export type ArrowSchemaPanelProps = {
 };
 
 /** Panel that renders an Arrow schema as one table row per field. */
-export class ArrowSchemaPanel extends Panel {
-  /** Creates an Arrow schema panel. */
-  constructor(props: ArrowSchemaPanelProps) {
-    super({
-      id: props.id,
-      title: props.title,
-      theme: props.theme ?? 'inherit',
-      content: <ArrowSchemaPanelContent {...props} />
-    });
+export class ArrowSchemaPanel extends Panel<ArrowSchemaPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'arrow-schema-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    return <ArrowSchemaPanelContent {...this.props} />;
   }
 }
 
@@ -180,8 +179,8 @@ function MetadataPreview({
 const ARROW_SCHEMA_PANEL_STYLE: JSX.CSSProperties = {
   minWidth: 0,
   overflow: 'hidden',
-  borderRadius: '6px',
-  padding: '10px 12px',
+  borderRadius: 'var(--panel-corner-radius, 6px)',
+  padding: 'var(--panel-padding, 10px 12px)',
   font: '500 12px/1.45 ui-sans-serif,system-ui,sans-serif'
 };
 
@@ -197,8 +196,8 @@ const ARROW_SCHEMA_SCROLL_STYLE: JSX.CSSProperties = {
 const ARROW_SCHEMA_METADATA_SECTION_STYLE: JSX.CSSProperties = {
   borderStyle: 'solid',
   borderWidth: '1px',
-  borderRadius: '6px',
-  padding: '8px',
+  borderRadius: 'var(--panel-corner-radius, 6px)',
+  padding: 'var(--panel-padding, 8px)',
   marginBottom: '10px'
 };
 
@@ -219,7 +218,7 @@ const ARROW_SCHEMA_TABLE_STYLE: JSX.CSSProperties = {
 const ARROW_SCHEMA_HEADER_CELL_STYLE: JSX.CSSProperties = {
   borderStyle: 'solid',
   borderWidth: '0 1px 1px 0',
-  padding: '6px 8px',
+  padding: 'var(--panel-padding, 6px 8px)',
   textAlign: 'left',
   font: '700 11px/1.4 ui-sans-serif,system-ui,sans-serif',
   whiteSpace: 'nowrap'
@@ -228,7 +227,7 @@ const ARROW_SCHEMA_HEADER_CELL_STYLE: JSX.CSSProperties = {
 const ARROW_SCHEMA_CELL_STYLE: JSX.CSSProperties = {
   borderStyle: 'solid',
   borderWidth: '0 1px 1px 0',
-  padding: '5px 8px',
+  padding: 'var(--panel-padding, 5px 8px)',
   maxWidth: '260px',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
@@ -244,14 +243,14 @@ const ARROW_SCHEMA_METADATA_CELL_STYLE: JSX.CSSProperties = {
 
 const ARROW_SCHEMA_METADATA_LIST_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '4px',
+  gap: 'var(--panel-gap, 4px)',
   margin: 0
 };
 
 const ARROW_SCHEMA_METADATA_ROW_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(5rem, auto) minmax(0, 1fr)',
-  gap: '8px',
+  gap: 'var(--panel-gap, 8px)',
   alignItems: 'baseline'
 };
 

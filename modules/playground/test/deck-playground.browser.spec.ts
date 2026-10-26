@@ -116,6 +116,29 @@ afterEach(() => {
 });
 
 describe('Playground rendering lifecycle', () => {
+  it('applies a custom panel theme to the sidebar and editor', async () => {
+    const host = createHost();
+    const playground = new Playground({
+      parentElement: host,
+      templates: {first: 'hello'},
+      language: 'plaintext',
+      parse: text => text,
+      theme: {base: 'sleek-dark', variables: {'--menu-text': 'rgb(210, 220, 230)'}},
+      renderer: {update: vi.fn(), finalize: vi.fn()}
+    });
+    PLAYGROUNDS.push(playground);
+    await vi.waitFor(() => {
+      const sidebar = host.querySelector<HTMLElement>('.deckgl-playground-sidebar')!;
+      const editor = host.querySelector<HTMLElement>('[data-text-editor-root]')!;
+      expect(editor).not.toBeNull();
+      for (const element of [sidebar, editor]) {
+        const style = getComputedStyle(element);
+        expect(style.getPropertyValue('--panel-preset').trim()).toBe('sleek-dark');
+        expect(style.getPropertyValue('--menu-text').trim()).toBe('rgb(210, 220, 230)');
+      }
+    });
+  });
+
   it('customizes text documents, metadata, layout and host tabs', async () => {
     const onChange = vi.fn();
     const onError = vi.fn();
@@ -290,6 +313,11 @@ describe('Playground rendering lifecycle', () => {
       {label: 'edited-second'},
       '{"label":"edited-second"}'
     );
+    await Promise.resolve();
+    expect(secondModel.getValue()).toBe('{"label":"edited-second"}');
+    secondModel.setValue('{invalid draft');
+    await Promise.resolve();
+    expect(secondModel.getValue()).toBe('{invalid draft');
     second.finalize();
     expect(secondModel.isDisposed()).toBe(true);
   });

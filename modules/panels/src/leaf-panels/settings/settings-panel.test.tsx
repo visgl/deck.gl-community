@@ -3,7 +3,7 @@ import {render} from 'preact';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {SettingsPanel} from './settings-panel';
-import {AccordeonPanel} from '../../composite-panels/accordeon-panel';
+import {AccordionPanel} from '../../composite-panels/accordion-panel';
 import {TabbedPanel} from '../../composite-panels/tabbed-panel';
 
 import type {SettingsSchema, SettingsState} from '../../lib/settings/settings';
@@ -253,8 +253,8 @@ describe('SettingsPanel', () => {
 
     const numberInput = getRequiredInput(root, 'input[type="number"]');
     expect(numberInput.getAttribute('style')).toContain('var(--button-backdrop-filter');
-    expect(numberInput.style.height).toBe('28px');
-    expect(numberInput.style.padding).toBe('2px 6px');
+    expect(getComputedStyle(numberInput).height).toBe('28px');
+    expect(getComputedStyle(numberInput).padding).toBe('2px 6px');
 
     cleanup();
   });
@@ -325,7 +325,7 @@ describe('SettingsPanel', () => {
     expect(optionLabel?.style.whiteSpace).toBe('nowrap');
     expect(optionLabel?.style.textOverflow).toBe('');
     expect(optionDescription?.textContent).toBe('Only keep critical traces visible.');
-    expect(optionDescription?.style.fontSize).toBe('11px');
+    expect(optionDescription && getComputedStyle(optionDescription).fontSize).toBe('11px');
 
     cleanup();
   });
@@ -503,7 +503,7 @@ describe('SettingsPanel', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
-    const panel = new AccordeonPanel({
+    const panel = new AccordionPanel({
       id: 'settings-accordion',
       title: 'Settings accordion',
       panels: SettingsPanel.createSectionPanels({

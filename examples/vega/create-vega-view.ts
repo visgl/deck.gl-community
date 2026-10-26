@@ -4,6 +4,8 @@
 
 import './vega-controls.css';
 import {parse, type Spec} from 'vega';
+import {PanelManager, HeaderPanelContainer, CustomPanel} from '@deck.gl-community/panels';
+import {EXAMPLE_PANEL_STYLE} from '../utils/panel-theme';
 import {ViewGl} from '../../modules/vega/src';
 
 /** Runs a declarative Vega document. Controls are native Vega signal bindings. */
@@ -21,6 +23,25 @@ export function createVegaView(host: HTMLElement, spec: Spec) {
   host.style.display = 'flex';
   host.style.flexDirection = 'column';
   host.append(controls, chart);
+  const panelManager = new PanelManager({parentElement: host, contentElement: chart});
+  if (!controls.hidden) {
+    panelManager.setProps({
+      components: [
+        new HeaderPanelContainer({
+          fitContent: true,
+          style: EXAMPLE_PANEL_STYLE,
+          panel: new CustomPanel({
+            id: 'vega-signal-controls',
+            title: '',
+            onRenderHTML(element) {
+              element.append(controls);
+              return () => controls.remove();
+            }
+          })
+        })
+      ]
+    });
+  }
   const markOrdinals = new Map<object, Map<unknown, number>>();
   let nextOrdinal = 0;
   let view: InstanceType<typeof ViewGl>;
@@ -63,12 +84,14 @@ export function createVegaView(host: HTMLElement, spec: Spec) {
         if (finalized) return;
         finalized = true;
         view.finalize();
+        panelManager.finalize();
         controls.remove();
         chart.remove();
       }
     };
   } catch (error) {
     view.finalize();
+    panelManager.finalize();
     throw error;
   }
 }

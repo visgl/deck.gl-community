@@ -6,7 +6,7 @@
 import {tableFromArrays} from 'apache-arrow';
 import {Stats} from '@probe.gl/stats';
 import {
-  AccordeonPanel,
+  AccordionPanel,
   ArrowBatchesPanel,
   ArrowSchemaPanel,
   ArrowTablePanel,
@@ -16,8 +16,8 @@ import {
   DocumentationLinksPanel,
   KeyboardShortcutsPanel,
   MarkdownPanel,
-  PANEL_THEME_DARK,
-  PANEL_THEME_LIGHT,
+  PANEL_THEME_SLEEK_DARK as PANEL_THEME_DARK,
+  PANEL_THEME_SLEEK_LIGHT as PANEL_THEME_LIGHT,
   BoxPanelContainer,
   FullScreenPanelContainer,
   PanelManager,
@@ -58,7 +58,7 @@ export type PanelDocsExampleHighlight =
   | 'keyboard-shortcuts-panel'
   | 'text-editor-panel'
   | 'url-parameters-panel'
-  | 'accordeon-panel'
+  | 'accordion-panel'
   | 'tabbed-panel'
   | 'column-panel'
   | 'splitter-panel'
@@ -81,7 +81,7 @@ export function mountPanelDocsExample(
   container.replaceChildren(rootElement);
 
   const state = {
-    theme: 'light' as 'light' | 'dark'
+    theme: 'dark' as 'light' | 'dark'
   };
 
   applyStyle(rootElement, {
@@ -185,7 +185,7 @@ const HIGHLIGHT_TITLES: Record<PanelDocsExampleHighlight, string> = {
   'keyboard-shortcuts-panel': 'KeyboardShortcutsPanel',
   'text-editor-panel': 'TextEditorPanel',
   'url-parameters-panel': 'URLParametersPanel',
-  'accordeon-panel': 'AccordeonPanel',
+  'accordion-panel': 'AccordionPanel',
   'tabbed-panel': 'TabbedPanel',
   'column-panel': 'ColumnPanel',
   'splitter-panel': 'SplitterPanel',
@@ -485,7 +485,7 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
       return new TextEditorPanel({
         id: 'editor',
         title: 'Editor',
-        value: JSON.stringify({theme: 'light', layers: 3}, null, 2),
+        defaultValue: JSON.stringify({theme: 'light', layers: 3}, null, 2),
         language: 'json'
       });
 
@@ -494,9 +494,9 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         urlParameters: URL_PARAMETERS
       });
 
-    case 'accordeon-panel':
-      return new AccordeonPanel({
-        id: 'accordeon',
+    case 'accordion-panel':
+      return new AccordionPanel({
+        id: 'accordion',
         title: 'Sections',
         panels: [
           new MarkdownPanel({
@@ -553,7 +553,7 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
         id: 'splitter',
         title: 'Splitter',
         orientation: 'horizontal',
-        initialSplit: 0.44,
+        defaultSplit: 0.44,
         minSplit: 0.25,
         maxSplit: 0.75,
         panels: [
@@ -677,9 +677,9 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
                 markdown: 'Use `ColumnPanel` to keep multiple panels visible.'
               }),
               new MarkdownPanel({
-                id: 'accordeon-tab',
-                title: 'Accordeon',
-                markdown: 'Use `AccordeonPanel` for collapsible sections.'
+                id: 'accordion-tab',
+                title: 'Accordion',
+                markdown: 'Use `AccordionPanel` for collapsible sections.'
               })
             ]
           })

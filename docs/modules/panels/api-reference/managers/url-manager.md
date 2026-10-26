@@ -6,11 +6,11 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<PanelLiveExample highlight="url-parameters-panel" />
-
 `URLManager` and the URL parameter helpers provide descriptor-based deep-link
 parsing and serialization. They are deck-independent and can be used by panels,
 widgets, or standalone applications.
+
+<PanelLiveExample highlight="url-parameters-panel" />
 
 ## Usage
 

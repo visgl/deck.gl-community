@@ -1,5 +1,28 @@
 # deck.gl-community CHANGELOG
 
+## Unreleased
+
+- **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
+  independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
+  aliases; migrate visibility to `open` / `onOpenChange`. Content stays mounted across modes.
+
+- **Breaking panels API:** specialized panels render from typed live props; rename
+  `AccordeonPanel` to `AccordionPanel`, splitter `onChange` to `onSplitChange`, and
+  `initialSplit` to `defaultSplit`. Controlled `split` is authoritative during dragging.
+  No compatibility names are exported. See the upgrade guide.
+
+- Simplify standalone panel setup with initial components and automatic resize handling; expose accordion state and initial tab selection on panel classes. Refresh panel guides and references, and defer the Monaco runtime bridge until editor content mounts.
+
+- Use current panel containers, React/HTML content bridges, and shared sleek-dark styling throughout community examples and inline demos. Add an optional Playground theme for sidebar, editor, and picker styling.
+- Render `SplatLayer` and `TreeLayer` on `GlobeView`, including MapLibre's globe through `MapLibreOverlay`, instead of throwing. Gaussians, wood and crops keep an east-north-up pose at each owner across the zoom-12 switch to Web Mercator, and the globe hides its far side (#985).
+
+## v9.4.8
+
+- Read border-only glyph bitmaps without treating them as missing ink in `BasemapLayer` (#973).
+- Add compact translucent `sleek-light` and `sleek-dark` panel presets, custom theme definitions, and preset-aware nested inheritance and inversion (#977).
+- Add header, footer, and hidable side panels and optional box pinning around an application-owned `PanelManager.contentElement`; nested panels can observe container state (#976).
+- Embed panels with `mountPanel`, `ReactPanel`, and `useReactPanel`, preserving React context and supporting inherited or custom themes. Collapsing a pinned box releases its docked space and leaves a compact restore bar (#978).
+
 ## v9.4.7
 
 - Publish the v9.4.6 changes to npm. The v9.4.6 release run was cancelled after only `@deck.gl-community/react` published, so every other package moves from v9.4.5 to v9.4.7 and also includes the v9.4.6 notes below.
