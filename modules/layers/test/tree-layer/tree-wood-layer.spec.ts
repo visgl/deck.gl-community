@@ -354,7 +354,6 @@ it('forwards its own and extension update triggers to near and far wood meshes',
   const updateTriggers = {
     getColor: [getColor, 1],
     getWind: [0.5, 0.25],
-    getDeformation: [0.5, 0.25],
     getCoverageWeight: 2,
     getSelected: 7
   };

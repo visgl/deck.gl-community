@@ -1,11 +1,9 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {SPLAT_DEFORMATION_WGSL} from './splat-deformation';
 import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
 import {SPLAT_GLOBE_WGSL} from './splat-globe';
 export const SPLAT_WGSL = `
-${SPLAT_DEFORMATION_WGSL}
 ${SPLAT_GLOBE_WGSL}
 struct Attributes {
  @builtin(instance_index) instanceIndex: u32,
@@ -23,8 +21,7 @@ struct Attributes {
  @location(11) instanceModelMatrixCol1: vec3<f32>,
  @location(12) instanceModelMatrixCol2: vec3<f32>,
  @location(13) instanceTranslation: vec3<f32>,
- @location(14) instanceDeformation: vec4<f32>,
- @location(15) instanceCoverageWeight: vec3<f32>
+ @location(14) instanceCoverageWeight: f32
 };
 struct Varyings {
  @builtin(position) position: vec4<f32>,
@@ -49,17 +46,6 @@ struct Varyings {
  // Cofactors form the inverse transpose, including shear and reflections.
  var normal = mat3x3<f32>(normalAxisX, normalAxisY, normalAxisZ) * attributes.splatNormals;
  normal *= select(1.0, -1.0, normalDeterminant < 0.0) / max(abs(normalDeterminant), 1e-20);
- let height = max(attributes.instanceDeformation.x, 0.001);
- let wave = vec2<f32>(wind.wave.x * attributes.instanceDeformation.w + wind.wave.y * attributes.instanceDeformation.z,
-   wind.wave.z * attributes.instanceCoverageWeight.z + wind.wave.w * attributes.instanceCoverageWeight.y);
- if (wind.strength != 0.0) {
-  let windStrength = wind.strength * attributes.instanceDeformation.y;
-  let flutter = splatFlutter(position, attributes.splatCenters, height, windStrength, attributes.instanceDeformation.zw, wind.axis, wind.flutter);
-  let deformation = splatDeform(position, height, windStrength, wave, wind.axis, mat2x2<f32>(wind.mode.xy, wind.mode.zw), attributes.instanceDeformation.zw, wind.branch);
-  position = deformation.position + flutter;
-  covariance = deformation.jacobian * covariance;
-  normal = splatDeformNormal(deformation.jacobian, normal);
- }
  // Owner metres point east, north and up of the anchor, on deck.gl's globe as in planar views.
  let anchor = project_position_vec3_f64(attributes.instancePositions, attributes.instancePositions64Low);
  let frame = splatTangentFrame(anchor);
@@ -112,7 +98,7 @@ struct Varyings {
  // Weighted transparency resolves without the basemap's depth: the globe must hide its far side.
  if (center.w <= 0.0 || center.z < -center.w || output.color.a < splat.alphaCutoff || splatBehindGlobe(commonPosition.xyz)) { output.position = vec4<f32>(2.0,2.0,2.0,1.0); }
  output.pickingColor = geometry.pickingColor;
- output.coverageWeight = attributes.instanceCoverageWeight.x * clipWeight;
+ output.coverageWeight = attributes.instanceCoverageWeight * clipWeight;
  return output;
 }
 fn gaussianOpticalDepth(input: Varyings) -> f32 {
@@ -155,22 +141,31 @@ fn gaussianOpticalDepth(input: Varyings) -> f32 {
  return color;
 }`;
 
-export const SPLAT_ACCUMULATION_WGSL =
-  SPLAT_WGSL.replace(
-    '@fragment fn fragmentMain(input: Varyings) -> @location(0)',
-    'fn shadeGaussian(input: Varyings) ->'
-  ) +
-  `
+/** The weighted pass with color and optical depth outputs, for `SPLAT_WGSL` or a patched copy. */
+export function getSplatAccumulationWGSL(source: string): string {
+  return (
+    source.replace(
+      '@fragment fn fragmentMain(input: Varyings) -> @location(0)',
+      'fn shadeGaussian(input: Varyings) ->'
+    ) +
+    `
 struct SplatOutput { @location(0) accumulation: vec4<f32>, @location(1) opticalDepth: vec4<f32> };
 @fragment fn fragmentMain(input: Varyings) -> SplatOutput {
  let accumulation = shadeGaussian(input);
  return SplatOutput(accumulation, vec4<f32>(min(gaussianOpticalDepth(input), 80.0), 0.0, 0.0, 0.0));
-}`;
+}`
+  );
+}
+export const SPLAT_ACCUMULATION_WGSL = getSplatAccumulationWGSL(SPLAT_WGSL);
 
 // WebGPU blend parameters currently apply only to attachment zero. Keep optical depth in a
 // standalone target so every Gaussian adds to it before the weighted composite resolves.
-export const SPLAT_TRANSMISSION_WGSL = SPLAT_WGSL.replace(
-  / geometry\.position = vec4<f32>\(input\.commonPosition, 1\.0\);[\s\S]*/,
-  ` return vec4<f32>(min(gaussianOpticalDepth(input), 80.0), 0.0, 0.0, 0.0);
+/** The optical-depth-only pass, for `SPLAT_WGSL` or a patched copy. */
+export function getSplatTransmissionWGSL(source: string): string {
+  return source.replace(
+    / geometry\.position = vec4<f32>\(input\.commonPosition, 1\.0\);[\s\S]*/,
+    ` return vec4<f32>(min(gaussianOpticalDepth(input), 80.0), 0.0, 0.0, 0.0);
 }`
-);
+  );
+}
+export const SPLAT_TRANSMISSION_WGSL = getSplatTransmissionWGSL(SPLAT_WGSL);

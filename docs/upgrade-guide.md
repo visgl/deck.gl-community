@@ -72,14 +72,16 @@ TreeLayer canopy overrides follow the same rule: set `getSource` in `_subLayerPr
 
 ### `@deck.gl-community/layers`: wind comes from `WindEffect`
 
-Wind is deck-wide. `TreeLayer` and `SplatLayer` no longer have their own wind props; they bend
-with the deck's [`WindEffect`](./modules/layers/api-reference/wind-effect.md) and are still
-without one.
+Wind is deck-wide. `TreeLayer` no longer has its own wind props; it bends with the deck's
+[`WindEffect`](./modules/layers/api-reference/wind-effect.md) and is still without one.
+`SplatLayer` no longer bends at all: it draws Gaussians where its sources and transforms put
+them, and TreeLayer's canopy owns the wind of its foliage.
 
 | Removed | Use instead |
 | --- | --- |
-| `TreeLayer` `windStrength`, `SplatLayer` `deformationStrength` | `new WindEffect({strength})`, or `{speed}` in m/s, in `effects`. `windEnabled: false` keeps one layer still. |
-| `TreeLayer` `windTime`, `SplatLayer` `deformationTime` | `new WindEffect({time})`: a number freezes the pose, `() => number` is an app-owned clock. |
+| `TreeLayer` `windStrength` | `new WindEffect({strength})`, or `{speed}` in m/s, in `effects`. `windEnabled: false` keeps one layer still. |
+| `TreeLayer` `windTime` | `new WindEffect({time})`: a number freezes the pose, `() => number` is an app-owned clock. |
+| `SplatLayer` `getDeformation`, `deformationStrength`, `deformationTime`, `windEnabled` | None: SplatLayer is rigid. Trees bend through `TreeLayer`; other meshes through `WindExtension`. |
 | `TreeSpec.wind` | No per-tree wind; every tree in the scene bends with the same effect. |
 | `WindExtension` `windStrength`, `windTime` | The effect's `strength` and `time`. Remove the extension to keep a layer still. |
 

@@ -26,9 +26,7 @@ import {
 } from './splat-shaders';
 import {SplatEffect} from './splat-effect';
 import {prepareShadowDraw} from './splat-shadow';
-import {SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL, SPLAT_TRANSMISSION_WGSL} from './splat.wgsl.js';
-import {getLayerWind} from '../wind-effect/wind-effect';
-import {wind} from '../wind-effect/wind-module';
+import {SPLAT_WGSL, getSplatAccumulationWGSL, getSplatTransmissionWGSL} from './splat.wgsl.js';
 
 // Picking omits LightingEffect, but the effect's shadow shader remains a deck default module.
 // Retain its harmless fallback samplers from a draw pass so the pick pass can bind the module.
@@ -63,10 +61,6 @@ export type PreparedSplatProps<DataT> = {
   getTransformMatrix?: Accessor<DataT, number[] | null>;
   /** RGBA owner tint. Template and owner alpha each multiply opacity once. */
   getColor?: Accessor<DataT, Color>;
-  /** Bend height, stable phase, and flex multiplier. Defaults to a rigid source. */
-  getDeformation?: Accessor<DataT, number[]>;
-  /** Bend with the deck's `WindEffect`; `false` keeps this layer still in a windy scene. @default true */
-  windEnabled?: boolean;
   /** Pixel variance added to projected covariance, with determinant opacity compensation. @default 0.3 */
   kernelVariance?: number;
   /** Fragment contribution threshold. @default 0.0039215686 */
@@ -113,8 +107,6 @@ const defaultProps: DefaultProps<SplatLayerProps> = {
   getTranslation: {type: 'accessor', value: [0, 0, 0]},
   getTransformMatrix: {type: 'accessor', value: null},
   getColor: {type: 'accessor', value: [255, 255, 255, 255]},
-  getDeformation: {type: 'accessor', value: [1, 0, 0]},
-  windEnabled: true,
   kernelVariance: {type: 'number', value: 0.3, min: 0},
   alphaCutoff: {type: 'number', value: 1 / 255, min: 0, max: 1},
   support: {type: 'number', value: 3, min: 1, max: 6},
@@ -129,17 +121,18 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
   static layerName = 'SplatPrimitiveLayer';
   static defaultProps = defaultProps;
   /**
-   * The vertex attributes fill the 16 slots WebGL2 and WebGPU guarantee: per-object color filters
-   * such as `SelectionPulseExtension` read their data by instance index. The WGSL exposes
-   * `WGSL_FILTER_COLOR_ANCHOR`.
+   * The vertex attributes use 15 of the 16 slots WebGL2 and WebGPU guarantee, leaving one for a
+   * subclass's per-instance attribute. Per-object color filters such as `SelectionPulseExtension`
+   * read their data by instance index. The WGSL exposes `WGSL_FILTER_COLOR_ANCHOR`.
    */
   static instanceColorFilters = true;
+  /** Marks this class and its subclasses as Gaussian primitives for `SplatEffect`'s passes. */
+  static splatPrimitive = true;
   declare state: {
     model?: Model;
     accumulationModel?: Model;
     transmissionModel?: Model;
     effect: SplatEffect;
-    windRows: WeakMap<object, number[]>;
   };
 
   initializeState() {
@@ -156,15 +149,7 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
         accessor: 'getColor',
         defaultValue: [255, 255, 255, 255]
       },
-      instanceWindData: {
-        size: 7,
-        accessor: ['getDeformation', 'getCoverageWeight'],
-        shaderAttributes: {
-          instanceDeformation: {size: 4, elementOffset: 0},
-          instanceCoverageWeight: {size: 3, elementOffset: 4}
-        },
-        update: this.calculateWindData
-      },
+      instanceCoverageWeight: {size: 1, accessor: 'getCoverageWeight', defaultValue: 1},
       instanceModelMatrix: {
         size: 12,
         accessor: ['getOrientation', 'getScale', 'getTranslation', 'getTransformMatrix'],
@@ -177,7 +162,7 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
         update: this.calculateTransforms
       }
     });
-    this.setState({effect: SplatEffect.get(this.context.deck), windRows: new WeakMap()});
+    this.setState({effect: SplatEffect.get(this.context.deck)});
   }
 
   getShaders() {
@@ -185,14 +170,12 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
       vs: SPLAT_VERTEX,
       fs: SPLAT_FRAGMENT,
       source: SPLAT_WGSL,
-      modules: [project32, picking, phongMaterial, wind, splatUniforms]
+      modules: [project32, picking, phongMaterial, splatUniforms]
     });
   }
 
   updateState(params: UpdateParameters<this>) {
     super.updateState(params);
-    const triggers = params.changeFlags.updateTriggersChanged;
-    if (triggers && (triggers.getDeformation || triggers.all)) this.state.windRows = new WeakMap();
     const coverage = params.props._coverageRanges;
     if (coverage && coverage !== params.oldProps._coverageRanges)
       for (const range of coverage)
@@ -201,13 +184,15 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
       this.state.model?.destroy();
       this.state.accumulationModel?.destroy();
       this.state.transmissionModel?.destroy();
+      // Derive the weighted passes from this layer's own shaders, so a subclass's patch reaches them.
+      const shaders = this.getShaders();
       const makeModel = (mode: 'picking' | 'accumulation' | 'transmission') =>
         new Model(this.context.device, {
-          ...this.getShaders(),
+          ...shaders,
           ...(mode === 'accumulation'
-            ? {fs: SPLAT_ACCUMULATION_FRAGMENT, source: SPLAT_ACCUMULATION_WGSL}
+            ? {fs: SPLAT_ACCUMULATION_FRAGMENT, source: getSplatAccumulationWGSL(shaders.source)}
             : mode === 'transmission'
-              ? {fs: SPLAT_TRANSMISSION_FRAGMENT, source: SPLAT_TRANSMISSION_WGSL}
+              ? {fs: SPLAT_TRANSMISSION_FRAGMENT, source: getSplatTransmissionWGSL(shaders.source)}
               : {}),
           id: `${this.id}-${mode}`,
           geometry: acquireSplatGeometry(this.context.device, this.props.source),
@@ -237,34 +222,6 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     super.setShaderModuleProps(withPickingShadowBindings(this, props));
   }
 
-  private calculateWindData(attribute, {startRow, endRow}) {
-    const {iterable, objectInfo} = createIterable(this.props.data, startRow, endRow);
-    const get = (accessor, object) =>
-      typeof accessor === 'function' ? accessor(object, objectInfo) : accessor;
-    for (const object of iterable) {
-      objectInfo.index++;
-      const cacheable = object !== null && typeof object === 'object';
-      let wind = cacheable ? this.state.windRows.get(object) : undefined;
-      if (!wind) {
-        const [height, phase, flex] = get(this.props.getDeformation, object);
-        wind = [
-          height,
-          flex,
-          Math.sin(phase),
-          Math.cos(phase),
-          Math.sin(phase * 1.7),
-          Math.cos(phase * 1.7)
-        ];
-        if (cacheable) this.state.windRows.set(object, wind);
-      }
-      const offset = objectInfo.index * 7;
-      for (let i = 0; i < 4; i++) attribute.value[offset + i] = wind[i];
-      attribute.value[offset + 4] = get(this.props.getCoverageWeight, object);
-      attribute.value[offset + 5] = wind[4];
-      attribute.value[offset + 6] = wind[5];
-    }
-  }
-
   private calculateTransforms(attribute, {startRow, endRow}) {
     const {iterable, objectInfo} = createIterable(this.props.data, startRow, endRow);
     const get = (accessor, object) =>
@@ -291,14 +248,11 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     if (viewport !== this.context.viewport && viewport.id === this.context.viewport?.id) return;
     const pickingActive = shaderModuleProps.picking?.isActive;
     const mode = shaderModuleProps.splat?.mode ?? 0;
-    // Shadow passes receive no effect props: resolve the deck's WindEffect here for every pass.
-    const {wind: windProps, animated} = getLayerWind(this, this.props.windEnabled);
     if (shaderModuleProps.shadow?.drawToShadowMap) {
       if (!prepareShadowDraw(this)) return;
     } else if (!pickingActive && mode === 0) {
       if (shaderModuleProps.splat?.resolve)
         this.state.effect.resolve(renderPass, shaderModuleProps.project.viewport.id);
-      if (animated) this.setNeedsRedraw();
       return;
     }
     const {kernelVariance, alphaCutoff, support} = this.props;
@@ -309,7 +263,6 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
           ? this.state.transmissionModel
           : this.state.model;
     model?.shaderInputs.setProps({
-      wind: windProps,
       splat: {
         opticalDepthMode: this.props.source.opticalDepths ? 1 : 0,
         kernelVariance,
@@ -325,6 +278,5 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     }
     model?.setInstanceCount(this.getNumInstances());
     model?.draw(renderPass);
-    if (animated) this.setNeedsRedraw();
   }
 }

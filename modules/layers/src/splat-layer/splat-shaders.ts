@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import type {ShaderModule} from '@luma.gl/shadertools';
-import {SPLAT_DEFORMATION_GLSL} from './splat-deformation';
 import {SPLAT_GLOBE_GLSL} from './splat-globe';
 
 const DECLARATION = `uniform splatUniforms {
@@ -87,15 +86,13 @@ in vec3 instanceModelMatrixCol0;
 in vec3 instanceModelMatrixCol1;
 in vec3 instanceModelMatrixCol2;
 in vec3 instanceTranslation;
-in vec4 instanceDeformation;
-in vec3 instanceCoverageWeight;
+in float instanceCoverageWeight;
 out vec2 gaussianPosition;
 out vec4 vColor;
 out vec3 vNormal;
 out vec3 vPosition;
 out vec3 vCamera;
 out float vCoverageWeight;
-${SPLAT_DEFORMATION_GLSL}
 ${SPLAT_GLOBE_GLSL}
 ${SPLAT_SHADOW_VERTEX}
 void main() {
@@ -111,18 +108,6 @@ void main() {
   // Cofactors form the inverse transpose, including shear and reflections.
   vec3 normal = mat3(normalAxisX, normalAxisY, normalAxisZ) * splatNormals;
   normal *= (normalDeterminant < 0.0 ? -1.0 : 1.0) / max(abs(normalDeterminant), 1e-20);
-  float height = max(instanceDeformation.x, 0.001);
-  vec2 wave = vec2(wind.wave.x * instanceDeformation.w + wind.wave.y * instanceDeformation.z,
-    wind.wave.z * instanceCoverageWeight.z + wind.wave.w * instanceCoverageWeight.y);
-  mat3 jacobian = mat3(1.0);
-  if (wind.strength != 0.0) {
-    float windStrength = wind.strength * instanceDeformation.y;
-    vec3 flutter = splatFlutter(position, splatCenters, height, windStrength, instanceDeformation.zw, wind.axis, wind.flutter);
-    jacobian = splatDeform(position, height, windStrength, wave, wind.axis, mat2(wind.mode), instanceDeformation.zw, wind.branch);
-    position += flutter;
-  }
-  covariance = jacobian * covariance;
-  normal = splatDeformNormal(jacobian, normal);
   // Owner metres point east, north and up of the anchor, on deck.gl's globe as in planar views.
   vec3 anchor = project_position(instancePositions, instancePositions64Low);
   mat3 frame = splatTangentFrame(anchor);
@@ -131,7 +116,7 @@ void main() {
   geometry.position = commonPosition;
   vPosition = commonPosition.xyz;
   vCamera = project.cameraPosition;
-  vCoverageWeight = instanceCoverageWeight.x;
+  vCoverageWeight = instanceCoverageWeight;
   vNormal = splatProjectNormal(normal, frame);
   geometry.normal = vNormal;
   // Reuse the perspective Jacobian for all three covariance axes.

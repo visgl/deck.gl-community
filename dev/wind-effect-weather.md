@@ -103,7 +103,7 @@ redraw requests.
 
 ## Where the code lives
 
-- **luma.gl shadertools**: the `wind` module (uniform block, `splatDeform` bend and Jacobian,
+- **luma.gl shadertools**: the `wind` module (uniform block, `windBend` bend and Jacobian,
   gust envelope, velocity and displacement helpers), in `modules/geometry/` beside
   `precipitation`. It is deck-agnostic vertex math, like `heightFog` and `surfaceWeather`.
 - **deck side**: `WindEffect`, `WindExtension` and the TreeLayer/SplatLayer consumers, in

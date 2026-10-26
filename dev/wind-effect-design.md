@@ -62,7 +62,7 @@ A `wind` shader module (GLSL uniform block and WGSL struct) carries four values:
 | `axis` | `vec2` | `R(direction) · (1, 0.45)` |
 | `strength` | `f32` | `strength · gust(t)` |
 
-`getUniforms` does the trigonometry once per draw: the shared `splatDeform()` takes `axis` and
+`getUniforms` does the trigonometry once per draw: the shared `windBend()` takes `axis` and
 `mode` as arguments instead of constants.
 
 ### Motion
@@ -75,7 +75,7 @@ small shimmer. This is the usual split of vegetation animation into a main bend,
 and leaf flutter (as in Crytek's procedural vegetation in *GPU Gems 3*, chapter 16).
 
 A second iteration gave each leaf Gaussian its own large flutter. Leaves then drifted off wood
-that did not flutter. Branch sway now lives in `splatDeform`, which wood, fruit and leaves all
+that did not flutter. Branch sway now lives in `windBend`, which wood, fruit and leaves all
 use, so a leaf moves with the branch it sits on.
 
 | Part | Displacement | Where |
@@ -92,13 +92,13 @@ use, so a leaf moves with the branch it sits on.
 - The branch phase is `θ = α + 5z/H + φ`, where `α` is the azimuth around the trunk. It does not
   depend on the distance out, so each branch sways as one. Branches around the crown and up its
   tiers move out of step. `b₁ = sin(4.4t + θ)` and `b₂ = sin(7.1t + 2θ)`.
-- The sway is horizontal, so the Jacobian keeps its unit z row and `splatDeformNormal` is
+- The sway is horizontal, so the Jacobian keeps its unit z row and `windBendNormal` is
   unchanged. The analytic gradient never divides by `r`, because `reach / r² = 1 / (span² (1 + q²/4))`;
   a unit test checks it against numeric derivatives.
 - Leaves shimmer at 14.3 and 21.7 rad/s with a phase from an integer hash of the Gaussian's
   template centre, offset by the owner phase. Each Gaussian moves rigidly. The hash runs on a 1/64 m
   grid with `uint` arithmetic, which float32 represents exactly, so the CPU depth sort
-  (`getSplatWindOffset`) reproduces the shaders. A headless test checks a Gaussian against it to
+  (`getWindOffset`) reproduces the shaders. A headless test checks a Gaussian against it to
   within a pixel.
 
 At 6 m/s on a 12 m tree the trunk top leans 0.34 to 0.52 m, branch tips sway up to 0.21 m on top
@@ -125,7 +125,7 @@ in `setup()` and clears in `cleanup()`, the same pattern as `SplatEffect.get(dec
 ### CPU bounds
 
 Culling and the splat level of detail use bounds padded by the largest wind excursion
-(`getSplatDeformationRadius`, TreeWoodLayer's owner radius). Those now use the peak,
+(`getWindBendRadius`, TreeWoodLayer's owner radius). Those now use the peak,
 `strength × (1 + gust)`, with the crown term scaled by `turbulence`. Direction and time do not
 change the bounds.
 
@@ -142,11 +142,19 @@ The first prototype kept the layer props as overrides (`windStrength`, `windTime
 is a property of the scene, like light, so the effect is its only source. Each layer keeps one
 opt-out, `windEnabled` (default `true`), in the same spirit as deck.gl's `shadowEnabled`:
 
-| | TreeLayer | SplatLayer |
-| --- | --- | --- |
-| Scene | `WindEffect` `speed` or `strength`, `direction`, `gust`, `turbulence`, `time` | Same |
-| Per layer | `windEnabled: false` keeps it still | Same |
-| Per object | None: every tree bends alike | `getDeformation` `[height, phase, flex]`: the object's bend height and stiffness, not its wind |
+| | TreeLayer |
+| --- | --- |
+| Scene | `WindEffect` `speed` or `strength`, `direction`, `gust`, `turbulence`, `time` |
+| Per layer | `windEnabled: false` keeps it still |
+| Per object | None: every tree bends alike |
+
+`SplatLayer` knows nothing of wind. TreeLayer draws its foliage with `TreeCanopyLayer`, a SplatLayer
+subclass whose primitive patches the shared bend into SplatLayer's shaders at the point where each
+Gaussian is placed in owner metres, the same way `TreeMeshLayer` extends SimpleMeshLayer.
+SplatLayer exposes only neutral seams for it: the primitive class, extra row accessors, and a
+per-owner bounds radius and key. The canopy fills the one vertex-attribute slot SplatLayer leaves
+free with `[height, flex, phase, 0]`. Sorted transparency draws canopies unbent, since its CPU
+depth sort and packed buffers carry only SplatLayer's own attributes.
 
 - Tests and screenshots set the effect's `time` instead of a layer clock.
 - Without an effect, layers are still, which is what existing apps that passed no wind props
@@ -173,7 +181,7 @@ How it works:
   does call `DECKGL_FILTER_GL_POSITION` with `geometry.position`, the vertex in common space. The
   extension reconstructs the vertex offset from the anchor (`instancePositions`, copied into a
   global at `#main-start` because the hook is emitted before the layer declares its attributes),
-  converts it to metres, applies `splatDeform` and adds the offset to both `geometry.position` and
+  converts it to metres, applies `windBend` and adds the offset to both `geometry.position` and
   the clip position. The injection runs at order −100, before deck.gl's shadow module projects
   `geometry.position` into the light, so shadow maps, picking and drawing share one pose.
 - **Per-object attribute.** `getWind` returns `[height, phase, flex]`, packed as
@@ -197,7 +205,7 @@ Limits of the prototype:
 ## WebGPU
 
 The `wind` module ships a WGSL struct beside the GLSL block (`vec4, vec4, vec2, f32`, 48 bytes,
-no padding surprises), and `SPLAT_DEFORMATION_WGSL` takes the same two extra arguments. TreeLayer
+no padding surprises), and `WIND_BEND_WGSL` takes the same two extra arguments. TreeLayer
 and SplatLayer already patch their WGSL, so both backends get the effect in this change. The CPU
 depth sort in `SplatSortedRenderer` reads the same `wind` uniforms, so sorted transparency matches
 the GPU bend on both.

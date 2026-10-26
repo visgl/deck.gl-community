@@ -17,7 +17,7 @@ import {
 } from '../splat-layer/splat-globe';
 import {TreeMeshLayer} from './tree-mesh-layer';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
-import {getSplatBranchSwayRadius} from '../splat-layer/splat-deformation';
+import {getWindBranchSwayRadius} from '../wind-effect/wind-bend';
 import {getSplatTransform, getSplatTransformScale} from '../splat-layer/splat-transform';
 import {getTreeWoodMesh} from './tree-wood';
 import {
@@ -199,7 +199,7 @@ export class TreeWoodLayer extends CompositeLayer<any> {
                 Math.abs(windRow[2]) *
                 (Math.abs(windRow[0]) * 1.5 +
                   Math.max(...scale.map(Math.abs)) * 0.6 * wind.turbulence +
-                  getSplatBranchSwayRadius(
+                  getWindBranchSwayRadius(
                     Math.max(...scale.map(Math.abs)) * 2 + Math.hypot(...translation),
                     Math.abs(windRow[0]),
                     wind.turbulence

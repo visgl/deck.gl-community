@@ -51,7 +51,7 @@ describe('TreeLayer shadow casting', () => {
       } as any);
       const children = layer.renderLayers() as any[];
       const kinds = children.map(child => child.constructor.layerName);
-      expect(kinds).toEqual(expect.arrayContaining(['TreeWoodLayer', 'SplatLayer']));
+      expect(kinds).toEqual(expect.arrayContaining(['TreeWoodLayer', 'TreeCanopyLayer']));
       expect(children.some(child => child.id.includes('crops'))).toBe(true);
       for (const child of children) expect(child.props.shadowEnabled).toBe(expected);
     }

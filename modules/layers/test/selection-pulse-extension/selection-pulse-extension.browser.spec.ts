@@ -661,7 +661,7 @@ describe('SelectionPulseExtension on TreeLayer', () => {
       return values && Array.from(values.subarray(0, attribute!.numInstances)).includes(1);
     });
     expect(weighted.map(layer => layer.constructor.layerName)).toEqual(
-      expect.arrayContaining(['SplatPrimitiveLayer', 'TreeMeshLayer'])
+      expect.arrayContaining(['TreeCanopyPrimitiveLayer', 'TreeMeshLayer'])
     );
     expect(weighted.some(layer => layer.id.includes('wood'))).toBe(true);
     expect(weighted.some(layer => layer.id.includes('crops'))).toBe(true);

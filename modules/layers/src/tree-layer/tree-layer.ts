@@ -18,6 +18,7 @@ import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {getTreeMesh, createTreeRng} from './tree-geometry';
 import {TreeMeshLayer} from './tree-mesh-layer';
 import {SplatLayer} from '../splat-layer/splat-layer';
+import {TreeCanopyLayer} from './tree-canopy-layer';
 import {getTreeWoodMesh} from './tree-wood';
 import {sampleTreeFruit} from './tree-botany';
 import {TreeWoodLayer} from './tree-wood-layer';
@@ -881,7 +882,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           this.props.updateTriggers?.getSeason
         ]
       };
-      const CanopyLayer = SplatLayer;
+      const CanopyLayer = TreeCanopyLayer;
       foliage.push(
         new CanopyLayer(
           this.getTreeSubLayerProps(
@@ -897,7 +898,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               foveationStrength: this.props.foveationStrength,
               getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),
               maxSplats: Infinity,
-              getDeformation: getRowWind,
               doubleSided: type === 'palm',
               parameters:
                 type === 'palm'

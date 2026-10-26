@@ -10,7 +10,7 @@ import {
 } from '@deck.gl/core';
 import {SimpleMeshLayer, type SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
 import type {ShaderModule} from '@luma.gl/shadertools';
-import {SPLAT_DEFORMATION_GLSL, SPLAT_DEFORMATION_WGSL} from '../splat-layer/splat-deformation';
+import {WIND_BEND_GLSL, WIND_BEND_WGSL} from '../wind-effect/wind-bend';
 import {SPLAT_GLOBE_GLSL, SPLAT_GLOBE_WGSL} from '../splat-layer/splat-globe';
 import {prepareShadowDraw} from '../splat-layer/splat-shadow';
 import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
@@ -144,8 +144,8 @@ const GLSL_WIND = `
   if (wind.strength > 0.0) {
   float treeHeight = max(instanceTreeWind.x, 0.001);
   vec2 treeWave = vec2(wind.wave.x * instanceTreeWind.w + wind.wave.y * instanceTreeWind.z, wind.wave.z * instanceTreeCrownWind.y + wind.wave.w * instanceTreeCrownWind.x);
-  mat3 treeJacobian = splatDeform(pos, treeHeight, wind.strength * instanceTreeWind.y, treeWave, wind.axis, mat2(wind.mode), instanceTreeWind.zw, wind.branch);
-  treeNormal = splatDeformNormal(treeJacobian, treeNormal);
+  mat3 treeJacobian = windBend(pos, treeHeight, wind.strength * instanceTreeWind.y, treeWave, wind.axis, mat2(wind.mode), instanceTreeWind.zw, wind.branch);
+  treeNormal = windBendNormal(treeJacobian, treeNormal);
   }
 `;
 const WGSL_WIND = `
@@ -154,9 +154,9 @@ const WGSL_WIND = `
   if (wind.strength > 0.0) {
   let treeHeight = max(attributes.instanceTreeWind.x, 0.001);
   let treeWave = vec2<f32>(wind.wave.x * attributes.instanceTreeWind.w + wind.wave.y * attributes.instanceTreeWind.z, wind.wave.z * attributes.instanceTreeCrownWind.y + wind.wave.w * attributes.instanceTreeCrownWind.x);
-  let treeDeformation = splatDeform(meshPosition, treeHeight, wind.strength * attributes.instanceTreeWind.y, treeWave, wind.axis, mat2x2<f32>(wind.mode.xy, wind.mode.zw), attributes.instanceTreeWind.zw, wind.branch);
+  let treeDeformation = windBend(meshPosition, treeHeight, wind.strength * attributes.instanceTreeWind.y, treeWave, wind.axis, mat2x2<f32>(wind.mode.xy, wind.mode.zw), attributes.instanceTreeWind.zw, wind.branch);
   meshPosition = treeDeformation.position;
-  treeNormal = splatDeformNormal(treeDeformation.jacobian, treeNormal);
+  treeNormal = windBendNormal(treeDeformation.jacobian, treeNormal);
   }
 `;
 
@@ -267,7 +267,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       return {
         ...shaders,
         modules: [...shaders.modules, wind, TREE_WIND],
-        source: `${SPLAT_DEFORMATION_WGSL}\n${SPLAT_GLOBE_WGSL}\n${shaders.source}`
+        source: `${WIND_BEND_WGSL}\n${SPLAT_GLOBE_WGSL}\n${shaders.source}`
           .replace(
             '  @location(10) instanceTranslation: vec3<f32>,',
             '  @location(10) instanceTranslation: vec3<f32>,\n  @location(11) instanceTreeWind: vec4<f32>,\n  @location(12) instanceStemRadius: f32,\n  @location(13) instanceRootLength: f32,\n  @location(14) instanceTreeCrownWind: vec2<f32>,\n  @location(15) instanceTreeCoverage: vec2<f32>,'
@@ -330,7 +330,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       vs: shaders.vs
         .replace(
           'void main(void) {',
-          `in vec2 instanceTreeCoverage;\nout vec2 treeCoverage;\nout vec3 treeDitherPosition;\nout vec2 treeDitherTexCoord;\n${SPLAT_DEFORMATION_GLSL}\n${SPLAT_GLOBE_GLSL}\nvoid main(void) {\n  treeCoverage = instanceTreeCoverage;\n  treeDitherTexCoord = texCoords;`
+          `in vec2 instanceTreeCoverage;\nout vec2 treeCoverage;\nout vec3 treeDitherPosition;\nout vec2 treeDitherTexCoord;\n${WIND_BEND_GLSL}\n${SPLAT_GLOBE_GLSL}\nvoid main(void) {\n  treeCoverage = instanceTreeCoverage;\n  treeDitherTexCoord = texCoords;`
         )
         .replace(
           'in vec3 instanceTranslation;',

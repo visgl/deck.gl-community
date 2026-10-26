@@ -31,3 +31,7 @@ new SplatLayer({
 });
 // @ts-expect-error Streamed RAD input requires a separately supported backend.
 new SplatLayer({data: '/scene.rad'});
+// @ts-expect-error SplatLayer knows nothing of wind: TreeLayer's canopy owns it.
+new SplatLayer({data, getSource: source, getDeformation: [10, 0, 1]});
+// @ts-expect-error SplatLayer has no wind opt-out either.
+new SplatLayer({data, getSource: source, windEnabled: false});

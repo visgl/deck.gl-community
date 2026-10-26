@@ -2,14 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {describe, expect, it} from 'vitest';
-import {
-  getSplatDeformationRadius,
-  getSplatLeafHash,
-  getSplatWindOffset
-} from '../../src/splat-layer/splat-deformation';
+import {getWindBendRadius, getWindLeafHash, getWindOffset} from '../../src/wind-effect/wind-bend';
 import {getWindUniforms} from '../../src/wind-effect/wind-module';
 
-/** Owner `[sin φ, cos φ, sin 1.7φ, cos 1.7φ]`, as SplatLayer packs `getDeformation`. */
+/** Owner `[sin φ, cos φ, sin 1.7φ, cos 1.7φ]`, as TreeLayer's canopy derives from `getWind`. */
 function getPhase(phase: number) {
   return [Math.sin(phase), Math.cos(phase), Math.sin(phase * 1.7), Math.cos(phase * 1.7)];
 }
@@ -23,13 +19,13 @@ function deform(
   phase: number[],
   uniforms: ReturnType<typeof getWindUniforms>
 ) {
-  const displacement = getSplatWindOffset([], center, seed, height, strength, phase, uniforms);
+  const displacement = getWindOffset([], center, seed, height, strength, phase, uniforms);
   const h = 1e-5;
   const jacobian = [0, 1, 2].map(axis => {
     const plus = center.map((value, i) => (i === axis ? value + h : value));
     const minus = center.map((value, i) => (i === axis ? value - h : value));
-    const a = getSplatWindOffset([], plus, null, height, strength, phase, uniforms);
-    const b = getSplatWindOffset([], minus, null, height, strength, phase, uniforms);
+    const a = getWindOffset([], plus, null, height, strength, phase, uniforms);
+    const b = getWindOffset([], minus, null, height, strength, phase, uniforms);
     return a.map((value, i) => (i === axis ? 1 : 0) + (value - b[i]) / (2 * h));
   });
   return {displacement, jacobian};
@@ -44,7 +40,7 @@ describe('splat wind deformation', () => {
         const uniforms = getWindUniforms({direction, time});
         const [ax, ay] = uniforms.axis;
         for (const phase of [0, 0.7, 2.9]) {
-          const [dx, dy] = getSplatWindOffset(
+          const [dx, dy] = getWindOffset(
             [],
             [0, 0, height],
             null,
@@ -92,7 +88,7 @@ describe('splat wind deformation', () => {
     for (let time = 0; time < 40; time += 0.05) {
       const uniforms = getWindUniforms({direction: 90, time});
       const at = (point: number[], seed: number[] | null = null) =>
-        getSplatWindOffset([], point, seed, height, strength, phase, uniforms);
+        getWindOffset([], point, seed, height, strength, phase, uniforms);
       const trunk = at([0, 0, 9]);
       // Motion relative to the trunk at the same height: what the branches add.
       const relative = (point: number[], seed: number[] | null = null) =>
@@ -125,13 +121,13 @@ describe('splat wind deformation', () => {
     expect(Math.max(...tracks.tip.map(v => Math.abs(v[2])))).toBe(0);
     // Still turbulence stops the branches and the shimmer.
     const calm = getWindUniforms({direction: 90, time: 3, turbulence: 0});
-    const still = getSplatWindOffset([], [3, 1, 9], [0.8, 0.3, 0.4], height, strength, phase, calm);
-    const trunk = getSplatWindOffset([], [0, 0, 9], null, height, strength, phase, calm);
+    const still = getWindOffset([], [3, 1, 9], [0.8, 0.3, 0.4], height, strength, phase, calm);
+    const trunk = getWindOffset([], [0, 0, 9], null, height, strength, phase, calm);
     still.forEach((value, i) => expect(value).toBeCloseTo(trunk[i], 12));
   });
 
   it('matches the shaders’ analytic Jacobian of the branch sway', () => {
-    // A transcription of the gradient terms in SPLAT_DEFORMATION_GLSL.
+    // A transcription of the gradient terms in WIND_BEND_GLSL.
     const analytic = (
       p: number[],
       height: number,
@@ -225,7 +221,7 @@ describe('splat wind deformation', () => {
     const values = new Set<number>();
     let sum = 0;
     for (let i = 0; i < 400; i++) {
-      const value = getSplatLeafHash(i * 0.137 - 20, (i % 17) * 0.31, i * 0.011);
+      const value = getWindLeafHash(i * 0.137 - 20, (i % 17) * 0.31, i * 0.011);
       expect(value).toBeGreaterThanOrEqual(0);
       expect(value).toBeLessThan(1);
       values.add(value);
@@ -234,8 +230,8 @@ describe('splat wind deformation', () => {
     expect(values.size).toBeGreaterThan(390);
     expect(sum / 400).toBeGreaterThan(0.4);
     expect(sum / 400).toBeLessThan(0.6);
-    expect(getSplatLeafHash(0.5, -1.25, 3)).toBe(getSplatLeafHash(0.501, -1.249, 3.004));
-    expect(getSplatLeafHash(0.5, -1.25, 3)).not.toBe(getSplatLeafHash(0.52, -1.25, 3));
+    expect(getWindLeafHash(0.5, -1.25, 3)).toBe(getWindLeafHash(0.501, -1.249, 3.004));
+    expect(getWindLeafHash(0.5, -1.25, 3)).not.toBe(getWindLeafHash(0.52, -1.25, 3));
   });
 
   it('bounds the bend, crown mode, flutter and sheared Gaussian support at every moment', () => {
@@ -249,7 +245,7 @@ describe('splat wind deformation', () => {
       const radius = 0.3,
         height = 1,
         strength = 0.1;
-      const bound = getSplatDeformationRadius(center, radius, height, strength, turbulence);
+      const bound = getWindBendRadius(center, radius, height, strength, turbulence);
       for (let time = 0; time < 12; time += 0.07) {
         const uniforms = getWindUniforms({direction, turbulence, time});
         for (const phase of [0, 1.1, 4]) {
@@ -269,6 +265,6 @@ describe('splat wind deformation', () => {
         }
       }
     }
-    expect(getSplatDeformationRadius([100, 0, 1], 0.3, 1, 0.1)).toBeGreaterThan(2);
+    expect(getWindBendRadius([100, 0, 1], 0.3, 1, 0.1)).toBeGreaterThan(2);
   });
 });

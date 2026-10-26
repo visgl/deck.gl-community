@@ -13,7 +13,7 @@ export type SplatSpatialNode<T> = {
   entries?: SplatSpatialEntry<T>[];
 };
 
-/** Persistent owner BVH. Bounds include Gaussian support, translation and maximum wind excursion. */
+/** Persistent owner BVH. Bounds include Gaussian support, translation and any draw-time motion. */
 export function createSplatSpatialIndex<T>(
   entries: SplatSpatialEntry<T>[]
 ): SplatSpatialNode<T> | null {

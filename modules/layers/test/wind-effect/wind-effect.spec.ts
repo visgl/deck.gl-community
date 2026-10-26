@@ -4,6 +4,7 @@
 import {describe, expect, it, vi} from 'vitest';
 import {SplatLayer, TreeLayer, WindEffect, WindExtension, type TreeSpec} from '../../src';
 import {getLayerWind, getLayerWindBound} from '../../src/wind-effect/wind-effect';
+import {TreeCanopyLayer} from '../../src/tree-layer/tree-canopy-layer';
 import {
   WIND_DEFAULT_DIRECTION,
   getWindDisplacement,
@@ -328,7 +329,7 @@ describe('WindEffect', () => {
   });
 });
 
-describe('TreeLayer and SplatLayer under a WindEffect', () => {
+describe('TreeLayer under a WindEffect', () => {
   function prepare(data: TreeSpec[], deck: object, extra = {}) {
     const layer = new TreeLayer<TreeSpec>({id: 'wind-trees', data, ...extra});
     layer.initializeState();
@@ -342,12 +343,15 @@ describe('TreeLayer and SplatLayer under a WindEffect', () => {
     return layer;
   }
 
-  it('have no wind props of their own: only the deck-wide effect and a per-layer opt-out', () => {
-    for (const Layer of [TreeLayer, SplatLayer] as any[]) {
+  it('keeps only a per-layer opt-out on trees, and no wind at all on SplatLayer', () => {
+    for (const Layer of [TreeLayer, TreeCanopyLayer] as any[]) {
       for (const removed of ['windStrength', 'windTime', 'deformationStrength', 'deformationTime'])
         expect(Layer.defaultProps).not.toHaveProperty(removed);
       expect(Layer.defaultProps.windEnabled).toBe(true);
     }
+    // TreeLayer's canopy owns the bend; SplatLayer only draws Gaussians.
+    const splatProps = Object.keys(SplatLayer.defaultProps);
+    expect(splatProps.filter(name => /wind|deform/i.test(name))).toEqual([]);
     expect(WindExtension.defaultProps).not.toHaveProperty('windStrength');
     expect(WindExtension.defaultProps).not.toHaveProperty('windTime');
   });
@@ -399,7 +403,7 @@ describe('WindExtension', () => {
     expect(shaders.modules.map(module => module.name)).toEqual(['wind', 'windExtension']);
     const injected = shaders.modules[1].inject['vs:DECKGL_FILTER_GL_POSITION'];
     expect(injected.order).toBeLessThan(0);
-    expect(injected.injection).toContain('splatDeform');
+    expect(injected.injection).toContain('windBend');
     const deck = {};
     const effect = new WindEffect({strength: 0.05});
     effect.setup({deck, device} as any);
