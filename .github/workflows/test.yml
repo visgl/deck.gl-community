@@ -314,6 +314,59 @@ jobs:
           test "$SHARDS_RESULT" = success
           test "$WEBGPU_RESULT" = success
 
+  # Report only: scores BasemapLayer against MapLibre on the shared conformance corpus
+  # (dev/basemap-conformance). It runs in its own job, outside the required test-headless
+  # check, so that it cannot slow down or fail the browser test shards.
+  basemap-conformance:
+    runs-on: ubuntu-26.04
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Enable Corepack
+        run: corepack enable yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
+
+      - name: Build packages
+        run: yarn build
+
+      - name: Install Playwright Chromium
+        id: browser-setup
+        uses: ./.github/actions/setup-browser
+
+      - name: Render the basemap conformance corpus
+        id: conformance
+        if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
+        continue-on-error: true
+        run: yarn test-conformance
+
+      - name: Score the basemap conformance renders
+        if: ${{ !cancelled() && steps.conformance.outcome != 'skipped' }}
+        continue-on-error: true
+        run: |
+          yarn conformance-report
+          cat dev/basemap-conformance/__output__/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload basemap conformance report
+        if: ${{ !cancelled() && steps.conformance.outcome != 'skipped' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: basemap-conformance
+          path: |
+            dev/basemap-conformance/__output__/report.md
+            dev/basemap-conformance/__output__/scores.json
+            dev/basemap-conformance/__output__/images
+          if-no-files-found: ignore
+
   website-build:
     runs-on: ubuntu-26.04
     timeout-minutes: 15

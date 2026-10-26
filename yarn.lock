@@ -8586,6 +8586,8 @@ __metadata:
 "basemap-conformance@workspace:dev/basemap-conformance":
   version: 0.0.0-use.local
   resolution: "basemap-conformance@workspace:dev/basemap-conformance"
+  dependencies:
+    pngjs: "npm:^7.0.0"
   languageName: unknown
   linkType: soft
 
