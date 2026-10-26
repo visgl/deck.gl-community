@@ -10,6 +10,7 @@ import {
   getSplatSourceFromGaussianSplatsTable,
   isGaussianSplatsTable
 } from './splat-gaussian-table';
+import {type SplatFile, type SplatFileInput, getSplatFile, isSplatFileInput} from './splat-file';
 
 /** Prepared Gaussian asset with its optional, source-local template hierarchy. */
 export type PreparedSplatData = {
@@ -22,10 +23,11 @@ export type PreparedSplatData = {
 };
 
 /**
- * Assets supported by the prepared rendering backend: prepared columns, a prepared descriptor, or
- * a Gaussian splat table decoded by `@loaders.gl/splats` (for example `SPZLoader`).
+ * Assets supported by the prepared rendering backend: prepared columns, a prepared descriptor, a
+ * Gaussian splat table decoded by `@loaders.gl/splats`, or a splat file (URL or bytes) that the
+ * layer loads and decodes itself.
  */
-export type SplatDataInput = SplatSource | PreparedSplatData | GaussianSplatsTable;
+export type SplatDataInput = SplatSource | PreparedSplatData | GaussianSplatsTable | SplatFileInput;
 
 /** Owner returned by accessors and picking for a directly supplied asset. */
 export type SplatInstance = {splats: SplatDataInput; position: Position};
@@ -38,7 +40,12 @@ export type ResolvedSplatAsset = {
 export type ResolvedSplatInput<DataT> = {
   data: DataT[];
   assets: ResolvedSplatAsset[];
-  rowAssets: ResolvedSplatAsset[];
+  /** One asset per row; undefined while the row's file loads, or after it failed. */
+  rowAssets: (ResolvedSplatAsset | undefined)[];
+  /** Files still loading; the layer resolves again when each settles. */
+  pending: SplatFile[];
+  /** Files that failed to load. */
+  failed: SplatFile[];
 };
 
 type AssetCache = {
@@ -46,7 +53,8 @@ type AssetCache = {
   hierarchies: WeakMap<SplatHierarchy, ResolvedSplatAsset>;
 };
 const ASSETS = new WeakMap<SplatSource, AssetCache>();
-const INSTANCES = new WeakMap<SplatDataInput, SplatInstance[]>();
+const INSTANCES = new WeakMap<object, SplatInstance[]>();
+const URL_INSTANCES = new Map<string, SplatInstance[]>();
 let nextAssetId = 0;
 
 /** The conventional row accessor, used when getSource is not supplied. */
@@ -61,6 +69,7 @@ export function isSplatDataInput(input: unknown): input is SplatDataInput {
   return (
     isPreparedSource(input) ||
     isGaussianSplatsTable(input) ||
+    isSplatFileInput(input) ||
     Boolean(
       input && typeof input === 'object' && 'type' in input && input.type === 'prepared-splats'
     )
@@ -69,6 +78,11 @@ export function isSplatDataInput(input: unknown): input is SplatDataInput {
 
 /** Validate one source/hierarchy pair once without allocating a GPU resource. */
 export function resolveSplatAsset(input: SplatDataInput): ResolvedSplatAsset {
+  if (isSplatFileInput(input)) {
+    const source = getSplatFile(input).source;
+    if (!source) throw new Error('A splat file resolves only after it has loaded.');
+    return resolveSplatAsset(source);
+  }
   // a decoded table converts once and then resolves like its prepared columns
   if (isGaussianSplatsTable(input))
     return resolveSplatAsset(getSplatSourceFromGaussianSplatsTable(input));
@@ -120,10 +134,14 @@ export function resolveSplatInput<DataT>(props: {
   if (direct) {
     if (props.getSource !== DEFAULT_GET_SOURCE)
       throw new Error('SplatLayer getSource applies to instance rows, not direct asset data.');
-    let instances = INSTANCES.get(props.data as SplatDataInput);
+    // a URL string is a value: its implicit owner is cached by the URL itself
+    const url =
+      typeof props.data === 'string' || props.data instanceof URL ? String(props.data) : undefined;
+    let instances = url ? URL_INSTANCES.get(url) : INSTANCES.get(props.data as object);
     if (!instances) {
       instances = [{splats: props.data as SplatDataInput, position: [0, 0, 0]}];
-      INSTANCES.set(props.data as SplatDataInput, instances);
+      if (url) URL_INSTANCES.set(url, instances);
+      else INSTANCES.set(props.data as object, instances);
     }
     data = instances as DataT[];
   } else {
@@ -132,18 +150,32 @@ export function resolveSplatInput<DataT>(props: {
     data = props.data;
   }
   const assets = new Set<ResolvedSplatAsset>();
+  const pending = new Set<SplatFile>();
+  const failed = new Set<SplatFile>();
   const info = {data, index: -1, target: []} as AccessorContext<DataT>;
   const rowAssets = data.map((row, index) => {
     info.index = index;
-    const asset = resolveSplatAsset(
-      direct
-        ? (props.data as SplatDataInput)
-        : typeof props.getSource === 'function'
-          ? props.getSource(row, info)
-          : props.getSource
-    );
+    const input = direct
+      ? (props.data as SplatDataInput)
+      : typeof props.getSource === 'function'
+        ? props.getSource(row, info)
+        : props.getSource;
+    if (isSplatFileInput(input)) {
+      // one load per file; its rows draw nothing until it is decoded
+      const file = getSplatFile(input);
+      if (file.error) failed.add(file);
+      else if (!file.source) pending.add(file);
+      if (!file.source) return undefined;
+    }
+    const asset = resolveSplatAsset(input);
     assets.add(asset);
     return asset;
   });
-  return {data, rowAssets, assets: [...assets].sort((a, b) => a.id - b.id)};
+  return {
+    data,
+    rowAssets,
+    assets: [...assets].sort((a, b) => a.id - b.id),
+    pending: [...pending],
+    failed: [...failed]
+  };
 }

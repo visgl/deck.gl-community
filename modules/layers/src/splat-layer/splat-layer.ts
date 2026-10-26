@@ -38,6 +38,7 @@ import {budgetSplatSelections, getSplatLevelCounts, type SplatSelection} from '.
 import {SplatRefinementTransition} from './splat-refinement-transition';
 import {retainSplatRows, getSplatChangedRanges, SplatRowSlots} from './splat-row-diff';
 import {getSplatHighlightRow, updateSplatSourceHighlight} from './splat-source-highlight';
+import type {SplatFile} from './splat-file';
 import {
   DEFAULT_GET_SOURCE,
   resolveSplatInput,
@@ -176,13 +177,18 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     slots: SplatRowSlots<Owner<DataT>>[];
     coverage: {data: Owner<DataT>[]; ranges: {startRow: number; endRow: number}[]}[];
     awaitingInitialAllocation: boolean;
+    /** Bumped as splat files settle; input resolves again when it moves past `inputFiles`. */
+    fileRevision: number;
+    inputFiles: number;
+    watchedFiles: WeakSet<SplatFile>;
+    reportedFiles: WeakSet<SplatFile>;
   };
   initializeState() {
     this.state = {
       groups: [],
       members: [],
       hierarchy: [],
-      input: {data: [], assets: [], rowAssets: []},
+      input: {data: [], assets: [], rowAssets: [], pending: [], failed: []},
       candidates: [],
       runtime: undefined!,
       owners: [],
@@ -193,7 +199,11 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       refinementRows: new WeakMap(),
       slots: [],
       coverage: [],
-      awaitingInitialAllocation: false
+      awaitingInitialAllocation: false,
+      fileRevision: 0,
+      inputFiles: 0,
+      watchedFiles: new WeakSet(),
+      reportedFiles: new WeakSet()
     };
   }
   get isLoaded(): boolean {
@@ -207,6 +217,25 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           this.state.runtime !== SplatRuntime.get(this.context.deck, this.context.device)
       )
     );
+  }
+
+  /** Resolve again when a pending splat file settles, and report each failed file once. */
+  private watchSplatFiles(input: ResolvedSplatInput<DataT>) {
+    this.state.inputFiles = this.state.fileRevision;
+    for (const file of input.failed) {
+      if (this.state.reportedFiles.has(file)) continue;
+      this.state.reportedFiles.add(file);
+      this.raiseError(file.error!, 'SplatLayer could not load a splat file');
+    }
+    for (const file of input.pending) {
+      if (this.state.watchedFiles.has(file)) continue;
+      this.state.watchedFiles.add(file);
+      const settle = () => {
+        if (!this.internalState) return;
+        this.setState({fileRevision: this.state.fileRevision + 1});
+      };
+      file.promise.then(settle, settle);
+    }
   }
 
   updateState({changeFlags, props, oldProps}: UpdateParameters<this>) {
@@ -248,8 +277,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       props.maxSplats !== oldProps.maxSplats ||
       props.kernelVariance !== oldProps.kernelVariance ||
       renderPixelRatio !== this.state.renderPixelRatio;
+    const filesChanged = this.state.fileRevision !== this.state.inputFiles;
     if (
       !runtimeChanged &&
+      !filesChanged &&
       !changeFlags.dataChanged &&
       !changeFlags.viewportChanged &&
       !geometryChanged &&
@@ -258,8 +289,11 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       this.publishDemand(this.state.candidates);
       return;
     }
-    const inputChanged = Boolean(changeFlags.dataChanged || geometryChanged || runtimeChanged);
+    const inputChanged = Boolean(
+      changeFlags.dataChanged || geometryChanged || runtimeChanged || filesChanged
+    );
     const input = inputChanged ? resolveSplatInput(props) : this.state.input;
+    if (inputChanged) this.watchSplatFiles(input);
     const assetsChanged =
       input.assets.length !== this.state.input.assets.length ||
       input.assets.some((asset, i) => asset !== this.state.input.assets[i]);
@@ -282,7 +316,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const viewport = this.context.viewport;
     const projectionKey = getSplatProjectionKey(viewport);
     const rebuild =
-      Boolean(changeFlags.dataChanged || geometryChanged || runtimeChanged) ||
+      Boolean(changeFlags.dataChanged || geometryChanged || runtimeChanged || assetsChanged) ||
       this.state.projectionKey !== projectionKey;
     let {owners, spatialIndex} = this.state;
     if (rebuild) {
@@ -314,6 +348,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       for (const object of iterable as Iterable<DataT>) {
         objectInfo.index++;
         const asset = input.rowAssets[objectInfo.index];
+        // a row whose file is still loading (or failed) has no owner yet
+        if (!asset) continue;
         const {center: sourceCenter, radius: sourceRadius} = bounds.get(asset)!;
         const position = get(this.props.getPosition, object, objectInfo);
         const scale = get(this.props.getScale, object, objectInfo);
