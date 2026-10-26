@@ -51,7 +51,7 @@ describe('TreeLayer shadow casting', () => {
       } as any);
       const children = layer.renderLayers() as any[];
       const kinds = children.map(child => child.constructor.layerName);
-      expect(kinds).toEqual(expect.arrayContaining(['TreeWoodLayer', 'SplatLayer']));
+      expect(kinds).toEqual(expect.arrayContaining(['TreeWoodLayer', 'TreeCanopyLayer']));
       expect(children.some(child => child.id.includes('crops'))).toBe(true);
       for (const child of children) expect(child.props.shadowEnabled).toBe(expected);
     }
@@ -64,7 +64,7 @@ describe('SplatPrimitiveLayer shadow pass', () => {
     const layer = Object.assign(Object.create(SplatPrimitiveLayer.prototype), {
       context: {device: {type, setParametersWebGL: vi.fn()}, timeline: {getTime: () => 0}},
       state: {model, effect: {resolve: vi.fn()}},
-      props: {...SplatPrimitiveLayer.defaultProps, source: {}, deformationTime: 0},
+      props: {...SplatPrimitiveLayer.defaultProps, source: {}},
       getNumInstances: () => 3,
       setNeedsRedraw: vi.fn()
     });

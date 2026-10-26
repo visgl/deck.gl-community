@@ -7,6 +7,7 @@ import {
   DirectionalLight,
   LightingEffect,
   MapView,
+  type Effect,
   type Layer
 } from '@deck.gl/core';
 import {MapboxOverlay} from '@deck.gl/mapbox';
@@ -16,7 +17,7 @@ import {CubeGeometry} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import 'maplibre-gl';
 import {describe, expect, it} from 'vitest';
-import {SelectionPulseExtension, SplatLayer, TreeLayer, type TreeSpec} from '../../src';
+import {SelectionPulseExtension, SplatLayer, TreeLayer, WindEffect, type TreeSpec} from '../../src';
 
 const SIZE = 256;
 const CUBE = new CubeGeometry();
@@ -103,7 +104,6 @@ function trees(props: Record<string, unknown> = {}, Type: typeof TreeLayer = Tre
     getTree: (row: TreeSpec) => row,
     coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
     coordinateOrigin: [0, 0, 0],
-    windStrength: 0,
     pickable: true,
     ...props
   });
@@ -138,8 +138,8 @@ function mount() {
     deck,
     errors,
     /** Layers from `setProps` apply on a later animation frame than an immediate redraw. */
-    async render(layers: Layer[]) {
-      deck.setProps({layers});
+    async render(layers: Layer[], effects?: Effect[]) {
+      deck.setProps(effects ? {layers, effects} : {layers});
       const before = frames;
       await expect.poll(() => frames, {timeout: 30000}).toBeGreaterThan(before + 5);
       return pixels;
@@ -330,10 +330,10 @@ describe('TreeLayer deck.gl shadows (WebGL2)', () => {
   it('moves canopy and wood shadows with the wind', async () => {
     const scene = mount();
     try {
-      const wind = (windTime: number) => trees({windStrength: 0.15, windTime});
-      const calm = await scene.render([ground(), wind(0)]);
-      const gust = await scene.render([ground(), wind(0.9)]);
-      const lit = await scene.render([ground(), trees({shadowEnabled: false})]);
+      const wind = (time: number) => [lighting(true), new WindEffect({strength: 0.15, time})];
+      const calm = await scene.render([ground(), trees()], wind(0));
+      const gust = await scene.render([ground(), trees()], wind(0.9));
+      const lit = await scene.render([ground(), trees({shadowEnabled: false})], [lighting(true)]);
       expect(scene.errors).toEqual([]);
       expect(brightness(gust, SHADOW)).toBeLessThan(brightness(lit, SHADOW) * 0.7);
       const region = {x0: 120, y0: 80, x1: 240, y1: 176};

@@ -105,13 +105,9 @@ arrays.
 
 Budgets count submitted Gaussians, not GPU memory.
 
-### Deformation
-
-| Property | Default | Description |
-| --- | --- | --- |
-| `getDeformation` | `[1, 0, 0]` | Per-instance `[height, phase, flex]` for wind bending. |
-| `deformationStrength` | `null` | Bend as a fraction of instance height. `null` follows the [`WindEffect`](./wind-effect.md); `0` keeps this layer still. |
-| `deformationTime` | `null` | Seconds. `null` follows the `WindEffect`, then deck.gl's animation timeline. |
+SplatLayer draws its Gaussians where the source and transforms put them. Motion such as wind
+belongs to the layer that owns the objects: [`TreeLayer`](./tree-layer.md)'s canopy bends its
+Gaussians with the [`WindEffect`](./wind-effect.md).
 
 ## Types
 

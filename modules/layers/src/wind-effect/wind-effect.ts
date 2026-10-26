@@ -139,27 +139,26 @@ export class WindEffect implements Effect {
 }
 
 /**
- * The wind a layer draws with: its own strength and clock, when set, override the deck's
- * `WindEffect`. `animated` is true while the pose follows the timeline and needs every frame; a
- * fixed or app-owned (callback) clock leaves frame scheduling to the app.
+ * The wind a layer draws with: the deck's `WindEffect`, or still air without one or when the layer
+ * opts out with `windEnabled: false`. `animated` is true while the pose follows the timeline and
+ * needs every frame; a fixed or app-owned (callback) clock leaves frame scheduling to the app.
  */
 export function getLayerWind(
   layer: Layer,
-  strength?: number | null,
-  time?: number | null
+  enabled = true
 ): {wind: WindModuleProps; animated: boolean} {
   const effect = WindEffect.get(layer.context?.deck);
-  const resolvedStrength = strength ?? effect?.strength ?? 0;
-  const clock = time ?? effect?.getTime() ?? null;
+  const strength = enabled ? (effect?.strength ?? 0) : 0;
+  const clock = effect?.getTime() ?? null;
   return {
     wind: {
-      strength: resolvedStrength,
+      strength,
       direction: effect?.props.direction ?? WIND_DEFAULT_DIRECTION,
       gust: effect?.props.gust ?? 0,
       turbulence: effect?.props.turbulence ?? 1,
       time: clock ?? layer.context.timeline.getTime() / 1000
     },
-    animated: resolvedStrength !== 0 && clock === null
+    animated: strength !== 0 && clock === null
   };
 }
 
@@ -169,14 +168,14 @@ export function getLayerWind(
  */
 export function getLayerWindBound(
   layer: Layer,
-  strength?: number | null
+  enabled = true
 ): {strength: number; peak: number; turbulence: number} {
   const effect = WindEffect.get(layer.context?.deck);
   if (layer.state) (layer.state as {windKey?: string}).windKey = effect?.boundKey ?? '';
-  const resolved = strength ?? effect?.strength ?? 0;
+  const strength = enabled ? (effect?.strength ?? 0) : 0;
   return {
-    strength: resolved,
-    peak: Math.abs(resolved) * (1 + Math.abs(effect?.props.gust ?? 0)),
+    strength,
+    peak: Math.abs(strength) * (1 + Math.abs(effect?.props.gust ?? 0)),
     turbulence: Math.abs(effect?.props.turbulence ?? 1)
   };
 }

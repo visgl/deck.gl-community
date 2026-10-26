@@ -173,9 +173,6 @@ async function renderSplatLayer(
               : null,
             transparency,
             getTranslation: [0, 0, 5],
-            getDeformation: [10, 0.7, 1],
-            deformationStrength: 0.025,
-            deformationTime: 1.25,
             maxRenderPixels: mode === 'constant' ? Infinity : 64 * 64,
             pickable: true,
             material: {unlit: true}
@@ -661,7 +658,7 @@ function expectChannelsClose(actual: number[], expected: number[], tolerance = 4
 }
 
 describe('SplatLayer graphics backend compatibility', () => {
-  it('renders prepared anisotropic Gaussians with deformation on WebGL2', async () => {
+  it('renders prepared anisotropic Gaussians on WebGL2', async () => {
     await renderSplatLayer('webgl');
     await renderSplatLayer('webgl', 'heterogeneous');
     await renderSplatLayer('webgl', 'direct');
@@ -669,7 +666,7 @@ describe('SplatLayer graphics backend compatibility', () => {
     await renderSplatLayer('webgl', 'heterogeneous', 'sorted');
   }, 40_000);
 
-  it('renders prepared anisotropic Gaussians with deformation on WebGPU', async ({skip}) => {
+  it('renders prepared anisotropic Gaussians on WebGPU', async ({skip}) => {
     await requireWebGPU(skip);
 
     await renderSplatLayer('webgpu');

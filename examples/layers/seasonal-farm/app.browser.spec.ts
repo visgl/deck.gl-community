@@ -137,7 +137,7 @@ describe('Seasonal Farm integration', () => {
         await expect.poll(() => wind().props.direction).toBe(270);
         setNumber('Gusts', 0.5);
         await expect.poll(() => wind().props.gust).toBe(0.5);
-        expect(trees().props.windStrength).toBeNull();
+        expect(trees().props.windEnabled).toBe(true);
         // Calm the scene again: a live wind redraws all 416 trees every frame, which is slow on
         // CI's software GPU and would hold back every later step.
         setNumber('Wind', 0);

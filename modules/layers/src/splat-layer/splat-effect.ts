@@ -15,7 +15,7 @@ import type {SplatPrimitiveLayer} from './splat-primitive-layer';
 import type {ShaderModule} from '@luma.gl/shadertools';
 
 const isSplat = (layer: Layer) =>
-  (layer.constructor as {layerName?: string}).layerName === 'SplatPrimitiveLayer';
+  (layer.constructor as {splatPrimitive?: boolean}).splatPrimitive === true;
 type RasterSelectionLayer = Layer & {requestSplatRenderPixelRatio: (pixelRatio: number) => number};
 function isRasterSelectionLayer(layer: Layer): layer is RasterSelectionLayer {
   return (

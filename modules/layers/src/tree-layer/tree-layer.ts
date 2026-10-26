@@ -18,6 +18,7 @@ import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {getTreeMesh, createTreeRng} from './tree-geometry';
 import {TreeMeshLayer} from './tree-mesh-layer';
 import {SplatLayer} from '../splat-layer/splat-layer';
+import {TreeCanopyLayer} from './tree-canopy-layer';
 import {getTreeWoodMesh} from './tree-wood';
 import {sampleTreeFruit} from './tree-botany';
 import {TreeWoodLayer} from './tree-wood-layer';
@@ -35,7 +36,6 @@ import {
   updateSplatSourceHighlight
 } from '../splat-layer/splat-source-highlight';
 import type {SplatBudget, SplatBudgetGroup} from '../splat-layer/splat-runtime';
-import {getLayerWindBound} from '../wind-effect/wind-effect';
 
 /** Procedural species silhouette. */
 export type TreeType =
@@ -88,11 +88,6 @@ export type TreeSpec = {
   characteristics?: TreeCharacteristics;
   /** Explicit crops; omitted/null means none. */
   crop?: CropConfig | null;
-  /**
-   * Per-tree bend fraction; true is a gentle 0.025 breeze, false disables bending. Omit it to
-   * follow the layer's `windStrength`, or the deck's `WindEffect`.
-   */
-  wind?: boolean | number;
   /** Explicit bark tint. */
   trunkColor?: Color | null;
   /** Explicit foliage tint. */
@@ -282,16 +277,11 @@ type _TreeLayerProps<DataT> = {
   /** Shared broadleaf branching and leaf morphology. Pine/palm retain their specialized skeletons. @default {} */
   characteristics?: TreeCharacteristics;
   /**
-   * Fraction of tree height used for GPU wind deformation. `null` follows the deck's `WindEffect`,
-   * or no wind without one; `0` keeps this layer still under a windy scene. Direction and gusts
-   * always come from the effect. Zero wind stops continuous redraw. @default null
+   * Bend with the deck's `WindEffect`, which sets the strength, direction, gusts and clock for the
+   * whole scene. `false` keeps this layer still in a windy scene, as `shadowEnabled` opts out of
+   * shadows. Without an effect trees are still. @default true
    */
-  windStrength?: number | null;
-  /**
-   * Wind clock in seconds, or null to follow the `WindEffect` and then deck.gl's timeline. Set a
-   * number for repeatable comparisons. @default null
-   */
-  windTime?: number | null;
+  windEnabled?: boolean;
   /**
    * Maximum shared per-frame canopy Gaussian budget. `auto` keeps a stable device-aware budget;
    * SplatLayer allocates it by projected error. @default 'auto'
@@ -329,8 +319,7 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   getCrop: {type: 'accessor', value: (_d: any) => null},
   sizeScale: {type: 'number', value: 1, min: 0},
   characteristics: {type: 'object', value: {}},
-  windStrength: null,
-  windTime: null,
+  windEnabled: true,
   maxCanopySplats: 'auto',
   maxCanopyPixels: Infinity,
   getCoverageWeight: {type: 'accessor', value: 1},
@@ -342,6 +331,8 @@ const DENSE_TREE_COUNT = 1024;
 // This is stable spatial coverage, not alpha: covered branch fragments keep their real depth and
 // the complementary fragments admit the weighted splat canopy behind them.
 const DENSE_GROVE_NEAR_BRANCH_COVERAGE = 0.55;
+/** Each prepared row's `[height, phase, flex]`: one stable accessor, so wind never rewrites rows. */
+const getRowWind = (row: {wind: [number, number, number]}) => row.wind;
 
 type TreeRow<DataT> = {
   object: DataT;
@@ -352,7 +343,6 @@ type TreeRow<DataT> = {
   levels: number;
   trunkColor?: Color | null;
   canopyColor?: Color | null;
-  windStrength?: number;
   characteristics: TreeCharacteristics;
   height: number;
   trunkHeight: number;
@@ -363,7 +353,6 @@ type TreeRow<DataT> = {
   wind: [number, number, number];
 };
 type CropRow = {
-  windStrength?: number;
   kind: CropKind;
   position: Position;
   translation: [number, number, number];
@@ -373,17 +362,12 @@ type CropRow = {
 };
 type TreeState<DataT> = {
   splatBudgetGroup: SplatBudgetGroup;
-  authoredWindStrength: number;
-  hasAuthoredWind: boolean;
-  hasDefaultWind: boolean;
   groups: Map<string, TreeRow<DataT>[]>;
   woodGroups: Map<string, TreeRow<DataT>[]>;
   trunks: TreeRow<DataT>[];
   palms: TreeRow<DataT>[];
   liveCrops: CropRow[];
   droppedCrops: CropRow[];
-  /** The `WindEffect` state the sublayers' strength came from. */
-  windKey?: string;
 };
 
 const GEOMETRY_PROPS = [
@@ -514,9 +498,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   initializeState() {
     this.state = {
       splatBudgetGroup: {maxSplats: Infinity},
-      authoredWindStrength: 0,
-      hasAuthoredWind: false,
-      hasDefaultWind: true,
       groups: new Map(),
       woodGroups: new Map(),
       trunks: [],
@@ -540,9 +521,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     if (!changed) return;
     const defaultCharacteristics = resolveTreeCharacteristics(props.characteristics);
     const defaultCharacteristicsKey = getTreeCharacteristicsKey(defaultCharacteristics);
-    let authoredWindStrength = 0,
-      hasAuthoredWind = false,
-      hasDefaultWind = false;
     const groups = new Map<string, TreeRow<DataT>[]>();
     const trunks: TreeRow<DataT>[] = [];
     const palms: TreeRow<DataT>[] = [];
@@ -628,21 +606,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             )
           : 3;
       const elevation = value<number>('getElevation', tree.elevation ?? position[2]);
-      const windStrength =
-        tree.wind === undefined
-          ? undefined
-          : Math.min(
-              0.2,
-              getFiniteDimension(
-                typeof tree.wind === 'boolean' ? (tree.wind ? 0.025 : 0) : tree.wind,
-                0
-              )
-            );
-      if (windStrength === undefined) hasDefaultWind = true;
-      if (windStrength !== undefined) {
-        hasAuthoredWind = true;
-        authoredWindStrength = Math.max(authoredWindStrength, windStrength);
-      }
       const row = this.getSubLayerRow<TreeRow<DataT>>(
         {
           object,
@@ -653,7 +616,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           levels,
           trunkColor: tree.trunkColor,
           canopyColor: tree.canopyColor,
-          windStrength,
           characteristics,
           height,
           trunkHeight: height * fraction + (type === 'palm' ? canopyHeight * 0.24 : 0),
@@ -708,7 +670,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
                 kind: crop.kind ?? 'fruit',
                 radius,
                 color: crop.color,
-                windStrength,
                 wind: row.wind
               },
               object,
@@ -749,9 +710,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       ])
     );
     this.setState({
-      authoredWindStrength,
-      hasAuthoredWind,
-      hasDefaultWind,
       groups,
       woodGroups,
       trunks,
@@ -821,28 +779,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         'TreeLayer modelMatrix supports translation only in Cartesian and metre-offset coordinates.'
       );
     }
-    const {windTime, getTrunkColor, getSeason} = this.props;
-    // Sublayers receive the resolved strength; a WindEffect change updates this layer.
-    const layerWindStrength = getFiniteDimension(
-      getLayerWindBound(this, this.props.windStrength).strength,
-      0
-    );
-    const windStrength = Math.max(
-      this.state.hasDefaultWind ? layerWindStrength : 0,
-      this.state.authoredWindStrength
-    );
-    const windTrigger = this.state.hasAuthoredWind ? [layerWindStrength, windStrength] : null;
-    const treeWind = (row: TreeRow<DataT> | CropRow): [number, number, number] =>
-      this.state.hasAuthoredWind && windStrength > 0
-        ? [
-            row.wind[0],
-            row.wind[1],
-            (row.wind[2] * (row.windStrength ?? layerWindStrength)) / windStrength
-          ]
-        : row.wind;
+    const {getTrunkColor, getSeason} = this.props;
+    // Sublayers read the deck's WindEffect themselves, in every pass.
     const shared = {
-      windStrength,
-      windTime,
+      windEnabled: this.props.windEnabled,
       shadowEnabled: this.props.shadowEnabled,
       getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),
       pickable: this.props.pickable
@@ -865,12 +805,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             getOrientation: (row: TreeRow<DataT>) =>
               row.winter ? [0, row.orientation[1], 0] : [0, 0, 0],
             getColor: trunkColor,
-            getWind: treeWind,
+            getWind: getRowWind,
             material: {ambient: 0.4, diffuse: 0.7, shininess: 4},
             updateTriggers: {
               getColor: [getTrunkColor, this.props.updateTriggers?.getTrunkColor],
-              getWind: windTrigger,
-              getDeformation: windTrigger,
               getCoverageWeight: this.props.updateTriggers?.getCoverageWeight
             }
           })
@@ -903,12 +841,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),
           getStemRadius: (row: TreeRow<DataT>) => row.trunkRadius,
           getRootLength: (row: TreeRow<DataT>) => row.height - row.scale[2],
-          getWind: treeWind,
+          getWind: getRowWind,
           getColor: trunkColor,
           material: {ambient: 0.5, diffuse: 0.75, shininess: 2},
           updateTriggers: {
-            getWind: windTrigger,
-            getDeformation: windTrigger,
             getCoverageWeight: this.props.updateTriggers?.getCoverageWeight,
             getColor: [getTrunkColor, this.props.updateTriggers?.getTrunkColor]
           }
@@ -934,8 +870,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       }
       if (winter) continue;
       const canopyTriggers = {
-        getWind: windTrigger,
-        getDeformation: windTrigger,
         getCoverageWeight: this.props.updateTriggers?.getCoverageWeight,
         // Not `this.getCanopyColor`: each layer instance has its own, which would recolor every
         // canopy whenever any TreeLayer prop changes.
@@ -948,7 +882,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           this.props.updateTriggers?.getSeason
         ]
       };
-      const CanopyLayer = SplatLayer;
+      const CanopyLayer = TreeCanopyLayer;
       foliage.push(
         new CanopyLayer(
           this.getTreeSubLayerProps(
@@ -964,9 +898,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               foveationStrength: this.props.foveationStrength,
               getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),
               maxSplats: Infinity,
-              deformationStrength: windStrength,
-              deformationTime: windTime,
-              getDeformation: treeWind,
               doubleSided: type === 'palm',
               parameters:
                 type === 'palm'
@@ -976,7 +907,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               getTranslation: (row: TreeRow<DataT>) => row.translation,
               getScale: (row: TreeRow<DataT>) => row.scale,
               getOrientation: (row: TreeRow<DataT>) => row.orientation,
-              getWind: treeWind,
+              getWind: getRowWind,
               getColor: this.getCanopyColor,
               material: {ambient: 0.62, diffuse: 0.82, shininess: 2, specularColor: [0, 0, 0]},
               updateTriggers: canopyTriggers
@@ -1004,11 +935,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
                 getTranslation: (row: CropRow) => row.translation,
                 getScale: (row: CropRow) => [row.radius, row.radius, row.radius],
                 getColor: (row: CropRow) => row.color,
-                getWind: treeWind,
+                getWind: getRowWind,
                 material: {ambient: 0.4, diffuse: 0.7, shininess: 24},
                 updateTriggers: {
-                  getWind: windTrigger,
-                  getDeformation: windTrigger,
                   getCoverageWeight: this.props.updateTriggers?.getCoverageWeight
                 }
               },

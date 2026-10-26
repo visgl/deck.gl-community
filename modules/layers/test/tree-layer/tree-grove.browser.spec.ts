@@ -43,8 +43,7 @@ const grove: TreeSpec[] = Array.from({length: TREE_COUNT}, (_, index) => ({
     (Math.floor(index / GRID_SIDE) - (GRID_SIDE - 1) / 2) * TREE_SPACING,
     0
   ],
-  species: 'citrus',
-  wind: false
+  species: 'citrus'
 }));
 
 it('keeps a 10,000-tree citrus grove within budget and refines a grazing view by projected error', async () => {
@@ -70,7 +69,7 @@ it('keeps a 10,000-tree citrus grove within budget and refines a grazing view by
         coordinateOrigin: [0, 0, 0],
         getTree: tree => tree,
         maxCanopySplats: MAX_CANOPY_SPLATS,
-        windStrength: 0
+        windEnabled: false
       })
     ],
     onError: error => errors.push(error.message),

@@ -4,6 +4,7 @@
 import {
   CompositeLayer,
   type Accessor,
+  type AccessorContext,
   type DefaultProps,
   createIterable,
   type LayerProps,
@@ -33,8 +34,6 @@ import {getSplatHorizon, getSplatTangentFrame, offsetSplatCommonPosition} from '
 import type {SplatHierarchy} from './splat-hierarchy';
 import {getSplatRadius, getSplatCenter} from './splat-source';
 import {getSplatTransform, getSplatTransformScale} from './splat-transform';
-import {getSplatDeformationRadius} from './splat-deformation';
-import {getLayerWindBound} from '../wind-effect/wind-effect';
 import {budgetSplatSelections, getSplatLevelCounts, type SplatSelection} from './splat-budget';
 import {SplatRefinementTransition} from './splat-refinement-transition';
 import {retainSplatRows, getSplatChangedRanges, SplatRowSlots} from './splat-row-diff';
@@ -177,9 +176,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     slots: SplatRowSlots<Owner<DataT>>[];
     coverage: {data: Owner<DataT>[]; ranges: {startRow: number; endRow: number}[]}[];
     awaitingInitialAllocation: boolean;
-    /** Peak wind and crown scale the owner bounds cover; a `WindEffect` change rebuilds them. */
-    windBound?: string;
-    windKey?: string;
+    /** `getOwnerBoundsKey()` when the owner bounds were built; a change rebuilds them. */
+    ownerBoundsKey?: string;
   };
   initializeState() {
     this.state = {
@@ -230,19 +228,16 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       'getScale',
       'getOrientation',
       'getTranslation',
-      'deformationStrength',
-      'getDeformation',
       'modelMatrix',
       'coordinateSystem',
       'coordinateOrigin'
     ] as const;
     const triggers = changeFlags.updateTriggersChanged;
-    const wind = getLayerWindBound(this, props.deformationStrength);
-    const windBound = `${wind.peak}|${wind.turbulence}`;
-    const windBoundChanged = windBound !== this.state.windBound;
-    this.state.windBound = windBound;
+    const ownerBoundsKey = this.getOwnerBoundsKey();
+    const ownerBoundsChanged = ownerBoundsKey !== this.state.ownerBoundsKey;
+    this.state.ownerBoundsKey = ownerBoundsKey;
     const geometryChanged =
-      windBoundChanged ||
+      ownerBoundsChanged ||
       keys.some(
         key =>
           (typeof props[key] !== 'function' &&
@@ -334,8 +329,6 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         const maximumScale = matrix
           ? getSplatTransformScale(matrix)
           : Math.max(...scale.map(Math.abs));
-        const deformation = get(this.props.getDeformation, object, objectInfo);
-        const strength = wind.peak * Math.abs(deformation[2]);
         const transform = getSplatTransform(
           get(this.props.getOrientation, object, objectInfo),
           scale,
@@ -352,12 +345,11 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
             transform[axis + 6] * sourceCenter[2] +
             translation[axis]
         );
-        const radius = getSplatDeformationRadius(
+        const radius = this.getOwnerRadius(
+          object,
+          objectInfo,
           localCenter,
-          maximumScale * sourceRadius,
-          deformation[0],
-          strength,
-          wind.turbulence
+          maximumScale * sourceRadius
         );
         // On the globe, owner metres point along the east-north-up frame at the anchor.
         const center = offsetSplatCommonPosition(
@@ -368,7 +360,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         );
         // Physical pose survives streamed wrapper/index replacement. Duplicate poses
         // remain separate owners; the template/hierarchy belongs to this layer.
-        const pose = [asset.id, ...position, ...transform, ...deformation].join(',');
+        const pose = [asset.id, ...position, ...transform].join(',');
         const occurrence = duplicates.get(pose) ?? 0;
         duplicates.set(pose, occurrence + 1);
         owners.push({
@@ -636,6 +628,34 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     });
   }
 
+  /** The layer that draws each refinement level. A subclass can add per-instance attributes. */
+  protected getPrimitiveLayerClass(): typeof SplatPrimitiveLayer {
+    return SplatPrimitiveLayer;
+  }
+
+  /** Accessor props of a subclass's primitive layer, evaluated against the original data rows. */
+  protected getPrimitiveAccessorNames(): string[] {
+    return [];
+  }
+
+  /**
+   * Radius in metres around `localCenter` that bounds one owner's Gaussians, for culling and
+   * refinement. A subclass whose primitive moves Gaussians at draw time widens it.
+   */
+  protected getOwnerRadius(
+    _object: DataT,
+    _objectInfo: AccessorContext<DataT>,
+    _localCenter: number[],
+    radius: number
+  ): number {
+    return radius;
+  }
+
+  /** Changes whenever `getOwnerRadius` would return a different value for unchanged props. */
+  protected getOwnerBoundsKey(): string {
+    return '';
+  }
+
   renderLayers(): Layer[] {
     const makeLayer = (data: Owner<DataT>[], level: number) => {
       const memberGroups = this.state.members;
@@ -668,10 +688,18 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         'getTranslation',
         'getTransformMatrix',
         'getColor',
-        'getDeformation'
-      ] as const)
+        ...this.getPrimitiveAccessorNames()
+      ])
         wrappedTriggers[name] = getWrappedTrigger(props.updateTriggers?.[name], this.props[name]);
-      return new SplatPrimitiveLayer<Owner<DataT>>({
+      // A subclass's own accessors read the original rows, like the transform accessors below.
+      const primitiveAccessors = Object.fromEntries(
+        this.getPrimitiveAccessorNames().map(name => [
+          name,
+          (row: Owner<DataT>, info) => get(this.props[name], row, info)
+        ])
+      );
+      const PrimitiveLayer = this.getPrimitiveLayerClass();
+      return new PrimitiveLayer<Owner<DataT>>({
         ...this.props,
         ...props,
         data: members,
@@ -700,7 +728,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         getTranslation: (row, info) => get(this.props.getTranslation, row, info),
         getTransformMatrix: (row, info) => get(this.props.getTransformMatrix, row, info),
         getColor: (row, info) => get(this.props.getColor, row, info),
-        getDeformation: (row, info) => get(this.props.getDeformation, row, info),
+        ...primitiveAccessors,
         getCoverageWeight: (row, info) =>
           get(this.props.getCoverageWeight, row, info) * data[info.index].weight
       });

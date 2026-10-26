@@ -158,8 +158,7 @@ it('culls wood from resolved transforms and refreshes overridden accessor bounds
     getPosition: () => position,
     getScale: [2, 3, 4],
     getTranslation: [4, 5, 6],
-    getWind: [12, 0, 4],
-    windStrength: 0.1
+    getWind: [12, 0, 4]
   });
   layer.initializeState();
   vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
@@ -355,7 +354,6 @@ it('forwards its own and extension update triggers to near and far wood meshes',
   const updateTriggers = {
     getColor: [getColor, 1],
     getWind: [0.5, 0.25],
-    getDeformation: [0.5, 0.25],
     getCoverageWeight: 2,
     getSelected: 7
   };

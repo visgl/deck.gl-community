@@ -233,7 +233,6 @@ export const TreeSpecSchema = z
     season: z.enum(['spring', 'summer', 'autumn', 'winter']).optional(),
     characteristics: TreeCharacteristicsSchema.optional(),
     crop: TreeCropSchema.nullable().optional(),
-    wind: z.union([z.boolean(), z.number().min(0).max(0.2)]).optional(),
     trunkColor: ColorSchema.nullable().optional(),
     canopyColor: ColorSchema.nullable().optional(),
     branchLevels: z.number().optional()
@@ -260,8 +259,7 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
   getCoverageWeight: NumberAccessorSchema.optional(),
   sizeScale: z.number().nonnegative().optional(),
   characteristics: TreeCharacteristicsSchema.optional(),
-  windStrength: z.number().min(0).max(0.2).optional(),
-  windTime: z.number().nullable().optional(),
+  windEnabled: z.boolean().optional(),
   foveationStrength: z.number().min(0).max(1).optional(),
   maxCanopySplats: z.union([z.literal('auto'), z.number().nonnegative()]).optional(),
   maxCanopyPixels: z.number().positive().optional()
@@ -278,10 +276,7 @@ export const SplatLayerPropsSchema = CompositeLayerPropsSchema.extend({
   getTranslation: createAccessorSchema(Vector3Schema).optional(),
   getTransformMatrix: createAccessorSchema(z.array(z.number()).length(16).nullable()).optional(),
   getColor: createAccessorSchema(ColorSchema).optional(),
-  getDeformation: createAccessorSchema(Vector3Schema).optional(),
   getCoverageWeight: NumberAccessorSchema.optional(),
-  deformationStrength: z.number().nonnegative().optional(),
-  deformationTime: z.number().nullable().optional(),
   kernelVariance: z.number().nonnegative().optional(),
   alphaCutoff: z.number().min(0).max(1).optional(),
   support: z.number().positive().optional(),

@@ -6,7 +6,7 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 `TreeLayer` renders procedural, instanced 3D trees: connected trunk-and-branch meshes with
 Gaussian-splat foliage drawn by [`SplatLayer`](./splat-layer.md). Eight species share
-templates, so size, season, color, crops and wind vary per tree without unique meshes. It
+templates, so size, season, color and crops vary per tree without unique meshes. It
 runs on WebGL2 and WebGPU.
 
 The demo above is the [Seasonal Farm example](/examples/layers/seasonal-farm).
@@ -31,8 +31,9 @@ new TreeLayer({
 });
 ```
 
-Wind comes from a [`WindEffect`](./wind-effect.md) on the deck, so every tree layer bends in the
-same direction: `new Deck({effects: [new WindEffect({strength: 0.025})], layers})`.
+Wind is deck-wide: a [`WindEffect`](./wind-effect.md) on the deck bends every tree layer with
+the same speed, direction, gusts and clock, `new Deck({effects: [new WindEffect({speed: 6})], layers})`.
+Trees are still without one.
 
 Each row is a [`TreeSpec`](#treespec) by default. Use `getTree` to map other records:
 
@@ -53,8 +54,7 @@ properties. Picking, `autoHighlight` and `highlightedObjectIndex` use the source
 | `getTree` | `d => d` | Returns the [`TreeSpec`](#treespec) for a row. |
 | `characteristics` | `{}` | Shared crown morphology for every tree. See [Characteristics](#characteristics). |
 | `sizeScale` | `1` | Multiplier for all tree and crop dimensions. |
-| `windStrength` | `null` | Wind bend as a fraction of tree height. `null` follows the [`WindEffect`](./wind-effect.md); `0` keeps this layer still. |
-| `windTime` | `null` | Wind clock in seconds. `null` follows the `WindEffect`, then deck.gl's animation timeline. |
+| `windEnabled` | `true` | Bend with the deck's [`WindEffect`](./wind-effect.md). `false` keeps this layer still in a windy scene, as `shadowEnabled` opts out of shadows. |
 | `maxCanopySplats` | `'auto'` | Shared foliage splat budget. `'auto'` picks one for the device. |
 | `maxCanopyPixels` | `Infinity` | Pixel cap for foliage rendering. Lower values soften leaves. |
 | `foveationStrength` | `0` | `0`–`1`. Under a tight budget, favors crowns near the screen center. |
@@ -99,7 +99,6 @@ crown radius in metres, set `crownRadius` in `getTree` instead.
 | `elevation` | Base elevation in metres. |
 | `season` | `spring`, `summer`, `autumn` or `winter`. |
 | `crop` | Optional [`CropConfig`](#cropconfig). Trees never get crops unless you supply them. |
-| `wind` | `true` (`0.025`), `false` or a bend fraction up to `0.2`. Defaults to `windStrength`, or the `WindEffect` strength. |
 | `characteristics` | Per-tree [characteristics](#characteristics), merged over the layer prop. |
 | `trunkColor` | RGBA bark color override. |
 | `canopyColor` | RGBA foliage color override. |

@@ -29,7 +29,7 @@ function getBranchReach(lateral: number, height: number): number {
  * Largest branch sway, per unit strength, of a point up to `lateral` metres from the trunk axis.
  * Owner bounds add it to the trunk and crown terms.
  */
-export function getSplatBranchSwayRadius(lateral: number, height: number, turbulence = 1): number {
+export function getWindBranchSwayRadius(lateral: number, height: number, turbulence = 1): number {
   const bendHeight = Math.max(height, 0.001);
   return (
     WIND_BRANCH * bendHeight * getBranchReach(lateral, bendHeight) * WIND_SWAY_REACH * turbulence
@@ -45,7 +45,7 @@ export function getSplatBranchSwayRadius(lateral: number, height: number, turbul
  * changing their norms. `strength` is the peak, including any gust; `turbulence` scales the crown
  * mode, the branch sway and the flutter.
  */
-export function getSplatDeformationRadius(
+export function getWindBendRadius(
   center: number[],
   radius: number,
   height: number,
@@ -64,7 +64,7 @@ export function getSplatDeformationRadius(
   const derivatives = center[2] - radius < bendHeight;
   const shear = derivatives ? bend * 1.5 + (crown * 2 * v * lateral) / (0.7 * bendHeight) : 0;
   const reach = getBranchReach(lateral, bendHeight);
-  const branch = getSplatBranchSwayRadius(lateral, bendHeight, turbulence);
+  const branch = getWindBranchSwayRadius(lateral, bendHeight, turbulence);
   // |∂reach/∂r| ≤ 1.3 / span and reach·|∇θ| ≤ 1 / span across; the tier ramp rises 1.5 per
   // 0.3 H and the phase 5 per H up the crown.
   const branchShear =
@@ -87,7 +87,7 @@ export function getSplatDeformationRadius(
 }
 
 /** Per-Gaussian hash in [0, 1), exact in float32 so the GPU and the CPU sort agree. */
-export function getSplatLeafHash(x: number, y: number, z: number): number {
+export function getWindLeafHash(x: number, y: number, z: number): number {
   const qx = Math.floor(x * 64) + 65536,
     qy = Math.floor(y * 64) + 65536,
     qz = Math.floor(z * 64) + 65536;
@@ -98,7 +98,7 @@ export function getSplatLeafHash(x: number, y: number, z: number): number {
 }
 
 /** `wind` module uniforms the CPU twin reads. */
-export type SplatWindUniforms = {
+export type WindBendUniforms = {
   wave: readonly number[];
   mode: readonly number[];
   branch: readonly number[];
@@ -107,7 +107,7 @@ export type SplatWindUniforms = {
 };
 
 /**
- * CPU twin of the shaders' `splatDeform` plus `splatFlutter` displacement, for depth sorting and
+ * CPU twin of the shaders' `windBend` plus `windFlutter` displacement, for depth sorting and
  * tests. Writes the offset of a local point into `out` and returns it.
  * @param out - Receives `[dx, dy, dz]`.
  * @param position - Undeformed point relative to the owner's anchor, in metres.
@@ -117,14 +117,14 @@ export type SplatWindUniforms = {
  * @param phase - Owner `[sin φ, cos φ, sin ψ, cos ψ]`: the trunk and the crown-mode phase.
  * @param uniforms - The `wind` module uniforms.
  */
-export function getSplatWindOffset(
+export function getWindOffset(
   out: number[],
   position: readonly number[],
   seed: readonly number[] | null,
   height: number,
   strength: number,
   phase: readonly number[],
-  uniforms: SplatWindUniforms
+  uniforms: WindBendUniforms
 ): number[] {
   const {wave, mode, branch, flutter, axis} = uniforms;
   const [x, y, z] = position;
@@ -163,7 +163,7 @@ export function getSplatWindOffset(
   out[2] = 0;
   if (seed) {
     const shelter = Math.min(0.3 + r / (WIND_BRANCH_SPAN * bendHeight), 1);
-    const leaf = 2 * Math.PI * getSplatLeafHash(seed[0], seed[1], seed[2]);
+    const leaf = 2 * Math.PI * getWindLeafHash(seed[0], seed[1], seed[2]);
     const sinLeaf = Math.sin(leaf),
       cosLeaf = Math.cos(leaf);
     // Add the owner phase, so trees sharing a template flutter apart.
@@ -189,7 +189,7 @@ export function getSplatWindOffset(
  *   along each branch (its phase follows the azimuth around the trunk and the height, not the
  *   distance out), so branches swing out of step around and up the crown and carry their leaves.
  *   Wood, crops and foliage share it.
- * - **Leaves.** `splatFlutter` adds a small, fast shimmer to each foliage Gaussian, rigidly.
+ * - **Leaves.** `windFlutter` adds a small, fast shimmer to each foliage Gaussian, rigidly.
  *
  * It is an animation approximation, not a structural solver. The analytic Jacobian keeps meshes,
  * splat covariance, shading normals and picking on the same deformation: the sway is horizontal,
@@ -197,8 +197,8 @@ export function getSplatWindOffset(
  * shader module; `phase` is the owner's `(sin φ, cos φ)`. Neither the offset nor its gradient
  * divides by the distance to the axis (`reach / r² = kappa`).
  */
-export const SPLAT_DEFORMATION_GLSL = `
-mat3 splatDeform(inout vec3 position, float height, float strength, vec2 wave, vec2 axis, mat2 mode, vec2 phase, vec4 branch) {
+export const WIND_BEND_GLSL = `
+mat3 windBend(inout vec3 position, float height, float strength, vec2 wave, vec2 axis, mat2 mode, vec2 phase, vec4 branch) {
   float u = clamp(position.z / height, 0.0, 1.0);
   float f = 0.5 * u * u * (3.0 - u);
   float v = max((u - 0.3) / 0.7, 0.0);
@@ -239,23 +239,23 @@ mat3 splatDeform(inout vec3 position, float height, float strength, vec2 wave, v
   position.xy += bend * height * f + crown * g * lateral + amount * tier * reach * sway;
   return mat3(vec3(xy[0], 0.0), vec3(xy[1], 0.0), vec3(dz, 1.0));
 }
-vec3 splatDeformNormal(mat3 jacobian, vec3 normal) {
+vec3 windBendNormal(mat3 jacobian, vec3 normal) {
   float determinant = jacobian[0].x * jacobian[1].y - jacobian[1].x * jacobian[0].y;
   vec2 xy = vec2(jacobian[1].y * normal.x - jacobian[0].y * normal.y,
     jacobian[0].x * normal.y - jacobian[1].x * normal.x) / determinant;
   return vec3(xy, normal.z - dot(xy, jacobian[2].xy));
 }
-float splatLeafHash(vec3 seed) {
+float windLeafHash(vec3 seed) {
   uvec3 q = uvec3(floor(seed * 64.0) + 65536.0);
   uint h = (q.x * 73856093u) ^ (q.y * 19349663u) ^ (q.z * 83492791u);
   h = h * 747796405u + 2891336453u;
   h = ((h >> ((h >> 28u) + 4u)) ^ h) * 277803737u;
   return float(((h >> 22u) ^ h) >> 8u) / 16777216.0;
 }
-vec3 splatFlutter(vec3 position, vec3 seed, float height, float strength, vec2 phase, vec2 axis, vec4 flutter) {
+vec3 windFlutter(vec3 position, vec3 seed, float height, float strength, vec2 phase, vec2 axis, vec4 flutter) {
   float t = clamp((position.z / height - 0.1) / 0.3, 0.0, 1.0);
   float shelter = min(0.3 + length(position.xy) / (0.3 * height), 1.0);
-  float leaf = 6.2831853 * splatLeafHash(seed);
+  float leaf = 6.2831853 * windLeafHash(seed);
   float sinLeaf = sin(leaf);
   float cosLeaf = cos(leaf);
   float sin1 = sinLeaf * phase.y + cosLeaf * phase.x;
@@ -266,9 +266,9 @@ vec3 splatFlutter(vec3 position, vec3 seed, float height, float strength, vec2 p
   return amount * vec3(axis * l1 + vec2(-axis.y, axis.x) * 0.4 * l2, 0.6 * l2);
 }`;
 
-export const SPLAT_DEFORMATION_WGSL = `
-struct SplatDeformation {position: vec3<f32>, jacobian: mat3x3<f32>};
-fn splatDeform(position: vec3<f32>, height: f32, strength: f32, wave: vec2<f32>, axis: vec2<f32>, mode: mat2x2<f32>, phase: vec2<f32>, branch: vec4<f32>) -> SplatDeformation {
+export const WIND_BEND_WGSL = `
+struct WindBend {position: vec3<f32>, jacobian: mat3x3<f32>};
+fn windBend(position: vec3<f32>, height: f32, strength: f32, wave: vec2<f32>, axis: vec2<f32>, mode: mat2x2<f32>, phase: vec2<f32>, branch: vec4<f32>) -> WindBend {
   let u = clamp(position.z / height, 0.0, 1.0);
   let f = 0.5 * u * u * (3.0 - u);
   let v = max((u - 0.3) / 0.7, 0.0);
@@ -306,26 +306,26 @@ fn splatDeform(position: vec3<f32>, height: f32, strength: f32, wave: vec2<f32>,
   xy[0] += amount * tier * (dReach.x * sway + dTheta.x * dsway);
   xy[1] += amount * tier * (dReach.y * sway + dTheta.y * dsway);
   dz += amount * reach * (dtier * sway + tier * 5.0 / height * dsway);
-  return SplatDeformation(vec3<f32>(position.xy + bend * height * f + crown * g * lateral + amount * tier * reach * sway, position.z),
+  return WindBend(vec3<f32>(position.xy + bend * height * f + crown * g * lateral + amount * tier * reach * sway, position.z),
     mat3x3<f32>(vec3<f32>(xy[0], 0.0), vec3<f32>(xy[1], 0.0), vec3<f32>(dz, 1.0)));
 }
-fn splatDeformNormal(jacobian: mat3x3<f32>, normal: vec3<f32>) -> vec3<f32> {
+fn windBendNormal(jacobian: mat3x3<f32>, normal: vec3<f32>) -> vec3<f32> {
   let determinant = jacobian[0].x * jacobian[1].y - jacobian[1].x * jacobian[0].y;
   let xy = vec2<f32>(jacobian[1].y * normal.x - jacobian[0].y * normal.y,
     jacobian[0].x * normal.y - jacobian[1].x * normal.x) / determinant;
   return vec3<f32>(xy, normal.z - dot(xy, jacobian[2].xy));
 }
-fn splatLeafHash(seed: vec3<f32>) -> f32 {
+fn windLeafHash(seed: vec3<f32>) -> f32 {
   let q = vec3<u32>(floor(seed * 64.0) + 65536.0);
   var h = (q.x * 73856093u) ^ (q.y * 19349663u) ^ (q.z * 83492791u);
   h = h * 747796405u + 2891336453u;
   h = ((h >> ((h >> 28u) + 4u)) ^ h) * 277803737u;
   return f32(((h >> 22u) ^ h) >> 8u) / 16777216.0;
 }
-fn splatFlutter(position: vec3<f32>, seed: vec3<f32>, height: f32, strength: f32, phase: vec2<f32>, axis: vec2<f32>, flutter: vec4<f32>) -> vec3<f32> {
+fn windFlutter(position: vec3<f32>, seed: vec3<f32>, height: f32, strength: f32, phase: vec2<f32>, axis: vec2<f32>, flutter: vec4<f32>) -> vec3<f32> {
   let t = clamp((position.z / height - 0.1) / 0.3, 0.0, 1.0);
   let shelter = min(0.3 + length(position.xy) / (0.3 * height), 1.0);
-  let leaf = 6.2831853 * splatLeafHash(seed);
+  let leaf = 6.2831853 * windLeafHash(seed);
   let sinLeaf = sin(leaf);
   let cosLeaf = cos(leaf);
   let sin1 = sinLeaf * phase.y + cosLeaf * phase.x;

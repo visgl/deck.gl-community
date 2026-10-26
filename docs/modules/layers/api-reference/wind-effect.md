@@ -6,7 +6,7 @@
 </p>
 
 A deck.gl effect that sets one wind for the whole scene. Every
-[`TreeLayer`](./tree-layer.md) and [`SplatLayer`](./splat-layer.md) in the deck bends with it, in
+[`TreeLayer`](./tree-layer.md) in the deck bends with it, wood, crops and Gaussian canopy alike, in
 the same direction and on the same clock, as `LightingEffect` lights every lit layer.
 [`WindExtension`](#windextension) brings deck.gl's own instanced 3D layers into the same wind.
 See it in the [Wind Garden](/examples/layers/wind-garden) example.
@@ -30,7 +30,7 @@ props, as it does for `LightingEffect`.
 | --- | --- | --- |
 | `speed` | `null` | Wind speed in m/s at the 10 m reference height. Without `strength`, it sets the bend through [`getWindStrength`](#getwindstrength). |
 | `strength` | `null` | Bend as a fraction of object height. Wins over `speed`. With neither, the bend is `0.025`, a gentle breeze; `0` is still air. |
-| `direction` | `≈65.8` | Compass bearing the wind blows toward, in degrees clockwise from north. The default is the fixed direction TreeLayer and SplatLayer used before this effect. |
+| `direction` | `≈65.8` | Compass bearing the wind blows toward, in degrees clockwise from north. The default is the fixed direction TreeLayer used before this effect. |
 | `gust` | `0` | `0`–`1`. Slow swell: strength (and speed) varies between `× (1 − gust)` and `× (1 + gust)`. |
 | `turbulence` | `1` | Scale of the crown, branch and leaf motion. `0` leaves a pure bend. |
 | `shear` | `1/7` | Exponent of the height profile `v(z) = v₁₀ (z / 10)^shear`, used by [`getWindVelocity`](#getwindvelocity). About `0.25` over a city or an orchard. |
@@ -38,18 +38,22 @@ props, as it does for `LightingEffect`.
 
 `effect.strength` is the resolved bend: `strength`, else the response to `speed`, else `0.025`.
 
-## Layer overrides
+## One wind per deck
 
-Layer props override the effect for that layer only:
+Wind is deck-wide: layers have no strength or clock of their own. Every part of every tree bends
+with the effect, and layers are still without one. To keep one layer still in a windy scene, such
+as a sheltered courtyard, set `windEnabled: false` on it, as `shadowEnabled: false` opts a layer
+out of shadows.
 
-| Layer | Strength | Clock |
+| Layer | Opt out | Per object |
 | --- | --- | --- |
-| `TreeLayer` | `windStrength`; a tree's own `wind` overrides it in turn | `windTime` |
-| `SplatLayer` | `deformationStrength`; `getDeformation` flex multiplies it | `deformationTime` |
+| `TreeLayer` | `windEnabled: false` | None: every tree bends alike. |
+| `WindExtension` layers | Remove the extension. | `getWind` `[height, phase, flex]`: bend height, phase and flex; flex `0` is rigid. |
 
-`null`, the default, follows the effect. `0` keeps a layer still in a windy scene. Direction, gusts
-and turbulence always come from the effect. Without a `WindEffect`, the layer props work on their
-own, with the default direction.
+`SplatLayer` knows nothing of wind: it draws Gaussians where they are. TreeLayer's canopy bends its
+own Gaussians.
+
+For repeatable screenshots and tests, give the effect a fixed `time`.
 
 ## Rendering
 
@@ -62,15 +66,17 @@ Wind bends the geometry in the vertex shader on WebGL2 and WebGPU, in three part
   toward the branch tips, and each branch sways as one. Branches around the crown and up its
   tiers move out of step. Wood, fruit and leaves share this motion, so branches carry their leaves
   and fruit.
-- **Leaves.** Each Gaussian of a `SplatLayer`, including TreeLayer canopies, adds a small, fast
+- **Leaves.** Each Gaussian of a TreeLayer canopy adds a small, fast
   shimmer of its own (2 to 3.5 Hz, a few centimetres in a breeze), up and down as well as
   sideways.
 
 At 6 m/s on a 12 m tree, the top of the trunk leans 0.34 to 0.52 m downwind, branch tips sway up
 to 0.21 m on top of that, and leaves shimmer up to 4 cm off their branch.
 
-Shadows, picking and the sorted splat transparency use the same motion. While the strength is above zero and the clock follows the
-timeline, deck.gl redraws every frame. With no wind, or a fixed `time`, it idles.
+Shadows and picking use the same motion. A canopy drawn with sorted transparency stays still:
+the sorted renderer packs only SplatLayer's own attributes. While the strength is above zero and
+the clock follows the timeline, deck.gl redraws every frame. With no wind, or a fixed `time`, it
+idles.
 
 A `time` callback hands frame scheduling to the app, as in a weather scene that animates with
 `_animate` and pauses when hidden: wind layers read the callback on every draw but request no
@@ -121,36 +127,21 @@ const clouds = getWindVelocity(wind.props, 1500, time); // m/s
 const rainOffset = getWindDisplacement(wind.props, 225, time); // metres
 ```
 
-### getLocalWindStrengths
+### Wind from station data
 
-`getLocalWindStrengths(data, sampler, {getPosition?, time?}): (number | undefined)[]`
-
-Per-tree bend strengths from local wind, for `TreeSpec.wind`. The `sampler`,
-`(position, time) => {speed, direction?} | null`, reports the wind at each tree: a station field, a
-forecast grid or a shelter model. Each strength is `getWindStrength` of the sampled speed. Where
-the sampler returns `null` the strength is `undefined`, so that tree follows the scene's wind.
-
-A pinned tree still takes its direction, gusts and clock from the `WindEffect`, so set the effect's
-direction from the wind at the scene's centre. Per-tree directions do not reach the bend yet.
+The effect can take its speed and direction from measurements. Sample a geo-layers `WindField` at
+the scene's centre and pass the result to the effect:
 
 ```ts
-import {sampleWindField, type WindField} from '@deck.gl-community/geo-layers';
-import {getLocalWindStrengths, TreeLayer, WindEffect} from '@deck.gl-community/layers';
+import {sampleWindField} from '@deck.gl-community/geo-layers';
+import {TreeLayer, WindEffect} from '@deck.gl-community/layers';
 
 // WindSample.direction is the direction of travel, counterclockwise radians from east.
 const toBearing = (radians: number) => (((90 - (radians * 180) / Math.PI) % 360) + 360) % 360;
-const sampleStations = (field: WindField) => (position: readonly number[], time: number) => {
-  const sample = sampleWindField(field, [position[0], position[1]], time);
-  return sample && {speed: sample.speed, direction: toBearing(sample.direction)};
-};
-
-// Trees positioned in longitude/latitude, like the field's stations.
-const sampler = sampleStations(field);
-const strengths = getLocalWindStrengths(trees, sampler);
-const center = sampler(orchardCenter, 0)!;
+const sample = sampleWindField(field, orchardCenter, forecastFrame)!;
 new Deck({
-  effects: [new WindEffect({speed: center.speed, direction: center.direction})],
-  layers: [new TreeLayer({data: trees.map((tree, i) => ({...tree, wind: strengths[i]}))})]
+  effects: [new WindEffect({speed: sample.speed, direction: toBearing(sample.direction)})],
+  layers: [new TreeLayer({data: trees})]
 });
 ```
 
@@ -162,7 +153,8 @@ apart from the angle units. Station data that reports where the wind comes *from
 ## WindExtension
 
 A layer extension that bends deck.gl's instanced 3D layers with the scene's `WindEffect`, using
-the same bend as TreeLayer.
+the same bend as TreeLayer. Those layers have no wind code of their own; TreeLayer bends natively
+and needs no extension.
 
 ```ts
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
@@ -187,8 +179,6 @@ new SimpleMeshLayer({
 | --- | --- | --- |
 | `getWind` | `[10, index × golden angle, 1]` | Per-object `[height, phase, flex]`: the bend reaches full strength at `height` metres above the base, `phase` (radians) offsets its sway, `flex` multiplies its strength. |
 | `windBase` | `'instance'` | `'instance'` bends from each object's anchor; `'ground'` from z = 0, for point clouds. |
-| `windStrength` | `null` | Overrides the effect's strength for this layer. |
-| `windTime` | `null` | Overrides the effect's clock for this layer. |
 
 The extension is WebGL2 only: deck.gl's WGSL layers have no vertex filter hook, so on WebGPU it
 leaves the layer unchanged. Column heights often encode data; bending them suits decorative

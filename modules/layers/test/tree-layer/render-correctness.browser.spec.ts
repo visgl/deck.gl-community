@@ -126,7 +126,7 @@ it('keeps the interior of the banyan bole solid during woody refinement', async 
         data: rows,
         getTree: row => row,
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        windStrength: 0
+        windEnabled: false
       })
     ],
     new OrbitView({orbitAxis: 'Z', orthographic: true}),

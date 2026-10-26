@@ -4,7 +4,7 @@
 
 import {LayerExtension, type Accessor, type DefaultProps, type Layer} from '@deck.gl/core';
 import type {ShaderModule} from '@luma.gl/shadertools';
-import {SPLAT_DEFORMATION_GLSL} from '../splat-layer/splat-deformation';
+import {WIND_BEND_GLSL} from '../wind-effect/wind-bend';
 import {getLayerWind} from './wind-effect';
 import {wind} from './wind-module';
 
@@ -22,10 +22,6 @@ export type WindExtensionProps<DataT = unknown> = {
    * z = 0, for point clouds whose points are their own anchors. @default 'instance'
    */
   windBase?: 'instance' | 'ground';
-  /** Overrides the deck's `WindEffect` strength for this layer; null follows it. @default null */
-  windStrength?: number | null;
-  /** Overrides the deck's `WindEffect` clock, in seconds; null follows it. @default null */
-  windTime?: number | null;
 };
 
 const defaultProps: DefaultProps<WindExtensionProps> = {
@@ -33,9 +29,7 @@ const defaultProps: DefaultProps<WindExtensionProps> = {
     type: 'accessor',
     value: (_: unknown, {index}: {index: number}) => [10, index * GOLDEN_ANGLE, 1]
   },
-  windBase: 'instance',
-  windStrength: null,
-  windTime: null
+  windBase: 'instance'
 };
 
 /** Pack `[height, phase, flex]` as `[height, flex, sin(phase), cos(phase)]`. */
@@ -54,7 +48,7 @@ layout(std140) uniform windExtensionUniforms {
 } windExtension;
 vec3 windAnchor;
 vec3 windAnchor64Low;
-${SPLAT_DEFORMATION_GLSL}`,
+${WIND_BEND_GLSL}`,
   inject: {
     'vs:#main-start': `
   windAnchor = instancePositions;
@@ -71,13 +65,13 @@ ${SPLAT_DEFORMATION_GLSL}`,
     float windCos = instanceWindExtension.w;
     vec2 windWave = vec2(wind.wave.x * windCos + wind.wave.y * windSin,
       wind.wave.z * (windCos * windCos - windSin * windSin) + wind.wave.w * 2.0 * windSin * windCos);
-    mat3 windJacobian = splatDeform(windBent, max(instanceWindExtension.x, 0.001),
+    mat3 windJacobian = windBend(windBent, max(instanceWindExtension.x, 0.001),
       wind.strength * instanceWindExtension.y, windWave, wind.axis, mat2(wind.mode),
       instanceWindExtension.zw, wind.branch);
     vec4 windOffset = vec4((windBent.xy - windLocal.xy) * windUnits.xy, 0.0, 0.0);
     geometry.position += windOffset;
     position += project.viewProjectionMatrix * windOffset;
-    geometry.normal = normalize(splatDeformNormal(windJacobian, geometry.normal));
+    geometry.normal = normalize(windBendNormal(windJacobian, geometry.normal));
   }`
     }
   },
@@ -114,11 +108,7 @@ export class WindExtension extends LayerExtension {
   // Every pass, shadows included, draws with this frame's wind.
   draw(this: Layer<WindExtensionProps>) {
     if (!isWindSupported(this)) return;
-    const {wind: windProps, animated} = getLayerWind(
-      this,
-      this.props.windStrength,
-      this.props.windTime
-    );
+    const {wind: windProps, animated} = getLayerWind(this);
     this.setShaderModuleProps({
       wind: windProps,
       windExtension: {ground: this.props.windBase === 'ground' ? 1 : 0}

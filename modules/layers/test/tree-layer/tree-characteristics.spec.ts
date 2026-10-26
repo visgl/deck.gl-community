@@ -104,7 +104,7 @@ describe('Shared tree characteristics', () => {
     const rows = layer.state.groups,
       crops = layer.state.liveCrops;
     layer.updateState({
-      props: Object.assign(Object.create(layer.props), {windTime: 3}),
+      props: Object.assign(Object.create(layer.props), {windEnabled: false}),
       oldProps: layer.props,
       changeFlags: {propsChanged: true}
     });

@@ -33,15 +33,20 @@ const traits: TreeSpec[] = [
     species: 'citrus',
     height: 5,
     crownRadius: 2,
-    wind: true,
     characteristics: {leafSize: 1.2}
   }
 ];
 new TreeLayer({data: traits});
 new TreeLayer({
   data,
-  getTree: tree => ({position: tree.position, species: 'oak', height: tree.height, wind: false})
+  getTree: tree => ({position: tree.position, species: 'oak', height: tree.height})
 });
+new TreeLayer({data, windEnabled: false});
+// @ts-expect-error Wind is deck-wide: set it on the WindEffect, not the layer.
+new TreeLayer({data, windStrength: 0.05});
+// @ts-expect-error Trees have no wind of their own.
+const pinnedTree: TreeSpec = {species: 'oak', wind: 0.05};
+void pinnedTree;
 // @ts-expect-error Per-tree species retain the supported species contract.
 const invalidTraits: TreeSpec = {species: 'maple'};
 void invalidTraits;

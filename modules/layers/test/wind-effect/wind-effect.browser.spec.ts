@@ -13,8 +13,10 @@ import {
 } from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {expect, it} from 'vitest';
-import {SplatLayer, TreeLayer, WindEffect, type SplatSource} from '../../src';
-import {getSplatWindOffset} from '../../src/splat-layer/splat-deformation';
+import {TreeLayer, WindEffect, type SplatSource} from '../../src';
+import {TreeCanopyLayer} from '../../src/tree-layer/tree-canopy-layer';
+import {getWindOffset} from '../../src/wind-effect/wind-bend';
+import {getLayerWind} from '../../src/wind-effect/wind-effect';
 import {getWindUniforms} from '../../src/wind-effect/wind-module';
 
 const SIZE = 256;
@@ -93,15 +95,15 @@ function countChanged(a: Uint8Array, b: Uint8Array) {
   return changed;
 }
 
-it('bends a SplatLayer with no wind props toward the WindEffect direction, and picks it there', async () => {
+it('bends a TreeLayer canopy toward the WindEffect direction, and picks it there', async () => {
   const object = {position: [0, 0, 0]};
-  const splats = new SplatLayer({
+  const splats = new TreeCanopyLayer({
     ...METER_OFFSETS,
     id: 'gusty',
     data: [object],
     getSource: SOURCE,
     getTranslation: [0, 0, 5],
-    getDeformation: [10, PHASE, 1],
+    getWind: [10, PHASE, 1],
     pickable: true,
     material: {unlit: true}
   });
@@ -142,7 +144,7 @@ it('bends a SplatLayer with no wind props toward the WindEffect direction, and p
   }
 }, 40000);
 
-it('flutters a leaf Gaussian exactly where the CPU twin of the shader puts it', async () => {
+it('flutters a canopy leaf Gaussian exactly where the CPU twin of the shader puts it', async () => {
   // A leaf high on the crown's edge: template centre `seed`, placed at [3, 1, 9] of a 12 m owner
   // that stands at [-4, -1], so the leaf stays in view.
   const owner = [-4, -1, 0];
@@ -150,13 +152,13 @@ it('flutters a leaf Gaussian exactly where the CPU twin of the shader puts it', 
   const translation = [2.2, 0.7, 8.6];
   const local = [0, 1, 2].map(i => Math.fround(seed[i]) + translation[i]);
   const leaf: SplatSource = {...SOURCE, positions: seed, scales: new Float32Array([0.1, 0.1, 0.1])};
-  const layer = new SplatLayer({
+  const layer = new TreeCanopyLayer({
     ...METER_OFFSETS,
     id: 'leaf',
     data: [{position: owner}],
     getSource: leaf,
     getTranslation: translation as [number, number, number],
-    getDeformation: [12, PHASE, 1],
+    getWind: [12, PHASE, 1],
     material: {unlit: true}
   });
   const wind = (time: number, turbulence: number) =>
@@ -169,7 +171,7 @@ it('flutters a leaf Gaussian exactly where the CPU twin of the shader puts it', 
   const phase = [Math.sin(PHASE), Math.cos(PHASE), Math.sin(PHASE * 1.7), Math.cos(PHASE * 1.7)];
   const expected = (time: number, turbulence: number): [number, number] => {
     const uniforms = getWindUniforms({strength: 0.08, direction: 120, turbulence, time});
-    const offset = getSplatWindOffset([], local, Array.from(seed), 12, 0.08, phase, uniforms);
+    const offset = getWindOffset([], local, Array.from(seed), 12, 0.08, phase, uniforms);
     const viewport = deck.getViewports()[0] as any;
     const lngLat = viewport.addMetersToLngLat(
       [0, 0, 0],
@@ -201,7 +203,7 @@ it('flutters a leaf Gaussian exactly where the CPU twin of the shader puts it', 
   }
 }, 40000);
 
-it('stills every tree part when the WindEffect calms or is removed', async () => {
+it('stills every tree part when the WindEffect calms, is removed, or the layer opts out', async () => {
   const lighting = new LightingEffect({
     ambient: new AmbientLight({intensity: 1}),
     directional: new DirectionalLight({direction: [-1, -1, -1], intensity: 0.5})
@@ -213,7 +215,6 @@ it('stills every tree part when the WindEffect calms or is removed', async () =>
     getHeight: 12,
     getCanopyRadius: 4,
     getCrop: {kind: 'fruit', color: [230, 120, 40], count: 6, radius: 0.3},
-    windTime: 1,
     maxCanopySplats: 0,
     maxCanopyPixels: SIZE * SIZE
   });
@@ -230,21 +231,29 @@ it('stills every tree part when the WindEffect calms or is removed', async () =>
     await settle();
     return view.pixels.slice();
   };
+  // What each drawn part resolves from the deck's WindEffect.
   const strengths = () =>
     collectLeaves((deck.props.layers as Layer[])[0]).map(
-      layer => layer.props.windStrength ?? layer.props.deformationStrength
+      layer => getLayerWind(layer, layer.props.windEnabled).wind.strength
     );
+  // A fixed clock keeps each pose still, so captures compare poses, not animation frames.
+  const windy = () => new WindEffect({strength: 0.15, gust: 0.5, time: 1});
   try {
     const still = await capture();
     expect(strengths().every(strength => strength === 0)).toBe(true);
-    deck.setProps({effects: [lighting, new WindEffect({strength: 0.15, gust: 0.5})]});
-    const windy = await capture();
+    deck.setProps({effects: [lighting, windy()]});
+    const bent = await capture();
     expect(strengths().every(strength => strength === 0.15)).toBe(true);
-    expect(countChanged(still, windy)).toBeGreaterThan(200);
-    // A calm effect updates the trees without new layer props.
-    deck.setProps({effects: [lighting, new WindEffect({strength: 0})]});
+    expect(countChanged(still, bent)).toBeGreaterThan(200);
+    // A sheltered grove opts out in the same windy scene.
+    deck.setProps({layers: [trees.clone({windEnabled: false})]});
     expect(countChanged(still, await capture())).toBeLessThan(40);
-    deck.setProps({effects: [lighting, new WindEffect({strength: 0.15, gust: 0.5})]});
+    expect(strengths().every(strength => strength === 0)).toBe(true);
+    deck.setProps({layers: [trees]});
+    // A calm effect updates the trees without new layer props.
+    deck.setProps({effects: [lighting, new WindEffect({strength: 0, time: 1})]});
+    expect(countChanged(still, await capture())).toBeLessThan(40);
+    deck.setProps({effects: [lighting, windy()]});
     expect(countChanged(still, await capture())).toBeGreaterThan(200);
     deck.setProps({effects: [lighting]});
     expect(countChanged(still, await capture())).toBeLessThan(40);
@@ -255,39 +264,30 @@ it('stills every tree part when the WindEffect calms or is removed', async () =>
   }
 }, 90000);
 
-it('draws every tree part with the layer wind overrides, not the effect values', async () => {
-  // The effect pushes its own wind props before each draw; layers resolve their overrides in draw().
-  const windStrength = 0.03;
-  const windTime = 3;
+it('draws every tree part with the WindEffect, and none when the layer opts out', async () => {
+  // Effect props reach models before each draw; tree layers resolve the wind again in draw(), for
+  // the shadow pass that receives no effect props.
   const shadows = new LightingEffect({
     ambient: new AmbientLight({intensity: 1}),
     sun: new DirectionalLight({direction: [-1, -1, -1], intensity: 1, _shadow: true})
   });
   const trees = new TreeLayer({
     ...METER_OFFSETS,
-    id: 'overrides',
+    id: 'drawn-wind',
     data: [{position: [0, 0, 0], species: 'oak'}],
     getHeight: 12,
     getCanopyRadius: 4,
     getCrop: {kind: 'fruit', color: [230, 120, 40], count: 6, radius: 0.3},
-    windStrength,
-    windTime,
     maxCanopySplats: 0,
     maxCanopyPixels: SIZE * SIZE
   });
   const {deck, view, settle, cleanup} = createDeck({
     initialViewState: {longitude: 0, latitude: 0, zoom: 19.5, pitch: 60, bearing: 30},
-    effects: [shadows, new WindEffect({strength: 0.1, gust: 0, direction: 120})],
+    effects: [shadows, new WindEffect({strength: 0.1, gust: 0, direction: 120, time: 3})],
     layers: [trees]
   });
-  try {
-    await settle(6);
-    await expect
-      .poll(() => (deck.props.layers as TreeLayer[])[0].isLoaded, {timeout: 30000})
-      .toBe(true);
-    await settle();
-    const expected = getWindUniforms({strength: windStrength, direction: 120, time: windTime});
-    // Record the wind each model holds at the moment it draws, in every pass (shadow included).
+  // Record the wind each model holds at the moment it draws, in every pass (shadow included).
+  const record = () => {
     const drawn: {name: string; wind: {strength: number; wave: number[]}}[] = [];
     for (const layer of collectLeaves((deck.props.layers as Layer[])[0]))
       for (const model of layer.getModels()) {
@@ -302,14 +302,33 @@ it('draws every tree part with the layer wind overrides, not the effect values',
           return draw(...args);
         };
       }
+    return drawn;
+  };
+  const load = async () => {
+    await settle(6);
+    await expect
+      .poll(() => (deck.props.layers as TreeLayer[])[0].isLoaded, {timeout: 30000})
+      .toBe(true);
     await settle();
-    expect(new Set(drawn.map(({name}) => name))).toEqual(
-      new Set(['TreeMeshLayer', 'SplatPrimitiveLayer'])
+  };
+  try {
+    await load();
+    const expected = getWindUniforms({strength: 0.1, direction: 120, time: 3});
+    const windy = record();
+    await settle();
+    expect(new Set(windy.map(({name}) => name))).toEqual(
+      new Set(['TreeMeshLayer', 'TreeCanopyPrimitiveLayer'])
     );
-    for (const {name, wind} of drawn) {
+    for (const {name, wind} of windy) {
       expect(wind.strength, name).toBeCloseTo(expected.strength, 6);
       wind.wave.forEach((value, i) => expect(value, name).toBeCloseTo(expected.wave[i], 5));
     }
+    deck.setProps({layers: [trees.clone({windEnabled: false})]});
+    await load();
+    const still = record();
+    await settle();
+    expect(still.length).toBeGreaterThan(0);
+    for (const {name, wind} of still) expect(wind.strength, name).toBe(0);
     expect(view.errors).toEqual([]);
   } finally {
     cleanup();

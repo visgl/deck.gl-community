@@ -19,7 +19,7 @@ const SOURCE: SplatSource = {
 };
 
 describe('Gaussian canopy rendering', () => {
-  it('renders an anisotropic soft footprint, picks the owner, and moves it with uniform-only wind', async () => {
+  it('renders an anisotropic soft footprint and picks the owner', async () => {
     const parent = document.createElement('div');
     parent.style.cssText = 'width:256px;height:256px';
     document.body.append(parent);
@@ -29,7 +29,7 @@ describe('Gaussian canopy rendering', () => {
     const errors: string[] = [];
     let frames = 0;
     let pixels = new Uint8Array();
-    const makeLayer = (time: number, pixelError = 0.75) =>
+    const makeLayer = (pixelError = 0.75) =>
       new SplatLayer({
         id: 'canopy',
         data,
@@ -38,9 +38,6 @@ describe('Gaussian canopy rendering', () => {
         coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
         coordinateOrigin: [0, 0, 0],
         getTranslation: [0, 0, 5],
-        getDeformation: [10, 0.7, 1],
-        deformationStrength: 0.1,
-        deformationTime: time,
         pickable: true,
         material: {unlit: true}
       });
@@ -53,7 +50,7 @@ describe('Gaussian canopy rendering', () => {
       deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
       views: new MapView({id: 'gaussian'}),
       initialViewState: {longitude: 0, latitude: 0, zoom: 21, pitch: 0},
-      layers: [makeLayer(0)],
+      layers: [makeLayer()],
       onError: error => errors.push(error.message),
       onAfterRender({gl}) {
         pixels = new Uint8Array(256 * 256 * 4);
@@ -87,28 +84,9 @@ describe('Gaussian canopy rendering', () => {
       expect(picked?.object).toBe(object);
       const leaves = collectLeaves((deck.props.layers as Layer[])[0]);
       const visual = leaves.find(layer => layer.id.includes('refinement'))!;
-      const geometry = (visual.state.model as any)._gpuGeometry;
       const positions = visual.getAttributeManager()!.getAttributes().instancePositions.getBuffer();
       const rows = (deck.props.layers as Layer[])[0].state.groups;
       const spatialIndex = (deck.props.layers as Layer[])[0].state.spatialIndex;
-      const before = pixels.slice();
-      const oldFrame = frames;
-      // On the trunk axis only the trunk sways: 2.75 s later it has eased by 0.17 m, 2 pixels.
-      deck.setProps({layers: [makeLayer(2.75)]});
-      await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(oldFrame + 3);
-      let changed = 0;
-      for (let i = 0; i < pixels.length; i += 4)
-        if (Math.abs(before[i + 3] - pixels[i + 3]) > 20) changed++;
-      expect(changed).toBeGreaterThan(100);
-      const updated = collectLeaves((deck.props.layers as Layer[])[0]).find(layer =>
-        layer.id.includes('refinement')
-      )!;
-      expect((deck.props.layers as Layer[])[0].state.groups === rows).toBe(true);
-      expect((deck.props.layers as Layer[])[0].state.spatialIndex === spatialIndex).toBe(true);
-      expect((updated.state.model as any)._gpuGeometry.indices === geometry.indices).toBe(true);
-      expect(updated.getAttributeManager()!.getAttributes().instancePositions.getBuffer()).toBe(
-        positions
-      );
       // A small camera rotation retains the same owners and LOD. It must not re-upload positions.
       const positionWrites = vi.spyOn(positions!, 'write');
       const beforeRotate = frames;
@@ -120,7 +98,7 @@ describe('Gaussian canopy rendering', () => {
       // A bounded accumulation target preserves the footprint and full-resolution owner picking.
       const beforePixels = pixels.slice();
       const beforeLowResolution = frames;
-      deck.setProps({layers: [makeLayer(2.75).clone({maxRenderPixels: 128 * 128})]});
+      deck.setProps({layers: [makeLayer().clone({maxRenderPixels: 128 * 128})]});
       await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeLowResolution + 3);
       const lowResolution = collectLeaves((deck.props.layers as Layer[])[0]).find(layer =>
         layer.id.includes('refinement')
@@ -157,7 +135,7 @@ describe('Gaussian canopy rendering', () => {
       }
       // Changing scale keeps the owning object but requires fresh transforms and bounds.
       const beforeScale = frames;
-      deck.setProps({layers: [makeLayer(2.75).clone({getScale: [1.2, 1, 1]})]});
+      deck.setProps({layers: [makeLayer().clone({getScale: [1.2, 1, 1]})]});
       await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeScale + 3);
       const scaled = collectLeaves((deck.props.layers as Layer[])[0]).find(layer =>
         layer.id.includes('refinement')
@@ -167,7 +145,7 @@ describe('Gaussian canopy rendering', () => {
       ).toBeCloseTo(1.2);
       expect((deck.props.layers as Layer[])[0].state.spatialIndex).not.toBe(spatialIndex);
       const beforeQuality = frames;
-      deck.setProps({layers: [makeLayer(2.75, 1)]});
+      deck.setProps({layers: [makeLayer(1)]});
       await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeQuality + 3);
       const refinedIndex = (deck.props.layers as Layer[])[0].state.spatialIndex;
       const beforePan = frames;
@@ -243,7 +221,7 @@ it('truncates culled owner tails without re-uploading unchanged instance attribu
       'instancePositions',
       'instanceColors',
       'instanceModelMatrix',
-      'instanceWindData'
+      'instanceCoverageWeight'
     ])
       writes.push(vi.spyOn(attributes[name].getBuffer()!, 'write'));
     const before = frames;

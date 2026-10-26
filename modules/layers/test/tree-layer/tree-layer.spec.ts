@@ -329,8 +329,7 @@ describe('tree wood and crop contracts', () => {
     const data: Datum[] = [{...OAK, position: [-122.415, 37.775], season: 'winter'}];
     const extra = {
       getCrop: () => ({count: 8, droppedCount: 4, radius: 0.2, color: [200, 80, 40, 255]}),
-      windStrength: 0.025,
-      windTime: 3
+      windEnabled: false
     };
     const small = createLayer(data, {...extra, getTrunkRadius: () => 0.05}).layer;
     const large = createLayer(data, {...extra, getTrunkRadius: () => 2}).layer;
@@ -342,8 +341,7 @@ describe('tree wood and crop contracts', () => {
     const crown = children.find(child => child.id.includes('wood'))!;
     const tree = crown.props.data[0];
     for (const child of children) {
-      expect(child.props.windStrength).toBe(0.025);
-      expect(child.props.windTime).toBe(3);
+      expect(child.props.windEnabled).toBe(false);
       const row = child.props.data[0];
       if (child.id.includes('dropped-crops')) expect(row.wind[2]).toBe(0);
       else expect(child.props.getWind(row)).toEqual(tree.wind);
@@ -352,7 +350,7 @@ describe('tree wood and crop contracts', () => {
     const groups = small.state.groups;
     vi.mocked(small.setState).mockClear();
     small.updateState({
-      props: Object.create(small.props, {windTime: {value: 20}}),
+      props: Object.create(small.props, {windEnabled: {value: true}}),
       oldProps: small.props,
       changeFlags: {propsChanged: true}
     });
@@ -382,8 +380,7 @@ describe('TreeLayer sublayer override contracts', () => {
     };
     const {layer} = createLayer(data, {
       getCrop: () => ({count: 2, droppedCount: 2, radius: 0.1, color: [200, 80, 40, 255]}),
-      windStrength: 0.025,
-      windTime: 2,
+      windEnabled: false,
       updateTriggers: {all: 'owner-data'},
       _subLayerProps: {
         trunks: {...overrides},
@@ -411,8 +408,7 @@ describe('TreeLayer sublayer override contracts', () => {
         all: 'owner-data',
         getColor: 'explicit-color'
       });
-      expect(child.props.windStrength).toBe(0.025);
-      expect(child.props.windTime).toBe(2);
+      expect(child.props.windEnabled).toBe(false);
       const picked = layer.getPickingInfo({info: {object: row, index: rowIndex}} as any);
       expect(picked.object).toBe(data[1]);
       expect(picked.index).toBe(1);
@@ -443,8 +439,7 @@ describe('TreeLayer sublayer override contracts', () => {
     ]);
     const {layer} = createLayer(data, {
       getBranchLevels: (d: Datum) => (d.position[0] === 2 ? 4 : 3),
-      windStrength: 0.03,
-      windTime: 4,
+      windEnabled: false,
       parameters: {depthCompare: 'less-equal'},
       updateTriggers: {all: 'trees'},
       _subLayerProps: {
@@ -485,8 +480,7 @@ describe('TreeLayer sublayer override contracts', () => {
         depthWriteEnabled: false
       });
       expect(child.props.updateTriggers).toMatchObject({all: 'trees', getScale: 'alias-scale'});
-      expect(child.props.windStrength).toBe(0.03);
-      expect(child.props.windTime).toBe(4);
+      expect(child.props.windEnabled).toBe(false);
     }
     expect(summer.props.visible).toBe(true);
     expect(summer.props.material).toEqual({ambient: 0.2});
@@ -504,8 +498,7 @@ describe('TreeLayer sublayer override contracts', () => {
   it('preserves palm wind and double-sided defaults while allowing explicit overrides', () => {
     const data: Datum[] = [{position: [3, 0], type: 'palm', season: 'summer'}];
     const common = {
-      windStrength: 0.025,
-      windTime: 2,
+      windEnabled: false,
       _subLayerProps: {'canopy-palm': {parameters: {depthWriteEnabled: false}}}
     };
     const canopy = createLayer(data, common)
@@ -513,16 +506,14 @@ describe('TreeLayer sublayer override contracts', () => {
       .find(child => child.id.includes('canopy'))!;
     expect(canopy.props.doubleSided).toBe(true);
     expect(canopy.props.parameters).toMatchObject({cullMode: 'none', depthWriteEnabled: false});
-    expect(canopy.props.windStrength).toBe(0.025);
-    expect(canopy.props.windTime).toBe(2);
+    expect(canopy.props.windEnabled).toBe(false);
     const changed = createLayer(data, {
       ...common,
       _subLayerProps: {
         ...common._subLayerProps,
         'canopy-palm-foliage-3': {
           doubleSided: false,
-          windStrength: 0.05,
-          windTime: 3,
+          windEnabled: true,
           parameters: {cullMode: 'back'}
         }
       }
@@ -531,8 +522,7 @@ describe('TreeLayer sublayer override contracts', () => {
       .find(child => child.id.includes('canopy'))!;
     expect(changed.props.doubleSided).toBe(false);
     expect(changed.props.parameters).toMatchObject({cullMode: 'back', depthWriteEnabled: false});
-    expect(changed.props.windStrength).toBe(0.05);
-    expect(changed.props.windTime).toBe(3);
+    expect(changed.props.windEnabled).toBe(true);
   });
 });
 
@@ -549,13 +539,13 @@ describe('TreeLayer prepared data and crop contracts', () => {
     expect(after).toBe(before);
   });
 
-  it('does not regroup data or rebuild crop instances for wind clock or color-only updates', () => {
+  it('does not regroup data or rebuild crop instances for wind or color-only updates', () => {
     const {layer} = createLayer([OAK]);
     const state = layer.state;
     const groups = state.groups;
     (layer.setState as any).mockClear();
     layer.updateState({
-      props: Object.assign(Object.create(layer.props), {windTime: 25, windStrength: 0.03}),
+      props: Object.assign(Object.create(layer.props), {windEnabled: false}),
       oldProps: layer.props,
       changeFlags: {propsChanged: true}
     });
@@ -862,7 +852,7 @@ it('passes extension accessors and their update triggers to every sub-layer', ()
 
 it('re-renders for an unrelated prop change without recomputing sub-layer attributes', () => {
   // deck.gl re-renders a composite whenever a prop changes. Each child must keep its data and
-  // triggers, or every canopy color and crop attribute is rewritten, e.g. per windTime frame.
+  // triggers, or every canopy color and crop attribute is rewritten, e.g. per opacity frame.
   const calculateTreeWind = vi.spyOn(TreeMeshLayer.prototype as any, 'calculateTreeWind');
   const getCanopyColor = vi.fn(() => [60, 170, 60, 255]);
   const viewport = new WebMercatorViewport({width: 128, height: 128, zoom: 20});
@@ -871,7 +861,7 @@ it('re-renders for an unrelated prop change without recomputing sub-layer attrib
     deck: {getViewports: () => [viewport]}
   } as any);
   const data = [OAK, {...OAK, position: [1e-5, 0], type: 'citrus'}];
-  const render = (windTime: number) =>
+  const render = (opacity: number) =>
     layerManager.setLayers([
       new TreeLayer<Datum>({
         id: 'trees',
@@ -880,11 +870,11 @@ it('re-renders for an unrelated prop change without recomputing sub-layer attrib
         getCrop: () => ({count: 2, droppedCount: 2, radius: 0.04, color: [200, 140, 40]}),
         getCanopyColor,
         maxCanopySplats: 0,
-        windTime
+        opacity
       })
     ]);
   try {
-    for (let frame = 0; frame < 4; frame++) render(0);
+    for (let frame = 0; frame < 4; frame++) render(1);
     const ids = layerManager.getLayers().map(layer => layer.id);
     for (const part of ['wood', 'refinement', 'live-crops', 'dropped-crops'])
       expect(
@@ -893,7 +883,7 @@ it('re-renders for an unrelated prop change without recomputing sub-layer attrib
       ).toBe(true);
     const calls = [getCanopyColor.mock.calls.length, calculateTreeWind.mock.calls.length];
     expect(calls.every(count => count > 0)).toBe(true);
-    for (const windTime of [1, 2, 3]) render(windTime);
+    for (const opacity of [0.9, 0.8, 0.7]) render(opacity);
     expect([getCanopyColor.mock.calls.length, calculateTreeWind.mock.calls.length]).toEqual(calls);
   } finally {
     layerManager.finalize();

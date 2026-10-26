@@ -185,7 +185,7 @@ const DECLARATION = `layout(std140) uniform windUniforms {
 } wind;`;
 
 /**
- * Shared wind uniforms for `splatDeform` and `splatFlutter`: the trunk and crown wave phases, the
+ * Shared wind uniforms for `windBend` and `windFlutter`: the trunk and crown wave phases, the
  * crown mode (mat2 columns), the branch sway and leaf shimmer phases (scaled by turbulence), the
  * bend axis and the gust-modulated strength. `WindEffect` supplies its props.
  */

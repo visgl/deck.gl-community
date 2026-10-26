@@ -35,8 +35,7 @@ function createOrchard(rows: number, treesPerRow: number): TreeSpec[] {
         position: [longitude, latitude, 0],
         species: 'citrus',
         height: 3,
-        crownRadius: 2.25,
-        wind: false
+        crownRadius: 2.25
       });
     }
   return trees;
@@ -64,7 +63,7 @@ async function mountOrchard(data: TreeSpec[], viewState: MapViewState) {
         getTree: tree => tree,
         // The automatic budget of a hardware adapter; headless software adapters resolve lower.
         maxCanopySplats: 20_000,
-        windStrength: 0
+        windEnabled: false
       })
     ],
     onError: error => errors.push(error.message),
