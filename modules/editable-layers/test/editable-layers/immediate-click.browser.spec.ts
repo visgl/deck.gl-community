@@ -88,3 +88,71 @@ test('real canvas clicks update polygon vertices immediately and double-click fi
     canvas.remove();
   }
 }, 20000);
+
+test('clicks on React DeckGL children reach the layer through the events root', async () => {
+  // Mirror @deck.gl/react: a base map rendered as a child covers the canvas inside the events root.
+  const eventsRoot = document.createElement('div');
+  eventsRoot.className = 'deck-events-root';
+  Object.assign(eventsRoot.style, {position: 'relative', width: '256px', height: '256px'});
+  const canvas = document.createElement('canvas');
+  Object.assign(canvas.style, {position: 'absolute', left: '0', top: '0'});
+  const child = document.createElement('div');
+  Object.assign(child.style, {
+    position: 'absolute',
+    left: '0',
+    top: '0',
+    width: '100%',
+    height: '100%'
+  });
+  eventsRoot.append(canvas, child);
+  document.body.append(eventsRoot);
+  let deck: Deck;
+  let data: any = {type: 'FeatureCollection', features: []};
+  const actions: any[] = [];
+  const makeLayer = () =>
+    new EditableGeoJsonLayer({
+      id: 'draw-polygon',
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data,
+      mode: DrawPolygonMode,
+      selectedFeatureIndexes: [],
+      onEdit: action => {
+        actions.push(action);
+        data = action.updatedData;
+        deck.setProps({layers: [makeLayer()]});
+      }
+    });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      deck = new Deck({
+        canvas,
+        width: 256,
+        height: 256,
+        views: new OrthographicView(),
+        initialViewState: {target: [0, 0, 0], zoom: 0},
+        layers: [makeLayer()],
+        onAfterRender: () => resolve(),
+        onError: reject
+      });
+    });
+    const rect = canvas.getBoundingClientRect();
+    const [x, y] = [40, 60];
+    const event = {clientX: rect.left + x, clientY: rect.top + y, button: 0, bubbles: true};
+    expect(document.elementFromPoint(event.clientX, event.clientY)).toBe(child);
+    child.dispatchEvent(
+      new PointerEvent('pointerdown', {...event, pointerId: 1, isPrimary: true, buttons: 1})
+    );
+    child.dispatchEvent(
+      new PointerEvent('pointerup', {...event, pointerId: 1, isPrimary: true, buttons: 0})
+    );
+    child.dispatchEvent(new MouseEvent('click', {...event, detail: 1}));
+    const added = actions.filter(action => action.editType === 'addTentativePosition');
+    expect(added).toHaveLength(1);
+    const expected = deck.getViewports()[0].unproject([x, y]);
+    expect(added[0].editContext.position[0]).toBeCloseTo(expected[0]);
+    expect(added[0].editContext.position[1]).toBeCloseTo(expected[1]);
+  } finally {
+    deck?.finalize();
+    eventsRoot.remove();
+  }
+}, 20000);

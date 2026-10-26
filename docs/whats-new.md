@@ -4,6 +4,9 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- **editable-layers:** click-to-draw modes work again under React `<DeckGL>` with child base maps
+  such as `<Map>`. Native clicks now use deck.gl's input element instead of only its canvas.
+
 - **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
   independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
   aliases; migrate visibility to `open` / `onOpenChange`. Content stays mounted across modes.
