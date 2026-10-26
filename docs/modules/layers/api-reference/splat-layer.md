@@ -41,6 +41,23 @@ new SplatLayer({data: source, getPosition: [longitude, latitude, 0]});
 new SplatLayer({data: objects, getSource: d => templates[d.kind]});
 ```
 
+### Captured scenes
+
+Splat files decoded by `@loaders.gl/splats` (`SPZLoader`, `SPLATLoader`, `KSPLATLoader`) are
+sources too, directly or per row. Load them with loaders.gl: `data` does not take a URL.
+
+```ts
+import {load} from '@loaders.gl/core';
+import {SPZLoader} from '@loaders.gl/splats';
+import {ZstdCodec} from 'zstd-codec'; // SPZ v4 streams are zstd-compressed (loaders.gl 4.5.4+)
+
+const capture = await load('/captures/row.spz', SPZLoader, {modules: {'zstd-codec': ZstdCodec}});
+new SplatLayer({data: capture, getPosition: [longitude, latitude, 0]});
+```
+
+A table converts once to prepared columns and keeps one asset identity. Colors come from the
+spherical harmonic DC terms; higher bands are not rendered.
+
 ### Levels of detail
 
 Build a hierarchy once with `createSplatHierarchy` and pass it alongside the source:
@@ -73,8 +90,8 @@ arrays.
 
 | Property | Default | Description |
 | --- | --- | --- |
-| `data` | `[]` | Instance rows, or one prepared source. |
-| `getSource` | `d => d.splats` | A [`SplatSource`](#splatsource) or prepared asset, constant or per row. |
+| `data` | `[]` | Instance rows, or one prepared source or decoded splat table. |
+| `getSource` | `d => d.splats` | A [`SplatSource`](#splatsource), prepared asset or [decoded table](#captured-scenes), constant or per row. |
 | `getPosition` | `d => d.position` | Instance position. |
 | `getOrientation` | `[0, 0, 0]` | Pitch, yaw and roll in degrees. |
 | `getScale` | `[1, 1, 1]` | XYZ scale. |

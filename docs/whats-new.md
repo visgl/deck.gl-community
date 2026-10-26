@@ -4,6 +4,11 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- `SplatLayer` draws captured scenes: Gaussian splat tables decoded by `@loaders.gl/splats`
+  (`SPZLoader`, `SPLATLoader`, `KSPLATLoader`) are accepted as `data` or as per-row sources and
+  convert once to prepared columns, with SH DC colors. `getSplatSourceFromGaussianSplatsTable`
+  is exported for direct conversion.
+
 - **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
   independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
   aliases; migrate visibility to `open` / `onOpenChange`. Content stays mounted across modes.

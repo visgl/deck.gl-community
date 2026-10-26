@@ -5,6 +5,11 @@ import type {Accessor, AccessorContext, Position} from '@deck.gl/core';
 import type {SplatSource} from './splat-source';
 import {validateSplatSource} from './splat-source';
 import type {SplatHierarchy} from './splat-hierarchy';
+import {
+  type GaussianSplatsTable,
+  getSplatSourceFromGaussianSplatsTable,
+  isGaussianSplatsTable
+} from './splat-gaussian-table';
 
 /** Prepared Gaussian asset with its optional, source-local template hierarchy. */
 export type PreparedSplatData = {
@@ -16,8 +21,11 @@ export type PreparedSplatData = {
   hierarchy?: SplatHierarchy;
 };
 
-/** Assets supported by the prepared rendering backend. */
-export type SplatDataInput = SplatSource | PreparedSplatData;
+/**
+ * Assets supported by the prepared rendering backend: prepared columns, a prepared descriptor, or
+ * a Gaussian splat table decoded by `@loaders.gl/splats` (for example `SPZLoader`).
+ */
+export type SplatDataInput = SplatSource | PreparedSplatData | GaussianSplatsTable;
 
 /** Owner returned by accessors and picking for a directly supplied asset. */
 export type SplatInstance = {splats: SplatDataInput; position: Position};
@@ -52,6 +60,7 @@ function isPreparedSource(input: unknown): input is SplatSource {
 export function isSplatDataInput(input: unknown): input is SplatDataInput {
   return (
     isPreparedSource(input) ||
+    isGaussianSplatsTable(input) ||
     Boolean(
       input && typeof input === 'object' && 'type' in input && input.type === 'prepared-splats'
     )
@@ -60,9 +69,12 @@ export function isSplatDataInput(input: unknown): input is SplatDataInput {
 
 /** Validate one source/hierarchy pair once without allocating a GPU resource. */
 export function resolveSplatAsset(input: SplatDataInput): ResolvedSplatAsset {
+  // a decoded table converts once and then resolves like its prepared columns
+  if (isGaussianSplatsTable(input))
+    return resolveSplatAsset(getSplatSourceFromGaussianSplatsTable(input));
   if (!isSplatDataInput(input))
     throw new Error(
-      'SplatLayer requires a prepared Gaussian asset. RAD and sorted scene rendering require the upstream paged-instance backend.'
+      'SplatLayer requires a prepared Gaussian asset or a decoded @loaders.gl/splats table. RAD and sorted scene rendering require the upstream paged-instance backend.'
     );
   const descriptor = 'type' in input ? input : undefined;
   const source = descriptor ? descriptor.source : (input as SplatSource);
