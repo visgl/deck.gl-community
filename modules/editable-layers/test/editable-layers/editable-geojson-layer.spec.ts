@@ -157,6 +157,7 @@ test('changing eventTarget cancels an unfinished click sequence', async () => {
   // Record the target without attaching mjolnir.js listeners in Node.
   vi.spyOn(input, 'setTarget').mockImplementation(target => {
     input.eventTarget = target;
+    return true;
   });
   const eventTarget = {} as HTMLElement;
   layer.props = layer.clone({eventTarget}).props;

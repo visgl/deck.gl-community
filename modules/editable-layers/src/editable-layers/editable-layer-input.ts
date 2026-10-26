@@ -35,7 +35,6 @@ type TouchActionLease = {
 };
 
 type EditableLayerInputOptions = {
-  canvas: HTMLElement | null;
   deckEventManager: EventManager;
   onEvent: (event: MjolnirEvent | Event) => void;
 };
@@ -82,11 +81,18 @@ function releaseTouchAction(target: HTMLElement, owner: object, touchActionBefor
   TOUCH_ACTION_LEASES.delete(target);
 }
 
-/** Owns the DOM and Mjolnir lifecycle for one EditableLayer input target. */
+/**
+ * Owns the DOM and Mjolnir lifecycle for one EditableLayer input target.
+ *
+ * By default input arrives where deck.gl's event manager listens: its canvas, or the React
+ * `<DeckGL>` wrapper that also holds child base maps. Handlers then share deck's manager so
+ * editing can outrank its controller. An overlaid map canvas never reaches deck's manager, so
+ * that target gets its own gesture recognizer.
+ */
 export class EditableLayerInput {
-  private readonly canvas: HTMLElement | null;
   private readonly handler: (event: MjolnirEvent | Event) => void;
 
+  /** Element receiving input, resolved from the `eventTarget` prop. */
   eventTarget: HTMLElement | null;
 
   private readonly deckEventManager: EventManager;
@@ -95,23 +101,28 @@ export class EditableLayerInput {
   private gestureEventTypes: string[] = [];
   private connected = false;
 
-  constructor({canvas, deckEventManager, onEvent}: EditableLayerInputOptions) {
-    this.canvas = canvas;
+  constructor({deckEventManager, onEvent}: EditableLayerInputOptions) {
     this.eventTarget = null;
     this.deckEventManager = deckEventManager;
     this.handler = onEvent;
   }
 
-  setTarget(eventTarget: HTMLElement | null) {
-    if (this.connected && eventTarget === this.eventTarget) {
-      return;
+  /**
+   * Listens on `eventTarget`, or on deck's own input element when it is null.
+   * Returns whether the resolved target changed.
+   */
+  setTarget(eventTarget: HTMLElement | null): boolean {
+    const target = eventTarget || this.deckEventManager?.getElement?.() || null;
+    if (this.connected && target === this.eventTarget) {
+      return false;
     }
     if (this.connected) {
       this.removeEventHandlers();
     }
-    this.eventTarget = eventTarget;
+    this.eventTarget = target;
     this.addEventHandlers();
     this.connected = true;
+    return true;
   }
 
   destroy() {
@@ -124,19 +135,21 @@ export class EditableLayerInput {
   }
 
   private addEventHandlers() {
-    const {canvas, eventTarget, handler} = this;
-    const isExternalTarget = Boolean(eventTarget && eventTarget !== canvas);
-    if (isExternalTarget) {
+    const {eventTarget, handler} = this;
+    const ownsEventManager = Boolean(
+      eventTarget && eventTarget !== this.deckEventManager?.getElement?.()
+    );
+    if (ownsEventManager) {
       acquireTouchAction(eventTarget!, this.touchActionOwner);
     }
 
     // MapboxOverlay forwards map callbacks directly to Deck, bypassing its event manager.
     // Recognize input on the supplied map canvas without changing the render canvas behavior.
-    const eventManager = isExternalTarget
+    const eventManager = ownsEventManager
       ? new EventManager(eventTarget!, {recognizers: [[Pan, {threshold: 3}]], cssProps: {}})
       : this.deckEventManager;
     this.eventManager = eventManager;
-    this.gestureEventTypes = canvas
+    this.gestureEventTypes = eventTarget
       ? EVENT_TYPES.filter(type => !NATIVE_EVENT_HANDLERS[type])
       : EVENT_TYPES;
 
@@ -149,18 +162,18 @@ export class EditableLayerInput {
         priority: 100
       });
     }
-    if (isExternalTarget) {
+    if (ownsEventManager) {
       recordTouchAction(eventTarget!);
     }
   }
 
   private removeEventHandlers() {
-    const {canvas, eventTarget, eventManager, handler} = this;
+    const {eventTarget, eventManager, handler} = this;
     if (!eventManager) {
       return;
     }
-    const isExternalTarget = Boolean(eventTarget && eventTarget !== canvas);
-    const touchActionBeforeCleanup = isExternalTarget ? eventTarget!.style.touchAction : undefined;
+    const ownsEventManager = eventManager !== this.deckEventManager;
+    const touchActionBeforeCleanup = ownsEventManager ? eventTarget!.style.touchAction : undefined;
 
     for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {
       eventTarget?.removeEventListener(eventType, handler);
@@ -168,7 +181,7 @@ export class EditableLayerInput {
     for (const eventType of this.gestureEventTypes) {
       eventManager.off(eventType, handler);
     }
-    if (isExternalTarget) {
+    if (ownsEventManager) {
       eventManager.destroy();
       // Release our recognizer's CSS without overwriting later application changes.
       releaseTouchAction(eventTarget!, this.touchActionOwner, touchActionBeforeCleanup!);

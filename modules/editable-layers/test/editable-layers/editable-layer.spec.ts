@@ -60,7 +60,8 @@ function makeMockContext() {
       pickObject: vi.fn(),
       eventManager: {
         on: vi.fn(),
-        off: vi.fn()
+        off: vi.fn(),
+        getElement: vi.fn((): unknown => null)
       }
     },
     layerManager: {
@@ -164,6 +165,8 @@ test('native clicks are immediate, scale-aware, and forwarded to the current lay
     removeEventListener: vi.fn()
   };
   (mockContext.deck as any).getCanvas = () => canvas;
+  // Without React children, deck's event manager listens on the canvas.
+  mockContext.deck.eventManager.getElement.mockReturnValue(canvas);
   layer.initializeState();
   const currentLayer = new TestEditableLayer();
   currentLayer.context = mockContext as any;

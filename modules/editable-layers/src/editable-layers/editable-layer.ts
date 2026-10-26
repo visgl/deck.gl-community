@@ -84,7 +84,6 @@ export abstract class EditableLayer<
     // @ts-expect-error accessing protected props
     const deckEventManager = this.context.deck.eventManager;
     const input = new EditableLayerInput({
-      canvas,
       deckEventManager,
       onEvent: this._forwardEventToCurrentLayer.bind(this)
     });
@@ -102,15 +101,12 @@ export abstract class EditableLayer<
         input
       }
     });
-    input.setTarget(this.props.eventTarget || canvas);
+    input.setTarget(this.props.eventTarget);
   }
 
   updateState(params: UpdateParameters<this>) {
     super.updateState(params);
-    const {input, canvas} = this.state._editableLayerState;
-    const nextTarget = this.props.eventTarget || canvas;
-    if (nextTarget !== input.eventTarget) {
-      input.setTarget(nextTarget);
+    if (this.state._editableLayerState.input.setTarget(this.props.eventTarget)) {
       if (this.state._editableLayerState.pointerDownMapCoords) {
         // onEdit may replace layers; finish Deck's reconciliation before notifying the app.
         queueMicrotask(() => {
