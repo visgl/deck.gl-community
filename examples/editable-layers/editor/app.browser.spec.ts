@@ -32,10 +32,12 @@ test('draws a polygon with real clicks on the React DeckGL base map', async () =
       [540, 300],
       [470, 400]
     ];
-    // <DeckGL> renders its <Map> child in a view element above the canvas; input must reach
-    // the layer through it.
+    // <DeckGL> renders its <Map> child in a view element above deck's canvas; input must reach
+    // the layer through it. The hit target may be the map's own canvas once MapLibre loads.
+    const deckCanvas = container.querySelector('.deck-events-root > canvas');
     const first = targetAt(...points[0]);
-    expect(first.element.tagName).not.toBe('CANVAS');
+    expect(deckCanvas).toBeTruthy();
+    expect(first.element).not.toBe(deckCanvas);
     expect(first.element.closest('[id^="view-"]')).toBeTruthy();
 
     for (const [x, y] of points.slice(0, -1)) {
