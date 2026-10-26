@@ -22,6 +22,7 @@ import {
   HERMETIC_CHROMIUM_ARGS,
   conformanceFixtureServer
 } from './dev/basemap-conformance/src/fixture-server';
+import {fixtureRootsOf} from './dev/basemap-conformance/src/provenance';
 
 const headless = (ROOT_CONFIG as any).test.projects.find(
   (project: any) => project.test?.name === 'headless'
@@ -34,10 +35,8 @@ export default defineConfig({
   plugins: [
     ...headless.plugins,
     conformanceFixtureServer({
-      fixtureRoots: [
-        path('./dev/basemap-conformance/fixtures'),
-        path('./modules/basemap-layers/tests/reference-render/fixtures')
-      ],
+      // The scorer reads the same roots (`scripts/score.ts`), so that it can check the digests.
+      fixtureRoots: fixtureRootsOf(path('.')),
       outputDirectory:
         process.env.CONFORMANCE_OUTPUT || path('./dev/basemap-conformance/__output__'),
       record: process.env.CONFORMANCE_RECORD === '1'

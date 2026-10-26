@@ -20,7 +20,9 @@ src/maplibre.ts        the reference renderer, with placed-label read-back (MapL
 src/metrics.ts         SSIM, edge detection and F-score, label scores, baseline checks
 src/panels.ts          SSIM-map and edge-overlay panels as RGBA arrays
 src/fixture-server.ts  Vite plugin: fixture server, recorder, request log, output sink (Node)
-scripts/score.ts       the scorer: report.md, scores.json and comparison images (Node)
+src/provenance.ts      input digests of a render, fixture roots of a checkout (Node)
+src/scorer.ts          the scorer: input checks, report.md, scores.json, comparison images (Node)
+scripts/score.ts       the scorer's command line (Node)
 fixtures/              recorded fixtures of the corpus, as <host>/<path>
 __output__/            renders and reports (ignored by git)
 ```
@@ -52,11 +54,69 @@ TileJSON is inlined, and the tile, glyph and sprite URLs are rewritten. A render
 read MapLibre styles maps the style to its own input, or takes only what it needs from it (the
 tile URL template, say), and declines the styles it cannot map with `supports`.
 
-`runConformanceScene(renderer, scene)` loads the style, renders the scene and saves
-`__output__/<renderer>/<scene>.png` and `.json`. The JSON holds the labels, the problems, the
-fixture requests the server saw and any fixtures it could not serve. A runner fails a test only
-when a render is invalid, that is, when it has problems or missing fixtures. A score never fails a
-test.
+`saveRendererManifest(renderer, scenes)` saves `__output__/<renderer>/renderer.json` once, before
+the first render. `runConformanceScene(renderer, scene)` loads the style, renders the scene and
+saves `__output__/<renderer>/<scene>.png` and `.json`. The JSON holds the labels, the problems, the
+fixture requests the server saw, any fixtures it could not serve, and the input digests. A runner
+fails a test only when a render is invalid, that is, when it has problems or missing fixtures. A
+score never fails a test.
+
+## The saved-render format
+
+The scorer reads only files. A runner in another repository can write them with the helpers above
+or by its own means. The output directory holds one directory per renderer. Its name is the
+renderer id. `maplibre` is the reference.
+
+`<renderer>/renderer.json` (`RendererManifest`) lists every scene of the run:
+
+```json
+{"renderer": "my-renderer", "rendererName": "MyRenderer 1.2.0",
+ "scenes": {"paris-streets-z13.3": "expected", "paris-liberty-z13.3": "unsupported"}}
+```
+
+`<renderer>/<scene>.png` is the render: RGBA, 512 x 512, composited on white.
+
+`<renderer>/<scene>.json` (`SavedRender`) describes it:
+
+| Field | Content |
+| --- | --- |
+| `renderer`, `rendererName` | The renderer id and its name with version. |
+| `scene` | The `ConformanceScene` as rendered: id, style, center, zoom, pitch, bearing. |
+| `width`, `height` | The size of the PNG. |
+| `labels`, `labelNote` | The placed label texts, or `null` when the renderer cannot report them. |
+| `problems` | Everything that makes the render invalid as a measurement. |
+| `fixtureRequests`, `fixtureMisses` | The fixture paths (`<host>/<path>`) the render requested, and those that no root held. |
+| `recorded` | The fixtures recorded during the render (record mode only). |
+| `durationMs`, `meta` | The render time, and free-form facts for the report. |
+| `inputs` | `{algorithm: "sha256", scene, fixtures}`: the input digests, in lowercase hex. |
+
+The input digests (`src/provenance.ts`) identify what was rendered. Each field below goes into the
+hash as `<byte length>:<bytes>`, so different inputs never give the same byte stream:
+
+- `scene`: the text `basemap-conformance scene 1`, the camera as JSON
+  (`{"style","center","zoom","pitch","bearing"}`, in this order, pitch and bearing 0 when absent),
+  then the style JSON fixture: its path, `present` and its bytes, or `missing`.
+- `fixtures`: the text `basemap-conformance fixtures 1`, then every path of `fixtureRequests`,
+  sorted and without duplicates, each as its path, `present` and its bytes, or `missing`.
+
+Each fixture is read from the first fixture root that holds it, as the fixture server serves it.
+The fixture server computes the digests after each render (`POST /__conformance__/inputs`), so a
+runner that uses it gets them from `runConformanceScene`. Node code can call `computeRenderInputs`.
+
+## Scoring
+
+The scorer lists every renderer for every scene of the runs (the manifests and the saved renders).
+Each render has one status in `report.md` and `scores.json`:
+
+- `scored`: the render matches the corpus, and the scores are a measurement.
+- `invalid`: the render is not a measurement of these inputs. The reasons are listed below the
+  table. The scorer computes the digests again from its own checkout and compares them, and it
+  compares the camera with the corpus scene. A render without digests, of another camera, of a
+  changed scene or style, or of changed fixtures is invalid, and it gets no scores. So is every
+  candidate of a scene whose reference fails these checks. A render with problems or fixture
+  misses is also invalid, but it keeps its scores for diagnosis.
+- `missing`: no render, although the renderer did not decline the scene. The run did not finish.
+- `unsupported`: the renderer declined the scene in its manifest.
 
 ## Hermeticity
 
@@ -106,13 +166,16 @@ A renderer that lives in another repository scores itself against the same corpu
    report them, return `labels: null` and give the reason in `labelNote`.
 3. Add `conformanceFixtureServer({fixtureRoots: [<checkout>/dev/basemap-conformance/fixtures,
    <checkout>/modules/basemap-layers/tests/reference-render/fixtures], outputDirectory})` and
-   `HERMETIC_CHROMIUM_ARGS` to a Vitest browser config, and call `runConformanceScene` from a test
-   for each scene that the renderer `supports`.
+   `HERMETIC_CHROMIUM_ARGS` to a Vitest browser config (`fixtureRootsOf(<checkout>)` gives these
+   roots). Call `saveRendererManifest` once, then `runConformanceScene` from a test for each scene
+   that the renderer `supports`.
 4. Render the reference in the same run with `createMapLibreRenderer({maplibregl, styleSpec})`
    from its own pinned MapLibre, so that both renders share a browser and a GPU. To cross-check
    it against this repository's reference, give it another id (`maplibre@<repo>`): the scorer
    scores every `maplibre*` directory against `maplibre`.
-5. Run `node <checkout>/dev/basemap-conformance/scripts/score.ts <outputDirectory>`.
+5. Run `node <checkout>/dev/basemap-conformance/scripts/score.ts <outputDirectory>`, from the same
+   checkout. The scorer checks each render against the corpus of the checkout that holds the
+   script. A render of another commit's corpus is invalid, not scored.
 
 The fixtures stay here, at one pinned commit, rather than being copied into each repository.
 
