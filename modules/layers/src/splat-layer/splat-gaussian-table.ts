@@ -90,6 +90,60 @@ export function getSplatSourceFromGaussianSplatsTable(table: GaussianSplatsTable
   return source;
 }
 
+/** The plain columns `@loaders.gl/splats` decodes before building a table (loaders.gl 5). */
+export type GaussianSplatsColumns = {
+  splatCount: number;
+  positions: Float32Array;
+  scales: Float32Array;
+  rotations: Float32Array;
+  /** RGB bytes; for SPZ, the stored encoding rather than display colour. */
+  colors: Uint8Array;
+  /** RGB spherical harmonic DC terms, three per Gaussian. */
+  sphericalHarmonicDcs?: Float32Array;
+  /** Higher bands, coefficient-major RGB triples. */
+  sphericalHarmonics?: Float32Array;
+  opacities: Float32Array;
+  loaderData?: Record<string, unknown>;
+};
+
+/**
+ * Prepared source columns that share the decoded positions, scales and rotations without a copy.
+ * Colour comes from the DC terms (`0.5 + C0 * dc`, unclamped, so the higher bands add to it as
+ * the 3DGS rasterizer does); the higher bands are kept as SPZ-style bytes, a quarter of the floats.
+ * Opacities are clamped in place; the SPZ antialiased flag is kept.
+ */
+export function getSplatSourceFromGaussianSplats(splats: GaussianSplatsColumns): SplatSource {
+  const count = splats.splatCount;
+  const dcs = splats.sphericalHarmonicDcs;
+  const colors = dcs ? new Float32Array(count * 4) : new Uint8Array(count * 4);
+  const {opacities} = splats;
+  for (let i = 0; i < count; i++) {
+    for (let channel = 0; channel < 3; channel++)
+      colors[i * 4 + channel] = dcs
+        ? 0.5 + SH_C0 * dcs[i * 3 + channel]
+        : splats.colors[i * 3 + channel];
+    colors[i * 4 + 3] = dcs ? 1 : 255;
+    opacities[i] = Math.min(1, Math.max(0, opacities[i]));
+  }
+  let sphericalHarmonics: Uint8Array | undefined;
+  if (splats.sphericalHarmonics?.length) {
+    const bands = splats.sphericalHarmonics;
+    sphericalHarmonics = new Uint8Array(bands.length);
+    for (let i = 0; i < bands.length; i++)
+      sphericalHarmonics[i] = Math.min(255, Math.max(0, Math.round(bands[i] * 128 + 128)));
+  }
+  const loaderData = splats.loaderData ?? {};
+  return {
+    positions: splats.positions,
+    scales: splats.scales,
+    rotations: splats.rotations,
+    colors,
+    opacities,
+    antialiased: Boolean(loaderData.antialiased ?? Number(loaderData.flags ?? 0) & 1),
+    ...(sphericalHarmonics ? {sphericalHarmonics} : {})
+  };
+}
+
 function getColumn(table: GaussianSplatsTable, name: string): GaussianColumn {
   const vector = table.data.getChild(name);
   if (!vector) throw new Error(`Gaussian splat table is missing its ${name} column.`);

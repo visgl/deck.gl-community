@@ -4,7 +4,9 @@
 
 import type {SplatSource} from './splat-source';
 import {
+  type GaussianSplatsColumns,
   type GaussianSplatsTable,
+  getSplatSourceFromGaussianSplats,
   getSplatSourceFromGaussianSplatsTable
 } from './splat-gaussian-table';
 
@@ -81,6 +83,12 @@ export async function loadSplatFile(input: SplatFileInput): Promise<SplatSource>
   const format = detectSplatFileFormat(buffer, name);
   // loaded on first use, so layers that never see a file never fetch the decoders
   const splats = await import('@loaders.gl/splats');
+  // loaders.gl 5 decodes SPZ to plain columns, skipping the Arrow table and its copies
+  const parseColumns = (splats as Record<string, unknown>).parseSPZToGaussianSplats as
+    | ((data: ArrayBuffer) => Promise<GaussianSplatsColumns>)
+    | undefined;
+  if (format === 'spz' && parseColumns)
+    return getSplatSourceFromGaussianSplats(await parseColumns(buffer));
   const base = {spz: splats.SPZLoader, splat: splats.SPLATLoader, ksplat: splats.KSPLATLoader}[
     format
   ] as unknown as SplatLoaderLike;

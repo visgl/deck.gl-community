@@ -43,20 +43,30 @@ new SplatLayer({data: objects, getSource: d => templates[d.kind]});
 
 ### Captured scenes
 
-Splat files decoded by `@loaders.gl/splats` (`SPZLoader`, `SPLATLoader`, `KSPLATLoader`) are
-sources too, directly or per row. Load them with loaders.gl: `data` does not take a URL.
+Pass a splat file as `data`: a URL, or its bytes (`ArrayBuffer`, typed array, `Blob` or a dropped
+`File`). The layer fetches and decodes it with `@loaders.gl/splats`, loaded on first use. SPZ
+(v2-v4) is recognized by its header; `.splat` and `.ksplat` by name or size.
 
 ```ts
-import {load} from '@loaders.gl/core';
-import {SPZLoader} from '@loaders.gl/splats';
-import {ZstdCodec} from 'zstd-codec'; // SPZ v4 streams are zstd-compressed (loaders.gl 4.5.4+)
-
-const capture = await load('/captures/row.spz', SPZLoader, {modules: {'zstd-codec': ZstdCodec}});
-new SplatLayer({data: capture, getPosition: [longitude, latitude, 0]});
+new SplatLayer({data: '/captures/row.spz', getPosition: [longitude, latitude, 0]});
 ```
 
-A table converts once to prepared columns and keeps one asset identity. Colors come from the
-spherical harmonic DC terms; higher bands are not rendered.
+A file, or one directly supplied source of at least 65,536 Gaussians without a hierarchy, draws as
+a capture rather than as instanced templates:
+
+- Gaussians are depth-sorted in a worker when the camera moves; frames between sorts redraw the last
+  order, so the main thread does no per-frame work.
+- They are unlit: a capture's colors already hold its light. `material`, `transparency` and
+  deformation do not apply.
+- Spherical-harmonic bands (degrees 1-3) are evaluated toward the camera in the file's own frame,
+  so place a capture with `getTransformMatrix` rather than re-exporting it in another frame.
+- SPZ's antialiased flag selects Mip-Splatting's opacity compensation; classic 3DGS files get none.
+- `maxSplats` keeps the most important Gaussians (opacity times projected area).
+- Each Gaussian takes 32 bytes on the GPU, plus 16-48 bytes of harmonics.
+
+Captures blend every Gaussian, so canvas MSAA multiplies their fill cost for no visible gain, two to
+three times on Apple GPUs. Create the deck without it when a scene is mostly captures:
+`deviceProps: {webgl: {antialias: false}}`.
 
 ### Levels of detail
 
@@ -90,7 +100,7 @@ arrays.
 
 | Property | Default | Description |
 | --- | --- | --- |
-| `data` | `[]` | Instance rows, or one prepared source or decoded splat table. |
+| `data` | `[]` | Instance rows, a [splat file](#captured-scenes), or one prepared source or decoded splat table. |
 | `getSource` | `d => d.splats` | A [`SplatSource`](#splatsource), prepared asset or [decoded table](#captured-scenes), constant or per row. |
 | `getPosition` | `d => d.position` | Instance position. |
 | `getOrientation` | `[0, 0, 0]` | Pitch, yaw and roll in degrees. |
@@ -146,6 +156,8 @@ Invalid sources throw before upload.
 | `opacities` | Peak opacity, `0`–`1`. |
 | `opticalDepths` | Optional optical density. Overrides `opacities` to keep dense aggregates opaque. |
 | `normals` | Optional XYZ normals for lighting. |
+| `antialiased` | Optional. Trained with Mip-Splatting's 2D filter; a capture then compensates opacity. |
+| `sphericalHarmonics` | Optional bands above DC, SPZ layout: 3, 8 or 15 RGB coefficients per Gaussian, floats or `(byte - 128) / 128` bytes. Captures only. |
 
 ## Statistics
 
@@ -164,6 +176,8 @@ After initialization, `layer.splatStats` reports `sourceCount`, `visibleInstance
 - Place opaque layers before splat layers so that they occlude splats.
 - Weighted transparency approximates alpha blending. Overlapping colors can differ from a
   depth-sorted renderer.
+- Captures draw with WebGL2 only, sort for the first view that draws them, and are not hidden behind
+  the globe's horizon per Gaussian.
 - Requires renderable `RGBA16F` and `R16F` textures.
 - On WebGPU, `View.clear` is not supported.
 

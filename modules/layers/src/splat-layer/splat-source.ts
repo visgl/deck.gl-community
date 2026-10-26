@@ -21,6 +21,17 @@ export type SplatSource = {
   opticalDepths?: Float32Array;
   /** Optional local shading normals. They do not flip toward the camera; covariance is independent. */
   normals?: Float32Array;
+  /**
+   * Trained with Mip-Splatting's 2D filter (SPZ's antialiased flag): a capture then compensates
+   * opacity for the screen-space dilation. Classic 3DGS training, the default, does not.
+   */
+  antialiased?: boolean;
+  /**
+   * Spherical-harmonic bands above DC, as SPZ stores them: per Gaussian, 3, 8 or 15 coefficients
+   * (degree 1, 2 or 3), each an RGB triple, as floats or as bytes meaning `(byte - 128) / 128`. A
+   * capture evaluates them toward the camera in the source's own frame; templates ignore them.
+   */
+  sphericalHarmonics?: Float32Array | Uint8Array;
 };
 
 /** Validate a prepared source before uploading it. Returns its Gaussian count. */

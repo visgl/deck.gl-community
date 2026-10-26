@@ -124,6 +124,41 @@ export function resolveSplatAsset(input: SplatDataInput): ResolvedSplatAsset {
   return asset;
 }
 
+/** The implicit owner row of a directly supplied asset, stable per asset (a URL by its text). */
+export function getSplatInstanceRows(input: SplatDataInput): SplatInstance[] {
+  const url = typeof input === 'string' || input instanceof URL ? String(input) : undefined;
+  let instances = url ? URL_INSTANCES.get(url) : INSTANCES.get(input as object);
+  if (!instances) {
+    instances = [{splats: input, position: [0, 0, 0]}];
+    if (url) URL_INSTANCES.set(url, instances);
+    else INSTANCES.set(input as object, instances);
+  }
+  return instances;
+}
+
+/** Directly supplied sources at least this large draw as a capture. */
+export const SPLAT_CAPTURE_MIN_COUNT = 65536;
+
+/**
+ * Whether direct `data` is a capture: a splat file, or one source of at least
+ * `SPLAT_CAPTURE_MIN_COUNT` Gaussians without an authored hierarchy. A capture draws depth-sorted
+ * and unlit, without owner instancing or refinement. Returns its source, `undefined` while its file
+ * loads or after it failed, or `null` when data is not a capture.
+ */
+export function getSplatCaptureSource(data: unknown): SplatSource | undefined | null {
+  if (isSplatFileInput(data)) return getSplatFile(data).source;
+  const source = isGaussianSplatsTable(data)
+    ? getSplatSourceFromGaussianSplatsTable(data)
+    : isPreparedSource(data)
+      ? data
+      : data && typeof data === 'object' && 'type' in data && data.type === 'prepared-splats'
+        ? (data as PreparedSplatData).hierarchy
+          ? null
+          : (data as PreparedSplatData).source
+        : null;
+  return source && source.positions.length / 3 >= SPLAT_CAPTURE_MIN_COUNT ? source : null;
+}
+
 /** Normalize direct assets and owner rows while retaining each original accessor context. */
 export function resolveSplatInput<DataT>(props: {
   data: DataT[] | SplatDataInput;
@@ -134,16 +169,7 @@ export function resolveSplatInput<DataT>(props: {
   if (direct) {
     if (props.getSource !== DEFAULT_GET_SOURCE)
       throw new Error('SplatLayer getSource applies to instance rows, not direct asset data.');
-    // a URL string is a value: its implicit owner is cached by the URL itself
-    const url =
-      typeof props.data === 'string' || props.data instanceof URL ? String(props.data) : undefined;
-    let instances = url ? URL_INSTANCES.get(url) : INSTANCES.get(props.data as object);
-    if (!instances) {
-      instances = [{splats: props.data as SplatDataInput, position: [0, 0, 0]}];
-      if (url) URL_INSTANCES.set(url, instances);
-      else INSTANCES.set(props.data as object, instances);
-    }
-    data = instances as DataT[];
+    data = getSplatInstanceRows(props.data as SplatDataInput) as DataT[];
   } else {
     if (!Array.isArray(props.data))
       throw new Error('SplatLayer data must be a prepared asset or an array of instance rows.');
