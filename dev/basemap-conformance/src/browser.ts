@@ -9,7 +9,14 @@
  */
 
 import {STYLES, VIEWPORT} from './scenes';
-import type {ConformanceRender, ConformanceRenderer, ConformanceScene, SavedRender} from './types';
+import type {
+  ConformanceRender,
+  ConformanceRenderer,
+  ConformanceScene,
+  RendererManifest,
+  RenderInputs,
+  SavedRender
+} from './types';
 
 const FIXTURE_PREFIX = '/__conformance__/fixtures/';
 
@@ -133,6 +140,41 @@ async function postOutput(path: string, body: BodyInit): Promise<void> {
   }
 }
 
+/** The input digests of a render, computed by the fixture server over the fixtures it serves. */
+async function fetchRenderInputs(
+  scene: ConformanceScene,
+  fixtureRequests: string[]
+): Promise<RenderInputs> {
+  const response = await fetch('/__conformance__/inputs', {
+    method: 'POST',
+    body: JSON.stringify({scene, styleFixture: STYLES[scene.style].fixture, fixtureRequests})
+  });
+  if (!response.ok) {
+    throw new Error(`Could not compute the input digests: ${await response.text()}`);
+  }
+  return response.json();
+}
+
+/**
+ * Saves `<renderer>/renderer.json`: the scenes of this run, each `expected` or `unsupported` by the
+ * renderer. Call it once per renderer before its first render, so that the scorer reports a render
+ * that never arrives as missing.
+ */
+export async function saveRendererManifest(
+  renderer: ConformanceRenderer,
+  scenes: ConformanceScene[]
+): Promise<RendererManifest> {
+  const manifest: RendererManifest = {
+    renderer: renderer.id,
+    rendererName: renderer.name,
+    scenes: Object.fromEntries(
+      scenes.map(scene => [scene.id, renderer.supports(scene) ? 'expected' : 'unsupported'])
+    )
+  };
+  await postOutput(`${renderer.id}/renderer.json`, `${JSON.stringify(manifest, null, 2)}\n`);
+  return manifest;
+}
+
 async function toPng(render: ConformanceRender): Promise<Blob> {
   const canvas = document.createElement('canvas');
   canvas.width = render.width;
@@ -177,6 +219,7 @@ export async function runConformanceScene(
     fixtureMisses: log.misses,
     recorded: log.recorded,
     durationMs,
+    inputs: await fetchRenderInputs(scene, log.requests),
     meta: {devicePixelRatio: window.devicePixelRatio, ...render.meta}
   };
   await postOutput(`${renderer.id}/${scene.id}.png`, await toPng(render));

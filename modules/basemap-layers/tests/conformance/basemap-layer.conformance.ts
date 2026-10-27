@@ -28,6 +28,7 @@ import {
   VIEWPORT,
   createMapLibreRenderer,
   runConformanceScene,
+  saveRendererManifest,
   selectScenes,
   type ConformanceRenderer
 } from '../../../../dev/basemap-conformance/src/index';
@@ -96,6 +97,8 @@ beforeAll(async () => {
 
 for (const renderer of renderers) {
   describe(`conformance: ${renderer.name}`, () => {
+    // First, so that the scorer reports a scene whose render never arrives as missing.
+    beforeAll(() => saveRendererManifest(renderer, SCENES));
     test.each(SCENES.filter(scene => renderer.supports(scene)))('$id', async scene => {
       const saved = await runConformanceScene(renderer, scene);
       expect(saved.fixtureMisses, 'missing fixtures: run with CONFORMANCE_RECORD=1').toEqual([]);
