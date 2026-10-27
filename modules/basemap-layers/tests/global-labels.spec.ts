@@ -354,7 +354,7 @@ describe('label layers of tile layers sharing tiles', () => {
     expect(lng).toBeCloseTo(expectedLng, 6);
     expect(lat).toBeCloseTo(expectedLat, 6);
     // On a globe the recorded features are in longitude/latitude already.
-    run.context = {viewport: {zoom: 1, resolution: 1}};
+    run.context = {viewport: {zoom: 1, projectionMode: 2}};
     const onGlobe = {...feature, geometry: {type: 'Point', coordinates: [10, 20]}};
     const globeInfo = run.getPickingInfo({
       info: {picked: true, object: onGlobe, tile},

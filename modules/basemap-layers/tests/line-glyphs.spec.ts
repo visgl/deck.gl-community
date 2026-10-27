@@ -1,7 +1,7 @@
 import {describe, expect, test, vi} from 'vitest';
 import Point from '@mapbox/point-geometry';
 import {mat4} from 'gl-matrix';
-import {WebMercatorViewport} from '@deck.gl/core';
+import {WebMercatorViewport, _GlobeViewport as GlobeViewport} from '@deck.gl/core';
 // MapLibre GL JS's own functions, from the source its package ships, to compare against.
 import {placeGlyphAlongLine} from '../node_modules/maplibre-gl/src/symbol/projection.ts';
 import {PathInterpolator} from '../node_modules/maplibre-gl/src/symbol/path_interpolator.ts';
@@ -466,7 +466,13 @@ describe('MVTLabelLayer glyphs along lines', () => {
     const layer = lineLayer();
     rowsOf(layer, EAST);
     expect(layer.curvesLineText({zoom: 14})).toBe(true);
-    expect(layer.curvesLineText({zoom: 14, resolution: 10})).toBe(false);
+    expect(layer.curvesLineText({zoom: 14, projectionMode: 2})).toBe(false);
+    // deck.gl v10 sets `resolution` to 0 on a globe too.
+    const camera = {width: 256, height: 256, longitude: 0, latitude: 0, zoom: 2};
+    const globe = new GlobeViewport(camera);
+    const globeAtResolution0 = new GlobeViewport({...camera, resolution: 0});
+    expect(layer.curvesLineText(globe)).toBe(false);
+    expect(layer.curvesLineText(globeAtResolution0)).toBe(false);
     (layer.context as any).device = {type: 'webgpu'};
     expect(layer.curvesLineText({zoom: 14})).toBe(false);
     const viewport = lineLayer({'text-rotation-alignment': 'viewport'});

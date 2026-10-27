@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Viewport, WebMercatorViewport, _GlobeViewport} from '@deck.gl/core';
+import {Viewport, WebMercatorViewport} from '@deck.gl/core';
+import {isGlobeViewport} from '../utils/is-globe-viewport';
 import {
   CullingVolume,
   Plane,
@@ -215,10 +216,9 @@ export function getOSMTileIndices(
   zRange: ZRange | null,
   bounds?: Bounds
 ): TileIndex[] {
-  const project: ((xyz: number[]) => number[]) | null =
-    viewport instanceof _GlobeViewport && viewport.resolution
-      ? xyz => viewport.projectPosition(xyz)
-      : null;
+  const project: ((xyz: number[]) => number[]) | null = isGlobeViewport(viewport)
+    ? xyz => viewport.projectPosition(xyz)
+    : null;
 
   const planes: Plane[] = Object.values(viewport.getFrustumPlanes()).map(
     ({normal, distance}) => new Plane(normal.clone().negate(), distance)

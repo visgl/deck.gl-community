@@ -1,4 +1,4 @@
-import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
+import {isGlobeViewport, SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
 import type {BasemapSource} from './style-resolver';
 import {
   CompositeLayer,
@@ -241,7 +241,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
    */
   getDrawMode(viewport: Viewport | undefined): 'map' | 'globe' {
     const {mode = 'map'} = this.props;
-    return mode === 'globe' && viewport && !viewport.resolution ? 'map' : mode;
+    return mode === 'globe' && viewport && !isGlobeViewport(viewport) ? 'map' : mode;
   }
 
   /** Reacts to changes in the input style definition. */

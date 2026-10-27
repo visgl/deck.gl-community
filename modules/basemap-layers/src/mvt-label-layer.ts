@@ -1,4 +1,5 @@
 import {CompositeLayer} from '@deck.gl/core';
+import {isGlobeViewport} from '@deck.gl-community/geo-layers';
 import type {DefaultProps, Layer, LayerContext, UpdateParameters, Viewport} from '@deck.gl/core';
 import {
   acquireSharedLabelPlacement,
@@ -1964,7 +1965,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    */
   getLabelAnchors(
     feature: FeatureLike,
-    geographic: boolean = Boolean(this.context?.viewport?.resolution),
+    geographic: boolean = isGlobeViewport(this.context?.viewport),
     placement: string = this.getSymbolPlacement(),
     budget: PoleSearchBudget = {segmentTests: TILE_POLE_SEARCH_SEGMENT_TESTS}
   ): number[][] {
@@ -2305,9 +2306,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * labels are billboards, drawn in screen space, so their bearing is 0.
    */
   getBearingStep(
-    viewport: {bearing?: number; resolution?: number} = this.context?.viewport
+    viewport: {bearing?: number; projectionMode?: number} | undefined = this.context?.viewport
   ): number {
-    if (!viewport || viewport.resolution) {
+    if (!viewport || isGlobeViewport(viewport)) {
       return 0;
     }
     return Math.round((viewport.bearing || 0) / BEARING_STEP) * BEARING_STEP;
@@ -2367,7 +2368,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const keepUpright =
       (this.getStyleProperty('text-keep-upright')?.evaluate(getZoomBucket(this.props.zoom || 0)) ??
         getStylePropertyDefault('text-keep-upright')) !== false;
-    const geographic = Boolean(this.context?.viewport?.resolution);
+    const geographic = isGlobeViewport(this.context?.viewport);
     return {
       billboard: geographic ? this.props.billboard : false,
       getAngle: (row: LabelRow) => getUprightAngle(row.angle ?? 0, bearingStep, keepUpright)
@@ -2381,7 +2382,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * globe, labels are billboards turned on screen, and stay straight.
    */
   curvesLineText(viewport: any = this.context?.viewport): boolean {
-    if (!viewport || viewport.resolution || this.context?.device?.type === 'webgpu') {
+    if (!viewport || isGlobeViewport(viewport) || this.context?.device?.type === 'webgpu') {
       return false;
     }
     if (this.props.labelSizeUnits !== 'pixels' || !this.getStyleProperty('text-field')) {
@@ -2605,7 +2606,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     keepUpright: 'text-keep-upright' | 'icon-keep-upright',
     isLineDirection = true
   ): GlobeLineAngleExtension[] {
-    const isGlobeBillboard = Boolean(this.context?.viewport?.resolution) && this.props.billboard;
+    const isGlobeBillboard = isGlobeViewport(this.context?.viewport) && this.props.billboard;
     if (!turnsWithLine || !isGlobeBillboard) {
       return [];
     }
@@ -2642,7 +2643,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const isMapAligned = isAlignedToMap(alignment, placement);
     const turnsWithLine = isLinePlacement(placement) && isMapAligned;
     const iconRotate = this.getStyleProperty('icon-rotate');
-    const geographic = Boolean(this.context?.viewport?.resolution);
+    const geographic = isGlobeViewport(this.context?.viewport);
     const props = isMapAligned ? {billboard: geographic ? this.props.billboard : false} : {};
     const extensions = this.getLineAngleExtensions(turnsWithLine, 'icon-keep-upright', !iconRotate);
     if (!turnsWithLine && !iconRotate) {
@@ -2698,7 +2699,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!data && !tiles) {
       return;
     }
-    const geographic = Boolean(this.context?.viewport?.resolution);
+    const geographic = isGlobeViewport(this.context?.viewport);
     const textTrigger = this.getLabelUpdateTriggers().getText;
     if (textTrigger !== this.state.labelText?.key[0]) {
       // Labels along lines are placed by their text's length, so they must not read text cached
@@ -3287,7 +3288,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const getIconAngle = iconAngleProps?.getAngle;
     const padding = PLACEMENT_VIEWPORT_PADDING;
     const {width, height} = viewport;
-    const isGlobe = Boolean(viewport.resolution);
+    const isGlobe = isGlobeViewport(viewport);
     // Text along lines and icons aligned to the map are drawn in the map plane on a flat map: their
     // pixel offsets turn with the bearing and are foreshortened by the pitch.
     const textInMapPlane = !isGlobe && Boolean(lineProps.getAngle) && lineProps.billboard === false;
@@ -3515,7 +3516,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * viewport: a globe's or a map's, which do not change with the view. Kept per row.
    */
   getPlacementCommons(viewport: any, geometry: PlacementGeometry): Float64Array {
-    const kind = viewport.resolution ? 'globe' : 'map';
+    const kind = isGlobeViewport(viewport) ? 'globe' : 'map';
     if (geometry.commons?.kind === kind) {
       return geometry.commons.positions;
     }
