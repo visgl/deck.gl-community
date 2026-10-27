@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {WebMercatorViewport} from '@deck.gl/core';
+import {WebMercatorViewport, _GlobeViewport} from '@deck.gl/core';
 import {CullingVolume} from '@math.gl/culling';
 import {
   getOSMTileIndices,
@@ -55,4 +55,17 @@ describe('getOSMTileIndices culling', () => {
       expect(getOSMTileIndices(viewport, 1, null).length).toBe(4);
     });
   }
+});
+
+describe('getOSMTileIndices on a globe', () => {
+  const camera = {width: 256, height: 256, longitude: 30, latitude: 40, zoom: 3};
+
+  it('culls a GlobeViewport with resolution 0 (the deck.gl v10 default) as a globe', () => {
+    const globe = new _GlobeViewport(camera);
+    const globeAtResolution0 = new _GlobeViewport({...camera, resolution: 0});
+    const flat = getOSMTileIndices(new WebMercatorViewport(camera), 5, null);
+    const expected = getOSMTileIndices(globe, 5, null);
+    expect(expected, 'globe and map culling differ in this view').not.toEqual(flat);
+    expect(getOSMTileIndices(globeAtResolution0, 5, null)).toEqual(expected);
+  });
 });
