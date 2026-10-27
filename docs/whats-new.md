@@ -4,6 +4,9 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- **editable-layers:** click-to-draw modes work again under React `<DeckGL>` with child base maps
+  such as `<Map>`. Native clicks now use deck.gl's input element instead of only its canvas.
+
 - `EditableGeoJsonLayer` and `SelectionLayer` read the pointer on the level of the point a map
   camera orbits when no layer is `pickable: '3d'`. Before, a camera lifted with viewState
   `position: [0, 0, z]`, as deck.gl's terrain controller sets it, drew, edited and selected

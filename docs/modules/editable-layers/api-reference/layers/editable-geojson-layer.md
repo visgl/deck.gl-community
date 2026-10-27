@@ -89,9 +89,10 @@ manage gesture propagation yourself.
 
 #### `eventTarget` (HTMLElement, optional) {/* #eventtarget */}
 
-- Default: `null` (use deck.gl's render canvas)
+- Default: `null` (use deck.gl's input element: its canvas, or the React `<DeckGL>` wrapper that
+  also contains child base maps)
 
-The input element when it differs from deck.gl's render canvas. For overlaid
+The input element when it differs from deck.gl's own. For overlaid
 `MapboxOverlay`, use `map.getCanvas()` and keep it aligned with the rendered viewport.
 
 ```ts

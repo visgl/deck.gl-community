@@ -38,7 +38,7 @@ export interface SelectionLayerProps<_DataT> extends CompositeLayerProps {
   /** Draw a rectangle or polygon; null disables selection. */
   selectionType: string | null;
   /**
-   * Element receiving selection input when it differs from deck.gl's render canvas.
+   * Element receiving selection input when it differs from deck.gl's own input element.
    * For an overlaid MapboxOverlay, pass the base map's public getCanvas() result.
    */
   eventTarget?: HTMLElement | null;
