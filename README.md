@@ -41,6 +41,25 @@ An awesome list of community-driven modules, integrations, and tools built with 
 
 ---
 
+## Troubleshooting
+
+### Playwright browser dependencies
+
+In restricted or offline environments, `playwright` can fail during `yarn install` when it tries
+to download Chromium binaries. The repository `.npmrc` sets
+`playwright_skip_browser_download=true` so installs can proceed without fetching browsers.
+
+When network access is available, install the Chromium browser binary before running the browser or
+headless Vitest projects:
+
+```bash
+npx playwright install --with-deps chromium
+```
+
+This is the same command used by CI and provides the runtime required by Playwright-powered tests.
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md). New modules, bug fixes, and ecosystem additions are all welcome.
