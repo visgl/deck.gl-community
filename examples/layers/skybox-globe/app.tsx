@@ -169,7 +169,7 @@ function buildLayers(settings: SettingsState) {
       }),
     new GeoJsonLayer({
       id: 'earth',
-      data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/countries.geojson',
+      data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/formats/geojson/countries.geojson',
       getFillColor: [55, 85, 105],
       stroked: false
     }),
