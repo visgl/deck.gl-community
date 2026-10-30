@@ -41,19 +41,19 @@
     "@loaders.gl/loader-utils": "^4.5.1",
     "@loaders.gl/schema": "^4.5.1",
     "@loaders.gl/tiles": "^4.5.1",
-    "@luma.gl/shadertools": "~9.4.0"
+    "@luma.gl/shadertools": "~9.4.2"
   },
   "peerDependencies": {
-    "@deck.gl/core": "~9.4.0",
-    "@deck.gl/geo-layers": "~9.4.0",
-    "@deck.gl/layers": "~9.4.0",
-    "@deck.gl/mesh-layers": "~9.4.0",
+    "@deck.gl/core": "~9.4.1",
+    "@deck.gl/geo-layers": "~9.4.1",
+    "@deck.gl/layers": "~9.4.1",
+    "@deck.gl/mesh-layers": "~9.4.1",
     "@loaders.gl/core": "^4.5.1",
-    "@luma.gl/core": "~9.4.0",
-    "@luma.gl/engine": "~9.4.0"
+    "@luma.gl/core": "~9.4.2",
+    "@luma.gl/engine": "~9.4.2"
   },
   "devDependencies": {
     "@loaders.gl/core": "^4.5.1",
-    "@luma.gl/core": "~9.4.0"
+    "@luma.gl/core": "~9.4.2"
   }
 }

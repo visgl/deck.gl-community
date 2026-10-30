@@ -43,8 +43,8 @@
   },
   "peerDependencies": {
     "@deck.gl-community/panels": "~9.4.0-alpha.0",
-    "@deck.gl/core": "~9.4.0",
-    "@deck.gl/json": "~9.4.0",
+    "@deck.gl/core": "~9.4.1",
+    "@deck.gl/json": "~9.4.1",
     "@loaders.gl/core": "^4.5.1"
   },
   "dependencies": {
@@ -53,8 +53,8 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@deck.gl/core": "~9.4.0",
-    "@deck.gl/json": "~9.4.0",
+    "@deck.gl/core": "~9.4.1",
+    "@deck.gl/json": "~9.4.1",
     "@loaders.gl/core": "^4.5.1",
     "esbuild": "^0.28.1"
   }
