@@ -38,8 +38,14 @@ import {budgetSplatSelections, getSplatLevelCounts, type SplatSelection} from '.
 import {SplatRefinementTransition} from './splat-refinement-transition';
 import {retainSplatRows, getSplatChangedRanges, SplatRowSlots} from './splat-row-diff';
 import {getSplatHighlightRow, updateSplatSourceHighlight} from './splat-source-highlight';
+import {type SplatFile, getSplatFile, isSplatFileInput} from './splat-file';
+import {SplatCaptureLayer} from './splat-capture-layer';
+import type {SplatSource} from './splat-source';
 import {
   DEFAULT_GET_SOURCE,
+  getSplatCaptureSource,
+  getSplatInstanceRows,
+  isSplatDataInput,
   resolveSplatInput,
   type ResolvedSplatInput,
   type ResolvedSplatAsset,
@@ -176,13 +182,22 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     slots: SplatRowSlots<Owner<DataT>>[];
     coverage: {data: Owner<DataT>[]; ranges: {startRow: number; endRow: number}[]}[];
     awaitingInitialAllocation: boolean;
+    /** Bumped as splat files settle; input resolves again when it moves past `inputFiles`. */
+    fileRevision: number;
+    inputFiles: number;
+    watchedFiles: WeakSet<SplatFile>;
+    reportedFiles: WeakSet<SplatFile>;
+    /** Direct capture data draws through SplatCaptureLayer instead of the owner path. */
+    captureMode: boolean;
+    /** The capture's source, null while its file loads. */
+    captureSource: SplatSource | null;
   };
   initializeState() {
     this.state = {
       groups: [],
       members: [],
       hierarchy: [],
-      input: {data: [], assets: [], rowAssets: []},
+      input: {data: [], assets: [], rowAssets: [], pending: [], failed: []},
       candidates: [],
       runtime: undefined!,
       owners: [],
@@ -193,10 +208,17 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       refinementRows: new WeakMap(),
       slots: [],
       coverage: [],
-      awaitingInitialAllocation: false
+      awaitingInitialAllocation: false,
+      fileRevision: 0,
+      inputFiles: 0,
+      watchedFiles: new WeakSet(),
+      reportedFiles: new WeakSet(),
+      captureMode: false,
+      captureSource: null
     };
   }
   get isLoaded(): boolean {
+    if (this.state.captureMode) return super.isLoaded && Boolean(this.state.captureSource);
     return super.isLoaded && !this.state.refinement.active;
   }
   shouldUpdateState({changeFlags}) {
@@ -209,7 +231,77 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     );
   }
 
-  updateState({changeFlags, props, oldProps}: UpdateParameters<this>) {
+  /** Resolve again when a pending splat file settles, and report each failed file once. */
+  private watchSplatFiles(input: Pick<ResolvedSplatInput<DataT>, 'pending' | 'failed'>) {
+    this.state.inputFiles = this.state.fileRevision;
+    for (const file of input.failed) {
+      if (this.state.reportedFiles.has(file)) continue;
+      this.state.reportedFiles.add(file);
+      this.raiseError(file.error!, 'SplatLayer could not load a splat file');
+    }
+    for (const file of input.pending) {
+      if (this.state.watchedFiles.has(file)) continue;
+      this.state.watchedFiles.add(file);
+      const settle = () => {
+        if (!this.internalState) return;
+        this.setState({fileRevision: this.state.fileRevision + 1});
+      };
+      file.promise.then(settle, settle);
+    }
+  }
+
+  updateState(params: UpdateParameters<this>) {
+    if (!this.updateCapture(params)) this.updateOwners(params);
+  }
+
+  /**
+   * Direct capture data (a splat file, or one large source) draws through the depth-sorted
+   * SplatCaptureLayer, without owners, refinement or the shared runtime. Returns true while it does.
+   */
+  private updateCapture({changeFlags, props}: UpdateParameters<this>): boolean {
+    const filesChanged = this.state.fileRevision !== this.state.inputFiles;
+    if (!changeFlags.dataChanged && !filesChanged) return this.state.captureMode;
+    const source = isSplatDataInput(props.data) ? getSplatCaptureSource(props.data) : null;
+    if (source === null) {
+      this.state.captureMode = false;
+      this.state.captureSource = null;
+      return false;
+    }
+    if (props.getSource !== DEFAULT_GET_SOURCE)
+      throw new Error('SplatLayer getSource applies to instance rows, not direct asset data.');
+    const file = isSplatFileInput(props.data) ? getSplatFile(props.data) : undefined;
+    const input: ResolvedSplatInput<DataT> = {
+      data: getSplatInstanceRows(props.data as SplatDataInput) as DataT[],
+      assets: [],
+      rowAssets: [undefined],
+      pending: file && !file.source && !file.error ? [file] : [],
+      failed: file?.error ? [file] : []
+    };
+    this.watchSplatFiles(input);
+    if (!this.state.captureMode) {
+      // the owner path's runtime grant and optical fades no longer apply
+      this.state.runtime?.delete(this.id);
+      this.state.runtime = undefined!;
+      this.state.refinement = new SplatRefinementTransition();
+      this.state.slots = [];
+    }
+    this.setState({
+      captureMode: true,
+      captureSource: source ?? null,
+      input,
+      groups: [],
+      members: [],
+      coverage: [],
+      owners: [],
+      candidates: [],
+      hierarchy: [],
+      spatialIndex: null,
+      projectionKey: ''
+    });
+    return true;
+  }
+
+  private updateOwners({changeFlags, props, oldProps}: UpdateParameters<this>) {
     // A repeated MapView selects owners in its primary frustum; SplatPrimitiveLayer composites
     // that copy alone, so wrapped world copies need no owner query of their own.
     const runtime = SplatRuntime.get(this.context.deck, this.context.device);
@@ -248,8 +340,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       props.maxSplats !== oldProps.maxSplats ||
       props.kernelVariance !== oldProps.kernelVariance ||
       renderPixelRatio !== this.state.renderPixelRatio;
+    const filesChanged = this.state.fileRevision !== this.state.inputFiles;
     if (
       !runtimeChanged &&
+      !filesChanged &&
       !changeFlags.dataChanged &&
       !changeFlags.viewportChanged &&
       !geometryChanged &&
@@ -258,8 +352,11 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       this.publishDemand(this.state.candidates);
       return;
     }
-    const inputChanged = Boolean(changeFlags.dataChanged || geometryChanged || runtimeChanged);
+    const inputChanged = Boolean(
+      changeFlags.dataChanged || geometryChanged || runtimeChanged || filesChanged
+    );
     const input = inputChanged ? resolveSplatInput(props) : this.state.input;
+    if (inputChanged) this.watchSplatFiles(input);
     const assetsChanged =
       input.assets.length !== this.state.input.assets.length ||
       input.assets.some((asset, i) => asset !== this.state.input.assets[i]);
@@ -282,7 +379,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const viewport = this.context.viewport;
     const projectionKey = getSplatProjectionKey(viewport);
     const rebuild =
-      Boolean(changeFlags.dataChanged || geometryChanged || runtimeChanged) ||
+      Boolean(changeFlags.dataChanged || geometryChanged || runtimeChanged || assetsChanged) ||
       this.state.projectionKey !== projectionKey;
     let {owners, spatialIndex} = this.state;
     if (rebuild) {
@@ -314,6 +411,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       for (const object of iterable as Iterable<DataT>) {
         objectInfo.index++;
         const asset = input.rowAssets[objectInfo.index];
+        // a row whose file is still loading (or failed) has no owner yet
+        if (!asset) continue;
         const {center: sourceCenter, radius: sourceRadius} = bounds.get(asset)!;
         const position = get(this.props.getPosition, object, objectInfo);
         const scale = get(this.props.getScale, object, objectInfo);
@@ -550,10 +649,22 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   }
   /** Refinement levels hold different owner subsets; highlight the hovered owner in each. */
   protected _updateAutoHighlight(info: PickingInfo): void {
-    updateSplatSourceHighlight(this, info);
+    if (this.state.captureMode) super._updateAutoHighlight(info);
+    else updateSplatSourceHighlight(this, info);
   }
   /** Current submitted work and minimum retained coverage, including transition overlap. */
   get splatStats(): SplatLayerStats {
+    if (this.state.captureMode) {
+      const capture = this.getSubLayers()[0] as SplatCaptureLayer | undefined;
+      const drawn = capture?.drawnSplats ?? 0;
+      return {
+        sourceCount: this.state.captureSource ? 1 : 0,
+        visibleInstances: drawn ? 1 : 0,
+        renderedSplats: drawn,
+        coverageFloor: 0,
+        refiningInstances: 0
+      };
+    }
     const count = (groups: Owner<DataT>[][]) =>
       groups.reduce(
         (sum, rows, i) => sum + rows.length * (this.state.hierarchy[i].source.positions.length / 3),
@@ -626,6 +737,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   }
 
   renderLayers(): Layer[] {
+    if (this.state.captureMode) return this.renderCapture();
     const makeLayer = (data: Owner<DataT>[], level: number) => {
       const memberGroups = this.state.members;
       // Coverage changes do not change ownership or transforms. Keep the data list stable
@@ -697,5 +809,35 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     return this.state.groups.flatMap((data, level) =>
       data.length ? [makeLayer(data, level)] : []
     );
+  }
+
+  private renderCapture(): Layer[] {
+    const source = this.state.captureSource;
+    if (!source) return [];
+    const {data} = this.state.input;
+    const info = {index: 0, data, target: []};
+    const get = (accessor: unknown) =>
+      typeof accessor === 'function' ? accessor(data[0], info) : accessor;
+    return [
+      new SplatCaptureLayer(
+        this.getSubLayerProps({id: 'capture', updateTriggers: this.props.updateTriggers}),
+        {
+          data,
+          source,
+          anchor: get(this.props.getPosition),
+          transform: getSplatTransform(
+            get(this.props.getOrientation),
+            get(this.props.getScale),
+            get(this.props.getTranslation),
+            get(this.props.getTransformMatrix)
+          ),
+          tint: get(this.props.getColor),
+          maxSplats: this.props.maxSplats,
+          kernelVariance: this.props.kernelVariance,
+          alphaCutoff: this.props.alphaCutoff,
+          support: this.props.support
+        }
+      )
+    ];
   }
 }

@@ -29,5 +29,12 @@ new SplatLayer({
   getTransformMatrix: () => [1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 1, 2, 3, 1],
   maxTotalSplats: 1000
 });
-// @ts-expect-error Streamed RAD input requires a separately supported backend.
-new SplatLayer({data: '/scene.rad'});
+// A splat file is data: a URL or its bytes. RAD is recognized, and refused, from the bytes at runtime.
+new SplatLayer({data: '/captures/row.spz', getPosition: [0, 0, 0]});
+new SplatLayer({data: new ArrayBuffer(32), maxSplats: 100_000});
+new SplatLayer({
+  data: [{splats: '/trees/orange.spz', position: [0, 0] as [number, number]}],
+  getSource: row => row.splats
+});
+// @ts-expect-error A number is neither splat data nor instance rows.
+new SplatLayer({data: 42});

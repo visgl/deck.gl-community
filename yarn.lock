@@ -1097,6 +1097,7 @@ __metadata:
     "@deck.gl/mesh-layers": "npm:~9.4.0"
     "@deck.gl/test-utils": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.5.1"
+    "@loaders.gl/splats": "npm:^4.5.1"
     "@loaders.gl/textures": "npm:^4.5.1"
     "@luma.gl/constants": "npm:~9.4.0"
     "@luma.gl/core": "npm:~9.4.0"
@@ -3425,6 +3426,21 @@ __metadata:
     "@types/geojson": "npm:^7946.0.7"
     apache-arrow: "npm:>= 17.0.0"
   checksum: 10c0/b8439550c526c5d2e1dc80ce1ef7bd43cd02ef8f5149cdeb9ee6668264ca765c1e01d281c58f0cba947eaa30e908e0be74101ce6682bf0a2dc17a284b1fa7c16
+  languageName: node
+  linkType: hard
+
+"@loaders.gl/splats@npm:^4.5.1":
+  version: 4.5.4
+  resolution: "@loaders.gl/splats@npm:4.5.4"
+  dependencies:
+    "@loaders.gl/compression": "npm:4.5.4"
+    "@loaders.gl/loader-utils": "npm:4.5.4"
+    "@loaders.gl/schema": "npm:4.5.4"
+    apache-arrow: "npm:>= 17.0.0"
+    zod: "npm:^4.1.12"
+  peerDependencies:
+    "@loaders.gl/core": ~4.5.0
+  checksum: 10c0/5e75ae9fad1e840d97b81b69a06c0ddfcbd4fd03616cc55000cee780494693079541ff064e969ed92ae84fb237a991c0283d5d6aeaac80899cd2e53572e761e4
   languageName: node
   linkType: hard
 

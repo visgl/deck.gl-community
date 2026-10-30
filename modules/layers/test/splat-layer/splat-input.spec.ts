@@ -71,9 +71,10 @@ it('rejects conflicting channels, missing assets and unsupported scene inputs ex
   expect(() => resolveSplatInput({data: source, getSource: source})).toThrow(
     'not direct asset data'
   );
-  expect(() =>
-    resolveSplatInput({data: '/scene.rad' as any, getSource: DEFAULT_GET_SOURCE})
-  ).toThrow('prepared asset');
+  // a URL is a splat file: it loads asynchronously and draws nothing until (unless) it decodes
+  const file = resolveSplatInput({data: '/scene.rad', getSource: DEFAULT_GET_SOURCE});
+  expect(file.rowAssets).toEqual([undefined]);
+  expect(file.pending).toHaveLength(1);
   expect(resolveSplatInput({data: [], getSource: source}).data).toEqual([]);
 });
 
