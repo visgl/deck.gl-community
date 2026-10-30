@@ -14,7 +14,9 @@ export function createRasterBasemap(id = 'basemap') {
     maxZoom: 19,
     tileSize: 256,
     renderSubLayers: props => {
-      const {west, south, east, north} = props.tile.bbox;
+      const {bbox} = props.tile;
+      if (!('west' in bbox)) return null;
+      const {west, south, east, north} = bbox;
       return new BitmapLayer(props, {image: props.data, bounds: [west, south, east, north]});
     }
   });
