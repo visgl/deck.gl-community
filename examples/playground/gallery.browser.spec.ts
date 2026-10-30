@@ -41,11 +41,27 @@ async function mockGalleryResources(): Promise<void> {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
     if (url.startsWith('data:') || url.startsWith('blob:')) return fetchLocalResource(input, init);
-    if (url === 'https://tiles.openfreemap.org/styles/positron') {
+    if (url.endsWith('/ne_110m_admin_0_countries.geojson')) {
       return Response.json({
-        version: 8,
-        sources: {},
-        layers: [{id: 'background', type: 'background', paint: {'background-color': '#e2e8f0'}}]
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'Polygon',
+              coordinates: [
+                [
+                  [-20, 0],
+                  [20, 0],
+                  [20, 40],
+                  [-20, 40],
+                  [-20, 0]
+                ]
+              ]
+            }
+          }
+        ]
       });
     }
     if (url === graphUrlExample.layers[0].data) {
