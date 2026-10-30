@@ -8,7 +8,7 @@ fails nothing on a score.
 
 This is a private, test-only workspace: never published, no runtime dependencies, no build. It
 grew out of basemap-layers' reference-render harness (`modules/basemap-layers/tests/reference-render`),
-which still imports its metrics and its MapLibre reference renderer from here.
+whose renderer now lives in [tangram.gl](https://github.com/visgl/tangram.gl). The recorded fixtures live entirely in this workspace.
 
 ## Layout
 
@@ -131,26 +131,10 @@ Each render has one status in `report.md` and `scores.json`:
 
 ## Running
 
-basemap-layers' runner (`modules/basemap-layers/tests/conformance/basemap-layer.conformance.ts`,
-with `vitest.conformance.config.ts`) renders every scene with MapLibre (the reference) and with
-`BasemapLayer`. It needs the packages built (`yarn build`) and Chromium (`yarn playwright:install`):
-
-```sh
-yarn test-conformance
-VITE_CONFORMANCE_SCENES=paris-streets-z13.3,ofm-liberty yarn test-conformance
-```
-
-Then score everything the runners have saved:
-
-```sh
-yarn conformance-report
-```
-
-The scorer writes `__output__/report.md`, `scores.json` (which adds the missing and extra labels
-per scene and candidate), `images/<scene>.png` (all renderers side by side, the reference first)
-and `images/<scene>--<renderer>.png` (reference, candidate, SSIM map, edge overlay). CI runs both
-steps in the `basemap-conformance` job, outside the required `test-headless` check, and uploads
-`__output__` as the `basemap-conformance` artifact. Neither step can fail the job.
+The community BasemapLayer runner has been removed with the package. Renderers now run
+in their own repositories, including [tangram.gl](https://github.com/visgl/tangram.gl).
+The corpus, reference renderer helpers, scorer and Node regression tests remain here.
+Run `yarn conformance-report <outputDirectory>` to score saved renders.
 
 ## Using it from another repository
 
@@ -164,8 +148,7 @@ A renderer that lives in another repository scores itself against the same corpu
    ratio 1. Wait until tiles, placement and fades have settled, then read the canvas with
    `readCanvas`. Read back the text of every label drawn after collision. If the renderer cannot
    report them, return `labels: null` and give the reason in `labelNote`.
-3. Add `conformanceFixtureServer({fixtureRoots: [<checkout>/dev/basemap-conformance/fixtures,
-   <checkout>/modules/basemap-layers/tests/reference-render/fixtures], outputDirectory})` and
+3. Add `conformanceFixtureServer({fixtureRoots: fixtureRootsOf(<checkout>), outputDirectory})` and
    `HERMETIC_CHROMIUM_ARGS` to a Vitest browser config (`fixtureRootsOf(<checkout>)` gives these
    roots). Call `saveRendererManifest` once, then `runConformanceScene` from a test for each scene
    that the renderer `supports`.
@@ -187,7 +170,7 @@ One run records everything every renderer of that runner requests. Renderers can
 tiles (a renderer that loads 512-pixel tiles at the rounded zoom, say), so run each renderer's
 runner once in record mode. The network is used only during recording.
 
-The fixture roots are searched in order: `fixtures/` here, then basemap-layers' trimmed
+The fixture root is `fixtures/` here, including the former basemap-layers trimmed
 reference-render fixtures. The corpus's own tiles are not trimmed, because a new style can read
 source layers and properties that the reference styles do not.
 
@@ -204,13 +187,17 @@ source layers and properties that the reference styles do not.
   from tangram.gl's `examples/deck/comparison-style.ts`, serialized to JSON. It holds the Streets
   palette, road grades and widths, and a place-name layer in Montserrat that mirrors Tangram's
   `places` text layer.
-- The control scenes read basemap-layers' committed fixtures, which carry their own notes in
-  `modules/basemap-layers/tests/reference-render/fixtures.ts`.
+- Retained control fixtures include CARTO/OpenFreeMap tiles (OpenStreetMap contributors,
+  ODbL; OpenMapTiles schema), Natural Earth relief (public domain), Positron styles (CC BY 4.0),
+  and Noto Sans/Montserrat glyphs (SIL OFL), moved from the former community harness.
+- Retained DEM tiles under `s3.amazonaws.com/elevation-tiles-prod/terrarium/11/` are from
+  Terrain Tiles on AWS (Mapzen terrarium encoding). US elevations derive from USGS 3DEP
+  and SRTM (public domain). The recorded blue channel was zeroed to round to whole meters.
 
 ## Control scenes
 
 `paris-liberty-z13.3` and `new-york-positron-z14.2` are basemap-layers' reference-render scenes,
-rendered by this runner. Their `BasemapLayer` scores match the reference-render harness's, which
+originally rendered by the community runner. Their historical `BasemapLayer` scores matched the reference-render harness's, which
 shows that the shared runner measures what the original harness measures. On one machine:
 paris-liberty SSIM 0.9783 and edge F 0.9915 in both; new-york-positron SSIM 0.9791 in both and
 edge F 0.9908 here against 0.9906 there. The small edge difference comes from the fixtures: where

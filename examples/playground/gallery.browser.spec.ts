@@ -3,8 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, Layer} from '@deck.gl/core';
-import type {SolidPolygonLayer} from '@deck.gl/layers';
-import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {GraphLayer} from '@deck.gl-community/graph-layers';
 import karateDot from '../../modules/graph-layers/test/data/__fixtures__/dot/karate.dot?raw';
 import graphUrlExample from './examples/16-graph-url.json';
@@ -111,7 +109,6 @@ test('renders the gallery forward, backward, and across different view types', a
           const layer = layers.find(candidate => candidate.id === definition.id);
           expect(layer?.isLoaded, `${name}: ${definition.id} loaded`).toBe(true);
         }
-        // Include the automatically injected basemap as well as the document's own layers.
         for (const layer of layers) {
           if (layer instanceof GraphLayer && layer.id === 'karate-club') {
             expect(layer.state.graphEngine?.getNodes()).toHaveLength(8);
@@ -134,20 +131,6 @@ test('renders the gallery forward, backward, and across different view types', a
           }
           if (layer instanceof SkyboxLayer) {
             expect(layer.state?.cubemapTexture?.isReady, `${name}: cubemap uploaded`).toBe(true);
-          }
-          if (layer instanceof BasemapLayer) {
-            expect(layer.state?.resolvedStyle, `${name}: basemap style loaded`).toBeTruthy();
-            const background = layer
-              .getSubLayers()
-              .find(candidate => candidate.id === `${layer.id}-background`) as
-              | SolidPolygonLayer
-              | undefined;
-            const tessellator = background?.state?.polygonTesselator;
-            expect(tessellator?.vertexCount, `${name}: background mesh`).toBeGreaterThan(0);
-            // A flat map mesh can report loaded while rendering no globe at all.
-            expect(tessellator?.opts.resolution, `${name}: projection tessellation`).toBe(
-              deck.getViewports()[0].resolution
-            );
           }
         }
       },

@@ -7,7 +7,6 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@deck.gl-community/basemap-layers": "workspace:*",
     "@deck.gl-community/react-fiber": "workspace:*",
     "@deck.gl/core": "~9.4.0",
     "@deck.gl/extensions": "~9.4.0",

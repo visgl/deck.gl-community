@@ -5,7 +5,6 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl-community/basemap-layers": "workspace:*",
     "@deck.gl-community/layers": "workspace:*",
     "@deck.gl-community/panels": "workspace:*",
     "@deck.gl-community/widgets": "workspace:*",

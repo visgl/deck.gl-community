@@ -4,8 +4,7 @@
 
 import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck, _GlobeView, type PickingInfo} from '@deck.gl/core';
-import {ArcLayer, ScatterplotLayer} from '@deck.gl/layers';
-import {BasemapLayer} from '@deck.gl-community/basemap-layers';
+import {ArcLayer, ScatterplotLayer, GeoJsonLayer} from '@deck.gl/layers';
 import {
   ColumnPanel,
   MarkdownPanel,
@@ -16,7 +15,6 @@ import {
 import {BoxPanelWidget} from '../../../modules/widgets/src';
 import {SkyboxLayer} from '../../../modules/layers/src';
 import {TYCHO_CUBEMAP} from '../skybox-assets/cubemap';
-import deckLightStyle from '../../../website/static/mapstyle/deck-light.json';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -50,7 +48,7 @@ const SETTINGS_SCHEMA: SettingsSchema = {
           name: 'render.showSkybox',
           label: 'Show skybox',
           type: 'boolean',
-          description: 'Disable the cubemap to verify whether it is masking the globe basemap.'
+          description: 'Disable the cubemap to verify whether it is masking the globe backdrop.'
         }
       ]
     }
@@ -128,11 +126,11 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
             id: 'summary',
             title: '',
             markdown: [
-              'Toggle the skybox to check whether the cubemap is obscuring the globe basemap.',
+              'Toggle the skybox to check whether the cubemap is obscuring the globe backdrop.',
               '',
               `- Skybox: **${state.settings.render.showSkybox ? 'enabled' : 'disabled'}**`,
               '- Skybox asset: NASA Tycho star map cubemap.',
-              '- Basemap: OpenFreeMap vector style rendered through `BasemapLayer`.'
+              '- Backdrop: Natural Earth countries rendered with deck.gl GeoJsonLayer.'
             ].join('\n')
           }),
           new SettingsPanel({
@@ -169,17 +167,11 @@ function buildLayers(settings: SettingsState) {
         id: 'skybox',
         cubemap: TYCHO_CUBEMAP
       }),
-    new BasemapLayer({
+    new GeoJsonLayer({
       id: 'earth',
-      mode: 'globe',
-      style: deckLightStyle,
-      globe: {
-        config: {
-          atmosphere: false,
-          basemap: true,
-          labels: false
-        }
-      }
+      data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/countries.geojson',
+      getFillColor: [55, 85, 105],
+      stroked: false
     }),
     new ArcLayer<Flight>({
       id: 'flight-arcs',

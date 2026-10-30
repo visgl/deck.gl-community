@@ -868,38 +868,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/basemap-layers@workspace:*, @deck.gl-community/basemap-layers@workspace:modules/basemap-layers":
-  version: 0.0.0-use.local
-  resolution: "@deck.gl-community/basemap-layers@workspace:modules/basemap-layers"
-  dependencies:
-    "@deck.gl-community/geo-layers": "workspace:*"
-    "@deck.gl/test-utils": "npm:~9.4.0"
-    "@fontsource/montserrat": "npm:5.3.0"
-    "@fontsource/noto-sans": "npm:5.3.0"
-    "@fontsource/open-sans": "npm:5.3.0"
-    "@loaders.gl/core": "npm:^4.5.1"
-    "@loaders.gl/loader-utils": "npm:^4.5.1"
-    "@loaders.gl/mvt": "npm:^4.5.1"
-    "@mapbox/tiny-sdf": "npm:^2.0.5"
-    "@maplibre/geojson-vt": "npm:^6.1.2"
-    "@maplibre/maplibre-gl-style-spec": "npm:^24.8.1"
-    "@turf/polygon-to-line": "npm:^6.0.3"
-    bidi-js: "npm:^1.1.0"
-    maplibre-gl: "npm:6.13.0"
-    vitest: "npm:^4.0.18"
-    zod: "npm:^4.0.0"
-  peerDependencies:
-    "@deck.gl-community/geo-layers": ~9.4.2
-    "@deck.gl/core": ~9.4.0
-    "@deck.gl/extensions": ~9.4.0
-    "@deck.gl/geo-layers": ~9.4.0
-    "@deck.gl/layers": ~9.4.0
-    "@loaders.gl/core": ^4.5.1
-    "@luma.gl/core": ~9.4.0
-    "@luma.gl/engine": ~9.4.0
-  languageName: unknown
-  linkType: soft
-
 "@deck.gl-community/bing-maps@workspace:*, @deck.gl-community/bing-maps@workspace:modules/bing-maps":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/bing-maps@workspace:modules/bing-maps"
@@ -2520,27 +2488,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@fontsource/montserrat@npm:5.3.0":
-  version: 5.3.0
-  resolution: "@fontsource/montserrat@npm:5.3.0"
-  checksum: 10c0/6670ec471a9ae9cfa89593a11ba62062a9797049d0f93825f106b1bddd0d46f930ace87e79e56ebbd4a56186ff07844f073c2f2f4f1aca85115dde4cc02d8135
-  languageName: node
-  linkType: hard
-
-"@fontsource/noto-sans@npm:5.3.0":
-  version: 5.3.0
-  resolution: "@fontsource/noto-sans@npm:5.3.0"
-  checksum: 10c0/f99578be5946a643235a3fc7bbf028226951267ec429fe428c8402ba2831a0b9dbba25c208adafbe7852dedf9710cf53d31a82de2af6aa63c16a51fce8aef4b1
-  languageName: node
-  linkType: hard
-
-"@fontsource/open-sans@npm:5.3.0":
-  version: 5.3.0
-  resolution: "@fontsource/open-sans@npm:5.3.0"
-  checksum: 10c0/c52a583617187cb731d2606b7f22337168db055df7600f79ad42a37d44764065ff1fe060069467c43a086296f43a6ffc0328dd2c8031c459bfb60d253f2522d6
-  languageName: node
-  linkType: hard
-
 "@gar/promise-retry@npm:^1.0.0, @gar/promise-retry@npm:^1.0.2":
   version: 1.0.3
   resolution: "@gar/promise-retry@npm:1.0.3"
@@ -3781,13 +3728,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mapbox/jsonlint-lines-primitives@npm:^2.0.3":
-  version: 2.0.3
-  resolution: "@mapbox/jsonlint-lines-primitives@npm:2.0.3"
-  checksum: 10c0/e114b27757a21ccbf20e3c99761e8b48d2527cb321f47e5a4d9aa4b5781b16f15b1f6f4ab678a4329f93668956281a05b56387331dc0260981a2ef695414fc1d
-  languageName: node
-  linkType: hard
-
 "@mapbox/martini@npm:^0.2.0":
   version: 0.2.0
   resolution: "@mapbox/martini@npm:0.2.0"
@@ -3840,13 +3780,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mapbox/tiny-sdf@npm:^2.2.0":
-  version: 2.3.0
-  resolution: "@mapbox/tiny-sdf@npm:2.3.0"
-  checksum: 10c0/999e2e94d97804346fe8c3a01d97263c43dfe65210bef6d1e20698c9d52e28e13e9093d0526e0dcd503ab2dde37f60d6158a2bb766d6bbe82b823430e3dc5515
-  languageName: node
-  linkType: hard
-
 "@mapbox/unitbezier@npm:^0.0.1":
   version: 0.0.1
   resolution: "@mapbox/unitbezier@npm:0.0.1"
@@ -3881,17 +3814,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mapbox/vector-tile@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "@mapbox/vector-tile@npm:3.0.0"
-  dependencies:
-    "@mapbox/point-geometry": "npm:~1.1.0"
-    "@types/geojson": "npm:^7946.0.16"
-    pbf: "npm:^5.0.0"
-  checksum: 10c0/ccede784967394a171956376de98b9cc9d5683ae67e3516246082d7bd5a157f711777955d111cd4885cc9dc4e22ef26e8b9af70ef6c8746392dd8de84e201ba6
-  languageName: node
-  linkType: hard
-
 "@mapbox/whoots-js@npm:^3.1.0":
   version: 3.1.0
   resolution: "@mapbox/whoots-js@npm:3.1.0"
@@ -3917,15 +3839,6 @@ __metadata:
   dependencies:
     kdbush: "npm:^4.1.0"
   checksum: 10c0/75f2fcfd0c25e1c92f83609affefa762aaf52995f86c6b5258d797050b39392b2f39bc7462ef015c82884e2b2c329bef823b614a1c9fbc8d98ddb8fa8c042854
-  languageName: node
-  linkType: hard
-
-"@maplibre/geojson-vt@npm:^6.1.1, @maplibre/geojson-vt@npm:^6.1.2":
-  version: 6.1.2
-  resolution: "@maplibre/geojson-vt@npm:6.1.2"
-  dependencies:
-    kdbush: "npm:^4.1.0"
-  checksum: 10c0/af3f63102079c2a2be9a2f8426b91f886ff1319f86f9ae36f625c71e5af6b67f8c91bfe27853095caba3317d06ea5751046c2d33475e86d5f9ea5aa0720f7207
   languageName: node
   linkType: hard
 
@@ -3984,25 +3897,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@maplibre/maplibre-gl-style-spec@npm:^26.2.1, @maplibre/maplibre-gl-style-spec@npm:^26.4.4":
-  version: 26.4.4
-  resolution: "@maplibre/maplibre-gl-style-spec@npm:26.4.4"
-  dependencies:
-    "@mapbox/jsonlint-lines-primitives": "npm:^2.0.3"
-    "@mapbox/unitbezier": "npm:^1.0.0"
-    json-stringify-pretty-compact: "npm:^4.0.0"
-    minimist: "npm:^1.2.8"
-    quickselect: "npm:^3.0.0"
-    tinyqueue: "npm:^3.0.0"
-  bin:
-    gl-style-format: dist/gl-style-format.mjs
-    gl-style-migrate: dist/gl-style-migrate.mjs
-    gl-style-validate: dist/gl-style-validate.mjs
-  checksum: 10c0/a5af3e5c7e7b3ab5c427d9e51a9b5ba54981faeee9c46085fa765a043947cf327514e39e28ff488b5812620961ad315f0080acb1cdb940e626c7ba0d72f24651
-  languageName: node
-  linkType: hard
-
-"@maplibre/mlt@npm:^1.1.12, @maplibre/mlt@npm:^1.1.8, @maplibre/mlt@npm:^1.3.0":
+"@maplibre/mlt@npm:^1.1.8":
   version: 1.3.0
   resolution: "@maplibre/mlt@npm:1.3.0"
   dependencies:
@@ -4011,7 +3906,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@maplibre/vt-pbf@npm:^4.3.0, @maplibre/vt-pbf@npm:^4.3.2":
+"@maplibre/vt-pbf@npm:^4.3.0":
   version: 4.3.2
   resolution: "@maplibre/vt-pbf@npm:4.3.2"
   dependencies:
@@ -6947,15 +6842,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@turf/invariant@npm:^6.5.0":
-  version: 6.5.0
-  resolution: "@turf/invariant@npm:6.5.0"
-  dependencies:
-    "@turf/helpers": "npm:^6.5.0"
-  checksum: 10c0/5ff9f2043d629cc5f6d3df78452632b2213f17931caa34698d9e8c651640508814b3522d4ab747f36a4b9dfaf6ff64eedc3a04ba62c39ddeb6706f052b621dc6
-  languageName: node
-  linkType: hard
-
 "@turf/jsts@npm:^2.7.1":
   version: 2.7.2
   resolution: "@turf/jsts@npm:2.7.2"
@@ -7061,16 +6947,6 @@ __metadata:
     "@types/geojson": "npm:^7946.0.10"
     tslib: "npm:^2.8.1"
   checksum: 10c0/e263b33bf7f7184316f8d357d3cb737b65b7fc0a6511a32e8a4154867a8051b5951741162ca1ac4ec863e1d7c7ca5d7427b824de0ea9e58c990e64d3be367fd8
-  languageName: node
-  linkType: hard
-
-"@turf/polygon-to-line@npm:^6.0.3":
-  version: 6.5.0
-  resolution: "@turf/polygon-to-line@npm:6.5.0"
-  dependencies:
-    "@turf/helpers": "npm:^6.5.0"
-    "@turf/invariant": "npm:^6.5.0"
-  checksum: 10c0/a608ca3e9a9a80f14d90ab2f079eb51a1d15cf61e431a82eb5a30961bc4dad71186b47e7b6f4a67bbce0ff7af9c56fba7383ee8ffc4d814edd9c73cbd13e8bbb
   languageName: node
   linkType: hard
 
@@ -8591,46 +8467,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"basemap-layer-map-view-7c2ef2@workspace:examples/layers/basemap-layer-map-view":
-  version: 0.0.0-use.local
-  resolution: "basemap-layer-map-view-7c2ef2@workspace:examples/layers/basemap-layer-map-view"
-  dependencies:
-    "@deck.gl-community/basemap-layers": "workspace:*"
-    "@deck.gl/core": "npm:~9.4.0"
-    "@deck.gl/extensions": "npm:~9.4.0"
-    "@deck.gl/geo-layers": "npm:~9.4.0"
-    "@deck.gl/layers": "npm:~9.4.0"
-    "@deck.gl/mesh-layers": "npm:~9.4.0"
-    "@loaders.gl/core": "npm:^4.5.1"
-    "@luma.gl/core": "npm:~9.4.0"
-    "@luma.gl/engine": "npm:~9.4.0"
-    "@luma.gl/shadertools": "npm:~9.4.0"
-    vite: "npm:^7.3.1"
-  languageName: unknown
-  linkType: soft
-
-"basemap-layers-split-view-example@workspace:examples/basemap-layers/split-view":
-  version: 0.0.0-use.local
-  resolution: "basemap-layers-split-view-example@workspace:examples/basemap-layers/split-view"
-  dependencies:
-    "@deck.gl-community/basemap-layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
-    "@deck.gl/core": "npm:~9.4.0"
-    "@deck.gl/extensions": "npm:~9.4.0"
-    "@deck.gl/geo-layers": "npm:~9.4.0"
-    "@deck.gl/layers": "npm:~9.4.0"
-    "@deck.gl/mesh-layers": "npm:~9.4.0"
-    "@loaders.gl/core": "npm:^4.5.1"
-    "@luma.gl/core": "npm:~9.4.0"
-    "@luma.gl/engine": "npm:~9.4.0"
-    "@luma.gl/shadertools": "npm:~9.4.0"
-    "@math.gl/web-mercator": "npm:^4.1.0"
-    maplibre-gl: "npm:6.4.1"
-    vite: "npm:^7.3.1"
-  languageName: unknown
-  linkType: soft
-
 "basic-auth@npm:~2.0.1":
   version: 2.0.1
   resolution: "basic-auth@npm:2.0.1"
@@ -8644,15 +8480,6 @@ __metadata:
   version: 2.2.3
   resolution: "before-after-hook@npm:2.2.3"
   checksum: 10c0/0488c4ae12df758ca9d49b3bb27b47fd559677965c52cae7b335784724fb8bf96c42b6e5ba7d7afcbc31facb0e294c3ef717cc41c5bc2f7bd9e76f8b90acd31c
-  languageName: node
-  linkType: hard
-
-"bidi-js@npm:^1.1.0":
-  version: 1.1.0
-  resolution: "bidi-js@npm:1.1.0"
-  dependencies:
-    require-from-string: "npm:^2.0.2"
-  checksum: 10c0/b608addec6bd6e5d1c0cc7b6116002d589c6e666966503aca2aa7b2f61717ecaaeb0ac1a16c1374d61ee757de4f2f24017312a70781f5c4b127ffab54a2f7187
   languageName: node
   linkType: hard
 
@@ -10624,13 +10451,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"earcut@npm:^3.2.3, earcut@npm:^3.2.4":
-  version: 3.2.4
-  resolution: "earcut@npm:3.2.4"
-  checksum: 10c0/c50c93a6a0b56aadbe9d225322184f93b6b6dff81f2ca6e6bd8bb1141eaefc5116aac4c969f576bc2569d9c6ddd5108d74bf3825b3fd5529ebcc59c9f2b55e5a
-  languageName: node
-  linkType: hard
-
 "eastasianwidth@npm:^0.2.0":
   version: 0.2.0
   resolution: "eastasianwidth@npm:0.2.0"
@@ -11557,7 +11377,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "example-react-fiber-multi-canvas@workspace:examples/react-fiber/multi-canvas"
   dependencies:
-    "@deck.gl-community/basemap-layers": "workspace:*"
     "@deck.gl-community/react-fiber": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/extensions": "npm:~9.4.0"
@@ -14354,57 +14173,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"maplibre-gl@npm:6.13.0":
-  version: 6.13.0
-  resolution: "maplibre-gl@npm:6.13.0"
-  dependencies:
-    "@mapbox/point-geometry": "npm:^1.1.0"
-    "@mapbox/tiny-sdf": "npm:^2.2.0"
-    "@mapbox/unitbezier": "npm:^1.0.0"
-    "@mapbox/vector-tile": "npm:^3.0.0"
-    "@maplibre/geojson-vt": "npm:^6.1.2"
-    "@maplibre/maplibre-gl-style-spec": "npm:^26.4.4"
-    "@maplibre/mlt": "npm:^1.3.0"
-    "@maplibre/vt-pbf": "npm:^4.3.2"
-    "@types/geojson": "npm:^7946.0.16"
-    bidi-js: "npm:^1.1.0"
-    earcut: "npm:^3.2.4"
-    gl-matrix: "npm:^3.4.4"
-    kdbush: "npm:^4.1.0"
-    murmurhash-js: "npm:^1.0.0"
-    pbf: "npm:^5.1.2"
-    potpack: "npm:^2.1.0"
-    quickselect: "npm:^3.0.0"
-    tinyqueue: "npm:^3.0.0"
-  checksum: 10c0/99ffe17b4c7ad20782da9e670817abceb455d78a59c6a45f24d5124f9477a5933c052122dc1e5370176eac7963b974796f7cae5d36faab422ae8c5304536352e
-  languageName: node
-  linkType: hard
-
-"maplibre-gl@npm:6.4.1":
-  version: 6.4.1
-  resolution: "maplibre-gl@npm:6.4.1"
-  dependencies:
-    "@mapbox/point-geometry": "npm:^1.1.0"
-    "@mapbox/tiny-sdf": "npm:^2.2.0"
-    "@mapbox/unitbezier": "npm:^1.0.0"
-    "@mapbox/vector-tile": "npm:^3.0.0"
-    "@maplibre/geojson-vt": "npm:^6.1.1"
-    "@maplibre/maplibre-gl-style-spec": "npm:^26.2.1"
-    "@maplibre/mlt": "npm:^1.1.12"
-    "@maplibre/vt-pbf": "npm:^4.3.2"
-    "@types/geojson": "npm:^7946.0.16"
-    earcut: "npm:^3.2.3"
-    gl-matrix: "npm:^3.4.4"
-    kdbush: "npm:^4.1.0"
-    murmurhash-js: "npm:^1.0.0"
-    pbf: "npm:^5.1.2"
-    potpack: "npm:^2.1.0"
-    quickselect: "npm:^3.0.0"
-    tinyqueue: "npm:^3.0.0"
-  checksum: 10c0/622aa7d247d999481edd3db9bd4191f09163d4cbc6faae1f990d526cc93945dad9f68867c413a76b4ced7477164ac1db9dbb05c52fa61b36d866ecb629d5ac1e
-  languageName: node
-  linkType: hard
-
 "maplibre-gl@npm:^4.1.3":
   version: 4.7.1
   resolution: "maplibre-gl@npm:4.7.1"
@@ -16263,7 +16031,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pbf@npm:^5.0.0, pbf@npm:^5.1.0, pbf@npm:^5.1.2":
+"pbf@npm:^5.1.0":
   version: 5.1.2
   resolution: "pbf@npm:5.1.2"
   dependencies:
@@ -16370,7 +16138,6 @@ __metadata:
   resolution: "playground-example@workspace:examples/playground"
   dependencies:
     "@deck.gl-community/arrow-layers": "workspace:*"
-    "@deck.gl-community/basemap-layers": "workspace:*"
     "@deck.gl-community/editable-layers": "workspace:*"
     "@deck.gl-community/experimental": "workspace:*"
     "@deck.gl-community/geo-layers": "workspace:*"
@@ -18184,7 +17951,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "skybox-globe-c5fa13@workspace:examples/layers/skybox-globe"
   dependencies:
-    "@deck.gl-community/basemap-layers": "workspace:*"
     "@deck.gl-community/layers": "workspace:*"
     "@deck.gl-community/panels": "workspace:*"
     "@deck.gl-community/widgets": "workspace:*"
@@ -18208,7 +17974,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "skybox-map-view-9054d9@workspace:examples/layers/skybox-map-view"
   dependencies:
-    "@deck.gl-community/basemap-layers": "workspace:*"
     "@deck.gl-community/layers": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/extensions": "npm:~9.4.0"

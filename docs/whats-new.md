@@ -4,6 +4,8 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- **Breaking: basemap-layers has moved to [tangram.gl](https://github.com/visgl/tangram.gl).** The community package, style-spec entry point and basemap examples have been removed. See the [migration note](./modules/basemap-layers/README.md). Shared tile/MVT layers remain in geo-layers.
+
 - **editable-layers:** click-to-draw modes work again under React `<DeckGL>` with child base maps
   such as `<Map>`. Native clicks now use deck.gl's input element instead of only its canvas.
 

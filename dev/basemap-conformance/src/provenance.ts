@@ -26,10 +26,7 @@ export const INPUTS_ALGORITHM = 'sha256';
 
 /** The fixture roots of a checkout of this repository, in search order. */
 export function fixtureRootsOf(checkout: string): string[] {
-  return [
-    resolve(checkout, 'dev/basemap-conformance/fixtures'),
-    resolve(checkout, 'modules/basemap-layers/tests/reference-render/fixtures')
-  ];
+  return [resolve(checkout, 'dev/basemap-conformance/fixtures')];
 }
 
 /** The camera of a scene, with defaults filled in. Everything a renderer reads from the scene. */

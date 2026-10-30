@@ -8,7 +8,6 @@ import * as aggregation from '@deck.gl/aggregation-layers';
 import * as geo from '@deck.gl/geo-layers';
 import * as mesh from '@deck.gl/mesh-layers';
 import * as arrow from '@deck.gl-community/arrow-layers';
-import * as basemap from '@deck.gl-community/basemap-layers';
 import * as editable from '@deck.gl-community/editable-layers';
 import * as experimental from '@deck.gl-community/experimental';
 import * as communityGeo from '@deck.gl-community/geo-layers';
@@ -33,7 +32,6 @@ const PACKAGES = {
   '@deck.gl/geo-layers': geo,
   '@deck.gl/mesh-layers': mesh,
   '@deck.gl-community/arrow-layers': arrow,
-  '@deck.gl-community/basemap-layers': basemap,
   '@deck.gl-community/editable-layers': editable,
   '@deck.gl-community/experimental': experimental,
   '@deck.gl-community/geo-layers': communityGeo,
@@ -191,7 +189,9 @@ for (const [name, template] of Object.entries(TEMPLATES)) {
       if (Object.hasOwn(definition, 'data')) {
         // deck.gl exposes the default value until an async URL prop is initialized.
         expect(resolved[index].props.data).toBe(
-          typeof definition.data === 'string' ? null : definition.data
+          typeof definition.data === 'string'
+            ? new (registeredType(definition['@@type'])!)({id: 'default-props'}).props.data
+            : definition.data
         );
       }
     });

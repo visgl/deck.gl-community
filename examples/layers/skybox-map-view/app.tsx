@@ -9,7 +9,7 @@ import {
   type ViewStateChangeParameters,
   type Widget
 } from '@deck.gl/core';
-import {BasemapLayer} from '@deck.gl-community/basemap-layers';
+import {createRasterBasemap} from '../../utils/raster-basemap';
 import {SkyboxLayer} from '@deck.gl-community/layers';
 import type {Device} from '@luma.gl/core';
 import {SKYBOX_CUBEMAP} from '../skybox-assets/cubemap';
@@ -63,15 +63,7 @@ export function mountSkyboxMapViewExample(
         cubemap: SKYBOX_CUBEMAP,
         orientation: 'y-up'
       }),
-      ...(options.device?.type === 'webgpu'
-        ? []
-        : [
-            new BasemapLayer({
-              id: 'basemap',
-              mode: 'map',
-              style: 'https://tiles.openfreemap.org/styles/liberty'
-            })
-          ])
+      ...(options.device?.type === 'webgpu' ? [] : [createRasterBasemap()])
     ]
   });
   options.onDeckInitialized?.(deck);
@@ -108,7 +100,7 @@ function createOverlay(document: Document): HTMLDivElement {
   overlay.style.pointerEvents = 'none';
   overlay.innerHTML = [
     '<strong style="display:block;margin-bottom:6px;font-size:13px;">SkyboxLayer MapView</strong>',
-    'Tilt a standard <code>MapView</code> over a basemap while rendering the luma.gl sky cubemap behind the scene.',
+    'Tilt a standard <code>MapView</code> over CARTO raster tiles (© OpenStreetMap contributors) while rendering the luma.gl sky cubemap behind the scene.',
     '<br /><br />Use right-drag or two-finger drag to pitch and rotate up to 89.9°.'
   ].join('');
   return overlay;

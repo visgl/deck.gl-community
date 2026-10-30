@@ -11,13 +11,13 @@ yarn
 yarn workspace example-react-fiber-multi-canvas start
 ```
 
-Open the URL printed by Vite. This example aliases the local react-fiber and
-basemap-layers source, so it does not require building those packages first.
+Open the URL printed by Vite. This example aliases the local react-fiber source and uses
+stock deck.gl raster tiles, so it does not require building those packages first.
 
 New York, London, Tokyo and Sydney each have an independent canvas, controller,
-Carto basemap style, landmarks and zoom widget. All four share one Deck. Hover
+CARTO raster backdrop, landmarks and zoom widget. All four share one Deck. Hover
 landmarks to update the shared React status and highlights. Remove and re-add
-Sydney to inspect contribution cleanup. Basemap tiles and fonts require internet
+Sydney to inspect contribution cleanup. Raster tiles require internet
 access; no API token is needed.
 
 The application creates and finalizes its Deck. `DeckCanvas` contributes panel

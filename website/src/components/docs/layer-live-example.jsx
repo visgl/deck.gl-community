@@ -125,12 +125,6 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       );
       return mountSkyboxMapViewExample(container, {showInfoOverlay: false, ...mountProps});
     }
-    case 'basemap-layer': {
-      const {mountBasemapLayerMapViewExample} = await import(
-        '../../../../examples/layers/basemap-layer-map-view/app'
-      );
-      return mountBasemapLayerMapViewExample(container, mountProps);
-    }
     case 'dependency-arrow-layer':
     case 'path-marker-layer':
     case 'path-outline-layer': {
