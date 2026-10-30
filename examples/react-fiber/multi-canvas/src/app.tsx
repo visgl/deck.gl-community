@@ -131,7 +131,8 @@ export function App() {
         <a href="https://github.com/visgl/deck.gl/pull/10492">
           deck.gl's multi-canvas cities example
         </a>
-        . Raster tiles © CARTO, © OpenStreetMap contributors.{' '}
+        . Raster tiles © <a href="https://carto.com/attributions">CARTO</a>, ©{' '}
+        <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>.{' '}
         <a href="https://github.com/visgl/deck.gl/issues/10392">DeckCanvas RFC</a>
       </footer>
     </main>

@@ -40,6 +40,12 @@ export function mountSkyboxMapViewExample(
   options: SkyboxMapViewExampleOptions = {}
 ): () => void {
   const rootElement = createRoot(container);
+  const attribution = rootElement.ownerDocument.createElement('small');
+  attribution.style.cssText =
+    'position:absolute;z-index:1;bottom:0;left:0;padding:2px 6px;background:white;color:black;font:11px sans-serif';
+  attribution.innerHTML =
+    '© <a href="https://carto.com/attributions">CARTO</a> · © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
+  rootElement.appendChild(attribution);
   if (options.showInfoOverlay !== false) {
     rootElement.appendChild(createOverlay(rootElement.ownerDocument));
   }
