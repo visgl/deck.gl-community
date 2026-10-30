@@ -100,6 +100,19 @@ const config = {
         redirects: [
           {
             from: [
+              '/docs/modules/basemap-layers/api-reference/basemap-layer',
+              '/docs/modules/basemap-layers/api-reference/map-style-loader',
+              '/docs/modules/basemap-layers/api-reference/map-style',
+              '/docs/modules/basemap-layers/developer-guide/get-started',
+              '/docs/modules/basemap-layers/developer-guide/style-specification-support',
+              '/docs/modules/basemap-layers/whats-new',
+              '/examples/layers/basemap-layer-map-view',
+              '/examples/basemap-layers/split-view'
+            ],
+            to: '/docs/modules/basemap-layers'
+          },
+          {
+            from: [
               '/docs/modules/three',
               '/docs/modules/three/README',
               '/docs/modules/three/api-reference/tree-layer'
@@ -139,7 +152,6 @@ const config = {
           modules: ['node_modules', resolve('node_modules'), resolve('../node_modules')],
           alias: {
             '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
-            '@deck.gl-community/basemap-layers': resolve('../modules/basemap-layers/src'),
             '@deck.gl-community/leaflet': resolve('../modules/leaflet/src'),
             '@deck.gl-community/geo-layers': resolve('../modules/geo-layers/src'),
             '@deck.gl-community/graph-layers': resolve('../modules/graph-layers/src'),

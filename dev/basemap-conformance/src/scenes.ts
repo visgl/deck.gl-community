@@ -22,7 +22,7 @@ export const STYLES: Record<string, {fixture: string; origin: string}> = {
     fixture: 'styles/tangram-streets.json',
     origin: 'https://github.com/visgl/tangram.gl/blob/master/examples/deck/comparison-style.ts'
   },
-  /** basemap-layers' own reference styles, read from its committed fixtures. */
+  /** Original community reference styles, retained in this corpus. */
   'ofm-liberty': {
     fixture: 'styles/ofm-liberty.json',
     origin: 'https://tiles.openfreemap.org/styles/liberty'
@@ -74,8 +74,7 @@ export const SCENES: ConformanceScene[] = [
     zoom: 14.2,
     note: 'Street grid, buildings, overzoomed z14 data'
   },
-  // Control scenes: basemap-layers' own reference scenes, rendered by the shared runner. Their
-  // scores must match `modules/basemap-layers/tests/reference-render` (same fixtures, same
+  // Control scenes retained from the original community reference harness (same fixtures, same
   // metrics), which checks that the shared runner measures what the original harness measures.
   {
     id: 'paris-liberty-z13.3',

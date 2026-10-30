@@ -1,5 +1,3 @@
-import {BasemapLayer} from '@deck.gl-community/basemap-layers';
-import {BasemapLayerSchema} from '../src/schemas/community';
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
@@ -12,6 +10,7 @@ import {
   type PickingInfo
 } from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
+import {BasemapLayerSchema} from '../src/schemas/community';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {CustomPanel} from '@deck.gl-community/panels';
 
@@ -815,7 +814,7 @@ it('credits OpenFreeMap for the default and every selected basemap', async () =>
     registry: {
       layers: {
         ...REGISTRY.layers,
-        BasemapLayer: {type: BasemapLayer, schema: BasemapLayerSchema}
+        BasemapLayer: {type: ScatterplotLayer, schema: BasemapLayerSchema}
       }
     }
   });

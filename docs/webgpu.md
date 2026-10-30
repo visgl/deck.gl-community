@@ -42,7 +42,6 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/arrow-layers` | Arc, column, H3, heatmap, path, point-cloud, polygon, scatterplot, solid-polygon, text, and trips layers | ✅ | ✅ | Browser-verified Arrow binary data through the corresponding upstream renderers; H3 indexes and text glyph positions are adapted for their composite sublayers. |
 | `@deck.gl-community/editable-layers` | GeoJSON paths, polygons, and edit handles | ✅ | ✅ | Browser-verified `EditableGeoJsonLayer` rendering in `ModifyMode`, including the WebGPU picking-width shader path. |
 | `@deck.gl-community/editable-layers` | Editing and selection interactions | ✅ | 🚧 | Pointer, drag, snapping, and selection behavior still require browser interaction coverage on WebGPU. |
-| `@deck.gl-community/basemap-layers` | `BasemapLayer` | ✅ | 🚧 | Support depends on the selected style's polygon, path, and label sublayers. |
 | `@deck.gl-community/layers` | `SplatLayer` | ✅ | ✅ | Prepared anisotropic Gaussians with instanced deformation, owner picking, and weighted or sorted transparency; no public foliage-shadow integration. |
 | `@deck.gl-community/layers` | `TreeLayer` | ✅ | ✅ | Connected wood and Gaussian foliage with GLSL/WGSL wind; no built-in foliage-shadow integration. |
 | `@deck.gl-community/leaflet` | Leaflet map overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
@@ -131,7 +130,6 @@ routes now render through the selected backend.
 | Subsequent validation | Editable interactions, geospatial tile sources, graph composition, and basemap layers | Validate picking and drag interactions, tile and texture formats, complete graph styling/layout, and each basemap style independently. |
 | Host-dependent integrations | Leaflet, Bing Maps, and external map renderers | Support depends on the host renderer and canvas ownership. A host-owned WebGL context cannot be switched to WebGPU by adding device tabs. |
 
-The skybox map example also composes a basemap. `SkyboxLayer` itself has native WebGPU shaders, while complete basemap compatibility remains subject to the downstream GeoJSON, polygon, path, and label sublayers used by the selected style.
 
 ## Porting a custom layer
 

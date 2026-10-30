@@ -9,7 +9,7 @@ import {
   type ViewStateChangeParameters,
   type Widget
 } from '@deck.gl/core';
-import {BasemapLayer} from '@deck.gl-community/basemap-layers';
+import {createRasterBasemap} from '../../utils/raster-basemap';
 import {SkyboxLayer} from '@deck.gl-community/layers';
 import type {Device} from '@luma.gl/core';
 import {SKYBOX_CUBEMAP} from '../skybox-assets/cubemap';
@@ -40,6 +40,12 @@ export function mountSkyboxMapViewExample(
   options: SkyboxMapViewExampleOptions = {}
 ): () => void {
   const rootElement = createRoot(container);
+  const attribution = rootElement.ownerDocument.createElement('small');
+  attribution.style.cssText =
+    'position:absolute;z-index:1;bottom:0;left:0;padding:2px 6px;background:white;color:black;font:11px sans-serif';
+  attribution.innerHTML =
+    '© <a href="https://carto.com/attributions">CARTO</a> · © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
+  rootElement.appendChild(attribution);
   if (options.showInfoOverlay !== false) {
     rootElement.appendChild(createOverlay(rootElement.ownerDocument));
   }
@@ -63,15 +69,7 @@ export function mountSkyboxMapViewExample(
         cubemap: SKYBOX_CUBEMAP,
         orientation: 'y-up'
       }),
-      ...(options.device?.type === 'webgpu'
-        ? []
-        : [
-            new BasemapLayer({
-              id: 'basemap',
-              mode: 'map',
-              style: 'https://tiles.openfreemap.org/styles/liberty'
-            })
-          ])
+      ...(options.device?.type === 'webgpu' ? [] : [createRasterBasemap()])
     ]
   });
   options.onDeckInitialized?.(deck);
@@ -108,7 +106,7 @@ function createOverlay(document: Document): HTMLDivElement {
   overlay.style.pointerEvents = 'none';
   overlay.innerHTML = [
     '<strong style="display:block;margin-bottom:6px;font-size:13px;">SkyboxLayer MapView</strong>',
-    'Tilt a standard <code>MapView</code> over a basemap while rendering the luma.gl sky cubemap behind the scene.',
+    'Tilt a standard <code>MapView</code> over CARTO raster tiles (© OpenStreetMap contributors) while rendering the luma.gl sky cubemap behind the scene.',
     '<br /><br />Use right-drag or two-finger drag to pitch and rotate up to 89.9°.'
   ].join('');
   return overlay;

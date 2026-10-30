@@ -33,7 +33,6 @@
     "test-ci": "ocular-test node --coverage",
     "test-browser": "ocular-test browser",
     "test-headless": "ocular-test headless",
-    "test-conformance": "vitest run --config vitest.conformance.config.ts",
     "conformance-report": "node dev/basemap-conformance/scripts/score.ts",
     "metrics": "ocular-metrics",
     "update-release-branch": "scripts/update-release-branch.sh"
