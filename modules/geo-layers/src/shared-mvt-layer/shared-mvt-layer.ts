@@ -31,28 +31,6 @@ export type SharedMVTLayerProps = SharedTile2DLayerProps<SharedMVTData> &
 
 const WORLD_SIZE = 512;
 const CLIP_BOUNDS = [0, 0, 1, 1] as const;
-/** deck.gl's `PROJECTION_MODE.WEB_MERCATOR`, which `@deck.gl/core` does not export. */
-const PROJECTION_MODE_WEB_MERCATOR = 1;
-
-/**
- * The factor that turns meters in `z` into meters at the tile's latitude, on a map.
- *
- * In `CARTESIAN` coordinates, deck.gl scales `z` by the meters-to-common-units factor at its
- * geospatial origin. Below zoom 12 (`PROJECTION_MODE.WEB_MERCATOR`) that origin is (0, 0), so
- * heights come out as at the equator: `cos(latitude)` times too short. From zoom 12 the origin is
- * the viewport center, which already matches MapLibre and `LNGLAT` geometry.
- */
-function getMVTHeightScale(
-  index: {y: number; z: number},
-  projectionMode: number | undefined
-): number {
-  if (projectionMode !== PROJECTION_MODE_WEB_MERCATOR) {
-    return 1;
-  }
-  const [, latitude] = worldToLngLat([0, WORLD_SIZE * (1 - (index.y + 0.5) / 2 ** index.z)]);
-  return 1 / Math.cos((latitude * Math.PI) / 180);
-}
-
 const geographicTiles = new WeakMap<SharedMVTData, Map<string, SharedMVTData>>();
 
 /** Converts local tile geometry without mutating shared decoded content. */
@@ -175,13 +153,8 @@ export class SharedMVTLayer extends SharedTile2DLayer<
       ...props,
       autoHighlight: false,
       data: geographic ? getMVTDataInWGS84(props.data, props.tile.index) : props.data,
-      modelMatrix: geographic
-        ? new Matrix4()
-        : new Matrix4().scale([
-            scale,
-            -scale,
-            getMVTHeightScale(props.tile.index, this.context.viewport.projectionMode)
-          ]),
+      // Deck 9.4.1 scales Cartesian z in meters at the viewport latitude at every zoom.
+      modelMatrix: geographic ? new Matrix4() : new Matrix4().scale([scale, -scale, 1]),
       coordinateOrigin: geographic ? [0, 0, 0] : [scale * x, WORLD_SIZE - scale * y, 0],
       coordinateSystem: geographic ? COORDINATE_SYSTEM.LNGLAT : COORDINATE_SYSTEM.CARTESIAN,
       extensions: geographic ? props.extensions : [...(props.extensions || []), new ClipExtension()]
