@@ -1,6 +1,6 @@
 {
   "name": "basemap-conformance",
-  "version": "9.4.7",
+  "version": "9.4.9",
   "private": true,
   "description": "Test-only: a recorded corpus, a MapLibre GL JS reference renderer and render metrics for scoring basemap renderers",
   "license": "MIT",
