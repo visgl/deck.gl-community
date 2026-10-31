@@ -110,6 +110,7 @@ export function mountDeckPanelExample(container: HTMLElement): () => void {
             ...DISTRICTS[point.district].color,
             detail || point.district === district ? 255 : 100
           ],
+          updateTriggers: {getFillColor: district},
           getRadius: detail ? 7 : 5,
           radiusUnits: 'pixels',
           onClick: ({object}) => {
