@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v9.4.9
+
 - **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
   independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
   aliases; migrate visibility to `open` / `onOpenChange`. Content stays mounted across modes.
