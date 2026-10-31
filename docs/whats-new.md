@@ -4,6 +4,14 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- **Website:** fix the mobile navigation drawer, replace generic gallery artwork with
+  dedicated example captures, and render the Vega demos on their example pages.
+  Missing previews are labeled explicitly and gallery thumbnail mappings are checked during builds.
+
+- **widgets:** [`DeckPanel`](./modules/widgets/api-reference/deck-panel.md) renders caller-defined
+  scenes in panel canvases on a shared Deck using the 9.4 multi-canvas API, with or without
+  a root canvas. Try the [standalone example](/examples/widgets/deck-panel) or the inline docs demo.
+
 - **Breaking: basemap-layers has moved to [tangram.gl](https://github.com/visgl/tangram.gl).** The community package, style-spec entry point and basemap examples have been removed. See the [migration note](./modules/basemap-layers/README.md). Shared tile/MVT layers remain in geo-layers.
 
 - **editable-layers:** click-to-draw modes work again under React `<DeckGL>` with child base maps

@@ -17,7 +17,11 @@ export function createRasterBasemap(id = 'basemap') {
       const {bbox} = props.tile;
       if (!('west' in bbox)) return null;
       const {west, south, east, north} = bbox;
-      return new BitmapLayer(props, {image: props.data, bounds: [west, south, east, north]});
+      return new BitmapLayer(props, {
+        data: null,
+        image: props.data,
+        bounds: [west, south, east, north]
+      });
     }
   });
 }

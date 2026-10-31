@@ -7,6 +7,7 @@ import {beforeAll, expect, it, vi} from 'vitest';
 vi.mock('@deck.gl-community/panels', () => {
   return {
     PanelComponent: class PanelComponent {},
+    Panel: class Panel {},
     BoxPanelContainer: class BoxPanelContainer {},
     ModalPanelContainer: class ModalPanelContainer {},
     SidebarPanelContainer: class SidebarPanelContainer {},
@@ -83,4 +84,9 @@ it('removes panel compatibility aliases while exporting studio settings helpers'
   expect(Widgets.SidebarWidget).toBeUndefined();
   expect(Widgets.createStudioSettingsWidget).toBeDefined();
   expect(Widgets.updateStudioSettingsWidget).toBeDefined();
+});
+
+it('exports DeckPanel and its root scene update helper', () => {
+  expect(Widgets.DeckPanel).toBeDefined();
+  expect(Widgets.setDeckPropsWithPanels).toBeDefined();
 });

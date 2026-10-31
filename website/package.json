@@ -6,7 +6,7 @@
   "scripts": {
     "docusaurus": "docusaurus",
     "start": "docusaurus start",
-    "build": "docusaurus build && node scripts/normalize-llm-output.mjs && node scripts/check-llm-output.mjs",
+    "build": "node scripts/check-example-thumbnails.mjs && docusaurus build && node scripts/normalize-llm-output.mjs && node scripts/check-llm-output.mjs",
     "build-staging": "./scripts/build.sh staging",
     "swizzle": "docusaurus swizzle",
     "clear": "docusaurus clear",

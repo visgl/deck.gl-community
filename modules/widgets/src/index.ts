@@ -88,3 +88,8 @@ export {
   type ToastWidgetProps,
   type ToolbarWidgetProps
 } from './panel-widgets/panel-widget';
+export {DeckPanel, type DeckPanelProps} from './panel-widgets/deck-panel';
+export {
+  setDeckPropsWithPanels,
+  type DeckPanelSceneProps
+} from './panel-widgets/deck-panel-scene';
