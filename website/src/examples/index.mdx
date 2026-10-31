@@ -1,40 +1,6 @@
 import {ExamplesIndex} from '../components';
 
-export const thumbnailOverrides = {
-  'layers/seasonal-farm': '/images/maps.jpg',
-  'layers/path-outline-and-markers': '/images/examples/layers/path-outline-and-markers.svg',
-  'layers/skybox-map-view': '/images/examples/layers/skybox-map-view.png',
-  'layers/skybox-globe': '/images/examples/layers/skybox-globe.png',
-  'layers/skybox-first-person': '/images/examples/layers/skybox-first-person.png',
-  'infovis-layers/layer-primitives': '/images/examples/infovis-layers/layer-primitives.png',
-  'geo-layers/shared-tile-2d-layer': '/images/examples/geo-layers/shared-tile-2d-layer.png',
-  'geo-layers/wind': '/images/examples/geo-layers/wind.png',
-  'geo-layers/global-grid-layer': '/images/examples/geo-layers/global-grid-layer.png',
-  'graph-layers/simple-graph': '/images/examples/graph-layers/simple-graph.png',
-  'graph-layers/multi-graph': '/images/examples/graph-layers/multi-graph.png',
-  'graph-layers/radial': '/images/examples/graph-layers/radial.png',
-  'graph-layers/hive-plot': '/images/examples/graph-layers/hive-plot.png',
-  'graph-layers/dag': '/images/examples/graph-layers/dag.jpg',
-  'timeline-layers/horizon-graph-layer': '/images/examples/timeline-layers/horizon-graph-layer.png',
-  'timeline-layers/multi-horizon-graph-layer': '/images/examples/timeline-layers/multi-horizon-graph-layer.png',
-  'editable-layers/getting-started': '/images/examples/editable-layers/getting-started.png',
-  'editable-layers/editor': '/images/examples/editable-layers/editor.png',
-  'editable-layers/editor-react': '/images/examples/editable-layers/editor-react.png',
-  'editable-layers/3d-tiles': '/images/maps.jpg',
-  'editable-layers/advanced': '/images/examples/editable-layers/advanced.png',
-  'editable-layers/sf': '/images/examples/editable-layers/sf.png',
-  'editable-layers/no-map': '/images/examples/editable-layers/no-map.png',
-  'editable-layers/editable-h3-cluster-layer': '/images/examples/editable-layers/editable-h3-cluster-layer.png',
-  'graph-layers/marker-layer': '/images/examples/graph-layers/marker-layer.png',
-  'widgets/html-overlays': '/images/examples/widgets/html-overlays.png',
-  'widgets/overlays': '/images/examples/widgets/overlays.png',
-  'widgets/pan-and-zoom-controls': '/images/examples/widgets/pan-and-zoom-controls.png',
-  'widgets/standalone-widgets': '/images/examples/widgets/standalone-widgets.png',
-  'widgets/widget-panels': '/images/examples/widgets/widget-panels.png',
-  'leaflet/scripting': '/images/examples/leaflet/scripting.png',
-  'leaflet/get-started': '/images/examples/leaflet/get-started.jpg',
-  'react-fiber/overview': '/images/examples/react-fiber/overview.png'
-};
+import thumbnailOverrides from './thumbnails.json';
 
 export const descriptionOverrides = {
   playground: 'Build and preview deck.gl layers and views from a JSON-driven playground.',
@@ -73,6 +39,7 @@ export const descriptionOverrides = {
   'widgets/overlays': 'Compose lightweight overlays that sit above the deck.gl canvas.',
   'widgets/pan-and-zoom-controls': 'Control a non-geographic view with reusable pan and zoom widgets.',
   'widgets/standalone-widgets': 'Mount panel and control widgets independently of a Deck instance.',
+  'widgets/deck-panel': 'Explore independent scenes in multiple panels sharing one Deck, with or without a root canvas.',
   'widgets/widget-panels': 'Combine markdown, tabs, probes, and collapsible panels around a deck view.',
   'leaflet/get-started': 'Use Leaflet for the basemap while deck.gl renders the visualization layers.',
   'leaflet/scripting': 'Run deck.gl with Leaflet from a standalone HTML page loaded entirely from a CDN.'
@@ -84,6 +51,6 @@ export const descriptionOverrides = {
   descriptionOverrides={descriptionOverrides}
   getThumbnail={item =>
     thumbnailOverrides[item.docId || item.label.toLowerCase()] ??
-    '/images/layers.png'
+    null
   }
 />
