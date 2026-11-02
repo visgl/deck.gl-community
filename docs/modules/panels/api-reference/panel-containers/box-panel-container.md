@@ -44,6 +44,7 @@ panelManager.setProps({
 ```ts
 type BoxPanelContainerProps = PanelContainerProps & {
   panel?: Panel;
+  headerPanel?: Panel;
   placement?: PanelPlacement;
   title?: string;
   widthPx?: number;
@@ -65,10 +66,37 @@ type BoxPanelContainerProps = PanelContainerProps & {
 
 ## Remarks
 
-- Accepts one reusable panel definition.
+- Accepts a reusable body panel and optional persistent header panel.
 - Renders a themed card with optional title and collapsible body.
 - Supports controlled and uncontrolled open state.
 - Use `BoxPanelWidget` from `@deck.gl-community/widgets` when the same UI should be mounted through deck.gl.
+
+## Controls that remain visible when collapsed
+
+Supply `headerPanel` for key controls that should remain available while the body is collapsed.
+It accepts any `Panel` and renders between the title/pin controls and `panel`, outside the
+collapse button. Header interactions do not toggle the body. The header stays mounted across
+collapse/expand and pin/unpin transitions, preserving local control state.
+
+```ts
+const panelBox = new BoxPanelContainer({
+  title: 'Inspector',
+  headerPanel: quickControlsPanel,
+  panel: detailsPanel,
+  collapsible: true,
+  defaultOpen: false
+});
+// Replace, update, or remove the header through props.
+quickControlsPanel.setProps({title: 'Quick controls'});
+panelBox.setProps({headerPanel: otherControlsPanel});
+```
+
+The header works with controlled `open` and uncontrolled `defaultOpen`, floating boxes,
+and `pinnable: true`. It inherits panel theming like the body and can supply its own theme.
+Omit `headerPanel` (or set it to `undefined`) for the existing title-only collapsed appearance.
+`BoxPanelWidget` forwards the same prop for deck.gl Infoboxes. The
+[inline chrome example](./canvas-chrome.md) keeps a checkbox available while its inspector
+is collapsed.
 
 ## Optional pinning
 

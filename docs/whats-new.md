@@ -4,6 +4,8 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
+
 - **Website:** fix the mobile navigation drawer, replace generic gallery artwork with
   dedicated example captures, and render the Vega demos on their example pages.
   Missing previews are labeled explicitly and gallery thumbnail mappings are checked during builds.

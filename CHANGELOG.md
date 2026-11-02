@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
+
 ## v9.4.9
 
 - **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with

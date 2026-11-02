@@ -26,6 +26,8 @@ export type BoxPanelContainerProps = DockedPanelContainerProps & {
   onPinnedChange?: (pinned: boolean) => void;
   /** Inset from the placement edges while floating, in pixels. Default zero. */
   offsetPx?: number;
+  /** Optional panel above the body, always mounted and visible while collapsed. */
+  headerPanel?: Panel;
   /** Panel content rendered inside the box shell. */
   panel?: Panel;
   /** Placement anchor used when mounted by {@link PanelManager}. */
@@ -51,6 +53,7 @@ function normalizeBoxWidthPx(widthPx: number): number {
 
 function BoxPanelContainerView({
   panel,
+  headerPanel,
   title,
   widthPx,
   maxHeightPx,
@@ -59,6 +62,7 @@ function BoxPanelContainerView({
   onOpenChange
 }: {
   panel?: Panel;
+  headerPanel?: Panel;
   title?: string;
   widthPx: number;
   maxHeightPx?: number;
@@ -102,6 +106,7 @@ function BoxPanelContainerView({
           )}
         </header>
       ) : null}
+      {renderBoxHeaderPanel(headerPanel)}
       <div style={BOX_CONTENT_STYLE(open)}>
         {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
       </div>
@@ -131,7 +136,8 @@ export class BoxPanelContainer extends DockedPanelContainer<BoxPanelContainerPro
     defaultOpen: true,
     open: undefined!,
     onOpenChange: undefined!,
-    panel: undefined!
+    panel: undefined!,
+    headerPanel: undefined!
   };
 
   /** Root CSS class applied to the mounted box container. */
@@ -186,6 +192,16 @@ export class BoxPanelContainer extends DockedPanelContainer<BoxPanelContainerPro
 
   protected override get isContentOpen(): boolean {
     return this.isOpen;
+  }
+
+  protected override getObservedPanels(): ReadonlyArray<Panel> {
+    return [this.props.panel, this.props.headerPanel].filter((panel): panel is Panel =>
+      Boolean(panel)
+    );
+  }
+
+  protected override renderHeaderPanel() {
+    return renderBoxHeaderPanel(this.props.headerPanel);
   }
 
   protected override renderHeaderTitle() {
@@ -249,8 +265,8 @@ export class BoxPanelContainer extends DockedPanelContainer<BoxPanelContainerPro
       this.#panel = props.panel;
     }
 
-    this.#render();
     super.setProps(props);
+    this.#render();
   }
 
   /** Unmounts box content from the current root element. */
@@ -307,6 +323,7 @@ export class BoxPanelContainer extends DockedPanelContainer<BoxPanelContainerPro
     render(
       <BoxPanelContainerView
         panel={this.#panel}
+        headerPanel={this.props.headerPanel}
         title={this.title}
         widthPx={this.widthPx}
         maxHeightPx={this.#maxHeightPx}
@@ -334,6 +351,20 @@ export class BoxPanelContainer extends DockedPanelContainer<BoxPanelContainerPro
     }
   }
 }
+
+function renderBoxHeaderPanel(panel?: Panel) {
+  return panel ? (
+    <div data-panel-header="" style={BOX_HEADER_PANEL_STYLE}>
+      <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope>
+    </div>
+  ) : null;
+}
+
+const BOX_HEADER_PANEL_STYLE: JSX.CSSProperties = {
+  flex: '0 0 auto',
+  minWidth: 0,
+  padding: 'var(--panel-padding, 8px 12px)'
+};
 
 function stopBoxPanelEventPropagation(event: Event): void {
   event.stopPropagation();

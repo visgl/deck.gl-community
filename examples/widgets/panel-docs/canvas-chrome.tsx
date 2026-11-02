@@ -38,6 +38,7 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
   });
   const content = document.createElement('div');
   const canvas = document.createElement('canvas');
+  let showGuides = true;
   Object.assign(canvas.style, {display: 'block', width: '100%', height: '100%'});
   content.append(canvas);
   parent.append(content);
@@ -60,6 +61,22 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
     side: 'right',
     placement: 'top-left',
     widthPx: 280,
+    headerPanel: new InspectorPanel({
+      id: 'inspector-quick-controls',
+      content: (
+        <label>
+          Show guides{' '}
+          <input
+            type="checkbox"
+            defaultChecked
+            onChange={event => {
+              showGuides = event.currentTarget.checked;
+              draw();
+            }}
+          />
+        </label>
+      )
+    }),
     panel: new InspectorPanel({
       id: 'inspector-content',
       title: 'Inspector',
@@ -92,7 +109,7 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
         fitContent: true,
         panel: textPanel(
           'status',
-          'Collapse the inspector to reclaim canvas space. Pin/unpin preserves the scene name.'
+          'Collapse the inspector to keep quick controls visible. Pin/unpin preserves the scene name.'
         )
       }),
       new SidebarPanelContainer({
@@ -119,17 +136,19 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
     context.fillStyle = '#e5e7eb';
     context.fillRect(0, 0, width, height);
     context.strokeStyle = '#cbd0d6';
-    for (let x = 0; x < width; x += 40) {
-      context.beginPath();
-      context.moveTo(x, 0);
-      context.lineTo(x, height);
-      context.stroke();
-    }
-    for (let y = 0; y < height; y += 40) {
-      context.beginPath();
-      context.moveTo(0, y);
-      context.lineTo(width, y);
-      context.stroke();
+    if (showGuides) {
+      for (let x = 0; x < width; x += 40) {
+        context.beginPath();
+        context.moveTo(x, 0);
+        context.lineTo(x, height);
+        context.stroke();
+      }
+      for (let y = 0; y < height; y += 40) {
+        context.beginPath();
+        context.moveTo(0, y);
+        context.lineTo(width, y);
+        context.stroke();
+      }
     }
     context.fillStyle = '#374151';
     context.font = '16px system-ui';
