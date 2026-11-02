@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v9.4.10
+
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
 ## v9.4.9
