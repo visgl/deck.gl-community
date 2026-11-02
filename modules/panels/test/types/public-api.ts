@@ -1,5 +1,6 @@
 import {
   AccordionPanel,
+  BoxPanelContainer,
   MarkdownPanel,
   SplitterPanel,
   TextEditorPanel,
@@ -67,3 +68,5 @@ sidebar.setProps({
 });
 // @ts-expect-error Visibility has one public state, open; hidden is removed.
 sidebar.setProps({hidden: true});
+
+new BoxPanelContainer({headerPanel: summary, panel: accordion}).setProps({headerPanel: undefined});
