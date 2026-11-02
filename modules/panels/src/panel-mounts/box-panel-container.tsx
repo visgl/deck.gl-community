@@ -361,8 +361,13 @@ function renderBoxHeaderPanel(panel?: Panel) {
 }
 
 const BOX_HEADER_PANEL_STYLE: JSX.CSSProperties = {
-  flex: '0 0 auto',
+  flex: '0 1 auto',
   minWidth: 0,
+  minHeight: 0,
+  overflowX: 'hidden',
+  overflowY: 'auto',
+  touchAction: 'pan-y',
+  overscrollBehavior: 'contain',
   padding: 'var(--panel-padding, 8px 12px)'
 };
 

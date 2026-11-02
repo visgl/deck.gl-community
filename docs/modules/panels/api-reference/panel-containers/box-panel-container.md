@@ -76,7 +76,8 @@ type BoxPanelContainerProps = PanelContainerProps & {
 Supply `headerPanel` for key controls that should remain available while the body is collapsed.
 It accepts any `Panel` and renders between the title/pin controls and `panel`, outside the
 collapse button. Header interactions do not toggle the body. The header stays mounted across
-collapse/expand and pin/unpin transitions, preserving local control state.
+collapse/expand and pin/unpin transitions, preserving local control state. Tall headers shrink
+and scroll within the available host height so their controls remain reachable.
 
 ```ts
 const panelBox = new BoxPanelContainer({

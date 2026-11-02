@@ -14,9 +14,14 @@ afterEach(() => {
 });
 const settle = () =>
   new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-function mount(box: BoxPanelContainer) {
+function mount(box: BoxPanelContainer, height = 600) {
   const parent = document.createElement('div');
-  Object.assign(parent.style, {position: 'relative', width: '900px', height: '600px'});
+  Object.assign(parent.style, {
+    position: 'relative',
+    width: '900px',
+    height: `${height}px`,
+    overflow: 'hidden'
+  });
   const content = document.createElement('div');
   parent.append(content);
   document.body.append(parent);
@@ -130,6 +135,49 @@ describe('persistent box header panels', () => {
     update.mockClear();
     replacement.setProps({content: 'After removal'});
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    false,
+    true
+  ])('scrolls tall headers inside a short collapsed host (pinnable=%s)', async pinnable => {
+    const box = new BoxPanelContainer({
+      title: 'Info',
+      pinnable,
+      defaultPinned: pinnable,
+      defaultOpen: false,
+      headerPanel: new ContentPanel({
+        content: (
+          <div
+            style={{
+              height: '400px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}
+          >
+            <button>First action</button>
+            <button data-last-action="">Last action</button>
+          </div>
+        )
+      })
+    });
+    const {root} = mount(box, 120);
+    await settle();
+    const header = root.querySelector<HTMLElement>('[data-panel-header]')!;
+    expect(header.clientHeight).toBeGreaterThan(0);
+    expect(header.scrollHeight).toBeGreaterThan(header.clientHeight);
+    const last = header.querySelector<HTMLButtonElement>('[data-last-action]')!;
+    last.focus();
+    await settle();
+    expect(header.scrollTop).toBeGreaterThan(0);
+    expect(last.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      header.getBoundingClientRect().top
+    );
+    expect(last.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      header.getBoundingClientRect().bottom
+    );
+    expect(box.isOpen).toBe(false);
   });
 
   it('supports header-only and controlled boxes, including direct prop updates', () => {
