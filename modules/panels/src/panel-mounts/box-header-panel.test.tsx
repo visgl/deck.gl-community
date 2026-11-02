@@ -91,11 +91,24 @@ describe('persistent box header panels', () => {
     expect(disposals).not.toHaveBeenCalled();
   });
 
-  it('updates nested header props while closed, replaces/removes headers and cleans subscriptions', async () => {
+  it.each([
+    false,
+    true
+  ])('updates and removes headers without resetting body state (pinnable=%s)', async pinnable => {
     const child = new ContentPanel({content: 'Original'});
     const headerPanel = new ColumnPanel({panels: [child]});
-    const box = new BoxPanelContainer({headerPanel, defaultOpen: false});
+    const box = new BoxPanelContainer({
+      headerPanel,
+      pinnable,
+      defaultPinned: pinnable,
+      defaultOpen: false,
+      panel: new ContentPanel({
+        content: <input aria-label="Retained body" defaultValue="Initial" />
+      })
+    });
     const {manager, root} = mount(box);
+    const bodyInput = root.querySelector<HTMLInputElement>('[aria-label="Retained body"]')!;
+    bodyInput.value = 'Edited body';
     const update = vi.spyOn(box, 'updateHTML');
     child.setProps({content: 'Updated'});
     await settle();
@@ -110,6 +123,8 @@ describe('persistent box header panels', () => {
     expect(update).not.toHaveBeenCalled();
     box.setProps({headerPanel: undefined});
     expect(root.querySelector('[data-panel-header]')).toBeNull();
+    expect(root.querySelector('[aria-label="Retained body"]')).toBe(bodyInput);
+    expect(bodyInput.value).toBe('Edited body');
     box.setProps({headerPanel: replacement});
     manager.finalize();
     update.mockClear();
