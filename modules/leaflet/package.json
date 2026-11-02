@@ -2,7 +2,7 @@
   "name": "@deck.gl-community/leaflet",
   "description": "deck.gl integration with Leaflet",
   "license": "MIT",
-  "version": "9.4.9",
+  "version": "9.4.10",
   "publishConfig": {
     "access": "public"
   },
