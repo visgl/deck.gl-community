@@ -112,7 +112,7 @@ export const GlobalGridLayerPropsSchema = PolygonLayerPropsSchema.extend({
   getCellId: FunctionSchema.optional()
 });
 
-// Mirror the basemap loader's structural contract without duplicating the external style grammar.
+// Host integration contract for @tangram.gl/basemap-layers; no runtime is bundled here.
 // Extra style-spec fields remain JSON data; the layer's own props remain strict.
 const BasemapSourceSchema = z
   .object({

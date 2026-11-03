@@ -8,7 +8,7 @@ fails nothing on a score.
 
 This is a private, test-only workspace: never published, no runtime dependencies, no build. It
 grew out of basemap-layers' reference-render harness (`modules/basemap-layers/tests/reference-render`),
-which still imports its metrics and its MapLibre reference renderer from here.
+whose renderer now lives in [tangram.gl](https://github.com/visgl/tangram.gl). The recorded fixtures live entirely in this workspace.
 
 ## Layout
 
@@ -20,7 +20,9 @@ src/maplibre.ts        the reference renderer, with placed-label read-back (MapL
 src/metrics.ts         SSIM, edge detection and F-score, label scores, baseline checks
 src/panels.ts          SSIM-map and edge-overlay panels as RGBA arrays
 src/fixture-server.ts  Vite plugin: fixture server, recorder, request log, output sink (Node)
-scripts/score.ts       the scorer: report.md, scores.json and comparison images (Node)
+src/provenance.ts      input digests of a render, fixture roots of a checkout (Node)
+src/scorer.ts          the scorer: input checks, report.md, scores.json, comparison images (Node)
+scripts/score.ts       the scorer's command line (Node)
 fixtures/              recorded fixtures of the corpus, as <host>/<path>
 __output__/            renders and reports (ignored by git)
 ```
@@ -52,11 +54,69 @@ TileJSON is inlined, and the tile, glyph and sprite URLs are rewritten. A render
 read MapLibre styles maps the style to its own input, or takes only what it needs from it (the
 tile URL template, say), and declines the styles it cannot map with `supports`.
 
-`runConformanceScene(renderer, scene)` loads the style, renders the scene and saves
-`__output__/<renderer>/<scene>.png` and `.json`. The JSON holds the labels, the problems, the
-fixture requests the server saw and any fixtures it could not serve. A runner fails a test only
-when a render is invalid, that is, when it has problems or missing fixtures. A score never fails a
-test.
+`saveRendererManifest(renderer, scenes)` saves `__output__/<renderer>/renderer.json` once, before
+the first render. `runConformanceScene(renderer, scene)` loads the style, renders the scene and
+saves `__output__/<renderer>/<scene>.png` and `.json`. The JSON holds the labels, the problems, the
+fixture requests the server saw, any fixtures it could not serve, and the input digests. A runner
+fails a test only when a render is invalid, that is, when it has problems or missing fixtures. A
+score never fails a test.
+
+## The saved-render format
+
+The scorer reads only files. A runner in another repository can write them with the helpers above
+or by its own means. The output directory holds one directory per renderer. Its name is the
+renderer id. `maplibre` is the reference.
+
+`<renderer>/renderer.json` (`RendererManifest`) lists every scene of the run:
+
+```json
+{"renderer": "my-renderer", "rendererName": "MyRenderer 1.2.0",
+ "scenes": {"paris-streets-z13.3": "expected", "paris-liberty-z13.3": "unsupported"}}
+```
+
+`<renderer>/<scene>.png` is the render: RGBA, 512 x 512, composited on white.
+
+`<renderer>/<scene>.json` (`SavedRender`) describes it:
+
+| Field | Content |
+| --- | --- |
+| `renderer`, `rendererName` | The renderer id and its name with version. |
+| `scene` | The `ConformanceScene` as rendered: id, style, center, zoom, pitch, bearing. |
+| `width`, `height` | The size of the PNG. |
+| `labels`, `labelNote` | The placed label texts, or `null` when the renderer cannot report them. |
+| `problems` | Everything that makes the render invalid as a measurement. |
+| `fixtureRequests`, `fixtureMisses` | The fixture paths (`<host>/<path>`) the render requested, and those that no root held. |
+| `recorded` | The fixtures recorded during the render (record mode only). |
+| `durationMs`, `meta` | The render time, and free-form facts for the report. |
+| `inputs` | `{algorithm: "sha256", scene, fixtures}`: the input digests, in lowercase hex. |
+
+The input digests (`src/provenance.ts`) identify what was rendered. Each field below goes into the
+hash as `<byte length>:<bytes>`, so different inputs never give the same byte stream:
+
+- `scene`: the text `basemap-conformance scene 1`, the camera as JSON
+  (`{"style","center","zoom","pitch","bearing"}`, in this order, pitch and bearing 0 when absent),
+  then the style JSON fixture: its path, `present` and its bytes, or `missing`.
+- `fixtures`: the text `basemap-conformance fixtures 1`, then every path of `fixtureRequests`,
+  sorted and without duplicates, each as its path, `present` and its bytes, or `missing`.
+
+Each fixture is read from the first fixture root that holds it, as the fixture server serves it.
+The fixture server computes the digests after each render (`POST /__conformance__/inputs`), so a
+runner that uses it gets them from `runConformanceScene`. Node code can call `computeRenderInputs`.
+
+## Scoring
+
+The scorer lists every renderer for every scene of the runs (the manifests and the saved renders).
+Each render has one status in `report.md` and `scores.json`:
+
+- `scored`: the render matches the corpus, and the scores are a measurement.
+- `invalid`: the render is not a measurement of these inputs. The reasons are listed below the
+  table. The scorer computes the digests again from its own checkout and compares them, and it
+  compares the camera with the corpus scene. A render without digests, of another camera, of a
+  changed scene or style, or of changed fixtures is invalid, and it gets no scores. So is every
+  candidate of a scene whose reference fails these checks. A render with problems or fixture
+  misses is also invalid, but it keeps its scores for diagnosis.
+- `missing`: no render, although the renderer did not decline the scene. The run did not finish.
+- `unsupported`: the renderer declined the scene in its manifest.
 
 ## Hermeticity
 
@@ -71,26 +131,10 @@ test.
 
 ## Running
 
-basemap-layers' runner (`modules/basemap-layers/tests/conformance/basemap-layer.conformance.ts`,
-with `vitest.conformance.config.ts`) renders every scene with MapLibre (the reference) and with
-`BasemapLayer`. It needs the packages built (`yarn build`) and Chromium (`yarn playwright:install`):
-
-```sh
-yarn test-conformance
-VITE_CONFORMANCE_SCENES=paris-streets-z13.3,ofm-liberty yarn test-conformance
-```
-
-Then score everything the runners have saved:
-
-```sh
-yarn conformance-report
-```
-
-The scorer writes `__output__/report.md`, `scores.json` (which adds the missing and extra labels
-per scene and candidate), `images/<scene>.png` (all renderers side by side, the reference first)
-and `images/<scene>--<renderer>.png` (reference, candidate, SSIM map, edge overlay). CI runs both
-steps in the `basemap-conformance` job, outside the required `test-headless` check, and uploads
-`__output__` as the `basemap-conformance` artifact. Neither step can fail the job.
+The community BasemapLayer runner has been removed with the package. Renderers now run
+in their own repositories, including [tangram.gl](https://github.com/visgl/tangram.gl).
+The corpus, reference renderer helpers, scorer and Node regression tests remain here.
+Run `yarn conformance-report <outputDirectory>` to score saved renders.
 
 ## Using it from another repository
 
@@ -104,15 +148,17 @@ A renderer that lives in another repository scores itself against the same corpu
    ratio 1. Wait until tiles, placement and fades have settled, then read the canvas with
    `readCanvas`. Read back the text of every label drawn after collision. If the renderer cannot
    report them, return `labels: null` and give the reason in `labelNote`.
-3. Add `conformanceFixtureServer({fixtureRoots: [<checkout>/dev/basemap-conformance/fixtures,
-   <checkout>/modules/basemap-layers/tests/reference-render/fixtures], outputDirectory})` and
-   `HERMETIC_CHROMIUM_ARGS` to a Vitest browser config, and call `runConformanceScene` from a test
-   for each scene that the renderer `supports`.
+3. Add `conformanceFixtureServer({fixtureRoots: fixtureRootsOf(<checkout>), outputDirectory})` and
+   `HERMETIC_CHROMIUM_ARGS` to a Vitest browser config (`fixtureRootsOf(<checkout>)` gives these
+   roots). Call `saveRendererManifest` once, then `runConformanceScene` from a test for each scene
+   that the renderer `supports`.
 4. Render the reference in the same run with `createMapLibreRenderer({maplibregl, styleSpec})`
    from its own pinned MapLibre, so that both renders share a browser and a GPU. To cross-check
    it against this repository's reference, give it another id (`maplibre@<repo>`): the scorer
    scores every `maplibre*` directory against `maplibre`.
-5. Run `node <checkout>/dev/basemap-conformance/scripts/score.ts <outputDirectory>`.
+5. Run `node <checkout>/dev/basemap-conformance/scripts/score.ts <outputDirectory>`, from the same
+   checkout. The scorer checks each render against the corpus of the checkout that holds the
+   script. A render of another commit's corpus is invalid, not scored.
 
 The fixtures stay here, at one pinned commit, rather than being copied into each repository.
 
@@ -124,7 +170,7 @@ One run records everything every renderer of that runner requests. Renderers can
 tiles (a renderer that loads 512-pixel tiles at the rounded zoom, say), so run each renderer's
 runner once in record mode. The network is used only during recording.
 
-The fixture roots are searched in order: `fixtures/` here, then basemap-layers' trimmed
+The fixture root is `fixtures/` here, including the former basemap-layers trimmed
 reference-render fixtures. The corpus's own tiles are not trimmed, because a new style can read
 source layers and properties that the reference styles do not.
 
@@ -141,13 +187,17 @@ source layers and properties that the reference styles do not.
   from tangram.gl's `examples/deck/comparison-style.ts`, serialized to JSON. It holds the Streets
   palette, road grades and widths, and a place-name layer in Montserrat that mirrors Tangram's
   `places` text layer.
-- The control scenes read basemap-layers' committed fixtures, which carry their own notes in
-  `modules/basemap-layers/tests/reference-render/fixtures.ts`.
+- Retained control fixtures include CARTO/OpenFreeMap tiles (OpenStreetMap contributors,
+  ODbL; OpenMapTiles schema), Natural Earth relief (public domain), Positron styles (CC BY 4.0),
+  and Noto Sans/Montserrat glyphs (SIL OFL), moved from the former community harness.
+- Retained DEM tiles under `s3.amazonaws.com/elevation-tiles-prod/terrarium/11/` are from
+  Terrain Tiles on AWS (Mapzen terrarium encoding). US elevations derive from USGS 3DEP
+  and SRTM (public domain). The recorded blue channel was zeroed to round to whole meters.
 
 ## Control scenes
 
 `paris-liberty-z13.3` and `new-york-positron-z14.2` are basemap-layers' reference-render scenes,
-rendered by this runner. Their `BasemapLayer` scores match the reference-render harness's, which
+originally rendered by the community runner. Their historical `BasemapLayer` scores matched the reference-render harness's, which
 shows that the shared runner measures what the original harness measures. On one machine:
 paris-liberty SSIM 0.9783 and edge F 0.9915 in both; new-york-positron SSIM 0.9791 in both and
 edge F 0.9908 here against 0.9906 there. The small edge difference comes from the fixtures: where

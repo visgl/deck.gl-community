@@ -54,7 +54,20 @@ export type ConformanceRenderer = {
   render(scene: ConformanceScene, style: any): Promise<ConformanceRender>;
 };
 
-/** What a runner saves per scene next to `<renderer>/<scene>.png`, as `<renderer>/<scene>.json`. */
+/**
+ * The input digests of a render (see `provenance.ts`): lowercase hex SHA-256 digests of the scene's
+ * camera and style JSON (`scene`), and of every fixture the render requested (`fixtures`).
+ */
+export type RenderInputs = {
+  algorithm: 'sha256';
+  scene: string;
+  fixtures: string;
+};
+
+/**
+ * What a runner saves per scene next to `<renderer>/<scene>.png`, as `<renderer>/<scene>.json`.
+ * The scorer reads only these files, so a runner in any repository can write them.
+ */
 export type SavedRender = {
   renderer: string;
   rendererName: string;
@@ -70,5 +83,18 @@ export type SavedRender = {
   /** Fixtures recorded during the render (record mode only). */
   recorded: string[];
   durationMs: number;
+  /** The input digests. The scorer computes them again and rejects the render when they differ. */
+  inputs?: RenderInputs;
   meta?: Record<string, unknown>;
+};
+
+/**
+ * What a runner saves as `<renderer>/renderer.json` before it renders: every scene of its run, and
+ * whether the renderer renders it (`expected`) or declines it (`unsupported`). With it the scorer
+ * tells a declined scene from a render that is missing because the run did not finish.
+ */
+export type RendererManifest = {
+  renderer: string;
+  rendererName: string;
+  scenes: Record<string, 'expected' | 'unsupported'>;
 };

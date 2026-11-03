@@ -1,0 +1,11 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsxImportSource": "preact"
+  },
+  "include": [
+    "./app.ts",
+    "./index.ts"
+  ]
+}

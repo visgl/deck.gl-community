@@ -31,8 +31,6 @@ const UNSUPPORTED_DOC_IDS = new Set([
 ]);
 
 const NOT_APPLICABLE_DOC_IDS = new Set([
-  'modules/basemap-layers/api-reference/map-style',
-  'modules/basemap-layers/api-reference/map-style-loader',
   'modules/geo-layers/api-reference/a5-grid',
   'modules/geo-layers/api-reference/delaunay-interpolation',
   'modules/geo-layers/api-reference/geohash-grid',
@@ -52,7 +50,6 @@ const NOT_APPLICABLE_DOC_ID_PATTERNS = [
 
 const MODULE_STATUS = {
   'arrow-layers': 'supported',
-  'basemap-layers': 'partial',
   'bing-maps': 'unsupported',
   'editable-layers': 'partial',
   experimental: 'unsupported',

@@ -53,3 +53,10 @@ When a surface needs to switch between WebGPU and WebGL while keeping a reusable
 - [`DeviceTabsWidget`](../api-reference/device-tabs-widget.md) provides a deck.gl widget UI for switching the active backend.
 
 This backend-selection layer is separate from panel composition, but it fits naturally beside panel widgets when an application needs both a control surface and a managed render device.
+
+## Rendering a Deck scene in a panel
+
+[`DeckPanel`](../api-reference/deck-panel.md) adds a canvas to an initialized shared Deck
+using the 9.4 multi-canvas API. Callers supply the view, layers and controlled camera.
+It composes with ordinary panels while keeping all deck.gl dependencies in widgets.
+Use `setDeckPropsWithPanels` for root scene updates while panels are mounted.

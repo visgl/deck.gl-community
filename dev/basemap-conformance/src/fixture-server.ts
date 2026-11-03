@@ -15,15 +15,19 @@
  *   served: one run records everything every renderer asks for.
  * - `GET  /__conformance__/log`: `{requests, misses, recorded}` since the last read, then cleared.
  * - `POST /__conformance__/output/<path>`: writes the request body to `<outputDirectory>/<path>`.
+ * - `POST /__conformance__/inputs`: `{scene, styleFixture, fixtureRequests}` in, the input digests
+ *   of the render out (`computeRenderInputs`, over the fixtures as the roots hold them now).
  */
 
 import {existsSync} from 'node:fs';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {dirname, join, normalize, resolve, sep} from 'node:path';
+import {computeRenderInputs} from './provenance';
 
 export const FIXTURE_PREFIX = '/__conformance__/fixtures/';
 const LOG_PATH = '/__conformance__/log';
 const OUTPUT_PREFIX = '/__conformance__/output/';
+const INPUTS_PATH = '/__conformance__/inputs';
 
 export type FixtureServerOptions = {
   /** Directories of recorded fixtures, `<host>/<path>`, searched in order. Records go to the first. */
@@ -131,6 +135,18 @@ export function conformanceFixtureServer(options: FixtureServerOptions) {
             response.setHeader('Content-Type', 'application/json');
             response.end(JSON.stringify(log));
             log = {requests: [], misses: [], recorded: []};
+            return;
+          }
+          if (url.startsWith(INPUTS_PATH) && request.method === 'POST') {
+            const body = JSON.parse((await readBody(request)).toString('utf8'));
+            const inputs = computeRenderInputs({
+              scene: body.scene,
+              styleFixture: body.styleFixture,
+              fixtureRequests: body.fixtureRequests,
+              fixtureRoots: roots
+            });
+            response.setHeader('Content-Type', 'application/json');
+            response.end(JSON.stringify(inputs));
             return;
           }
           if (url.startsWith(OUTPUT_PREFIX) && request.method === 'POST') {

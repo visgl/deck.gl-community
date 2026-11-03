@@ -22,16 +22,6 @@ const ALIASES = [
     replacement: fileURLToPath(new URL('./modules/playground/src/index.ts', import.meta.url))
   },
   {
-    find: '@deck.gl-community/basemap-layers/style-spec',
-    replacement: fileURLToPath(
-      new URL('./modules/basemap-layers/src/style-spec.ts', import.meta.url)
-    )
-  },
-  {
-    find: '@deck.gl-community/basemap-layers',
-    replacement: fileURLToPath(new URL('./modules/basemap-layers/src/index.ts', import.meta.url))
-  },
-  {
     find: '@deck.gl-community/react',
     replacement: fileURLToPath(new URL('./modules/react/src/index.ts', import.meta.url))
   },
@@ -54,16 +44,6 @@ const ALIASES = [
   {
     find: /^@deck\.gl-community\/timeline-layers$/,
     replacement: fileURLToPath(new URL('./modules/timeline-layers/src/index.ts', import.meta.url))
-  },
-  {
-    find: '@deck.gl-community/basemaps/style-spec',
-    replacement: fileURLToPath(
-      new URL('./modules/basemap-layers/src/style-spec.ts', import.meta.url)
-    )
-  },
-  {
-    find: '@deck.gl-community/basemaps',
-    replacement: fileURLToPath(new URL('./modules/basemap-layers/src/index.ts', import.meta.url))
   },
   {
     find: /^monaco-editor$/,
@@ -91,8 +71,7 @@ const BROWSER_RESOLVE_CONFIG = {
 };
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
-  // Served as is, from each importer's own copy: basemap-layers' reference renders pin a
-  // `maplibre-gl` whose worker must match it, and an example uses another version.
+  // Preserve each importer's MapLibre worker version.
   exclude: ['maplibre-gl'],
   include: [
     '@deck.gl/mesh-layers',

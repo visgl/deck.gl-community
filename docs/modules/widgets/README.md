@@ -116,6 +116,7 @@ Standalone UI such as `ToolbarComponent`, `ToastComponent`, and `toastManager` l
 Widgets that adapt panel-owned components:
 
 - [PanelWidget](./api-reference/panel-widget.md)
+- [DeckPanel](./api-reference/deck-panel.md) — caller-defined scenes on a shared Deck
 
 Use panel definitions from [`@deck.gl-community/panels`](/docs/modules/panels):
 
