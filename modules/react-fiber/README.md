@@ -240,14 +240,14 @@ const DeckGL = createDeckGL({
 The factory runs once when its root is first configured. It is not a render prop and does not reach
 `setProps`. The result must implement deck.gl's `setProps` and `finalize` lifecycle.
 
-If the overlay reads some props only at construction, list them in `recreateOnChange`. When one of
+If the overlay reads some props only at construction, list them in `recreateOverlayOnChange`. When one of
 them changes (compared with `Object.is`), the component finalizes the overlay and calls the factory
 again with the full props. `onDeckglChange` receives `null` and then the new instance:
 
 ```tsx
 const DeckGL = createDeckGL({
   createExternalOverlay: props => new MyCompatibleOverlay(props),
-  recreateOnChange: ['interleaved']
+  recreateOverlayOnChange: ['interleaved']
 });
 ```
 

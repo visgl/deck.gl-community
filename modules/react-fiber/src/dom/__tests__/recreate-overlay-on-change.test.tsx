@@ -24,7 +24,7 @@ function createFakeOverlayRoot() {
   const onDeckglChange = vi.fn((deckgl: unknown) => {
     events.push(deckgl ? `change:${overlays.indexOf(deckgl as never)}` : 'change:null');
   });
-  const CustomDeckGL = createDeckGL({createExternalOverlay, recreateOnChange: ['enabled']});
+  const CustomDeckGL = createDeckGL({createExternalOverlay, recreateOverlayOnChange: ['enabled']});
 
   return {CustomDeckGL, createExternalOverlay, events, onDeckglChange, overlays};
 }
@@ -37,7 +37,7 @@ async function flush() {
   });
 }
 
-describe('createDeckGL recreateOnChange', () => {
+describe('createDeckGL recreateOverlayOnChange', () => {
   it('replaces the overlay and commits the JSX layers to the new instance', async () => {
     const {CustomDeckGL, createExternalOverlay, events, onDeckglChange, overlays} =
       createFakeOverlayRoot();

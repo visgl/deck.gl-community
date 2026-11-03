@@ -11,7 +11,7 @@ export type MapLibreDeckGLProps = DeckGLRootProps<MapLibreOverlay, MapLibreOverl
 export const DeckGL = createDeckGL<MapLibreOverlayProps, MapLibreOverlay>({
   createExternalOverlay: props => new MapLibreOverlay(props),
   /** `MapLibreOverlay` reads `interleaved` only in its constructor. */
-  recreateOnChange: ['interleaved']
+  recreateOverlayOnChange: ['interleaved']
 });
 
 export type {MapLibreOverlay, MapLibreOverlayProps};

@@ -222,14 +222,17 @@ describe('DeckGL Component Tests', () => {
       );
     });
 
-    it('recreates the overlay in a new detached root when a recreateOnChange prop changes', () => {
+    it('recreates the overlay in a new detached root when a recreateOverlayOnChange prop changes', () => {
       const createExternalOverlay = vi.fn(
         (_props: {enabled?: boolean; pickingRadius?: number}) => ({
           finalize: vi.fn(),
           setProps: vi.fn()
         })
       );
-      const CustomDeckGL = createDeckGL({createExternalOverlay, recreateOnChange: ['enabled']});
+      const CustomDeckGL = createDeckGL({
+        createExternalOverlay,
+        recreateOverlayOnChange: ['enabled']
+      });
       const onDeckglChange = vi.fn();
       const child = <div>Content</div>;
       const {rerender} = render(
@@ -275,7 +278,7 @@ describe('DeckGL Component Tests', () => {
       expect(mockRender).toHaveBeenCalledTimes(3);
     });
 
-    it('keeps the overlay when no recreateOnChange props are declared', () => {
+    it('keeps the overlay when no recreateOverlayOnChange props are declared', () => {
       const createExternalOverlay = vi.fn((_props: {enabled?: boolean}) => ({
         finalize: vi.fn(),
         setProps: vi.fn()

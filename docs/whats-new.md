@@ -240,7 +240,7 @@ Highlights:
   `/mapbox` and `/maplibre` provider roots, with one guide per provider and a guide for custom
   overlays built with `createDeckGL`.
 - [`createDeckGL`](/docs/modules/react-fiber/api-reference/deckgl#custom-compatible-overlays)
-  accepts `recreateOnChange` for overlay props that are read only at construction. The `/mapbox`
+  accepts `recreateOverlayOnChange` for overlay props that are read only at construction. The `/mapbox`
   and `/maplibre` roots use it for `interleaved`, so changing the prop replaces the overlay.
 
 ### `@deck.gl-community/three`
