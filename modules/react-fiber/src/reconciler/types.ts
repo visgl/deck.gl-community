@@ -20,6 +20,24 @@ export type Type = string;
 export interface Container {
   /** Root store managing deck.gl state */
   store: Store;
+
+  /**
+   * Layers and views from the most recently committed JSX tree. A prop-only update can
+   * reconfigure the root without a new commit, so configuration reapplies these.
+   *
+   * @internal
+   */
+  jsxDescriptors?: JsxDescriptors;
+}
+
+/**
+ * Layers and views collected from one committed JSX tree, in depth-first order.
+ *
+ * @internal
+ */
+export interface JsxDescriptors {
+  layers: Layer[];
+  views: View[];
 }
 
 /**

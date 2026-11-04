@@ -170,7 +170,7 @@ describe('renderer', () => {
 
       root.configure({layers});
 
-      expect(deck.setProps).toHaveBeenCalledWith({layers});
+      expect(deck.setProps).toHaveBeenCalledWith({layers, views: []});
     });
 
     it('should forward replacement controlled view state and callback', () => {
@@ -184,7 +184,9 @@ describe('renderer', () => {
       root.configure({viewState: secondViewState, onViewStateChange: secondHandler});
 
       expect(deck.setProps).toHaveBeenLastCalledWith({
+        layers: [],
         viewState: secondViewState,
+        views: [],
         onViewStateChange: secondHandler
       });
     });
@@ -400,6 +402,56 @@ describe('renderer', () => {
       expect(deck.layers[0]).toBe(nativePoints);
       expect(deck.layers[1]).toBeInstanceOf(PolygonLayer);
       expect(deck.layers[1]?.id).toBe('compat-polygons');
+    });
+  });
+
+  describe('layer order', () => {
+    function renderLayers(root: ReconcilerRoot, children: React.ReactNode) {
+      return React.act(async () => {
+        root.render(children);
+      });
+    }
+
+    it('places JSX layers before layers passed through the prop', async () => {
+      const {root, deck} = createTestRoot();
+      const passed = new ScatterplotLayer({data: [], id: 'passed'});
+      const jsx = new ScatterplotLayer({data: [], id: 'jsx'});
+
+      root.configure({layers: [passed]});
+      await renderLayers(root, React.createElement('layer', {layer: jsx}));
+
+      expect(deck.getLayerIds()).toStrictEqual(['jsx', 'passed']);
+    });
+
+    it('keeps JSX layers first when only the layers prop changes without a commit', async () => {
+      const {root, deck} = createTestRoot();
+      const jsx = new ScatterplotLayer({data: [], id: 'jsx'});
+      // A stable element: rendering it again does not commit a new JSX tree.
+      const children = React.createElement('layer', {layer: jsx});
+
+      root.configure({layers: [new ScatterplotLayer({data: [], id: 'first'})]});
+      await renderLayers(root, children);
+      const setPropsCalls = deck.setProps.mock.calls.length;
+
+      root.configure({layers: [new ScatterplotLayer({data: [], id: 'second'})]});
+      await renderLayers(root, children);
+
+      expect(deck.setProps.mock.calls.length).toBe(setPropsCalls + 1);
+      expect(deck.getLayerIds()).toStrictEqual(['jsx', 'second']);
+    });
+
+    it('keeps JSX layers when the layers prop is removed', async () => {
+      const {root, deck} = createTestRoot();
+      const children = React.createElement('layer', {
+        layer: new ScatterplotLayer({data: [], id: 'jsx'})
+      });
+
+      root.configure({layers: [new ScatterplotLayer({data: [], id: 'passed'})]});
+      await renderLayers(root, children);
+      root.configure({});
+      await renderLayers(root, children);
+
+      expect(deck.getLayerIds()).toStrictEqual(['jsx']);
     });
   });
 

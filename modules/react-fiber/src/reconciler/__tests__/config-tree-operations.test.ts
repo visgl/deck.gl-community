@@ -239,7 +239,7 @@ describe('config-tree-operations', () => {
       expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(2, {layers: [layer]});
     });
 
-    it('should combine _passedLayers with JSX layers', () => {
+    it('should place _passedLayers after JSX layers, as @deck.gl/react does', () => {
       // Arrange
       const passedLayer = new ScatterplotLayer({data: [], id: 'passed'});
       const jsxLayer = new ScatterplotLayer({data: [], id: 'jsx'});
@@ -269,7 +269,7 @@ describe('config-tree-operations', () => {
 
       // Assert
       expect(mockDeckGL.setProps).toHaveBeenCalledWith({
-        layers: [passedLayer, jsxLayer],
+        layers: [jsxLayer, passedLayer],
         views: []
       });
     });

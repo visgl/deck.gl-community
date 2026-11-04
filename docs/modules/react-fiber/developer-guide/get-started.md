@@ -75,7 +75,7 @@ The React tree is flattened before deck.gl receives it. Therefore, a `<view>` ca
 
 ## 6. Combine JSX and `layers` only when needed
 
-`DeckGL` accepts the normal deck.gl `layers` prop as well as `<layer>` children. The renderer prepends the `layers` prop to the layers produced by JSX. This is useful while incrementally moving an existing deck.gl configuration to React, but all layers across both sources must have unique IDs.
+`DeckGL` accepts the normal deck.gl `layers` prop as well as `<layer>` children. As in `@deck.gl/react`, the renderer appends the `layers` prop after the layers produced by JSX, so prop layers draw on top. This is useful while incrementally moving an existing deck.gl configuration to React, but all layers across both sources must have unique IDs.
 
 ```tsx
 <DeckGL
