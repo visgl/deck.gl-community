@@ -106,7 +106,7 @@ describe('DeckGL Component Tests', () => {
         </DeckGL>
       );
 
-      const canvas = document.querySelector('#deckgl-fiber-canvas');
+      const canvas = document.querySelector('#deckgl-overlay');
       expect(canvas).toBeInstanceOf(HTMLCanvasElement);
       expect(canvas?.tagName).toBe('CANVAS');
     });
@@ -303,6 +303,62 @@ describe('DeckGL Component Tests', () => {
     });
   });
 
+  describe('Root DOM', () => {
+    it('positions and sizes the wrapper like @deck.gl/react by default', () => {
+      const {container} = render(<DeckGL />);
+      const wrapper = container.querySelector<HTMLDivElement>('#deckgl-wrapper');
+
+      expect(wrapper?.style).toMatchObject({
+        height: '100%',
+        left: '0px',
+        position: 'absolute',
+        top: '0px',
+        width: '100%',
+        zIndex: '0'
+      });
+      expect(wrapper?.firstElementChild?.id).toBe('deckgl-overlay');
+    });
+
+    it('derives distinct element ids from each root id', () => {
+      const {container} = render(
+        <>
+          <DeckGL id="first" />
+          <DeckGL id="second" />
+        </>
+      );
+
+      expect(container.querySelector('#first-wrapper > canvas#first')).not.toBeNull();
+      expect(container.querySelector('#second-wrapper > canvas#second')).not.toBeNull();
+    });
+
+    it('applies size and style to the wrapper and lets the owned canvas fill it', () => {
+      const style = {mixBlendMode: 'multiply', opacity: '0.5'} as Partial<CSSStyleDeclaration>;
+      const {container} = render(<DeckGL height={300} style={style} width="50%" />);
+      const wrapper = container.querySelector<HTMLDivElement>('#deckgl-wrapper');
+      const canvas = container.querySelector<HTMLCanvasElement>('#deckgl-overlay');
+
+      expect(wrapper?.style).toMatchObject({height: '300px', opacity: '0.5', width: '50%'});
+      expect(wrapper?.style.mixBlendMode).toBe('');
+      expect(canvas?.style.mixBlendMode).toBe('multiply');
+      expect(mockConfigure).toHaveBeenLastCalledWith(
+        expect.objectContaining({height: '100%', style: null, width: '100%'})
+      );
+    });
+
+    it('forwards size and style unchanged for a caller-supplied canvas', () => {
+      const canvas = document.createElement('canvas');
+      document.body.append(canvas);
+      const style = {opacity: '0.5'} as Partial<CSSStyleDeclaration>;
+
+      render(<DeckGL canvas={canvas} height={300} style={style} width="50%" />);
+
+      expect(mockConfigure).toHaveBeenLastCalledWith(
+        expect.objectContaining({canvas, height: 300, style, width: '50%'})
+      );
+      canvas.remove();
+    });
+  });
+
   describe('Props handling', () => {
     it('should pass props to root.configure', () => {
       const props = {
@@ -467,7 +523,7 @@ describe('DeckGL Component Tests', () => {
       });
 
       const configCall = mockConfigure.mock.calls[0][0] as {canvas: HTMLCanvasElement};
-      expect(configCall.canvas.id).toBe('deckgl-fiber-canvas');
+      expect(configCall.canvas.id).toBe('deckgl-overlay');
     });
 
     it('should pass parent ref to root.configure after ref is set', async () => {
@@ -486,7 +542,7 @@ describe('DeckGL Component Tests', () => {
       });
 
       const configCall = mockConfigure.mock.calls[0][0] as {parent: HTMLDivElement};
-      expect(configCall.parent.id).toBe('deckgl-fiber-wrapper');
+      expect(configCall.parent.id).toBe('deckgl-wrapper');
     });
 
     it('should not override explicit canvas prop with ref canvas', () => {
@@ -548,7 +604,7 @@ describe('DeckGL Component Tests', () => {
 
       expect(mockCreateRoot).toHaveBeenCalledWith(expect.any(HTMLCanvasElement));
       const rootCall = mockCreateRoot.mock.calls[0][0] as HTMLCanvasElement;
-      expect(rootCall.id).toBe('deckgl-fiber-canvas');
+      expect(rootCall.id).toBe('deckgl-overlay');
     });
   });
 
@@ -602,7 +658,7 @@ describe('DeckGL Component Tests', () => {
 
       expect(mockUnmountAtNode).toHaveBeenCalledExactlyOnceWith(expect.any(HTMLCanvasElement));
       const unmountCall = mockUnmountAtNode.mock.calls[0][0] as HTMLCanvasElement;
-      expect(unmountCall.id).toBe('deckgl-fiber-canvas');
+      expect(unmountCall.id).toBe('deckgl-overlay');
     });
 
     it('should notify cleanup before unmounting the root', () => {
