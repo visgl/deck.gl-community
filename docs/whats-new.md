@@ -134,7 +134,7 @@ Released: September 7, 2026
 - **layers:** new dependency arrows, plus WebGPU support for path outlines and directional path markers.
 - **infovis-layers:** new animation, interval-block, and time-delta layers.
 - **widgets and panels:** new color legends, reusable panel components, floating dialogs, and binary and Apache Arrow data previews.
-- **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements.
+- **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements, with a bounded [`/compat` migration API](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react) for a supported subset of `@deck.gl/react` applications.
 - **editable-layers:** isolates edits from interleaved MapLibre/Mapbox pans, keeps `guideType` features selectable, and resumes editing after two-finger navigation.
 
 ## v9.3
