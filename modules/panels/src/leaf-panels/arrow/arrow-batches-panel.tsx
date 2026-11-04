@@ -4,6 +4,7 @@ import {useMemo} from 'preact/hooks';
 
 import {createArrowBatchPreview, type ArrowTableInput} from './arrow-preview-utils';
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 import {useEffectivePanelThemeMode} from '../../panels/panel-theme-scope';
 
 import type {PanelTheme} from '../../panels/panel';
@@ -16,9 +17,9 @@ export type {
 } from './arrow-preview-utils';
 
 /** Props for {@link ArrowBatchesPanel}. */
-export type ArrowBatchesPanelProps = {
+export type ArrowBatchesPanelProps = PanelProps & {
   /** Stable panel id used by parent containers. */
-  id: string;
+  id?: string;
   /** Visible heading text for the panel. */
   title: string;
   /** Arrow table to inspect. Accepts Apache Arrow Table-like objects and loaders.gl wrappers. */
@@ -34,15 +35,13 @@ export type ArrowBatchesPanelProps = {
 };
 
 /** Panel that renders one summary row per Arrow record batch. */
-export class ArrowBatchesPanel extends Panel {
-  /** Creates an Arrow record batch inspection panel. */
-  constructor(props: ArrowBatchesPanelProps) {
-    super({
-      id: props.id,
-      title: props.title,
-      theme: props.theme ?? 'inherit',
-      content: <ArrowBatchesPanelContent {...props} />
-    });
+export class ArrowBatchesPanel extends Panel<ArrowBatchesPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'arrow-batches-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    return <ArrowBatchesPanelContent {...this.props} />;
   }
 }
 
@@ -154,8 +153,8 @@ function ArrowBatchesPanelContent({
 const ARROW_BATCHES_PANEL_STYLE: JSX.CSSProperties = {
   minWidth: 0,
   overflow: 'hidden',
-  borderRadius: '6px',
-  padding: '10px 12px',
+  borderRadius: 'var(--panel-corner-radius, 6px)',
+  padding: 'var(--panel-padding, 10px 12px)',
   font: '500 12px/1.45 ui-sans-serif,system-ui,sans-serif'
 };
 
@@ -180,7 +179,7 @@ const ARROW_BATCHES_TABLE_STYLE: JSX.CSSProperties = {
 const ARROW_BATCHES_HEADER_CELL_STYLE: JSX.CSSProperties = {
   borderStyle: 'solid',
   borderWidth: '0 1px 1px 0',
-  padding: '6px 8px',
+  padding: 'var(--panel-padding, 6px 8px)',
   textAlign: 'left',
   font: '700 11px/1.4 ui-sans-serif,system-ui,sans-serif',
   whiteSpace: 'nowrap'
@@ -189,7 +188,7 @@ const ARROW_BATCHES_HEADER_CELL_STYLE: JSX.CSSProperties = {
 const ARROW_BATCHES_CELL_STYLE: JSX.CSSProperties = {
   borderStyle: 'solid',
   borderWidth: '0 1px 1px 0',
-  padding: '5px 8px',
+  padding: 'var(--panel-padding, 5px 8px)',
   maxWidth: '240px',
   overflow: 'hidden',
   textOverflow: 'ellipsis',

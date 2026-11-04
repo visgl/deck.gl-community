@@ -279,16 +279,17 @@ async function renderSplatLayer(
     }
     if (mode === 'constant') {
       // A one-pixel Gaussian four pixels outside the view still has visible filtered pixels.
+      const edgeSource = {
+        positions: new Float32Array([0, 0, 0]),
+        scales: new Float32Array([1, 1, 1]),
+        rotations: new Float32Array([1, 0, 0, 0]),
+        colors: new Uint8Array([255, 255, 255, 255]),
+        opacities: new Float32Array([0.9])
+      };
       const edgeLayer = new SplatLayer({
         id: 'filtered-edge',
         data: [{}],
-        source: {
-          positions: new Float32Array([0, 0, 0]),
-          scales: new Float32Array([1, 1, 1]),
-          rotations: new Float32Array([1, 0, 0, 0]),
-          colors: new Uint8Array([255, 255, 255, 255]),
-          opacities: new Float32Array([0.9])
-        },
+        getSource: edgeSource,
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPosition: [68, 0, -10],
         kernelVariance: 4,
@@ -321,7 +322,7 @@ async function renderSplatLayer(
       const widerEdge = edgeLayer.clone({
         getPosition: [74, 0, -10],
         // A dense aggregate keeps the reduced-resolution tail above alphaCutoff.
-        source: {...edgeLayer.props.source!, opticalDepths: new Float32Array([10])}
+        getSource: {...edgeSource, opticalDepths: new Float32Array([10])}
       });
       const peer = edgeLayer.clone({
         id: 'density-peer',
@@ -603,7 +604,7 @@ async function renderWeightedOverlapFixture(
       new SplatLayer({
         id: 'weighted-overlap',
         data: [{}],
-        source,
+        getSource: source,
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPosition: [0, 0, -1],
         kernelVariance: 0,
@@ -632,7 +633,7 @@ async function renderLitFixture(type: 'webgl' | 'webgpu'): Promise<number[]> {
       new SplatLayer({
         id: 'parity-lit',
         data: [{}],
-        source,
+        getSource: source,
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPosition: [0, 0, -1],
         kernelVariance: 0,

@@ -3,6 +3,7 @@
 import {useMemo} from 'preact/hooks';
 
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 import {useEffectivePanelThemeMode} from '../../panels/panel-theme-scope';
 
 import type {PanelTheme} from '../../panels/panel';
@@ -19,9 +20,9 @@ const DEFAULT_MAX_BYTE_LENGTH = 10_000;
  * `byteOffset` and `byteLength` first select the source range from `data`.
  * `maxByteLength` then caps how many selected bytes are rendered.
  */
-export type BinaryDataPanelProps = {
+export type BinaryDataPanelProps = PanelProps & {
   /** Stable panel id used by parent containers. */
-  id: string;
+  id?: string;
   /** Visible heading text for the panel. */
   title: string;
   /** Binary data rendered by this panel as offset, hex, and optional ASCII rows. */
@@ -43,15 +44,13 @@ export type BinaryDataPanelProps = {
 };
 
 /** Panel that renders binary data as offset, hex, and ASCII rows. */
-export class BinaryDataPanel extends Panel {
-  /** Creates a binary data panel for caller-supplied bytes. */
-  constructor(props: BinaryDataPanelProps) {
-    super({
-      id: props.id,
-      title: props.title,
-      theme: props.theme ?? 'inherit',
-      content: <BinaryDataPanelContent {...props} />
-    });
+export class BinaryDataPanel extends Panel<BinaryDataPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'binary-data-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    return <BinaryDataPanelContent {...this.props} />;
   }
 }
 
@@ -213,15 +212,15 @@ function formatByteCount(byteLength: number): string {
 const BINARY_PANEL_STYLE: JSX.CSSProperties = {
   minWidth: 0,
   overflow: 'auto',
-  borderRadius: '6px',
-  padding: '10px 12px',
+  borderRadius: 'var(--panel-corner-radius, 6px)',
+  padding: 'var(--panel-padding, 10px 12px)',
   font: '700 12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace'
 };
 
 const BINARY_HEADER_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '4.5rem 1fr',
-  gap: '12px',
+  gap: 'var(--panel-gap, 12px)',
   paddingBottom: '7px',
   marginBottom: '8px',
   font: '700 11px/1.4 ui-sans-serif,system-ui,sans-serif',
@@ -231,7 +230,7 @@ const BINARY_HEADER_STYLE: JSX.CSSProperties = {
 const BINARY_ROW_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '4.5rem 1fr',
-  gap: '12px',
+  gap: 'var(--panel-gap, 12px)',
   alignItems: 'start',
   marginBottom: '5px'
 };
@@ -242,7 +241,7 @@ const BINARY_OFFSET_STYLE: JSX.CSSProperties = {
 
 const BINARY_BYTES_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '6px 7px',
+  gap: 'var(--panel-gap, 6px 7px)',
   overflowX: 'auto'
 };
 

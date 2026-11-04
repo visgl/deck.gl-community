@@ -1,40 +1,29 @@
 /* deck.gl-community
  * SPDX-License-Identifier: MIT
  * Copyright (c) vis.gl contributors
- * Appearance inspired by luma.gl's example infoboxes.
+ * Layout for Vega's generated signal bindings inside shared panel chrome.
  */
 .vega-controls {
-  --vega-controls-surface: #fffffff5;
-  --vega-controls-card: #f8fafc;
-  --vega-controls-input: #fff;
-  --vega-controls-border: #0f172a26;
-  --vega-controls-text: #172033;
-  --vega-controls-muted: #596579;
-  --vega-controls-accent: #167565;
+  --vega-controls-surface: var(--menu-background);
+  --vega-controls-card: var(--menu-weak-background);
+  --vega-controls-input: var(--button-background);
+  --vega-controls-border: var(--menu-border-color);
+  --vega-controls-text: var(--menu-text);
+  --vega-controls-muted: var(--menu-text);
+  --vega-controls-accent: var(--panel-accent-color);
   box-sizing: border-box;
   flex: 0 0 auto;
   max-height: 180px;
   overflow: auto;
-  margin: 4px;
+  margin: 0;
   padding: 6px;
   color: var(--vega-controls-text);
   background: var(--vega-controls-surface);
-  border: 1px solid var(--vega-controls-border);
-  border-radius: 8px;
-  box-shadow: 0 6px 20px #0000000d;
+  border: 0;
+  border-radius: 0;
   font: 11px/1.25 system-ui, sans-serif;
-  color-scheme: light;
-  scrollbar-width: thin;
-}
-[data-theme='dark'] .vega-controls {
-  --vega-controls-surface: #080c14e8;
-  --vega-controls-card: #09121fc9;
-  --vega-controls-input: #1e293a;
-  --vega-controls-border: #7e9bcd42;
-  --vega-controls-text: #e7ece9;
-  --vega-controls-muted: #a4b3c1;
-  --vega-controls-accent: #86cbbd;
   color-scheme: dark;
+  scrollbar-width: thin;
 }
 .vega-controls[hidden] { display: none; }
 .vega-controls-grid {

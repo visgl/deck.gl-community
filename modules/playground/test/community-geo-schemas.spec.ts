@@ -64,8 +64,8 @@ const cases = {
     {data: '/tileset.json', filtersByAttribute: {attributeName: 'height', value: '100'}}
   ],
   SplatLayer: [
-    {source: '@@#leaves', getScale: [2, 2, 3], maxSplats: 2000},
-    {source: {positions: [0, 0, 0]}}
+    {getSource: '@@#leaves', getScale: [2, 2, 3], maxSplats: 2000},
+    {getSource: {positions: [0, 0, 0]}}
   ],
   TreeLayer: [
     {getPosition: '@@=position', getTreeType: "@@='oak'", getHeight: '@@=10', sizeScale: 2},
@@ -258,6 +258,9 @@ test('flat splat inputs accept host assets, typed affine transforms and explicit
   ).toBe(true);
   expect(schema.safeParse({...layer, getTransformMatrix: [1, 2, 3]}).success).toBe(false);
   expect(schema.safeParse({...layer, transparency: 'automatic'}).success).toBe(false);
+  // Assets and their hierarchies travel only through data or getSource.
+  expect(schema.safeParse({...layer, source: '@@#asset'}).success).toBe(false);
+  expect(schema.safeParse({...layer, hierarchy: '@@#hierarchy'}).success).toBe(false);
 });
 
 test('registers the exported SharedMVTLayer with its built-in playground schema', async () => {

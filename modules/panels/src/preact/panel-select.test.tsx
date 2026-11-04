@@ -36,7 +36,7 @@ describe('PanelSelect', () => {
       candidate => candidate.textContent === 'Span Status'
     ) as HTMLButtonElement;
 
-    expect(menu.style.borderRadius).toBe('13px');
+    expect(getComputedStyle(menu).borderRadius).toBe('13px');
     expect(option.style.fontWeight).toBe('430');
 
     option.click();

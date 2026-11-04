@@ -41,7 +41,7 @@ const ASSETS = new WeakMap<SplatSource, AssetCache>();
 const INSTANCES = new WeakMap<SplatDataInput, SplatInstance[]>();
 let nextAssetId = 0;
 
-/** The conventional row accessor; explicit source compatibility overrides only this default. */
+/** The conventional row accessor, used when getSource is not supplied. */
 export const DEFAULT_GET_SOURCE = (row: {splats?: SplatDataInput}): SplatDataInput => row.splats!;
 
 function isPreparedSource(input: unknown): input is SplatSource {
@@ -101,19 +101,9 @@ export function resolveSplatAsset(input: SplatDataInput): ResolvedSplatAsset {
 /** Normalize direct assets and owner rows while retaining each original accessor context. */
 export function resolveSplatInput<DataT>(props: {
   data: DataT[] | SplatDataInput;
-  source?: SplatSource;
-  hierarchy?: SplatHierarchy | null;
   getSource: Accessor<DataT, SplatDataInput>;
 }): ResolvedSplatInput<DataT> {
   const direct = isSplatDataInput(props.data);
-  if (props.source && (direct || props.getSource !== DEFAULT_GET_SOURCE))
-    throw new Error(
-      'SplatLayer source cannot be combined with direct asset data or an explicit getSource.'
-    );
-  if (props.hierarchy && !props.source)
-    throw new Error(
-      'Put a hierarchy in prepared-splats data, or supply it with the legacy source prop.'
-    );
   let data: DataT[];
   if (direct) {
     if (props.getSource !== DEFAULT_GET_SOURCE)
@@ -129,26 +119,17 @@ export function resolveSplatInput<DataT>(props: {
       throw new Error('SplatLayer data must be a prepared asset or an array of instance rows.');
     data = props.data;
   }
-  const legacy = props.source
-    ? resolveSplatAsset({
-        type: 'prepared-splats',
-        source: props.source,
-        hierarchy: props.hierarchy ?? undefined
-      })
-    : undefined;
   const assets = new Set<ResolvedSplatAsset>();
   const info = {data, index: -1, target: []} as AccessorContext<DataT>;
   const rowAssets = data.map((row, index) => {
     info.index = index;
-    const asset =
-      legacy ??
-      resolveSplatAsset(
-        direct
-          ? (props.data as SplatDataInput)
-          : typeof props.getSource === 'function'
-            ? props.getSource(row, info)
-            : props.getSource
-      );
+    const asset = resolveSplatAsset(
+      direct
+        ? (props.data as SplatDataInput)
+        : typeof props.getSource === 'function'
+          ? props.getSource(row, info)
+          : props.getSource
+    );
     assets.add(asset);
     return asset;
   });

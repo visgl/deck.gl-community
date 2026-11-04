@@ -162,19 +162,15 @@ async function waitForAnimationFrame(): Promise<void> {
 /**
  * Waits until a test predicate becomes true or fails after a bounded number of retries.
  */
-async function waitForCondition(
-  predicate: () => boolean,
-  message: string,
-  attempts = 8
-): Promise<void> {
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    if (predicate()) {
-      return;
-    }
-    await flushMicrotasks();
-  }
-
-  throw new Error(message);
+async function waitForCondition(predicate: () => boolean, message: string): Promise<void> {
+  // The first dynamic import needs a real server round trip, not a fixed number of frames.
+  await vi.waitFor(
+    async () => {
+      await flushMicrotasks();
+      if (!predicate()) throw new Error(message);
+    },
+    {timeout: 3000, interval: 20}
+  );
 }
 
 afterEach(() => {
@@ -189,6 +185,114 @@ beforeEach(() => {
 });
 
 describe('TextEditorPanel', () => {
+  it('isolates editor models with the same default id in independent hosts', async () => {
+    const firstRoot = document.createElement('div'),
+      secondRoot = document.createElement('div');
+    document.body.append(firstRoot, secondRoot);
+    const first = new TextEditorPanel({title: 'First', defaultValue: 'Alpha'});
+    const onValueChange = vi.fn();
+    const second = new TextEditorPanel({title: 'Second', defaultValue: 'Beta', onValueChange});
+    expect(first.id).toBe(second.id);
+    render(first.content, firstRoot);
+    await waitForCondition(
+      () => monacoHarness.getLastCreatedEditor() !== null,
+      'Expected first editor'
+    );
+    const firstModel = monacoHarness.getLastCreatedModel()!,
+      firstEditor = monacoHarness.getLastCreatedEditor();
+    render(second.content, secondRoot);
+    await waitForCondition(
+      () => monacoHarness.getLastCreatedEditor() !== firstEditor,
+      'Expected second editor'
+    );
+    const secondModel = monacoHarness.getLastCreatedModel()!;
+    expect(secondModel).not.toBe(firstModel);
+    expect(firstModel.getValue()).toBe('Alpha');
+    expect(secondModel.getValue()).toBe('Beta');
+    render(null, firstRoot);
+    expect(firstModel.dispose).toHaveBeenCalledOnce();
+    expect(secondModel.dispose).not.toHaveBeenCalled();
+    secondModel.emitUserInput('Still editable');
+    await flushMicrotasks();
+    expect(onValueChange).toHaveBeenCalledWith('Still editable');
+    render(null, secondRoot);
+    expect(secondModel.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('updates typed editor props and callbacks without replacing its model, then disposes it', async () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    const first = vi.fn(),
+      next = vi.fn();
+    const panel = new TextEditorPanel({
+      id: 'live',
+      title: 'Live',
+      value: 'Alpha',
+      onValueChange: first
+    });
+    renderPanel(panel, root);
+    await waitForCondition(() => monacoHarness.getLastCreatedModel() !== null, 'Expected model');
+    const model = monacoHarness.getLastCreatedModel()!,
+      editor = monacoHarness.getLastCreatedEditor()!;
+    panel.setProps({
+      value: 'Beta',
+      language: 'plaintext',
+      readOnly: true,
+      onValueChange: next,
+      theme: 'sleek-dark'
+    });
+    await waitForCondition(
+      () =>
+        model.getValue() === 'Beta' &&
+        model.language === 'plaintext' &&
+        monacoHarness.setTheme.mock.lastCall?.[0] === 'vs-dark',
+      'Expected live props'
+    );
+    expect(monacoHarness.getLastCreatedModel()).toBe(model);
+    expect(monacoHarness.getLastCreatedEditor()).toBe(editor);
+    expect(model.dispose).not.toHaveBeenCalled();
+    expect(editor.updateOptions).toHaveBeenCalledWith(expect.objectContaining({readOnly: true}));
+    expect(first).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+    model.emitUserInput('Gamma');
+    await flushMicrotasks();
+    expect(next).toHaveBeenCalledWith('Gamma');
+    expect(model.getValue()).toBe('Beta');
+    panel.setProps({onValueChange: value => panel.setProps({value})});
+    await flushMicrotasks();
+    const setValue = vi.spyOn(model, 'setValue');
+    model.emitUserInput('Accepted edit');
+    await flushMicrotasks();
+    expect(model.getValue()).toBe('Accepted edit');
+    expect(setValue).not.toHaveBeenCalled(); // Accepted edits preserve the model's undo/cursor state.
+    render(null, root);
+    expect(model.dispose).toHaveBeenCalledOnce();
+    expect(editor.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('does not create an editor after disposal while the dynamic runtime is pending', async () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    let resolveRuntime:
+      | ((runtime: ReturnType<typeof monacoHarness.createRuntime>) => void)
+      | undefined;
+    monacoHarness.loadTextEditorMonacoRuntime.mockReturnValueOnce(
+      new Promise(resolve => {
+        resolveRuntime = resolve;
+      })
+    );
+    const panel = new TextEditorPanel({id: 'pending-dispose', title: 'Pending'});
+    render(panel.content, root);
+    await waitForCondition(
+      () => monacoHarness.loadTextEditorMonacoRuntime.mock.calls.length === 1,
+      'Expected lazy loader'
+    );
+    render(null, root);
+    resolveRuntime?.(monacoHarness.createRuntime());
+    await flushMicrotasks();
+    expect(monacoHarness.getLastCreatedEditor()).toBeNull();
+  });
+
   it('forwards custom language identifiers without JSON diagnostics', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
@@ -216,6 +320,7 @@ describe('TextEditorPanel', () => {
 
     expect(panel.id).toBe('text-editor');
     expect(panel.title).toBe('Text editor');
+    expect(monacoHarness.loadTextEditorMonacoRuntime).not.toHaveBeenCalled();
   });
 
   it('renders a loading state before monaco resolves', () => {
@@ -506,7 +611,7 @@ describe('TextEditorPanel', () => {
     );
 
     expect(monacoHarness.configureJsonSchema).toHaveBeenCalledWith(
-      'inmemory://deck-gl-community/panels/json-editor',
+      monacoHarness.getLastCreatedModel()?.uri.toString(),
       {type: 'object'}
     );
 
@@ -524,13 +629,13 @@ describe('TextEditorPanel', () => {
     await waitForCondition(
       () =>
         monacoHarness.clearJsonSchema.mock.calls.some(
-          ([uri]) => uri === 'inmemory://deck-gl-community/panels/plain-editor'
+          ([uri]) => uri === monacoHarness.getLastCreatedModel()?.uri.toString()
         ),
       'Expected plain-text mode to clear JSON schema registration.'
     );
 
     expect(monacoHarness.clearJsonSchema).toHaveBeenCalledWith(
-      'inmemory://deck-gl-community/panels/plain-editor'
+      monacoHarness.getLastCreatedModel()?.uri.toString()
     );
   });
 
@@ -567,7 +672,7 @@ describe('TextEditorPanel', () => {
     await waitForCondition(
       () =>
         monacoHarness.configureJsonSchema.mock.lastCall?.[0] ===
-          'inmemory://deck-gl-community/panels/schema-editor' &&
+          monacoHarness.getLastCreatedModel()?.uri.toString() &&
         JSON.stringify(monacoHarness.configureJsonSchema.mock.lastCall?.[1]) ===
           JSON.stringify({
             type: 'object',
@@ -576,7 +681,7 @@ describe('TextEditorPanel', () => {
       'Expected schema registration to update after jsonSchema changes.'
     );
     expect(monacoHarness.configureJsonSchema).toHaveBeenLastCalledWith(
-      'inmemory://deck-gl-community/panels/schema-editor',
+      monacoHarness.getLastCreatedModel()?.uri.toString(),
       {
         type: 'object',
         required: ['beta']
@@ -605,7 +710,7 @@ describe('TextEditorPanel', () => {
     expect(editor?.dispose).toHaveBeenCalledTimes(1);
     expect(model?.dispose).toHaveBeenCalledTimes(1);
     expect(monacoHarness.clearJsonSchema).toHaveBeenCalledWith(
-      'inmemory://deck-gl-community/panels/dispose'
+      monacoHarness.getLastCreatedModel()?.uri.toString()
     );
   });
 

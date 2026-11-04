@@ -6,12 +6,12 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<PanelLiveExample highlight="full-screen-panel-container" size="tall" />
-
 `FullScreenPanelContainer` renders one panel inside a large inset full-screen container.
 
 Use it when one focused standalone panel layout should occupy most of the host
 while preserving a visible edge around it.
+
+<PanelLiveExample highlight="full-screen-panel-container" size="tall" />
 
 ## Usage
 

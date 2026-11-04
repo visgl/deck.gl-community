@@ -6,10 +6,10 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square" alt="from v9.4" />
 </p>
 
-<PanelLiveExample highlight="panels" />
-
 `ToolbarComponent` renders a compact standalone toolbar for action buttons,
 single-select toggle groups, and read-only status badges.
+
+<PanelLiveExample highlight="panels" />
 
 ## Usage
 

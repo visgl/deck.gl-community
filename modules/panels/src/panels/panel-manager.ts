@@ -4,7 +4,9 @@
 
 import type {MjolnirGestureEvent, MjolnirPointerEvent} from 'mjolnir.js';
 import {PanelComponent, type PanelPlacement} from './panel-component';
-import {ensurePanelStylesheet} from '../lib/panel-styles';
+import {DockedPanelContainer} from '../panel-mounts/docked-panel-container';
+import {PanelLayout} from './panel-layout';
+import {ensurePanelStylesheet, ensurePanelChromeStylesheet} from '../lib/panel-styles';
 
 const PLACEMENTS = {
   'top-left': {top: 0, left: 0},
@@ -30,6 +32,10 @@ export type PanelManagerProps = {
    * Root HTML element that receives placement hosts and panel component DOM.
    */
   parentElement: HTMLElement;
+  /** Initial declarative component list, reconciled just like setProps({components}). */
+  components?: (PanelComponent | null | undefined)[];
+  /** Optional direct child containing the canvas. Enables docked chrome layout. */
+  contentElement?: HTMLElement;
   /**
    * Optional deck instance used to forward redraw, viewport, and event hooks
    * for panel components that can take advantage of deck runtime state.
@@ -60,6 +66,10 @@ export class PanelManager {
    */
   parentElement: HTMLElement;
 
+  /** Application-owned canvas host. Omit to retain overlay-only behavior. */
+  readonly contentElement?: HTMLElement;
+  private layout?: PanelLayout;
+  private resizeObserver?: ResizeObserver;
   private className?: string;
   private defaultComponents: PanelComponent[] = [];
   private components: PanelComponent[] = [];
@@ -72,7 +82,17 @@ export class PanelManager {
   /**
    * Creates a standalone panel host rooted in the supplied HTML element.
    */
-  constructor({parentElement, deck = null, className}: PanelManagerProps) {
+  constructor({
+    parentElement,
+    contentElement,
+    components,
+    deck = null,
+    className
+  }: PanelManagerProps) {
+    if (contentElement && contentElement.parentElement !== parentElement) {
+      throw new Error('PanelManager contentElement must be a direct child of parentElement');
+    }
+    this.contentElement = contentElement;
     this.deck = deck;
     this.parentElement = parentElement;
     this.className = className;
@@ -81,6 +101,11 @@ export class PanelManager {
     if (className) {
       this.parentElement.classList.add(className);
     }
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => this._updateContainers());
+      this.resizeObserver.observe(parentElement);
+    }
+    this.setProps({components});
   }
 
   /**
@@ -107,6 +132,8 @@ export class PanelManager {
    * Removes all mounted instances and internal placement hosts.
    */
   finalize() {
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = undefined;
     for (const component of this.getComponents()) {
       this._removeComponent(component);
     }
@@ -119,6 +146,8 @@ export class PanelManager {
       this.containers[id].remove();
     }
     this.containers = {};
+    this.layout?.finalize();
+    this.layout = undefined;
 
     if (this.className) {
       this.parentElement.classList.remove(this.className);
@@ -203,6 +232,50 @@ export class PanelManager {
     }
   }
 
+  /** @internal Repositions chrome without unmounting its content or changing pin state. */
+  updateDockedContainer(component: DockedPanelContainer): void {
+    const root = component.rootElement;
+    if (!root) return;
+    ensurePanelChromeStylesheet(this.parentElement.ownerDocument);
+    if (this.contentElement && !this.layout) {
+      this.layout = new PanelLayout(this.parentElement, this.contentElement, () =>
+        this._updateContainers()
+      );
+      for (const container of Object.values(this.containers)) this.layout.center.append(container);
+    }
+    root.hidden = component.isPinned && !this.contentElement;
+    const destination =
+      component.isDocked && this.layout
+        ? this.layout.edges[component.side]
+        : this._getContainer(
+            component._container ?? component.viewId ?? null,
+            component.overlayPlacement
+          );
+    if (root.parentElement !== destination) {
+      const activeElement = root.ownerDocument.activeElement;
+      const componentIndex = this.resolvedComponents.indexOf(component);
+      const following =
+        component.isDocked && componentIndex >= 0
+          ? this.resolvedComponents
+              .slice(componentIndex + 1)
+              .find(
+                candidate =>
+                  candidate instanceof DockedPanelContainer &&
+                  candidate.isDocked &&
+                  candidate.side === component.side &&
+                  candidate.rootElement?.parentElement === destination
+              )
+          : undefined;
+      destination.insertBefore(root, following?.rootElement ?? null);
+      if (activeElement instanceof HTMLElement && root.contains(activeElement)) {
+        activeElement.focus({preventScroll: true});
+      }
+    }
+    root.style.maxWidth = '';
+    root.style.maxHeight = '';
+    this._updateContainers();
+  }
+
   private _setComponents(nextComponents: PanelComponent[]) {
     const oldComponentMap: Record<string, PanelComponent | null> = {};
 
@@ -230,7 +303,9 @@ export class PanelManager {
         this._removeComponent(oldComponent);
         this._addComponent(component);
       } else if (component !== oldComponent) {
-        oldComponent.setProps(component.props);
+        if (oldComponent instanceof DockedPanelContainer)
+          oldComponent.reconcileProps(component.props);
+        else oldComponent.setProps(component.props);
         component = oldComponent;
       }
 
@@ -246,6 +321,18 @@ export class PanelManager {
     }
 
     this.components = nextComponents;
+    // Reconciliation order is also the order of chrome within each edge.
+    for (const component of this.resolvedComponents) {
+      if (
+        component instanceof DockedPanelContainer &&
+        component.isDocked &&
+        this.layout &&
+        component.rootElement
+      ) {
+        this.layout.edges[component.side].append(component.rootElement);
+      }
+    }
+    this._updateContainers();
   }
 
   private _addComponent(component: PanelComponent) {
@@ -305,7 +392,7 @@ export class PanelManager {
       viewContainer.style.pointerEvents = 'none';
       viewContainer.style.position = 'absolute';
       viewContainer.style.overflow = 'hidden';
-      this.parentElement.append(viewContainer);
+      (this.layout?.center ?? this.parentElement).append(viewContainer);
       this.containers[containerId] = viewContainer;
     }
 
@@ -324,8 +411,27 @@ export class PanelManager {
 
   private _updateContainers() {
     const deck = this.deck as DeckLike | null | undefined;
-    const canvasWidth = deck?.width ?? this.parentElement.clientWidth;
-    const canvasHeight = deck?.height ?? this.parentElement.clientHeight;
+    this.layout?.updateLimits();
+    const canvasWidth =
+      this.layout?.center.clientWidth ?? deck?.width ?? this.parentElement.clientWidth;
+    const canvasHeight =
+      this.layout?.center.clientHeight ?? deck?.height ?? this.parentElement.clientHeight;
+
+    for (const component of this.resolvedComponents) {
+      if (
+        component instanceof DockedPanelContainer &&
+        !component.isDocked &&
+        component.rootElement
+      ) {
+        const style = component.rootElement.style;
+        const horizontalMargin =
+          (parseFloat(style.marginLeft) || 0) + (parseFloat(style.marginRight) || 0);
+        const verticalMargin =
+          (parseFloat(style.marginTop) || 0) + (parseFloat(style.marginBottom) || 0);
+        style.maxWidth = `${Math.max(0, canvasWidth - horizontalMargin)}px`;
+        style.maxHeight = `${Math.max(0, canvasHeight - verticalMargin)}px`;
+      }
+    }
 
     for (const id in this.containers) {
       const viewport = this.lastViewports[id] || null;

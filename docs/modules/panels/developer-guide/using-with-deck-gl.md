@@ -62,6 +62,21 @@ const sidebarWidget = new SidebarPanelWidget({
 
 Pass those widget instances to deck.gl through the `widgets` prop on `Deck`.
 
+## Chrome around a deck.gl canvas
+
+For permanent headers, footers, side regions, or pinnable inspectors, use a standalone
+`PanelManager({parentElement, contentElement})`. Create and position the outer `parentElement`
+in the application, create its direct-child `contentElement`, and initialize deck.gl inside
+that content host. Let deck.gl follow that element's size as panels dock and undock.
+
+Keep these chrome containers with the standalone manager rather than passing them through
+`PanelWidget`: deck.gl's widget manager does not provide the optional content-layout contract.
+You can still use ordinary deck widgets inside the canvas region alongside application chrome.
+
+The [panel system walkthrough](../README.md#build-chrome-around-a-canvas) shows the complete setup,
+and the [canvas chrome example](/examples/widgets/canvas-chrome) demonstrates resizing and
+adaptive nested content without requiring a renderer dependency in the panels module.
+
 ## Related pages
 
 - [PanelWidget](/docs/modules/widgets/api-reference/panel-widget)

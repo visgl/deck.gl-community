@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {
   ColumnPanel,
@@ -111,6 +112,7 @@ export function mountGettingStartedExample(
     options.showControlsWidget === false
       ? null
       : new BoxPanelWidget({
+          style: EXAMPLE_PANEL_STYLE,
           id: 'getting-started-controls',
           placement: 'top-left',
           widthPx: 320,

@@ -6,12 +6,12 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<PanelLiveExample highlight="panels" />
-
 `toastManager` manages toast state independently of any specific rendering host.
 
 Use it when application code needs to enqueue, dismiss, or observe toast
 messages without coupling that logic to a React component or a deck.gl widget.
+
+<PanelLiveExample highlight="panels" />
 
 ## Usage
 
@@ -21,7 +21,7 @@ import {toastManager, type ToastKind, type ToastRequest} from '@deck.gl-communit
 
 ## API
 
-### `toastManager.toast(request)`
+### `toastManager.toast(request)` {/* #toastmanager */}
 
 Adds a toast and returns its generated id.
 
@@ -33,19 +33,19 @@ const toastId = toastManager.toast({
 });
 ```
 
-### `toastManager.dismiss(toastId)`
+### `toastManager.dismiss(toastId)` {/* #toastmanager */}
 
 Dismisses one toast by id.
 
-### `toastManager.clear()`
+### `toastManager.clear()` {/* #toastmanager */}
 
 Dismisses all visible toasts.
 
-### `toastManager.getToasts()`
+### `toastManager.getToasts()` {/* #toastmanager */}
 
 Returns the current visible toast entries.
 
-### `toastManager.subscribe(listener)`
+### `toastManager.subscribe(listener)` {/* #toastmanager */}
 
 Subscribes to toast updates and returns an unsubscribe callback.
 

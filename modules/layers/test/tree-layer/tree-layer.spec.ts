@@ -759,7 +759,7 @@ it('propagates optical coverage to trunk-only trees and every supplied crop part
   }
 });
 
-it('preserves legacy source and hierarchy overrides while sharing one canopy quota', () => {
+it('applies a prepared getSource override while sharing one canopy quota', () => {
   const customSource = {
     positions: new Float32Array([0, 0, 0]),
     scales: new Float32Array([1, 1, 1]),
@@ -767,24 +767,23 @@ it('preserves legacy source and hierarchy overrides while sharing one canopy quo
     colors: new Uint8Array([30, 120, 40, 255]),
     opacities: new Float32Array([1])
   };
-  const hierarchy = [{source: customSource, error: 0}];
+  const prepared = {
+    type: 'prepared-splats' as const,
+    source: customSource,
+    hierarchy: [{source: customSource, error: 0}]
+  };
   const {layer} = createLayer([OAK, {...OAK, type: 'pine'}], {
     maxCanopySplats: 1234,
-    _subLayerProps: {'canopy-oak': {source: customSource, hierarchy, maxSplats: 99}}
+    _subLayerProps: {'canopy-oak': {getSource: prepared, maxSplats: 99}}
   });
   const canopies = layer.renderLayers().filter(child => child instanceof SplatLayer);
   const oak = canopies.find(child => child.id.includes('canopy-oak'))!;
-  expect(oak.props.getSource).toEqual({type: 'prepared-splats', source: customSource, hierarchy});
-  expect(oak.props.source).toBeNull();
+  const pine = canopies.find(child => child.id.includes('canopy-pine'))!;
+  expect(oak.props.getSource).toBe(prepared);
+  expect(pine.props.getSource).not.toBe(prepared);
   expect(oak.props.maxSplats).toBe(99);
   expect(canopies[0].props._splatBudgetGroup).toBe(canopies[1].props._splatBudgetGroup);
   expect(canopies[0].props._splatBudgetGroup).toMatchObject({maxSplats: 1234});
-  const withoutHierarchy = createLayer([OAK], {
-    _subLayerProps: {'canopy-oak': {hierarchy: null}}
-  })
-    .layer.renderLayers()
-    .find(child => child instanceof SplatLayer)!;
-  expect(withoutHierarchy.props.getSource.hierarchy).toBeUndefined();
 });
 
 it('rejects compositional layer transforms that would detach foliage from wood', () => {

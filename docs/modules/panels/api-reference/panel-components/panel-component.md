@@ -6,13 +6,13 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square" alt="from v9.4" />
 </p>
 
-<PanelLiveExample highlight="panels" />
-
 `PanelComponent` is the root mountable UI class owned by
 `@deck.gl-community/panels`.
 
 Extend it for panel-managed UI that is not itself a panel container, such as a
 toolbar, toast stack, or application-specific standalone control.
+
+<PanelLiveExample highlight="panels" />
 
 ## Usage
 

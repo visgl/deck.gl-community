@@ -1,3 +1,4 @@
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {DeckOverlay} from '@deck.gl-community/leaflet';
 import {MapView, type PickingInfo} from '@deck.gl/core';
 import {GeoJsonLayer, ArcLayer} from '@deck.gl/layers';
@@ -52,6 +53,7 @@ export function mountLeafletGetStartedExample(container: HTMLElement): () => voi
   ).addTo(map);
 
   const infoWidget = new BoxPanelWidget({
+    style: EXAMPLE_PANEL_STYLE,
     id: 'leaflet-info',
     placement: 'top-right',
     widthPx: 320,

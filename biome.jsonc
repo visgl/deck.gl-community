@@ -9,7 +9,6 @@
       "!**/.cache/**",
       "!**/public/**",
       "!modules/arrow-layers/**",
-      "!modules/basemaps/**",
       "modules/**/*.js",
       "modules/**/*.jsx",
       "modules/**/*.ts",

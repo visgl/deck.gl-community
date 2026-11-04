@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {MarkdownPanel} from '@deck.gl-community/panels';
@@ -63,6 +64,7 @@ export function mountPanAndZoomControlsExample(container: HTMLElement): () => vo
         step: 0.1
       }),
       new BoxPanelWidget({
+        style: EXAMPLE_PANEL_STYLE,
         id: 'pan-and-zoom-info',
         placement: 'top-right',
         widthPx: 320,

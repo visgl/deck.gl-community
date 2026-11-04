@@ -23,6 +23,10 @@ it('exports the tileset sub-surface', () => {
   expect(SharedTilesetSurface.SharedTile2DHeader).toBeDefined();
 });
 
+it('exports isGlobeViewport', () => {
+  expect(GeoLayers.isGlobeViewport).toBeTypeOf('function');
+});
+
 it('exports GlobalGridLayer', () => {
   expect(GeoLayers.GlobalGridLayer).toBeDefined();
 });

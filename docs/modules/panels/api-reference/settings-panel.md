@@ -6,9 +6,9 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<PanelLiveExample highlight="settings-panel" />
-
 `SettingsPanel` embeds the settings-schema UI inside the panel composition model.
+
+<PanelLiveExample highlight="settings-panel" />
 
 ## Usage
 
@@ -28,7 +28,7 @@ import {
 ## Props
 
 ```ts
-type SettingsPanelProps = {
+type SettingsPanelProps = PanelProps & {
   id?: string;
   label?: string;
   schema?: SettingsSchema;
@@ -43,7 +43,7 @@ type SettingsPanelProps = {
     }>
   ) => void;
   fontSize?: SettingsPanelFontSize;
-  theme?: 'inherit' | 'light' | 'dark' | 'invert';
+  theme?: PanelTheme;
 };
 ```
 
@@ -71,3 +71,5 @@ same size.
 - Supports nested dot-path setting names and change descriptors in `onSettingsChange`.
 - Pair with [SettingsManager](./managers/settings-manager.md) when settings snapshots
   should emit structured change descriptors or persist through local storage.
+
+`PanelTheme` is shared across panels; see [Panel Themes](./panel-theme.md) for presets and custom definitions.

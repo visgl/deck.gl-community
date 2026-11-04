@@ -86,6 +86,26 @@ test('mini-map clicks recenter the mounted viewer, preserve zoom, and avoid navi
       expect(viewState.target[1]).toBeCloseTo(expectedTarget[1]);
       expect(viewState.zoom).toBe(2);
     });
+    const {editor} = await import('monaco-editor');
+    await vi.waitFor(
+      () =>
+        expect(
+          editor.getModels().find(model => model.uri.toString().includes('stylesheet-json'))
+        ).toBeDefined(),
+      {timeout: 10_000}
+    );
+    const model = editor
+      .getModels()
+      .find(model => model.uri.toString().includes('stylesheet-json'))!;
+    const details = host.querySelector('details')!;
+    expect(details).not.toBeNull();
+    details.open = true;
+    model.setValue('{invalid stylesheet draft');
+    await Promise.resolve();
+    expect(model.getValue()).toBe('{invalid stylesheet draft');
+    expect(host.querySelector('details')).toBe(details);
+    expect(details.open).toBe(true);
+
     // Toggling the sidebar must refresh even with the deck animation loop stopped.
     (deck as any).animationLoop.stop();
     host.style.width = '600px';

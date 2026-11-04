@@ -21,6 +21,7 @@ import {
   SimpleGeometryCoordinates
 } from '../utils/geojson-types';
 import {CartesianCoordinateSystem, EditModeCoordinateSystem} from './coordinate-system';
+import {projectOnTargetPlane} from '../utils/camera-target';
 
 export type NearestPointType = Feature<Point, {dist: number; index: number}>;
 
@@ -185,12 +186,13 @@ export function nearestPointOnProjectedLine(
   coordinateSystem?: EditModeCoordinateSystem
 ): NearestPointType {
   const wmViewport = toWebMercatorViewport(viewport);
-  const [x, y] = projectOrUnprojectPoints(
-    inPoint.geometry.coordinates,
-    coordinateSystem,
-    'PROJECT',
-    wmViewport
-  );
+  // A 2D pointer position lies on the camera target's plane. Project it from there so it is
+  // compared with the elevated line at the cursor.
+  const pointer = inPoint.geometry.coordinates;
+  const [x, y] =
+    coordinateSystem === undefined || coordinateSystem instanceof CartesianCoordinateSystem
+      ? pointer
+      : projectOnTargetPlane(wmViewport, pointer);
   const coordinates = line.geometry.coordinates;
   const projectedCoords = coordinates.map(coords =>
     projectOrUnprojectPoints(coords, coordinateSystem, 'PROJECT', wmViewport)

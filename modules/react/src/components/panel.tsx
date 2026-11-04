@@ -3,11 +3,13 @@
 // Copyright (c) vis.gl contributors
 
 import * as React from 'react';
-import {h, render as renderPreact} from 'preact';
 import {
-  PANEL_THEME_DARK,
-  PANEL_THEME_LIGHT,
-  PanelThemeScope,
+  PANEL_THEME_PRESETS,
+  resolvePanelThemeVariables,
+  mountPanel,
+  type PanelMount,
+  type PanelThemePreset,
+  type PanelThemeDefinition,
   type Panel as PanelDefinition
 } from '@deck.gl-community/panels';
 
@@ -30,6 +32,8 @@ export type PanelProps = {
    * Use `inherit` to leave panel CSS variables unset and let outer styles win.
    */
   themeMode?: PanelHostThemeMode;
+  /** Preset or custom definition from panels. Takes precedence over themeMode. */
+  theme?: PanelThemePreset | PanelThemeDefinition | 'inherit';
   /**
    * Optional class name applied to the outer React host.
    */
@@ -55,76 +59,49 @@ export type PanelProps = {
 export function Panel({
   panel,
   themeMode = 'light',
+  theme,
   className,
   style,
   framed = true
 }: PanelProps): ReactElement {
   const mountElementRef = React.useRef<HTMLDivElement | null>(null);
 
+  const panelMountRef = React.useRef<PanelMount | null>(null);
   React.useEffect(() => {
-    const mountElement = mountElementRef.current;
-    if (!mountElement) {
-      return undefined;
-    }
-
-    renderPreact(
-      h('div', null, [
-        h(PanelThemeScope, {panel}, [
-          h('section', {style: DIRECT_PANEL_SECTION_STYLE}, [
-            panel.title ? h('header', {style: DIRECT_PANEL_HEADER_STYLE}, panel.title) : null,
-            h('div', {style: DIRECT_PANEL_CONTENT_STYLE}, panel.content)
-          ])
-        ])
-      ]),
-      mountElement
-    );
+    const element = mountElementRef.current;
+    if (!element) return undefined;
+    const panelMount = mountPanel(null, element, {showTitle: true});
+    panelMountRef.current = panelMount;
     return () => {
-      renderPreact(null, mountElement);
+      panelMountRef.current = null;
+      panelMount.finalize();
     };
-  }, [panel]);
+  }, []);
+  React.useEffect(() => {
+    panelMountRef.current?.setPanel(panel);
+  });
 
   return (
     <div
       className={['deck-react-panel', className].filter(Boolean).join(' ')}
-      style={getHostStyle(themeMode, framed, style)}
+      style={getHostStyle(theme ?? themeMode, framed, style)}
     >
       <div ref={mountElementRef} />
     </div>
   );
 }
 
-const DIRECT_PANEL_SECTION_STYLE = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-  opacity: 1
-} as const;
-
-const DIRECT_PANEL_HEADER_STYLE = {
-  fontSize: '12px',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  color: 'var(--button-text, rgb(24, 24, 26))'
-} as const;
-
-const DIRECT_PANEL_CONTENT_STYLE = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px'
-} as const;
-
 function getHostStyle(
-  themeMode: PanelHostThemeMode,
+  theme: PanelThemePreset | PanelThemeDefinition | 'inherit',
   framed: boolean,
   style: CSSProperties | undefined
 ): CSSProperties {
   const themeVariables =
-    themeMode === 'dark'
-      ? (PANEL_THEME_DARK as CSSProperties)
-      : themeMode === 'light'
-        ? (PANEL_THEME_LIGHT as CSSProperties)
-        : {};
+    typeof theme === 'object'
+      ? (resolvePanelThemeVariables(theme) as CSSProperties)
+      : theme === 'inherit'
+        ? {}
+        : (PANEL_THEME_PRESETS[theme] as CSSProperties);
 
   return {
     ...themeVariables,
@@ -135,11 +112,11 @@ function getHostStyle(
 
 const HOST_FRAME_STYLE: CSSProperties = {
   border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.35))',
-  borderRadius: '12px',
+  borderRadius: 'var(--panel-surface-radius, 12px)',
   background: 'var(--menu-background, rgba(255, 255, 255, 0.96))',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   boxShadow: 'var(--menu-shadow, 0 18px 40px rgba(15, 23, 42, 0.12))',
-  padding: '16px',
+  padding: 'var(--panel-padding, 16px)',
   maxWidth: '100%',
   overflow: 'hidden'
 };

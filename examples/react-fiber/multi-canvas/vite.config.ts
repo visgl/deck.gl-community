@@ -8,9 +8,6 @@ export default defineConfig({
     alias: {
       '@deck.gl-community/react-fiber': fileURLToPath(
         new URL('../../../modules/react-fiber/src/dom/index.ts', import.meta.url)
-      ),
-      '@deck.gl-community/basemap-layers': fileURLToPath(
-        new URL('../../../modules/basemap-layers/src/index.ts', import.meta.url)
       )
     },
     dedupe: [

@@ -1,5 +1,7 @@
 // test/editable-layers/event-handlers.spec.ts
 import type {PickingInfo} from '@deck.gl/core';
+import {FirstPersonViewport, WebMercatorViewport} from '@deck.gl/core';
+import {distance} from '@turf/distance';
 import {test, expect, vi, beforeEach} from 'vitest';
 
 import type {
@@ -314,6 +316,43 @@ test('getMapCoords returns null when terrain pick misses', () => {
     unproject3D: true
   });
   expect(mockContext.viewport.unproject).not.toHaveBeenCalled();
+});
+
+test('getMapCoords reads the pointer on the plane of a lifted camera target', () => {
+  // A map camera orbiting terrain 30 m above sea level, as deck.gl's terrain controller sets it.
+  const viewport = new WebMercatorViewport({
+    width: 800,
+    height: 600,
+    longitude: -122.4194,
+    latitude: 37.7749,
+    zoom: 18,
+    pitch: 45,
+    position: [0, 0, 30]
+  });
+  layer.context = {...mockContext, viewport} as any;
+  const ground: Position = [-122.41915, 37.77505];
+  const [x, y] = viewport.project([...ground, 30]);
+
+  const result = layer.getMapCoords([x, y]);
+
+  expect(result).toHaveLength(2);
+  expect(distance(result, ground, {units: 'meters'})).toBeLessThan(0.01);
+  // Sea level lies metres away under the same pixel.
+  expect(distance(viewport.unproject([x, y]), ground, {units: 'meters'})).toBeGreaterThan(10);
+});
+
+test('getMapCoords keeps sea level when position is the eye of a first-person camera', () => {
+  const viewport = new FirstPersonViewport({
+    width: 800,
+    height: 600,
+    longitude: -122.4194,
+    latitude: 37.7749,
+    pitch: -30,
+    position: [0, 0, 30]
+  });
+  layer.context = {...mockContext, viewport} as any;
+
+  expect(layer.getMapCoords([400, 500])).toEqual(viewport.unproject([400, 500]));
 });
 
 test('initializeState registers event handlers', () => {

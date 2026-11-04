@@ -6,12 +6,12 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<PanelLiveExample highlight="modal-panel-container" />
-
 `ModalPanelContainer` renders panel content in a centered modal container with an optional trigger.
 
 Use it when secondary content should open on demand without permanently taking
 space in the standalone layout.
+
+<PanelLiveExample highlight="modal-panel-container" />
 
 ## Usage
 

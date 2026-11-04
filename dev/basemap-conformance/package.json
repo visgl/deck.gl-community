@@ -1,0 +1,16 @@
+{
+  "name": "basemap-conformance",
+  "version": "9.4.10",
+  "private": true,
+  "description": "Test-only: a recorded corpus, a MapLibre GL JS reference renderer and render metrics for scoring basemap renderers",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "src",
+    "scripts",
+    "README.md"
+  ],
+  "devDependencies": {
+    "pngjs": "^7.0.0"
+  }
+}

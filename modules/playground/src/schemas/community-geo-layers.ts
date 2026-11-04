@@ -112,7 +112,7 @@ export const GlobalGridLayerPropsSchema = PolygonLayerPropsSchema.extend({
   getCellId: FunctionSchema.optional()
 });
 
-// Mirror the basemap loader's structural contract without duplicating the external style grammar.
+// Host integration contract for @tangram.gl/basemap-layers; no runtime is bundled here.
 // Extra style-spec fields remain JSON data; the layer's own props remain strict.
 const BasemapSourceSchema = z
   .object({
@@ -267,13 +267,11 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
   maxCanopyPixels: z.number().positive().optional()
 });
 
-/** Prepared Gaussian buffers and hierarchies remain host-owned constants. */
+/** Prepared Gaussian assets, including their hierarchies, remain host-owned constants. */
 export const SplatLayerPropsSchema = CompositeLayerPropsSchema.extend({
-  source: ConstantSchema.optional(),
   getSource: createAccessorSchema(ConstantSchema).optional(),
   transparency: z.enum(['weighted', 'sorted']).optional(),
   maxTotalSplats: z.number().nonnegative().optional(),
-  hierarchy: ConstantSchema.optional(),
   getPosition: PositionAccessorSchema.optional(),
   getOrientation: createAccessorSchema(Vector3Schema).optional(),
   getScale: createAccessorSchema(Vector3Schema).optional(),

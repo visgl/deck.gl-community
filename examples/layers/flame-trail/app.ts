@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck, OrbitView, type Color, type DeckProps, type OrbitViewState} from '@deck.gl/core';
 import {SettingsPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
@@ -41,6 +42,7 @@ export function mountFlameTrailExample(
     fitSceneView(root.clientWidth, root.clientHeight);
   const backend = options.device?.type === 'webgpu' ? 'webgpu' : 'webgl';
   const controls = new BoxPanelWidget({
+    style: EXAMPLE_PANEL_STYLE,
     id: 'flame-trail-controls',
     title: 'FlameTrailLayer',
     placement: 'top-left',

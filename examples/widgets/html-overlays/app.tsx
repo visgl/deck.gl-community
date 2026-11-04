@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {MarkdownPanel} from '@deck.gl-community/panels';
@@ -213,6 +214,7 @@ export function mountHtmlOverlaysExample(container: HTMLElement): () => void {
     getTooltip: info => buildTooltip(info.object as TooltipDatum | null)
   });
   const infoWidget = new BoxPanelWidget({
+    style: EXAMPLE_PANEL_STYLE,
     id: 'html-overlay-summary',
     placement: 'top-right',
     widthPx: 340,

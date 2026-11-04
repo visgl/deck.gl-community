@@ -6,11 +6,11 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square" alt="from v9.4" />
 </p>
 
-<PanelLiveExample highlight="arrow-table-panel" />
-
 `ArrowTablePanel` renders an Apache Arrow table preview in a scrollable grid. It
 is deck.gl-independent and accepts Apache Arrow table-like objects or loaders.gl
 `{shape: 'arrow-table', data}` wrappers.
+
+<PanelLiveExample highlight="arrow-table-panel" />
 
 ## Usage
 
@@ -42,8 +42,8 @@ panelManager.setProps({
 ## Props
 
 ```ts
-type ArrowTablePanelProps = {
-  id: string;
+type ArrowTablePanelProps = PanelProps & {
+  id?: string;
   title: string;
   table?: ArrowTableInput;
   maxRows?: number;
@@ -53,7 +53,7 @@ type ArrowTablePanelProps = {
   maxNestedItems?: number;
   columnFormatters?: ArrowTableColumnFormatters;
   className?: string;
-  theme?: 'inherit' | 'light' | 'dark' | 'invert';
+  theme?: PanelTheme;
 };
 ```
 
@@ -101,3 +101,5 @@ panelManager.setProps({
   ]
 });
 ```
+
+`PanelTheme` is shared across panels; see [Panel Themes](./panel-theme.md) for presets and custom definitions.

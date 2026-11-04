@@ -21,9 +21,11 @@
 }
 
 .inputContainer input,
+.inputContainer select,
 .inputContainer a,
 .inputContainer button {
-  background: var(--ifm-background-surface-color);
+  box-sizing: border-box;
+  background: var(--menu-weak-background, var(--ifm-background-surface-color));
   font-size: 0.9em;
   text-transform: none;
   text-overflow: ellipsis;
@@ -37,8 +39,15 @@
   text-align: left;
 }
 
+.inputContainer input,
+.inputContainer select {
+  color: var(--menu-text, inherit);
+  accent-color: var(--panel-accent-color, auto);
+  color-scheme: dark;
+}
+
 .inputContainer button {
-  color: initial;
+  color: var(--menu-text, initial);
 }
 
 .inputContainer button:disabled {
@@ -48,14 +57,14 @@
 }
 
 .inputContainer input {
-  border: solid 1px var(--ifm-color-gray-500);
+  border: solid 1px var(--menu-border-color, var(--ifm-color-gray-500));
 }
 
 .inputContainer input:disabled {
   background: var(--ifm-color-gray-300);
 }
 
-.inputContainer input[type='checkbox'] {
+.inputContainer input[type="checkbox"] {
   height: auto;
 }
 

@@ -292,6 +292,12 @@ type _TreeLayerProps<DataT> = {
   foveationStrength?: number;
   /** Optical coverage used by streaming transitions; does not rebuild owner geometry. @default 1 */
   getCoverageWeight?: Accessor<DataT, number>;
+  /**
+   * Cast shadows from a `LightingEffect` light with `_shadow: true` (WebGL2): wood, crops and the
+   * Gaussian canopy draw into deck.gl's shadow map. Trees receive shadows either way.
+   * @default true
+   */
+  shadowEnabled?: boolean;
 };
 
 export type TreeLayerProps<DataT = unknown> = _TreeLayerProps<DataT> & CompositeLayerProps;
@@ -317,7 +323,8 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   maxCanopySplats: 'auto',
   maxCanopyPixels: Infinity,
   getCoverageWeight: {type: 'accessor', value: 1},
-  foveationStrength: {type: 'number', value: 0, min: 0, max: 1}
+  foveationStrength: {type: 'number', value: 0, min: 0, max: 1},
+  shadowEnabled: true
 };
 
 const DENSE_TREE_COUNT = 1024;
@@ -779,26 +786,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     // A controlled tree index must name the same tree in each partition's own row order.
     if (!('highlightedObjectIndex' in overrides))
       props.highlightedObjectIndex = getSplatHighlightRow(this, sublayerProps.data);
-    if (
-      sublayerProps.type === SplatLayer &&
-      ('source' in overrides || 'hierarchy' in overrides) &&
-      !('getSource' in overrides)
-    ) {
-      const prepared = sublayerProps.getSource;
-      const source = overrides.source ?? prepared.source;
-      props.getSource = {
-        type: 'prepared-splats',
-        source,
-        hierarchy:
-          'hierarchy' in overrides
-            ? (overrides.hierarchy ?? undefined)
-            : source === prepared.source
-              ? prepared.hierarchy
-              : undefined
-      };
-      delete props.source;
-      delete props.hierarchy;
-    }
     // getSubLayerProps adds the triggers of extension accessors, such as `getSelected`.
     return {...props, parameters, updateTriggers: {...props.updateTriggers, ...updateTriggers}};
   }
@@ -838,7 +825,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const shared = {
       windStrength,
       windTime,
-      shadowEnabled: false,
+      shadowEnabled: this.props.shadowEnabled,
       getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),
       pickable: this.props.pickable
     };

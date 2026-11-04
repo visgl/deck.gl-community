@@ -44,7 +44,6 @@ const sidebars = {
       items: [
         'layers/path-outline-and-markers',
         'layers/flame-trail',
-        'layers/tree-lab',
         'layers/seasonal-farm',
         'layers/skybox-map-view',
         'layers/skybox-globe',
@@ -56,11 +55,6 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/infovis-layers',
       items: ['infovis-layers/layer-primitives']
-    },
-    {
-      type: 'category',
-      label: '@deck.gl-community/basemap-layers',
-      items: ['layers/basemap-layer-map-view', 'basemap-layers/split-view']
     },
     {
       type: 'category',
@@ -85,6 +79,8 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/widgets',
       items: [
+        'widgets/canvas-chrome',
+        'widgets/deck-panel',
         'widgets/html-overlays',
         'widgets/overlays',
         'widgets/pan-and-zoom-controls',

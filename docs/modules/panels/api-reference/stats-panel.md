@@ -6,9 +6,9 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<PanelLiveExample highlight="stats-panel" />
-
 `StatsPanel` renders a compact table from a [`Stats`](https://github.com/visgl/probe.gl/tree/master/modules/stats) object from `@probe.gl/stats`.
+
+<PanelLiveExample highlight="stats-panel" />
 
 ## Usage
 
@@ -46,14 +46,14 @@ panelManager.setProps({
 ## Props
 
 ```ts
-type StatsPanelProps = {
-  id: string;
+type StatsPanelProps = PanelProps & {
+  id?: string;
   title: string;
   stats: Stats;
   statNames?: string[];
   labels?: Partial<Record<string, string>>;
   className?: string;
-  theme?: 'inherit' | 'light' | 'dark' | 'invert';
+  theme?: PanelTheme;
 };
 ```
 
@@ -69,3 +69,8 @@ type StatsPanelProps = {
 - Uses the stat `count` value from `stats.getTable()`.
 - Preserves probe.gl stat ordering unless `statNames` is provided.
 - Supports relabeling rows with the optional `labels` prop.
+
+`PanelTheme` is shared across panels; see [Panel Themes](./panel-theme.md) for presets and custom definitions.
+
+`Stats` is a mutable probe.gl object. Call `panel.setProps({stats})` to sample its current
+counts again; the same instance can be reused. Labels and filters also update through props.

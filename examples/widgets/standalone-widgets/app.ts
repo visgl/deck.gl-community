@@ -4,8 +4,8 @@
 
 import {render} from 'preact';
 import {
-  PANEL_THEME_DARK,
-  PANEL_THEME_LIGHT,
+  PANEL_THEME_SLEEK_DARK as PANEL_THEME_DARK,
+  PANEL_THEME_SLEEK_LIGHT as PANEL_THEME_LIGHT,
   applyPanelTheme,
   ColumnPanel,
   CustomPanel,
@@ -152,7 +152,7 @@ export function mountStandalonePanelContainersExample(container: HTMLElement): (
 
   const host = new PanelManager({parentElement: rootElement});
   const state: ExampleState = {
-    theme: 'light',
+    theme: 'dark',
     palette: 'lagoon',
     focus: 'overview'
   };

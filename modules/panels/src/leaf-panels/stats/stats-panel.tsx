@@ -1,8 +1,7 @@
 /* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
-import {useMemo} from 'preact/hooks';
-
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 import {useEffectivePanelThemeMode} from '../../panels/panel-theme-scope';
 
 import type {PanelTheme} from '../../panels/panel';
@@ -10,9 +9,9 @@ import type {JSX} from 'preact';
 import type {Stats} from '@probe.gl/stats';
 
 /** Props for {@link StatsPanel}. */
-export type StatsPanelProps = {
+export type StatsPanelProps = PanelProps & {
   /** Stable panel id used by parent containers. */
-  id: string;
+  id?: string;
   /** Visible heading text for the panel. */
   title: string;
   /** Probe.gl stats bag rendered by this panel. */
@@ -28,32 +27,29 @@ export type StatsPanelProps = {
 };
 
 /** Panel that renders a compact table of probe.gl stats. */
-export class StatsPanel extends Panel {
-  /** Creates a stats panel for one probe.gl {@link Stats} bag. */
-  constructor(props: StatsPanelProps) {
-    super({
-      id: props.id,
-      title: props.title,
-      theme: props.theme ?? 'inherit',
-      content: <StatsPanelContent {...props} />
-    });
+export class StatsPanel extends Panel<StatsPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'stats-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    return <StatsPanelContent {...this.props} />;
   }
 }
 
 /** Renders the stats rows used by {@link StatsPanel}. */
 function StatsPanelContent({stats, statNames, labels, className}: StatsPanelProps): JSX.Element {
   const themeMode = useEffectivePanelThemeMode();
-  const rows = useMemo(() => {
-    const table = stats.getTable();
-    const names = statNames ?? Object.keys(table);
-    return names
-      .filter(name => table[name])
-      .map(name => ({
-        name,
-        label: labels?.[name] ?? name,
-        value: table[name].count
-      }));
-  }, [labels, statNames, stats]);
+  // Stats is a mutable probe.gl object; sample it on every requested render.
+  const table = stats.getTable();
+  const names = statNames ?? Object.keys(table);
+  const rows = names
+    .filter(name => table[name])
+    .map(name => ({
+      name,
+      label: labels?.[name] ?? name,
+      value: table[name].count
+    }));
 
   /** Theme-aware colors used by the stats table. */
   const colors =
@@ -70,14 +66,14 @@ function StatsPanelContent({stats, statNames, labels, className}: StatsPanelProp
         };
 
   return (
-    <div className={className} style={{display: 'grid', gap: '8px'}}>
+    <div className={className} style={{display: 'grid', gap: 'var(--panel-gap, 8px)'}}>
       {rows.map((row, index) => (
         <div
           key={row.name}
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr auto',
-            gap: '12px',
+            gap: 'var(--panel-gap, 12px)',
             alignItems: 'baseline',
             paddingTop: index === 0 ? '0' : '8px',
             borderTop: index === 0 ? 'none' : `1px solid ${colors.divider}`

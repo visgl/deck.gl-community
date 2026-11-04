@@ -1,6 +1,7 @@
 /** @jsxImportSource preact */
 import {useState} from 'preact/hooks';
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 import type {JSX} from 'preact';
 import type {PanelTheme} from '../../panels/panel';
 
@@ -15,9 +16,9 @@ export type SourcePickerPreset = {
 };
 
 /** Configuration for a source picker that delegates loading to its host. */
-export type SourcePickerPanelProps = {
+export type SourcePickerPanelProps = PanelProps & {
   /** Stable panel identifier. */
-  id: string;
+  id?: string;
   /** Visible panel title. */
   title: string;
   /** Named source URLs; source discovery remains the host's responsibility. */
@@ -45,17 +46,17 @@ export type SourcePickerPanelProps = {
 };
 
 /** URL, preset, and local-file controls independent of any loader or catalog. */
-export class SourcePickerPanel extends Panel {
-  /** Creates a source picker whose callbacks are owned by its host. */
-  constructor(props: SourcePickerPanelProps) {
-    super({
-      id: props.id,
-      title: props.title,
-      theme: props.theme,
-      content: <SourcePickerContent {...props} />
-    });
+export class SourcePickerPanel extends Panel<SourcePickerPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'source-picker-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    return <SourcePickerContent {...this.props} />;
   }
 }
+
+let sourcePickerInputSerial = 0;
 
 /** Renders source controls while keeping uncontrolled URL state local. */
 function SourcePickerContent({
@@ -71,6 +72,7 @@ function SourcePickerContent({
   multiple = false,
   disabled = false
 }: SourcePickerPanelProps) {
+  const [urlInputId] = useState(() => `${id}-url-${sourcePickerInputSerial++}`);
   const [localUrl, setLocalUrl] = useState(defaultUrl);
   const currentUrl = url ?? localUrl;
   const isLoadDisabled = disabled || !currentUrl.trim();
@@ -130,9 +132,9 @@ function SourcePickerContent({
             if (!disabled && currentUrl.trim()) onLoadUrl(currentUrl.trim());
           }}
         >
-          <label htmlFor={`${id}-url`}>Source URL</label>
+          <label htmlFor={urlInputId}>Source URL</label>
           <input
-            id={`${id}-url`}
+            id={urlInputId}
             style={getSourceControlStyle(disabled)}
             type="url"
             required

@@ -27,6 +27,8 @@ it('exports panel component primitives', () => {
 it('exports panel theme primitives', () => {
   expect(Panels.PANEL_THEME_LIGHT).toBeDefined();
   expect(Panels.PANEL_THEME_DARK).toBeDefined();
+  expect(Panels.PANEL_THEME_SLEEK_LIGHT).toBeDefined();
+  expect(Panels.PANEL_THEME_SLEEK_DARK).toBeDefined();
   expect(Panels.applyPanelTheme).toBeDefined();
 });
 
@@ -91,4 +93,18 @@ it('exports SourcePickerPanel', () => {
 
 it('exports MetricsPanel', () => {
   expect(Panels.MetricsPanel).toBeDefined();
+});
+
+it('exports canvas chrome and adaptive container state', () => {
+  expect(Panels.HeaderPanelContainer).toBeDefined();
+  expect(Panels.FooterPanelContainer).toBeDefined();
+  expect('SidePanelContainer' in Panels).toBe(false);
+  expect(Panels.usePanelContainerState).toBeDefined();
+});
+
+it('exports only the corrected accordion class and rendering component names', () => {
+  expect(Panels.AccordionPanel).toBeDefined();
+  expect(Panels.AccordionPanelContainer).toBeDefined();
+  expect('AccordeonPanel' in Panels).toBe(false);
+  expect('AccordeonPanelContainer' in Panels).toBe(false);
 });

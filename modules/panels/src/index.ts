@@ -6,6 +6,7 @@ export {PanelComponent} from './panels/panel-component';
 export type {PanelComponentProps, PanelPlacement} from './panels/panel-component';
 export {PanelContainer} from './panels/panel-container';
 export type {PanelContainerProps} from './panels/panel-container';
+export {mountPanel, type PanelMount, type PanelMountOptions} from './panels/mount-panel';
 export {PanelManager, type PanelManagerProps} from './panels/panel-manager';
 export {BoxPanelContainer, type BoxPanelContainerProps} from './panel-mounts/box-panel-container';
 export {
@@ -24,18 +25,24 @@ export {
 } from './panel-mounts/full-screen-panel-container';
 
 export {
+  PANEL_THEME_PRESETS,
+  resolvePanelThemeVariables,
   PANEL_THEME_DARK,
+  PANEL_THEME_SLEEK_LIGHT,
+  PANEL_THEME_SLEEK_DARK,
+  type PanelThemePreset,
+  type PanelThemeDefinition,
   PANEL_THEME_LIGHT,
   applyPanelTheme,
   type PanelThemeVariables
 } from './lib/panel-theme';
 
 export {
-  AccordeonPanel,
-  AccordeonPanelContainer,
-  type AccordeonPanelContainerProps,
-  type AccordeonPanelProps
-} from './composite-panels/accordeon-panel';
+  AccordionPanel,
+  AccordionPanelContainer,
+  type AccordionPanelContainerProps,
+  type AccordionPanelProps
+} from './composite-panels/accordion-panel';
 export {
   ColumnPanel,
   ColumnPanelContainer,
@@ -264,3 +271,19 @@ export {
   type MetricsPanelProps,
   type MetricValue
 } from './leaf-panels/metrics/metrics-panel';
+
+export {
+  HeaderPanelContainer,
+  type HeaderPanelContainerProps
+} from './panel-mounts/header-panel-container';
+
+export {
+  FooterPanelContainer,
+  type FooterPanelContainerProps
+} from './panel-mounts/footer-panel-container';
+
+export {
+  usePanelContainerState,
+  type PanelContainerState,
+  type PanelDockSide
+} from './panels/panel-container-state';

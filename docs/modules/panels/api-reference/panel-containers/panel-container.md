@@ -6,14 +6,14 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<PanelLiveExample highlight="box-panel-container" />
-
 `PanelContainer` is the base class for `PanelComponent` instances that host one
 `Panel`.
 
 Extend it when the built-in panel containers do not match the behavior or
 layout your application needs. Extend `PanelComponent` directly for mountable UI
 that does not host a panel.
+
+<PanelLiveExample highlight="box-panel-container" />
 
 ## Usage
 
@@ -49,6 +49,6 @@ const container = new CustomPanelContainer({id: 'custom-container'});
 - [FullScreenPanelContainer](./full-screen-panel-container.md)
 - [PanelComponent](../panel-components/panel-component.md)
 - [Panel](../panel.md)
-- [AccordeonPanel](../composite-panels/accordeon-panel.md)
+- [AccordionPanel](../composite-panels/accordion-panel.md)
 - [ColumnPanel](../composite-panels/column-panel.md)
 - [TabbedPanel](../composite-panels/tabbed-panel.md)

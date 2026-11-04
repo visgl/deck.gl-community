@@ -7,7 +7,7 @@ import {parse} from '@loaders.gl/core';
 import {MVTLoader} from '@loaders.gl/mvt';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {afterEach, describe, expect, test} from 'vitest';
-import {SharedMVTLayer, SharedTileset2D} from '../../src';
+import {isGlobeViewport, SharedMVTLayer, SharedTileset2D} from '../../src';
 import {encodeBoxTile} from './mvt-test-tile';
 
 const SIZE = 128;
@@ -236,7 +236,7 @@ describe('SharedMVTLayer consumers in the browser', () => {
         deck.redraw('capture');
         const image = await frame;
         const viewport = deck.getViewports()[0];
-        expect(Boolean(viewport.resolution), `${view} viewport`).toBe(view === 'globe');
+        expect(isGlobeViewport(viewport), `${view} viewport`).toBe(view === 'globe');
         if (index === 0) {
           mapViewport = viewport;
           mapInside = expectBoxAt(image, viewport);

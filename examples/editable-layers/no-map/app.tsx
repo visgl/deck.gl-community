@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
 import type {OrthographicViewState} from '@deck.gl/core';
 import {BitmapLayer} from '@deck.gl/layers';
@@ -108,6 +109,7 @@ export function mountNoMapExample(container: HTMLElement): () => void {
   });
 
   const infoWidget = new BoxPanelWidget({
+    style: EXAMPLE_PANEL_STYLE,
     id: 'no-map-info',
     placement: 'top-right',
     widthPx: 320,

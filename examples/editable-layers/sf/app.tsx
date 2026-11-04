@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {
   ViewMode,
@@ -195,6 +196,7 @@ export function mountSfExample(container: HTMLElement): () => void {
 
   function createInfoWidget() {
     return new BoxPanelWidget({
+      style: EXAMPLE_PANEL_STYLE,
       id: 'sf-polygons-info',
       placement: 'top-left',
       widthPx: 320,

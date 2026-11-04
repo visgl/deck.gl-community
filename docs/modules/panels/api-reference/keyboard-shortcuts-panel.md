@@ -6,10 +6,10 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<PanelLiveExample highlight="keyboard-shortcuts-panel" />
-
 `KeyboardShortcutsPanel` renders a read-only keyboard, mouse, and trackpad
 interaction reference. It can be embedded inside a modal, sidebar, or info box.
+
+<PanelLiveExample highlight="keyboard-shortcuts-panel" />
 
 ## Usage
 
@@ -25,9 +25,9 @@ import {
 ## Props
 
 ```ts
-type KeyboardShortcutsPanelProps = {
+type KeyboardShortcutsPanelProps = PanelProps & {
   keyboardShortcuts?: KeyboardShortcut[];
-  theme?: 'inherit' | 'light' | 'dark' | 'invert';
+  theme?: PanelTheme;
 };
 ```
 
@@ -41,3 +41,5 @@ type KeyboardShortcutsPanelProps = {
 - De-duplicates badges for paired rows.
 - Defaults to an id of `keyboard-shortcuts` and a title of `Keyboard & Mouse`.
 - Works as a plain panel, so it can be combined with tabbed, column, or accordion layouts.
+
+`PanelTheme` is shared across panels; see [Panel Themes](./panel-theme.md) for presets and custom definitions.

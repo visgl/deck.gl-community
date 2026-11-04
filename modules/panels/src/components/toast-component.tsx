@@ -66,7 +66,7 @@ const TOAST_CARD_STYLE: JSX.CSSProperties = {
   boxShadow: 'var(--button-shadow)',
   backgroundColor: 'var(--button-background)',
   color: 'var(--button-text)',
-  padding: '10px 10px 10px 12px',
+  padding: 'var(--panel-padding, 10px 10px 10px 12px)',
   width: '100%',
   minWidth: 0,
   animation: 'deck-toast-enter 160ms ease-out',
@@ -82,7 +82,7 @@ const CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
   background: 'transparent',
   width: '22px',
   height: '22px',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   fontWeight: 700,
   lineHeight: 1,
   cursor: 'pointer',
@@ -159,17 +159,20 @@ function ToastComponentView({toasts, showBorder}: ToastComponentViewProps) {
                 display: 'grid',
                 gridTemplateColumns: 'auto 1fr auto',
                 alignItems: 'start',
-                gap: '8px'
+                gap: 'var(--panel-gap, 8px)'
               }}
             >
-              <div style={{fontSize: '16px', lineHeight: 1, color: iconColor}} aria-hidden="true">
+              <div
+                style={{fontSize: 'var(--panel-font-size, 16px)', lineHeight: 1, color: iconColor}}
+                aria-hidden="true"
+              >
                 {palette.icon}
               </div>
               <div style={{minWidth: 0}}>
                 {toast.title && (
                   <div
                     style={{
-                      fontSize: '13px',
+                      fontSize: 'var(--panel-font-size, 13px)',
                       fontWeight: 700,
                       color: 'var(--button-text)',
                       marginBottom: '2px'
@@ -180,7 +183,7 @@ function ToastComponentView({toasts, showBorder}: ToastComponentViewProps) {
                 )}
                 <div
                   style={{
-                    fontSize: '12px',
+                    fontSize: 'var(--panel-font-size, 12px)',
                     lineHeight: 1.35,
                     color: 'var(--button-text)',
                     opacity: '0.8'

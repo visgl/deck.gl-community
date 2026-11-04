@@ -11,6 +11,77 @@ This page lists module additions and major changes in each release. For detailed
   [`createDeckGL`](/docs/modules/react-fiber/api-reference/deckgl#custom-compatible-overlays), whose
   `recreateOverlayOnChange` option replaces the overlay when a construction-only prop changes.
 
+- Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
+
+- **Website:** fix the mobile navigation drawer, replace generic gallery artwork with
+  dedicated example captures, and render the Vega demos on their example pages.
+  Missing previews are labeled explicitly and gallery thumbnail mappings are checked during builds.
+
+- **widgets:** [`DeckPanel`](./modules/widgets/api-reference/deck-panel.md) renders caller-defined
+  scenes in panel canvases on a shared Deck using the 9.4 multi-canvas API, with or without
+  a root canvas. Try the [standalone example](/examples/widgets/deck-panel) or the inline docs demo.
+
+- **Breaking: basemap-layers has moved to [tangram.gl](https://github.com/visgl/tangram.gl).** The community package, style-spec entry point and basemap examples have been removed. See the [migration note](./modules/basemap-layers/README.md). Shared tile/MVT layers remain in geo-layers.
+
+- **editable-layers:** click-to-draw modes work again under React `<DeckGL>` with child base maps
+  such as `<Map>`. Native clicks now use deck.gl's input element instead of only its canvas.
+
+- `EditableGeoJsonLayer` and `SelectionLayer` read the pointer on the level of the point a map
+  camera orbits when no layer is `pickable: '3d'`. Before, a camera lifted with viewState
+  `position: [0, 0, z]`, as deck.gl's terrain controller sets it, drew, edited and selected
+  metres from the cursor, more with pitch and towards the edges of the view.
+
+- **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
+  independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
+  aliases; migrate visibility to `open` / `onOpenChange`. Content stays mounted across modes.
+
+- **Breaking panels API:** specialized panels render from typed live props; rename
+  `AccordeonPanel` to `AccordionPanel`, splitter `onChange` to `onSplitChange`, and
+  `initialSplit` to `defaultSplit`. Controlled `split` is authoritative during dragging.
+  No compatibility names are exported. See the upgrade guide.
+
+- Panels adds constructor components and automatic host resizing to `PanelManager`,
+  declarative accordion expansion and initial tab selection, and an updated guide
+  to composition, controlled state, canvas chrome, and dynamically loaded Monaco.
+
+- Community examples and inline demos use shared sleek-dark panel chrome. Playground accepts a
+  panel preset or custom theme through `theme`, including its editors and example picker.
+
+- Shorter [`TreeLayer`](/docs/modules/layers/api-reference/tree-layer) and
+  [`SplatLayer`](/docs/modules/layers/api-reference/splat-layer) reference pages. The
+  [Seasonal Farm](/examples/layers/seasonal-farm) TreeLayer demo uses a settings panel for season,
+  crops, wind, size, crown characteristics and canopy budgets, with no text drawn over the canvas.
+  The Tree Lab example is removed.
+
+- **Breaking:** `SplatLayer` drops the legacy top-level `source` and `hierarchy` props. Pass
+  sources through `getSource`; see the [upgrade guide](./upgrade-guide.md).
+
+- `SplatLayer` and `TreeLayer` render on `GlobeView`, including MapLibre's globe projection through
+  `MapLibreOverlay`. Before, they threw an unsupported-projection error. Gaussians, wood and crops
+  keep an east-north-up pose at each owner, unchanged when the globe switches to Web Mercator above
+  zoom 12, and the globe hides its far side.
+
+## v9.4.8
+
+- `BasemapLayer` reads glyph bitmaps containing only the border without treating their ink as missing.
+
+- Panels adds compact translucent `sleek-light` and `sleek-dark` presets, custom theme
+  definitions, and preset-aware nested inheritance and inversion.
+
+- Panels adds permanent header, footer, and side chrome and optional pinning on `BoxPanelContainer`.
+  Opt into docking with `PanelManager.contentElement`; nested panels can adapt through
+  `usePanelContainerState()`. See [canvas chrome](./modules/panels/api-reference/panel-containers/canvas-chrome.md).
+
+- Panel content can be embedded with `mountPanel`, `ReactPanel`, and `useReactPanel`.
+  React hosts accept sleek presets and custom theme definitions; React-owned content
+  retains its context and follows panel mount policies. Collapsing a pinned box releases
+  its docked space and leaves a compact title bar for restoring the panel.
+
+## v9.4.7
+
+- v9.4.7 also publishes the v9.4.6 changes below, whose npm release was interrupted after only
+  `@deck.gl-community/react` published.
+
 - `EditableGeoJsonLayer` tooltips are no longer pickable. Before, hovering a measurement tooltip
   (such as the one left under the cursor after finishing a `DrawLineStringMode` line) made
   `ModifyMode` throw and passed the tooltip to modes as if it were a feature.
@@ -31,6 +102,18 @@ This page lists module additions and major changes in each release. For detailed
 - `EditableGeoJsonLayer` in interleaved MapLibre/Mapbox maps keeps only the presses the mode uses
   (edit handles, drag-to-draw) from the map, so the map pans and clicks while drawing by clicks or
   in `ModifyMode`. Custom drag modes can declare their presses with `EditMode.ownsPointerDown()`.
+
+- [`SelectionPulseExtension`](/docs/modules/layers/api-reference/selection-pulse-extension) (new)
+  pulses selected objects on the GPU. A selection change writes one value per object from
+  `getSelected`; each animation frame sets only uniforms, so a pulse reruns no color accessor and
+  uploads no attributes. It works on deck.gl layers with the GLSL `DECKGL_FILTER_COLOR` hook, such
+  as `ScatterplotLayer`, `ColumnLayer`, `PolygonLayer` and `SimpleMeshLayer`, and on `TreeLayer`
+  and `SplatLayer` in WebGL2 and WebGPU.
+
+- `TreeLayer` and `SplatLayer` cast and receive deck.gl shadows under a `LightingEffect` light with
+  `_shadow: true` (WebGL2), including the translucent canopy, wind, picking and interleaved maps.
+  Set `shadowEnabled: false` to keep trees from casting, as before. See
+  [TreeLayer shadows](/docs/modules/layers/api-reference/tree-layer#shadows).
 
 ## v9.4.6
 
@@ -86,7 +169,7 @@ This page lists module additions and major changes in each release. For detailed
   outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
   mask synchronously instead of waiting 250 ms.
 
-- Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
+- Added a compact TreeLayer demo with eight species, seasons, crops, wind and picking.
 
 - Editable layers support overlaid MapLibre/Mapbox input targets. Selection masks the full lasso,
   keeps `guideType` features selectable, and resumes editing after two-finger navigation.

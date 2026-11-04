@@ -86,7 +86,7 @@ describe('ModalPanelContainer', () => {
     const content = dialog?.lastElementChild as HTMLElement;
 
     expect(wrapper.style.justifyContent).toBe('flex-start');
-    expect(wrapper.style.padding).toBe('24px');
+    expect(getComputedStyle(wrapper).padding).toBe('24px');
     expect(dialog?.style.width).toBe('400px');
     expect(content.style.padding).toBe('0px');
 

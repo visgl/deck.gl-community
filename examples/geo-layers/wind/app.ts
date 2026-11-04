@@ -24,6 +24,9 @@ import {
   type WindField,
   type WindStation
 } from '@deck.gl-community/geo-layers';
+import {CustomPanel} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import type {Device} from '@luma.gl/core';
 
 import {smoothWindElevation} from './terrain-data';
@@ -200,23 +203,12 @@ async function loadTerrainData(dataUrl: string, signal: AbortSignal): Promise<Wi
   return {elevationData, texture: canvas.toDataURL('image/png')};
 }
 
-function createSettingsPanel(
+function createSettingsContent(
   settings: WindSettings,
   onChange: () => void,
   onParticleCountChange: () => void
 ): HTMLElement {
   const panel = document.createElement('section');
-  panel.style.cssText =
-    'position:absolute;top:18px;left:18px;z-index:1;width:min(286px,calc(100% - 36px));' +
-    'padding:17px 19px;border:1px solid rgba(192,230,217,.2);border-radius:14px;' +
-    'background:rgba(10,20,31,.84);color:#e8f7f0;font:13px/1.6 system-ui,sans-serif;' +
-    'backdrop-filter:blur(14px);box-shadow:0 14px 42px rgba(0,0,0,.24)';
-
-  const title = document.createElement('h2');
-  title.textContent = 'Wind over the United States';
-  title.style.cssText = 'margin:0 0 4px;font-size:17px;font-weight:650;letter-spacing:-.02em';
-  panel.append(title);
-
   const description = document.createElement('p');
   description.textContent =
     'The original Nicolas Belmonte showcase, rebuilt from reusable deck.gl community layers. Right-drag or control-drag to tilt and rotate.';
@@ -331,8 +323,24 @@ export function mountWindExample(
 
   container.style.position = 'relative';
   container.style.background = '#0b1520';
-  const panel = createSettingsPanel(settings, updateLayers, updateParticleCount);
-  container.append(panel);
+  const panel = createSettingsContent(settings, updateLayers, updateParticleCount);
+  const infoWidget = new BoxPanelWidget({
+    id: 'wind-controls',
+    title: 'Wind over the United States',
+    widthPx: 286,
+    placement: 'top-left',
+    offsetPx: 18,
+    collapsible: true,
+    style: EXAMPLE_PANEL_STYLE,
+    panel: new CustomPanel({
+      id: 'wind-controls-content',
+      title: '',
+      onRenderHTML(element) {
+        element.append(panel);
+        return () => panel.remove();
+      }
+    })
+  });
   const status = panel.querySelector<HTMLElement>('[data-wind-status]');
 
   const deck = new Deck({
@@ -345,7 +353,7 @@ export function mountWindExample(
     initialViewState: options.initialViewState ?? INITIAL_VIEW_STATE,
     onViewStateChange: options.onViewStateChange,
     controller: {dragRotate: true, touchRotate: true, keyboard: true, inertia: 180},
-    widgets: options.widgets ?? [],
+    widgets: [...(options.widgets ?? []), infoWidget],
     effects: [WIND_LIGHTING],
     parameters: {depthWriteEnabled: true},
     getTooltip: ({object}) => {

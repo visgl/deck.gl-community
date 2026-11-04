@@ -5,11 +5,15 @@
 
 import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
-import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
+import {ThemeWidget} from '@deck.gl/widgets';
+import {
+  PANEL_THEME_SLEEK_DARK as DarkTheme,
+  PANEL_THEME_SLEEK_LIGHT as LightTheme
+} from '@deck.gl-community/panels';
 import {Stats} from '@probe.gl/stats';
 import {render} from 'preact';
 import {
-  AccordeonPanel,
+  AccordionPanel,
   ColumnPanel,
   CustomPanel,
   KeyboardShortcutsPanel,
@@ -42,7 +46,7 @@ export type WidgetPanelsExampleHighlight =
   | 'stats-panel'
   | 'keyboard-shortcuts-panel'
   | 'text-editor-panel'
-  | 'accordeon-panel'
+  | 'accordion-panel'
   | 'tabbed-panel'
   | 'column-panel'
   | 'custom-panel'
@@ -177,7 +181,7 @@ const HIGHLIGHT_LABELS: Record<WidgetPanelsExampleHighlight, string> = {
   'stats-panel': 'StatsPanel',
   'keyboard-shortcuts-panel': 'KeyboardShortcutsPanel',
   'text-editor-panel': 'TextEditorPanel',
-  'accordeon-panel': 'AccordeonPanel',
+  'accordion-panel': 'AccordionPanel',
   'tabbed-panel': 'TabbedPanel',
   'column-panel': 'ColumnPanel',
   'custom-panel': 'CustomPanel',
@@ -194,7 +198,7 @@ const MODAL_HIGHLIGHTS = new Set<WidgetPanelsExampleHighlight>([
 const SIDEBAR_HIGHLIGHTS = new Set<WidgetPanelsExampleHighlight>([
   'sidebar-panel-widget',
   'settings-panel',
-  'accordeon-panel'
+  'accordion-panel'
 ]);
 
 const SETTINGS_SCHEMA: SettingsSchema = {
@@ -576,7 +580,7 @@ export function mountWidgetPanelsExample(
   const themeWidget = new ThemeWidget({
     id: 'widget-theme',
     placement: 'top-left',
-    initialThemeMode: 'light',
+    initialThemeMode: 'dark',
     lightModeTheme: {
       ...LightTheme
     },
@@ -738,7 +742,7 @@ function buildSidebarPanel(
     ].join('\n')
   });
 
-  return new AccordeonPanel({
+  return new AccordionPanel({
     id: 'sidebar-controls',
     title: 'Sidebar controls',
     panels: [
@@ -1141,21 +1145,21 @@ function renderDocsThemeWidget(rootElement: HTMLElement): () => void {
   const buttonWrapperElement = rootElement.ownerDocument.createElement('div');
   const buttonElement = rootElement.ownerDocument.createElement('button');
   const iconElement = rootElement.ownerDocument.createElement('span');
-  let themeMode: 'light' | 'dark' = 'light';
+  let themeMode: 'light' | 'dark' = 'dark';
 
   styleElement.textContent = THEME_WIDGET_ICON_OVERRIDES;
   themeRootElement.className = 'deck-widget deck-widget-theme';
   buttonWrapperElement.className = 'deck-widget-button';
   buttonElement.type = 'button';
-  buttonElement.className = 'deck-widget-sun';
-  buttonElement.title = 'Switch to dark theme';
-  buttonElement.setAttribute('aria-label', 'Switch to dark theme');
+  buttonElement.className = 'deck-widget-moon';
+  buttonElement.title = 'Switch to light theme';
+  buttonElement.setAttribute('aria-label', 'Switch to light theme');
   iconElement.className = 'deck-widget-icon';
   buttonElement.append(iconElement);
   buttonWrapperElement.append(buttonElement);
   themeRootElement.append(buttonWrapperElement);
   applyElementStyle(themeRootElement, DOCS_THEME_WIDGET_ROOT_STYLE);
-  applyElementStyle(rootElement, LightTheme);
+  applyElementStyle(rootElement, DarkTheme);
   rootElement.append(styleElement, themeRootElement);
 
   buttonElement.onclick = () => {
@@ -1236,7 +1240,7 @@ function buildHighlightedPanel(
     case 'full-screen-panel-widget':
       return buildInfoBoxPanel(state, handlers, highlight);
     case 'sidebar-panel-widget':
-    case 'accordeon-panel':
+    case 'accordion-panel':
     case 'settings-panel':
       return buildSidebarPanel(state, handlers, highlight);
     case 'stats-panel':

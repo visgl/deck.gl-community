@@ -10,7 +10,7 @@
  */
 
 const layerDocs = require('../../docs/modules/layers/sidebar.json');
-const basemapLayerDocs = require('../../docs/modules/basemap-layers/sidebar.json');
+const basemapLayerDocs = 'modules/basemap-layers/README';
 
 const infovisLayerDocs = require('../../docs/modules/infovis-layers/sidebar.json');
 const timelineLayerDocs = require('../../docs/modules/timeline-layers/sidebar.json');

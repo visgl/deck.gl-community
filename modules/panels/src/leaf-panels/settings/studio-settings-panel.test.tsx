@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import {render} from 'preact';
+import {applyPanelTheme, PANEL_THEME_PRESETS} from '../../lib/panel-theme';
 import {act} from 'preact/test-utils';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
@@ -340,4 +341,28 @@ describe('StudioSettingsPanel', () => {
       ])
     );
   });
+});
+
+it.each([
+  'sleek-light',
+  'sleek-dark'
+] as const)('preserves round studio controls in %s', async preset => {
+  const root = renderStudioPanel();
+  applyPanelTheme(root, PANEL_THEME_PRESETS[preset]);
+  getButtonByText('Layout').click();
+  await Promise.resolve();
+  const track = [...root.querySelectorAll<HTMLElement>('span')].find(
+    element => element.style.width === '44px' && element.style.height === '24px'
+  );
+  expect(track).toBeDefined();
+  const knob = track.firstElementChild as HTMLElement;
+  expect(getComputedStyle(track).borderRadius).toBe('999px');
+  expect(getComputedStyle(track).padding).toBe('2px');
+  expect(getComputedStyle(knob).borderRadius).toBe('999px');
+  const trackBounds = track.getBoundingClientRect();
+  const knobBounds = knob.getBoundingClientRect();
+  expect(knobBounds.top + knobBounds.height / 2).toBeCloseTo(
+    trackBounds.top + trackBounds.height / 2,
+    0
+  );
 });

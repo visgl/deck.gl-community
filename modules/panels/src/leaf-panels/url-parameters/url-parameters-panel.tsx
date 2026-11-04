@@ -2,6 +2,7 @@
 
 import type {URLParameter} from '../../lib/url-parameters/url-parameters';
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 
 import type {PanelTheme} from '../../panels/panel';
 import type {JSX} from 'preact';
@@ -9,7 +10,7 @@ import type {JSX} from 'preact';
 /**
  * Props used to construct the URL-parameter help panel.
  */
-export type URLParametersPanelProps = {
+export type URLParametersPanelProps = PanelProps & {
   /** URL parameters documented for the current view. */
   urlParameters?: readonly URLParameter[];
   /** Optional theme override. */
@@ -19,17 +20,27 @@ export type URLParametersPanelProps = {
 /**
  * A panel definition that renders supported URL query parameters for deep links.
  */
-export class URLParametersPanel extends Panel {
+export class URLParametersPanel extends Panel<URLParametersPanelProps> {
   /**
    * Creates a URL parameter help panel.
    */
-  constructor({urlParameters = [], theme = 'inherit'}: URLParametersPanelProps = {}) {
-    super({
-      id: 'url-parameters',
-      title: 'URL Deep Links',
-      theme,
-      content: <URLParametersPanelContent urlParameters={urlParameters} />
-    });
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    urlParameters: [],
+    theme: 'inherit',
+    id: 'url-parameters',
+    title: 'URL Deep Links'
+  } satisfies PanelProps & Partial<URLParametersPanelProps>;
+
+  constructor(props: URLParametersPanelProps = {}) {
+    super(props);
+  }
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {urlParameters} = this.props;
+    return <URLParametersPanelContent urlParameters={urlParameters} />;
   }
 }
 
@@ -97,22 +108,22 @@ function formatParameterPlaceholder(name: string): string {
 
 const PARAMETER_PANEL_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '10px',
-  padding: '8px'
+  gap: 'var(--panel-gap, 10px)',
+  padding: 'var(--panel-padding, 8px)'
 };
 
 const URL_PARAMS_HELP_TEXT_STYLE: JSX.CSSProperties = {
   margin: 0,
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '17px'
 };
 
 const PARAMETER_ROW_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '4px',
-  padding: '10px 12px',
-  borderRadius: '8px',
+  gap: 'var(--panel-gap, 4px)',
+  padding: 'var(--panel-padding, 10px 12px)',
+  borderRadius: 'var(--panel-corner-radius, 8px)',
   border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.42))',
   background:
     'linear-gradient(90deg, rgba(248, 250, 252, 0.94), rgba(255, 255, 255, 0.98) 40%, var(--menu-background, #fff))'
@@ -120,11 +131,11 @@ const PARAMETER_ROW_STYLE: JSX.CSSProperties = {
 
 const PARAMETER_ROW_HEADER_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '2px'
+  gap: 'var(--panel-gap, 2px)'
 };
 
 const PARAMETER_NAME_STYLE: JSX.CSSProperties = {
-  fontSize: '13px',
+  fontSize: 'var(--panel-font-size, 13px)',
   lineHeight: '16px',
   fontWeight: 700,
   fontFamily: 'var(--menu-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas)'
@@ -132,21 +143,21 @@ const PARAMETER_NAME_STYLE: JSX.CSSProperties = {
 
 const PARAMETER_DESCRIPTION_STYLE: JSX.CSSProperties = {
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '16px'
 };
 
 const PARAMETER_LEGACY_STYLE: JSX.CSSProperties = {
   color: 'var(--menu-icon-idle, rgb(71, 85, 105))',
-  fontSize: '11px',
+  fontSize: 'var(--panel-font-size, 11px)',
   lineHeight: '14px'
 };
 
 const EMPTY_STATE_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '4px',
-  padding: '12px',
+  gap: 'var(--panel-gap, 4px)',
+  padding: 'var(--panel-padding, 12px)',
   color: 'var(--menu-icon-idle, rgb(71, 85, 105))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '16px'
 };

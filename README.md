@@ -24,7 +24,6 @@ An awesome list of community-driven modules, integrations, and tools built with 
 | **[react-fiber](./modules/react-fiber)**         | [![npm](https://img.shields.io/npm/v/@deck.gl-community/react-fiber.svg)](https://www.npmjs.com/package/@deck.gl-community/react-fiber) | React Fiber renderer for composing deck.gl layers and views as React elements.                 |
 | **[leaflet](./modules/leaflet)**                 | [![npm](https://img.shields.io/npm/v/@deck.gl-community/leaflet.svg)](https://www.npmjs.com/package/@deck.gl-community/leaflet)                 | Leaflet custom layer that wraps deck.gl, rendering layers synchronized with a Leaflet basemap. |
 | **[bing-maps](./modules/bing-maps)**             | [![npm](https://img.shields.io/npm/v/@deck.gl-community/bing-maps.svg)](https://www.npmjs.com/package/@deck.gl-community/bing-maps)             | deck.gl as a Bing Maps custom layer.                                                           |
-| **[basemap-layers](./modules/basemap-layers)**   | [![npm](https://img.shields.io/npm/v/@deck.gl-community/basemap-layers.svg)](https://www.npmjs.com/package/@deck.gl-community/basemap-layers) | Basemap layer runtime and style-spec helpers for deck.gl.                                       |
 | **[experimental](./modules/experimental)**       | [![npm](https://img.shields.io/npm/v/@deck.gl-community/experimental.svg)](https://www.npmjs.com/package/@deck.gl-community/experimental)       | Early-stage, exploratory layers and utilities — use at your own risk.                          |
 
 ---
@@ -44,3 +43,5 @@ An awesome list of community-driven modules, integrations, and tools built with 
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md). New modules, bug fixes, and ecosystem additions are all welcome.
+
+Basemap rendering has moved to [tangram.gl](https://github.com/visgl/tangram.gl/tree/master/modules/basemap-layers) (`@tangram.gl/basemap-layers`). See the [migration note](docs/modules/basemap-layers/README.md).

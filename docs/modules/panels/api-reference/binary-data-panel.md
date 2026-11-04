@@ -6,9 +6,9 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square" alt="from v9.4" />
 </p>
 
-<PanelLiveExample highlight="binary-data-panel" />
-
 `BinaryDataPanel` renders caller-supplied binary data as offset, hex, and ASCII rows.
+
+<PanelLiveExample highlight="binary-data-panel" />
 
 ## Usage
 
@@ -37,8 +37,8 @@ panelManager.setProps({
 ## Props
 
 ```ts
-type BinaryDataPanelProps = {
-  id: string;
+type BinaryDataPanelProps = PanelProps & {
+  id?: string;
   title: string;
   data: ArrayBuffer | ArrayBufferView;
   byteOffset?: number;
@@ -47,7 +47,7 @@ type BinaryDataPanelProps = {
   maxByteLength?: number;
   showAscii?: boolean;
   className?: string;
-  theme?: 'inherit' | 'light' | 'dark' | 'invert';
+  theme?: PanelTheme;
 };
 ```
 
@@ -58,3 +58,5 @@ type BinaryDataPanelProps = {
 - Printable ASCII bytes use characters from `0x20` through `0x7e`; other bytes leave the ASCII cell blank.
 - Defaults to 8 bytes per row and a 10,000 byte preview cap.
 - Always shows a bottom summary with the included byte count and omitted byte count.
+
+`PanelTheme` is shared across panels; see [Panel Themes](./panel-theme.md) for presets and custom definitions.

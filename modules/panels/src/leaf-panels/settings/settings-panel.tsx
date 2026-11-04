@@ -22,6 +22,7 @@ import type {
   SettingValue
 } from '../../lib/settings/settings';
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 
 import type {PanelTheme} from '../../panels/panel';
 import type {JSX} from 'preact';
@@ -40,7 +41,7 @@ type SettingsPanelChangeHandler = (
 export type SettingsPanelFontSize = number | string;
 
 /** Settings panel configuration for sidebar/modal container composition. */
-export type SettingsPanelProps = {
+export type SettingsPanelProps = PanelProps & {
   /** Stable panel id used by parent containers. */
   id?: string;
   /** Fallback title used when the schema does not provide one. */
@@ -61,38 +62,39 @@ const SECTION_TOGGLE_STYLE: JSX.CSSProperties = {
   width: '100%',
   border: 0,
   margin: 0,
-  padding: '8px 12px',
+  padding: 'var(--panel-padding, 8px 12px)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: '8px',
+  gap: 'var(--panel-gap, 8px)',
   background: 'transparent',
   color: 'inherit',
   cursor: 'pointer',
-  fontSize: '12px'
+  fontSize: 'var(--panel-font-size, 12px)'
 };
 
 const SECTION_CONTENT_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '8px',
-  padding: '8px 12px 12px 18px'
+  gap: 'var(--panel-gap, 8px)',
+  padding: 'var(--panel-padding, 8px 12px 12px 18px)'
 };
 
 const SECTION_PANEL_CONTENT_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '8px',
-  padding: '10px 12px 12px'
+  gap: 'var(--panel-gap, 8px)',
+  padding: 'var(--panel-padding, 10px 12px 12px)'
 };
 
 const SETTING_ROW_STYLE: JSX.CSSProperties = {
   display: 'grid',
+  minHeight: 'var(--panel-control-height, 0px)',
   gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.4fr)',
   alignItems: 'center',
-  gap: '8px'
+  gap: 'var(--panel-gap, 8px)'
 };
 
 const SETTING_LABEL_STYLE: JSX.CSSProperties = {
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   fontWeight: 600,
   color: 'var(--button-text, currentColor)',
   whiteSpace: 'nowrap',
@@ -110,12 +112,13 @@ const SETTING_CONTROL_STYLE: JSX.CSSProperties = {
 const INPUT_STYLE: JSX.CSSProperties = {
   width: '100%',
   border: 'var(--button-inner-stroke, 1px solid rgba(128, 128, 128, 0.35))',
-  borderRadius: 'calc(var(--button-corner-radius, 8px) - 2px)',
+  borderRadius:
+    'var(--panel-input-corner-radius, var(--panel-corner-radius, calc(var(--button-corner-radius, 8px) - 2px)))',
   backgroundColor: 'var(--button-background, #fff)',
   backdropFilter: 'var(--button-backdrop-filter, unset)',
   color: 'var(--button-text, currentColor)',
-  fontSize: '12px',
-  padding: '4px 6px',
+  fontSize: 'var(--panel-font-size, 12px)',
+  padding: 'var(--panel-control-padding, 4px 6px)',
   boxSizing: 'border-box'
 };
 
@@ -126,11 +129,11 @@ const STRING_CONTROL_STYLE: JSX.CSSProperties = {
 
 const STRING_APPLY_BUTTON_STYLE: JSX.CSSProperties = {
   border: 'var(--button-inner-stroke, 1px solid rgba(128, 128, 128, 0.35))',
-  borderRadius: 'calc(var(--button-corner-radius, 8px) - 2px)',
+  borderRadius: 'var(--panel-corner-radius, calc(var(--button-corner-radius, 8px) - 2px))',
   backgroundColor: 'var(--button-background, #fff)',
   color: 'var(--button-text, currentColor)',
-  fontSize: '11px',
-  padding: '4px 8px',
+  fontSize: 'var(--panel-font-size, 11px)',
+  padding: 'var(--panel-padding, 4px 8px)',
   cursor: 'pointer',
   whiteSpace: 'nowrap'
 };
@@ -145,16 +148,16 @@ const NUMBER_INPUT_STYLE: JSX.CSSProperties = {
   ...INPUT_STYLE,
   width: '84px',
   flexShrink: 0,
-  height: '28px',
+  height: 'var(--panel-control-height, 28px)',
   lineHeight: '16px',
-  padding: '2px 6px'
+  padding: 'var(--panel-control-padding, 2px 6px)'
 };
 
 const CHECKBOX_STYLE: JSX.CSSProperties = {
   width: '14px',
   height: '14px',
   margin: 0,
-  accentColor: 'var(--button-icon-hover, currentColor)'
+  accentColor: 'var(--panel-accent-color, var(--button-icon-hover, currentColor))'
 };
 
 function withFontSize(
@@ -359,7 +362,15 @@ function NumberSettingControl({
   }
 
   return (
-    <div style={{display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, width: '100%'}}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--panel-gap, 8px)',
+        minWidth: 0,
+        width: '100%'
+      }}
+    >
       <input
         id={inputId}
         type="range"
@@ -677,12 +688,14 @@ export function SettingsPanelContent({
                 }
                 aria-expanded={!isCollapsed}
               >
-                <span style={{display: 'grid', gap: '2px', textAlign: 'left'}}>
-                  <span style={{fontWeight: 700, fontSize: '12px'}}>{section.name}</span>
+                <span style={{display: 'grid', gap: 'var(--panel-gap, 2px)', textAlign: 'left'}}>
+                  <span style={{fontWeight: 700, fontSize: 'var(--panel-font-size, 12px)'}}>
+                    {section.name}
+                  </span>
                   {section.description && (
                     <span
                       style={{
-                        fontSize: '11px',
+                        fontSize: 'var(--panel-font-size, 11px)',
                         color: 'var(--button-icon-idle, currentColor)'
                       }}
                     >
@@ -713,7 +726,7 @@ export function SettingsPanelContent({
 /**
  * A reusable settings panel that can be mounted inside modal and sidebar panel containers.
  */
-export class SettingsPanel extends Panel {
+export class SettingsPanel extends Panel<SettingsPanelProps> {
   /**
    * Creates one panel per top-level settings schema section for generic composition.
    */
@@ -724,48 +737,66 @@ export class SettingsPanel extends Panel {
     onSettingsChange,
     fontSize,
     theme = 'inherit'
-  }: Omit<SettingsPanelProps, 'id'>): Panel[] {
+  }: Omit<SettingsPanelProps, 'id'>): SettingsSectionPanel[] {
     return schema.sections.map((section, index) => {
       const panelId = getSectionKey(section, index);
       return new SettingsSectionPanel({
         id: panelId,
         title: section.name || label,
         theme,
-        content: (
-          <SettingsSectionPanelContent
-            fontSize={fontSize}
-            onSettingsChange={onSettingsChange}
-            section={section}
-            settings={settings}
-          />
-        )
+        fontSize,
+        onSettingsChange,
+        section,
+        settings
       });
     });
   }
 
-  constructor({
-    id = 'settings-panel',
-    label = 'Settings',
-    schema = DEFAULT_SETTINGS_PANEL_SCHEMA,
-    settings = DEFAULT_SETTINGS_PANEL_STATE,
-    onSettingsChange,
-    fontSize,
-    theme = 'inherit'
-  }: SettingsPanelProps = {}) {
-    super({
-      id,
-      title: schema.title ?? label,
-      theme,
-      content: (
-        <SettingsPanelContent
-          fontSize={fontSize}
-          schema={schema}
-          settings={settings}
-          onSettingsChange={onSettingsChange}
-        />
-      )
-    });
+  override get title(): string {
+    return this.props.title ?? this.props.schema?.title ?? this.props.label;
+  }
+
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    id: 'settings-panel',
+    label: 'Settings',
+    schema: DEFAULT_SETTINGS_PANEL_SCHEMA,
+    settings: DEFAULT_SETTINGS_PANEL_STATE,
+    theme: 'inherit',
+    title: undefined!
+  } satisfies PanelProps & Partial<SettingsPanelProps>;
+
+  constructor(props: SettingsPanelProps = {}) {
+    super(props);
+  }
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {schema, settings, onSettingsChange, fontSize} = this.props;
+    return (
+      <SettingsPanelContent
+        fontSize={fontSize}
+        schema={schema}
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+      />
+    );
   }
 }
 
-class SettingsSectionPanel extends Panel {}
+type SettingsSectionPanelProps = PanelProps & {
+  section: SettingsSectionDescriptor;
+  settings: SettingsState;
+  onSettingsChange?: SettingsPanelChangeHandler;
+  fontSize?: SettingsPanelFontSize;
+};
+
+class SettingsSectionPanel extends Panel<SettingsSectionPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'settings-section-panel'};
+
+  override renderContent() {
+    return <SettingsSectionPanelContent {...this.props} />;
+  }
+}
