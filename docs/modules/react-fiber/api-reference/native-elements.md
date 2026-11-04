@@ -71,6 +71,19 @@ The `DeckGL` root also accepts its usual `layers` prop. As in `@deck.gl/react`, 
 </DeckGL>;
 ```
 
+## Mixing JSX and direct views
+
+The `views` prop works like it does in `@deck.gl/react`. Without `<view>` children, the root sends the `views` prop to deck.gl unchanged; without either, deck.gl uses its default view. When the root has both, it merges them by ID: a view from the prop replaces the `<view>` with the same ID, and other prop views follow the JSX views. Removing the last `<view>` falls back to the `views` prop, or to deck.gl's default view when there is no prop.
+
+```tsx
+<DeckGL views={[new MapView({id: 'main-map', controller: true})]}>
+  <view view={new MapView({id: 'main-map'})} />
+  <view view={new MapView({id: 'minimap', x: '75%', width: '25%', height: '25%'})} />
+</DeckGL>;
+```
+
+Here deck.gl receives the prop's `main-map` view, then `minimap`. External-overlay roots do not merge views: they never send JSX views to the overlay, because the host map owns views, and they forward a `views` prop unchanged like any other overlay prop.
+
 ## Errors and limits
 
 A `<layer>` without a `layer` prop and a `<view>` without a `view` prop fail at runtime. The renderer rejects every other native element type. Pass a `View` to `<view>`, not to `<layer>`; development builds report that mistake to help catch it early.

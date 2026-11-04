@@ -212,7 +212,7 @@ describe('config-tree-operations', () => {
       // Assert
       expect(mockDeckGL.setProps).toHaveBeenCalledExactlyOnceWith({
         layers: [layer1, layer2],
-        views: []
+        views: null
       });
     });
 
@@ -270,7 +270,7 @@ describe('config-tree-operations', () => {
       // Assert
       expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [jsxLayer, passedLayer],
-        views: []
+        views: null
       });
     });
 
@@ -310,7 +310,8 @@ describe('config-tree-operations', () => {
       });
     });
 
-    it('should reset views prop if empty', () => {
+    // `null` restores deck.gl's default view; an empty list would leave it with no view.
+    it('should reset views to the default view without JSX views or a views prop', () => {
       // Arrange
       const layer = new ScatterplotLayer({data: [], id: 'layer'});
       const child = createMockInstance(layer);
@@ -340,7 +341,82 @@ describe('config-tree-operations', () => {
       // Assert
       expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [layer],
-        views: []
+        views: null
+      });
+    });
+
+    describe('views prop', () => {
+      function createViewsContainer(passedViews: unknown, isExternalOverlay = false) {
+        const deckgl = {setProps: vi.fn<(props: {layers: unknown[]; views?: unknown}) => void>()};
+        const container = {
+          store: {
+            getState: vi.fn(() => ({
+              _passedLayers: [],
+              _passedViews: passedViews,
+              deckgl,
+              isExternalOverlay
+            }))
+          }
+        } as unknown as Container;
+        return {container, deckgl};
+      }
+
+      it('uses the views prop unchanged without JSX views', () => {
+        const propView = new MapView({id: 'prop'});
+        const {container, deckgl} = createViewsContainer(propView);
+
+        replaceContainerChildren(container, []);
+
+        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({layers: [], views: propView});
+      });
+
+      it('falls back to the views prop when the last JSX view is removed', () => {
+        const propViews = [new MapView({id: 'prop'})];
+        const {container, deckgl} = createViewsContainer(propViews);
+
+        replaceContainerChildren(container, [createMockInstance(new MapView({id: 'jsx'}))]);
+        replaceContainerChildren(container, []);
+
+        expect(deckgl.setProps).toHaveBeenLastCalledWith({layers: [], views: propViews});
+      });
+
+      it('merges JSX views with the views prop, which wins on an id clash', () => {
+        const jsxMain = new MapView({id: 'main'});
+        const jsxMinimap = new MapView({id: 'minimap'});
+        const propMain = new MapView({id: 'main', controller: true});
+        const propExtra = new MapView({id: 'extra'});
+        const {container, deckgl} = createViewsContainer([propMain, propExtra]);
+
+        replaceContainerChildren(container, [
+          createMockInstance(jsxMain),
+          createMockInstance(jsxMinimap)
+        ]);
+
+        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
+          layers: [],
+          views: [propMain, jsxMinimap, propExtra]
+        });
+      });
+
+      it('merges a single View passed as the views prop', () => {
+        const jsxView = new MapView({id: 'jsx'});
+        const propView = new MapView({id: 'prop'});
+        const {container, deckgl} = createViewsContainer(propView);
+
+        replaceContainerChildren(container, [createMockInstance(jsxView)]);
+
+        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
+          layers: [],
+          views: [jsxView, propView]
+        });
+      });
+
+      it('omits views for an external overlay root even with a views prop', () => {
+        const {container, deckgl} = createViewsContainer(new MapView({id: 'prop'}), true);
+
+        replaceContainerChildren(container, [createMockInstance(new MapView({id: 'jsx'}))]);
+
+        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({layers: []});
       });
     });
 

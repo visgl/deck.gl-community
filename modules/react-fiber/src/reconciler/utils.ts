@@ -106,17 +106,49 @@ export function organizeList(list: Instance['node'][]) {
 /** The root props that are combined with committed JSX descriptors. */
 interface RootDescriptorProps {
   _passedLayers: LayersList;
+  _passedViews?: ViewOrViews;
   isExternalOverlay?: boolean;
 }
 
 /**
- * Combines a root's `layers` prop with the layers and views of its committed JSX tree.
+ * Merges JSX views with the `views` prop as `@deck.gl/react` does.
+ *
+ * Without JSX views, the prop is used unchanged. When it is also absent, the result is
+ * `null`, which makes deck.gl restore its default view after the last JSX view is removed.
+ * An empty list would leave deck.gl with no view at all. With JSX views, prop views are
+ * merged in by id: a prop view replaces the JSX view with the same id, and other prop
+ * views follow the JSX views.
+ */
+function mergeViews(jsxViews: View[], passedViews: ViewOrViews | undefined): ViewOrViews {
+  if (jsxViews.length === 0) {
+    return passedViews ?? null;
+  }
+  if (!passedViews) {
+    return jsxViews;
+  }
+
+  const viewsById = new Map<string, View>();
+  for (const view of jsxViews) {
+    viewsById.set(view.id, view);
+  }
+  for (const view of Array.isArray(passedViews) ? passedViews : [passedViews]) {
+    if (view) {
+      viewsById.set(view.id, view);
+    }
+  }
+  return [...viewsById.values()];
+}
+
+/**
+ * Combines a root's `layers` and `views` props with the layers and views of its committed
+ * JSX tree.
  *
  * As in `@deck.gl/react`, JSX layers come first and `layers` prop layers follow them, so
- * prop layers draw above JSX layers. External overlays receive no views because their host
- * map owns them.
+ * prop layers draw above JSX layers, and JSX views are merged with the `views` prop by id,
+ * with the prop winning. External overlays receive no views because their host map owns
+ * them.
  *
- * @param props - The root's passed layers and whether it is an external overlay
+ * @param props - The root's passed layers and views and whether it is an external overlay
  * @param jsx - Layers and views from the committed JSX tree
  * @returns The `layers` and, for a standalone root, `views` to send to deck.gl
  */
@@ -128,10 +160,8 @@ export function combineRootDescriptors(
     layers: [...jsx.layers, ...props._passedLayers]
   };
 
-  // Standalone Deck must receive an explicit empty list when the last JSX view is
-  // removed so that ViewManager restores its default view.
   if (!props.isExternalOverlay) {
-    descriptors.views = jsx.views;
+    descriptors.views = mergeViews(jsx.views, props._passedViews);
   }
 
   return descriptors;

@@ -7,7 +7,7 @@ import {DeckGL} from '@deck.gl-community/react-fiber';
 import type {DeckGLProps, OnDeckChange} from '@deck.gl-community/react-fiber';
 ```
 
-The root import creates only a standalone `Deck`. It owns a canvas unless the caller supplies `canvas`, and sends JSX `<view>` descriptors to deck.gl. Its props are `DeckProps`, which has no `interleaved` option.
+The root import creates only a standalone `Deck`. It owns a canvas unless the caller supplies `canvas`, and sends JSX `<view>` descriptors to deck.gl, merged with the `views` prop as [Native elements](./native-elements.md#mixing-jsx-and-direct-views) describes. Its props are `DeckProps`, which has no `interleaved` option.
 
 ## Provider roots
 

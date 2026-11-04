@@ -1,4 +1,4 @@
-import {Deck, log} from '@deck.gl/core';
+import {Deck, log, MapView} from '@deck.gl/core';
 import {PolygonLayer, ScatterplotLayer} from '@deck.gl/layers';
 import * as fc from 'fast-check';
 import React from 'react';
@@ -170,7 +170,7 @@ describe('renderer', () => {
 
       root.configure({layers});
 
-      expect(deck.setProps).toHaveBeenCalledWith({layers, views: []});
+      expect(deck.setProps).toHaveBeenCalledWith({layers, views: null});
     });
 
     it('should forward replacement controlled view state and callback', () => {
@@ -186,7 +186,7 @@ describe('renderer', () => {
       expect(deck.setProps).toHaveBeenLastCalledWith({
         layers: [],
         viewState: secondViewState,
-        views: [],
+        views: null,
         onViewStateChange: secondHandler
       });
     });
@@ -452,6 +452,39 @@ describe('renderer', () => {
       await renderLayers(root, children);
 
       expect(deck.getLayerIds()).toStrictEqual(['jsx']);
+    });
+  });
+
+  describe('views prop', () => {
+    it('keeps the views prop when no JSX view is rendered', async () => {
+      const {root, deck} = createTestRoot();
+      const propView = new MapView({id: 'prop'});
+
+      root.configure({views: [propView]});
+      await React.act(async () => {
+        root.render(
+          React.createElement('layer', {layer: new ScatterplotLayer({data: [], id: 'jsx'})})
+        );
+      });
+
+      expect(deck.views).toStrictEqual([propView]);
+    });
+
+    it('merges a reconfigured views prop with committed JSX views without a commit', async () => {
+      const {root, deck} = createTestRoot();
+      const jsxView = new MapView({id: 'jsx'});
+      const children = React.createElement('view', {view: jsxView});
+
+      root.configure({});
+      await React.act(async () => {
+        root.render(children);
+      });
+      expect(deck.views).toStrictEqual([jsxView]);
+
+      const propView = new MapView({id: 'prop'});
+      root.configure({views: propView});
+
+      expect(deck.views).toStrictEqual([jsxView, propView]);
     });
   });
 
