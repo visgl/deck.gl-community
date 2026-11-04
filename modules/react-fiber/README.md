@@ -254,8 +254,8 @@ The package exports only the root, `/mapbox`, `/maplibre`, `/compat` (with `/com
 `/compat/maplibre` and the `/compat/*` layer families), and `/reconciler` entry points. Internal
 modules such as the host configuration and root store are not importable.
 
-The reconciler writes trace messages through deck.gl's `log` at level 4. Enable them with
-`log.setLevel(4)` (`import {log} from '@deck.gl/core'`), or with `deck.log.setLevel(4)` in the
+Warnings and traces go through deck.gl's `log`. Root creation, unmounting and commits log at
+level 3, and configured props at level 4: run `deck.log.enable()` and `deck.log.level = 3` in the
 browser console. The `debug` prop is a deck.gl prop and is passed to `Deck` or the overlay unchanged.
 
 ## Commands

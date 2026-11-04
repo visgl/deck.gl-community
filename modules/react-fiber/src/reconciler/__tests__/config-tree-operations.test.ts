@@ -13,7 +13,7 @@ import {
 } from '../config';
 import type {ChildSet, Container, Instance} from '../types';
 import {flattenTree, organizeList} from '../utils';
-import {createMockInstance, setupConsoleSpy} from './test-utils';
+import {createMockInstance} from './test-utils';
 
 describe('config-tree-operations', () => {
   let originalEnv: string | undefined;
@@ -173,120 +173,9 @@ describe('config-tree-operations', () => {
   });
 
   describe('finalizeContainerChildren()', () => {
-    it('should warn for duplicate layer IDs in dev mode', () => {
-      // Arrange
-      process.env.NODE_ENV = 'development';
-      const {errorSpy} = setupConsoleSpy();
-
-      const layer1 = new ScatterplotLayer({data: [], id: 'duplicate'});
-      const layer2 = new ScatterplotLayer({data: [], id: 'duplicate'});
-      const child1 = createMockInstance(layer1);
-      const child2 = createMockInstance(layer2);
-      const newChildren: ChildSet = [child1, child2];
-
-      const container = {
-        store: {} as never
-      } as Container;
-
-      // Act
-      finalizeContainerChildren(container, newChildren);
-
-      // Assert
-      expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Duplicate layer IDs detected: duplicate')
-      );
-    });
-
-    it('should not warn for unique layer IDs', () => {
-      // Arrange
-      process.env.NODE_ENV = 'development';
-      const {errorSpy} = setupConsoleSpy();
-
-      const layer1 = new ScatterplotLayer({data: [], id: 'layer1'});
-      const layer2 = new ScatterplotLayer({data: [], id: 'layer2'});
-      const child1 = createMockInstance(layer1);
-      const child2 = createMockInstance(layer2);
-      const newChildren: ChildSet = [child1, child2];
-
-      const container = {
-        store: {} as never
-      } as Container;
-
-      // Act
-      finalizeContainerChildren(container, newChildren);
-
-      // Assert
-      expect(errorSpy).not.toHaveBeenCalled();
-    });
-
-    it('should ignore View IDs', () => {
-      // Arrange
-      process.env.NODE_ENV = 'development';
-      const {errorSpy} = setupConsoleSpy();
-
-      const view1 = new MapView({id: 'duplicate'});
-      const view2 = new MapView({id: 'duplicate'});
-      const child1 = createMockInstance(view1);
-      const child2 = createMockInstance(view2);
-      const newChildren: ChildSet = [child1, child2];
-
-      const container = {
-        store: {} as never
-      } as Container;
-
-      // Act
-      finalizeContainerChildren(container, newChildren);
-
-      // Assert
-      expect(errorSpy).not.toHaveBeenCalled();
-    });
-
-    it('should handle nested layers correctly', () => {
-      // Arrange
-      process.env.NODE_ENV = 'development';
-      const {errorSpy} = setupConsoleSpy();
-
-      const layer1 = new ScatterplotLayer({data: [], id: 'parent'});
-      const layer2 = new ScatterplotLayer({data: [], id: 'child1'});
-      const layer3 = new ScatterplotLayer({data: [], id: 'child1'}); // Duplicate with layer2
-      const child2 = createMockInstance(layer2);
-      const child3 = createMockInstance(layer3);
-      const parent = createMockInstance(layer1, [child2, child3]);
-      const newChildren: ChildSet = [parent];
-
-      const container = {
-        store: {} as never
-      } as Container;
-
-      // Act
-      finalizeContainerChildren(container, newChildren);
-
-      // Assert
-      expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Duplicate layer IDs detected: child1')
-      );
-    });
-
-    it('should not warn in production mode', () => {
-      // Arrange
-      process.env.NODE_ENV = 'production';
-      const {errorSpy} = setupConsoleSpy();
-
-      const layer1 = new ScatterplotLayer({data: [], id: 'duplicate'});
-      const layer2 = new ScatterplotLayer({data: [], id: 'duplicate'});
-      const child1 = createMockInstance(layer1);
-      const child2 = createMockInstance(layer2);
-      const newChildren: ChildSet = [child1, child2];
-
-      const container = {
-        store: {} as never
-      } as Container;
-
-      // Act
-      finalizeContainerChildren(container, newChildren);
-
-      // Assert
-      expect(errorSpy).not.toHaveBeenCalled();
+    it('leaves duplicate layer ids to deck.gl', () => {
+      // deck.gl's LayerManager warns about duplicate ids, so the reconciler does not.
+      expect(() => finalizeContainerChildren()).not.toThrow();
     });
   });
 

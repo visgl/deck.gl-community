@@ -1,4 +1,5 @@
 import type {Deck} from '@deck.gl/core';
+import {log} from '@deck.gl/core';
 import {DeckGL as NativeDeckGL} from '../dom/components';
 import type {DeckGLRootProps} from '../types/index';
 import {forwardRef, useCallback, useImperativeHandle, useMemo, useState} from 'react';
@@ -35,9 +36,7 @@ type PickingMethod =
 
 function getDeckOrThrow<Instance>(deck: Instance | null): Instance {
   if (!deck) {
-    throw new Error(
-      'DeckGL is not initialized yet. Wait until the ref.deck property is available.'
-    );
+    throw new Error('DeckGL is not initialized');
   }
 
   return deck;
@@ -54,7 +53,7 @@ function callPickingMethod<Instance, Method extends PickingMethod>(
     | undefined;
 
   if (!pick) {
-    throw new Error(`DeckGL does not support ${method} for this renderer.`);
+    throw new Error(`${method} is not supported by this overlay`);
   }
 
   return pick.apply(instance, args);
@@ -70,16 +69,11 @@ function warnForUnsupportedUsage(props: UnsupportedProps & {children?: unknown})
   );
 
   if (unsupportedProps.length > 0) {
-    console.warn(
-      `DeckGL compat does not support ${unsupportedProps.join(', ')}. ` +
-        'Use the native DeckGL component for low-level renderer ownership.'
-    );
+    log.warn(`DeckGL compat ignores ${unsupportedProps.join(', ')}; use the native DeckGL`)();
   }
 
   if (typeof props.children === 'function') {
-    console.warn(
-      'DeckGL compat does not support function children. Render supported layer and view components directly.'
-    );
+    log.warn('DeckGL compat ignores function children')();
   }
 }
 
