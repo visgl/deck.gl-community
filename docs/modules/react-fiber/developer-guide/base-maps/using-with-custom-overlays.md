@@ -41,7 +41,7 @@ const DeckGL = createDeckGL({
 
 The factory runs only when the root is first configured, with the root's props. Later changes
 reach the overlay through `setProps`. If the overlay reads some props only at construction, list
-them in `recreateOnChange` so that a change finalizes the overlay and calls the factory again.
+them in `recreateOverlayOnChange` so that a change finalizes the overlay and calls the factory again.
 
 ## Attach to the host
 

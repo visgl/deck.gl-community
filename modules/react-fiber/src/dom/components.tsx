@@ -65,7 +65,7 @@ export interface CreateDeckGLOptions<Props, Instance extends DeckglRenderer> {
    * current overlay and creates a new one with the full props. `onDeckglChange` receives
    * `null` for the old instance and then the new instance, which the app must attach.
    */
-  recreateOnChange?: readonly (keyof Props & string)[];
+  recreateOverlayOnChange?: readonly (keyof Props & string)[];
 }
 
 type ComponentProps<Props, Instance extends DeckglRenderer> = DeckGLRootProps<Instance, Props> & {
@@ -181,10 +181,10 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
     );
   }
 
-  const recreateOnChange: readonly PropertyKey[] = options?.recreateOnChange ?? [];
+  const recreateOverlayOnChange: readonly PropertyKey[] = options?.recreateOverlayOnChange ?? [];
 
   return function DeckGL(props: ComponentProps<Props, Instance> & {children: ReactNode}) {
-    const generation = useRecreateGeneration(props, recreateOnChange);
+    const generation = useRecreateGeneration(props, recreateOverlayOnChange);
     return (
       <FiberProvider>
         <DeckGLComponent key={generation} {...props} />

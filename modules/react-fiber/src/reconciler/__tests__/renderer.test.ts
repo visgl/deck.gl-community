@@ -199,7 +199,7 @@ describe('renderer', () => {
     });
 
     // Recreating the overlay for a construction-only prop is the component's job
-    // (`createDeckGL({recreateOnChange})`); the root itself only forwards props.
+    // (`createDeckGL({recreateOverlayOnChange})`); the root itself only forwards props.
     it.each([
       {initialProps: {}, name: 'omitted interleaved', updateProps: {interleaved: false}},
       {

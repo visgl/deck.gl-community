@@ -227,7 +227,8 @@ matrix, ref and context limits, overlay choices, and unsupported function childr
 
 ## Custom compatible overlays
 
-For a compatible overlay not covered by the provider roots, create a component with a factory:
+For an overlay not covered by the provider roots, such as the community Leaflet or Bing Maps
+overlays, bind it with `createDeckGL`:
 
 ```tsx
 import {createDeckGL} from '@deck.gl-community/react-fiber';
@@ -237,24 +238,8 @@ const DeckGL = createDeckGL({
 });
 ```
 
-The factory runs once when its root is first configured. It is not a render prop and does not reach
-`setProps`. The result must implement deck.gl's `setProps` and `finalize` lifecycle.
-
-If the overlay reads some props only at construction, list them in `recreateOnChange`. When one of
-them changes (compared with `Object.is`), the component finalizes the overlay and calls the factory
-again with the full props. `onDeckglChange` receives `null` and then the new instance:
-
-```tsx
-const DeckGL = createDeckGL({
-  createExternalOverlay: props => new MyCompatibleOverlay(props),
-  recreateOnChange: ['interleaved']
-});
-```
-
-Recreating an overlay discards its internal state, such as the hovered object. This advanced native API is for compatible custom overlays;
-normal applications should use the standalone, Mapbox, or MapLibre import path. See
 [Using with custom overlays](../../docs/modules/react-fiber/developer-guide/base-maps/using-with-custom-overlays.md)
-for the overlay requirements and host attachment.
+covers the overlay requirements, `recreateOverlayOnChange` and host attachment.
 
 ## Advanced reconciler API
 

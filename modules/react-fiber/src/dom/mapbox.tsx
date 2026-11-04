@@ -11,7 +11,7 @@ export type MapboxDeckGLProps = DeckGLRootProps<MapboxOverlay, MapboxOverlayProp
 export const DeckGL = createDeckGL<MapboxOverlayProps, MapboxOverlay>({
   createExternalOverlay: props => new MapboxOverlay(props),
   /** `MapboxOverlay` reads `interleaved` only in its constructor. */
-  recreateOnChange: ['interleaved']
+  recreateOverlayOnChange: ['interleaved']
 });
 
 export type {MapboxOverlay, MapboxOverlayProps};

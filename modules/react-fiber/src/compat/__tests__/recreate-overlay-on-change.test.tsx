@@ -13,7 +13,7 @@ vi.mock('@deck.gl/mapbox', () => ({MapboxOverlay: mapboxOverlay}));
 
 const {DeckGL} = await import('../mapbox');
 
-describe('compat recreateOnChange', () => {
+describe('compat recreateOverlayOnChange', () => {
   it('points ref.deck at the replacement overlay after interleaved changes', async () => {
     const ref = createRef<DeckGLRef>();
     const {rerender, unmount} = render(<DeckGL ref={ref} interleaved={false} />);

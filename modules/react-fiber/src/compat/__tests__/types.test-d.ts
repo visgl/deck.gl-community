@@ -86,13 +86,13 @@ expectTypeOf<Parameters<typeof CustomDeckGL>[0]['onDeckglChange']>().toEqualType
 
 createDeckGL<CustomOverlayProps, CustomOverlay>({
   createExternalOverlay: () => new CustomOverlay(),
-  recreateOnChange: ['enabled']
+  recreateOverlayOnChange: ['enabled']
 });
 
 createDeckGL<CustomOverlayProps, CustomOverlay>({
   createExternalOverlay: () => new CustomOverlay(),
-  // @ts-expect-error recreateOnChange lists only props of the bound overlay.
-  recreateOnChange: ['notAProp']
+  // @ts-expect-error recreateOverlayOnChange lists only props of the bound overlay.
+  recreateOverlayOnChange: ['notAProp']
 });
 
 // @ts-expect-error Custom overlays must implement both Deck renderer lifecycle methods.

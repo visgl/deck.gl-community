@@ -1,3 +1,4 @@
+// @vitest-environment node
 // Invariant: DeckGL roots never touch `document` or `window` during render. All DOM
 // resolution happens in effects, so every root entry point must server-render in plain Node.
 import {createElement} from 'react';
