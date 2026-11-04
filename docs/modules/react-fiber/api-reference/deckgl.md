@@ -32,9 +32,17 @@ Provider overlay props exclude map-owned configuration such as `canvas`, `parent
 
 ## Props and lifecycle
 
-`DeckGLProps` is the standalone `DeckProps` surface plus React children and `onDeckChange`; `DeckGLInstance` is `Deck`. Provider entry points infer their concrete overlay instance in `onDeckChange`.
+`DeckGLProps` is the standalone `DeckProps` surface plus optional React children, `onDeckChange`, and `ref`; `DeckGLInstance` is `Deck`. Provider entry points infer their concrete overlay instance in `onDeckChange`.
 
 The notification runs after configuration and receives `null` during cleanup. It is a lifecycle notification rather than a callback ref: replacing only its identity does not recreate the root, but later notifications use the replacement.
+
+Every root also accepts a React 19 `ref`, which receives the same instance as `onDeckChange`: `Deck` on the standalone root, or the overlay on a provider or `createDeckGL` root. The ref is set after configuration, before `onDeckChange` runs, and receives `null` on teardown; a callback ref may return a cleanup function instead. When a provider root recreates its overlay, the ref receives `null` and then the new instance. Replacing the ref moves the current instance to the new ref without recreating the root.
+
+```tsx
+const deckRef = useRef<Deck>(null);
+
+<DeckGL ref={deckRef} layers={layers} />;
+```
 
 On the standalone root, `canvas` accepts an `HTMLCanvasElement` or the id of a `<canvas>` element. An id is resolved with `document.getElementById` on the client after mount, so the canvas may be rendered in the same commit as `DeckGL`. An id that does not name a mounted `<canvas>` throws. Without `parent`, deck.gl uses the canvas's parent element. The root binds to the element found at mount; to bind a replacement element that reuses the id, pass that element as `canvas` or remount with a different React `key`.
 

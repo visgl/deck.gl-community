@@ -13,7 +13,7 @@ export interface DeckGLContextValue<Instance = DeckGLInstance> {
 /** Props shared by compatibility adapters backed by a concrete native root. */
 export type CompatibilityDeckGLProps<NativeProps, Instance> = Omit<
   NativeProps,
-  'canvas' | 'children' | 'gl' | 'parent' | '_customRender' | 'onDeckChange'
+  'canvas' | 'children' | 'gl' | 'parent' | '_customRender' | 'onDeckChange' | 'ref'
 > & {
   children?: ReactNode;
   /** Optional provider that receives the bounded `{deck}` compatibility context. */

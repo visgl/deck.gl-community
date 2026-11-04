@@ -10,6 +10,7 @@ import type {
 import type {DeckGLRenderer} from '../shared/store';
 import {hasSameConfigProperties} from '../shared/has-same-config-properties';
 import {useEffectEvent} from '../shared/use-effect-event';
+import {useInstanceRef} from './use-instance-ref';
 import type {DeckGLRootProps, DeckGLInstance, DeckGLProps, OnDeckChange} from '../types/index';
 import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
@@ -126,8 +127,10 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
   }
 
   function DeckGLComponent(props: ComponentProps<Props, Instance>) {
-    const {children, onDeckChange, ...deckglProps} = props;
+    const {children, onDeckChange, ref, ...deckglProps} = props;
+    const setInstanceRef = useInstanceRef(ref);
     const notifyDeckChange = useEffectEvent<Parameters<OnDeckChange<Instance>>, void>(deckgl => {
+      setInstanceRef(deckgl);
       onDeckChange?.(deckgl);
     });
 

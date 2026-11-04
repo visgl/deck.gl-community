@@ -1,5 +1,5 @@
 import type {Deck, DeckProps, View} from '@deck.gl/core';
-import type {ReactNode} from 'react';
+import type {ReactNode, Ref} from 'react';
 
 type ViewOrViews = View | View[] | null;
 
@@ -18,6 +18,12 @@ export type DeckGLRootProps<Instance, Props> = Props & {
   children?: ReactNode;
   /** Lifecycle notification for the root-specific deck.gl instance and its cleanup. */
   onDeckChange?: OnDeckChange<Instance>;
+  /**
+   * React 19 ref that receives the root-specific deck.gl instance after configuration and
+   * `null` on teardown. It is set before `onDeckChange` is called. A callback ref may
+   * return a cleanup function, which runs instead of a `null` call.
+   */
+  ref?: Ref<Instance>;
 };
 
 /**
