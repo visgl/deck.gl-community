@@ -4,6 +4,8 @@ import * as geoLayers from '../geo-layers';
 import * as layers from '../layers';
 import * as meshLayers from '../mesh-layers';
 import * as compat from '../index';
+import * as mapbox from '../mapbox';
+import * as maplibre from '../maplibre';
 
 describe('compat entrypoint export matrices', () => {
   it('exports only the approved root compatibility API', () => {
@@ -15,6 +17,13 @@ describe('compat entrypoint export matrices', () => {
       'OrbitView',
       'OrthographicView'
     ]);
+  });
+
+  it('exports explicit provider compatibility roots separately', () => {
+    expect(Object.keys(mapbox).sort()).toEqual(['DeckGL']);
+    expect(Object.keys(maplibre).sort()).toEqual(['DeckGL']);
+    expect(mapbox.DeckGL).not.toBe(compat.DeckGL);
+    expect(maplibre.DeckGL).not.toBe(compat.DeckGL);
   });
 
   it('exports the approved layer family wrappers and no aggregation internals', () => {

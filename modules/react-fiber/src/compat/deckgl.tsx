@@ -1,9 +1,16 @@
 import type {Deck} from '@deck.gl/core';
 import {DeckGL as NativeDeckGL} from '../dom/components';
+import type {DeckGLRootProps} from '../types/index';
 import {forwardRef, useCallback, useImperativeHandle, useMemo, useState} from 'react';
-import type {MapboxOverlay} from '@deck.gl/mapbox';
+import type {ReactNode} from 'react';
 import {EMPTY_CONTEXT_VALUE} from './context';
-import type {DeckGLInstance, DeckGLProps, DeckGLRef} from './types';
+import type {
+  CompatibilityDeckGLProps,
+  DeckGLContextValue,
+  DeckGLInstance,
+  DeckGLProps,
+  DeckGLRef
+} from './types';
 
 type UnsupportedProps = {
   _customRender?: unknown;
@@ -12,7 +19,12 @@ type UnsupportedProps = {
   parent?: unknown;
 };
 
-type RuntimeDeckGLProps = DeckGLProps & UnsupportedProps;
+type RuntimeDeckGLProps<Props, Instance> = CompatibilityDeckGLProps<Props, Instance> &
+  UnsupportedProps;
+
+type NativeDeckGLComponent<Props, Instance> = (
+  props: DeckGLRootProps<Instance, Props> & {children: ReactNode}
+) => ReactNode;
 
 type PickingMethod =
   | 'pickObject'
@@ -21,7 +33,7 @@ type PickingMethod =
   | 'pickObjectsAsync'
   | 'pickMultipleObjects';
 
-function getDeckOrThrow(deck: DeckGLInstance | null): DeckGLInstance {
+function getDeckOrThrow<Instance>(deck: Instance | null): Instance {
   if (!deck) {
     throw new Error(
       'DeckGL is not initialized yet. Wait until the ref.deck property is available.'
@@ -31,12 +43,12 @@ function getDeckOrThrow(deck: DeckGLInstance | null): DeckGLInstance {
   return deck;
 }
 
-function callPickingMethod<Method extends PickingMethod>(
-  deck: DeckGLInstance | null,
+function callPickingMethod<Instance, Method extends PickingMethod>(
+  deck: Instance | null,
   method: Method,
   args: Parameters<Deck[Method]>
 ): ReturnType<Deck[Method]> {
-  const instance = getDeckOrThrow(deck) as Deck & Partial<MapboxOverlay>;
+  const instance = getDeckOrThrow(deck) as Deck & Partial<Record<PickingMethod, Deck[Method]>>;
   const pick = instance[method] as
     | ((...callArgs: Parameters<Deck[Method]>) => ReturnType<Deck[Method]>)
     | undefined;
@@ -48,7 +60,7 @@ function callPickingMethod<Method extends PickingMethod>(
   return pick.apply(instance, args);
 }
 
-function warnForUnsupportedUsage(props: RuntimeDeckGLProps): void {
+function warnForUnsupportedUsage(props: UnsupportedProps & {children?: unknown}): void {
   if (process.env.NODE_ENV !== 'development') {
     return;
   }
@@ -72,53 +84,67 @@ function warnForUnsupportedUsage(props: RuntimeDeckGLProps): void {
 }
 
 /**
- * A bounded migration adapter for supported `@deck.gl/react` applications.
+ * Creates a bounded `@deck.gl/react` migration adapter over one native root.
  *
- * It lowers compatible layer and view components to the local native reconciler.
+ * @internal Provider entry points bind this helper to their matching native
+ * component so they share refs, context, warnings, and picking behavior.
  */
-export const DeckGL = forwardRef<DeckGLRef, DeckGLProps>(function DeckGL(props, ref) {
-  const runtimeProps = props as RuntimeDeckGLProps;
-  const {
-    ContextProvider,
-    _customRender: _unsupportedCustomRender,
-    canvas: _unsupportedCanvas,
-    gl: _unsupportedGl,
-    parent: _unsupportedParent,
-    ...deckglProps
-  } = runtimeProps;
-  const [deck, setDeck] = useState<DeckGLInstance | null>(null);
+export function createDeckGLAdapter<Props, Instance>(
+  NativeComponent: NativeDeckGLComponent<Props, Instance>
+) {
+  return forwardRef<DeckGLRef<Instance>, CompatibilityDeckGLProps<Props, Instance>>(
+    function DeckGL(props, ref) {
+      const runtimeProps = props as RuntimeDeckGLProps<Props, Instance>;
+      const {
+        ContextProvider,
+        _customRender: _unsupportedCustomRender,
+        canvas: _unsupportedCanvas,
+        gl: _unsupportedGl,
+        parent: _unsupportedParent,
+        ...deckglProps
+      } = runtimeProps;
+      const [deck, setDeck] = useState<Instance | null>(null);
 
-  warnForUnsupportedUsage(runtimeProps);
+      warnForUnsupportedUsage(runtimeProps);
 
-  const onDeckglChange = useCallback((nextDeck: DeckGLInstance | null) => {
-    setDeck(nextDeck);
-  }, []);
+      const onDeckglChange = useCallback((nextDeck: Instance | null) => {
+        setDeck(nextDeck);
+      }, []);
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      deck,
-      pickObject: (...args) => callPickingMethod(deck, 'pickObject', args),
-      pickObjects: (...args) => callPickingMethod(deck, 'pickObjects', args),
-      pickMultipleObjects: (...args) => callPickingMethod(deck, 'pickMultipleObjects', args),
-      pickObjectAsync: (...args) => callPickingMethod(deck, 'pickObjectAsync', args),
-      pickObjectsAsync: (...args) => callPickingMethod(deck, 'pickObjectsAsync', args)
-    }),
-    [deck]
+      useImperativeHandle(
+        ref,
+        () => ({
+          deck,
+          pickObject: (...args) => callPickingMethod(deck, 'pickObject', args),
+          pickObjects: (...args) => callPickingMethod(deck, 'pickObjects', args),
+          pickMultipleObjects: (...args) => callPickingMethod(deck, 'pickMultipleObjects', args),
+          pickObjectAsync: (...args) => callPickingMethod(deck, 'pickObjectAsync', args),
+          pickObjectsAsync: (...args) => callPickingMethod(deck, 'pickObjectsAsync', args)
+        }),
+        [deck]
+      );
+
+      const contextValue = useMemo<DeckGLContextValue<Instance>>(
+        () => (deck ? {deck} : (EMPTY_CONTEXT_VALUE as DeckGLContextValue<Instance>)),
+        [deck]
+      );
+      const children = typeof deckglProps.children === 'function' ? null : deckglProps.children;
+      const content = ContextProvider ? (
+        <ContextProvider value={contextValue}>{children}</ContextProvider>
+      ) : (
+        children
+      );
+
+      return (
+        <NativeComponent {...(deckglProps as Props)} onDeckglChange={onDeckglChange}>
+          {content}
+        </NativeComponent>
+      );
+    }
   );
+}
 
-  const contextValue = useMemo(() => (deck ? {deck} : EMPTY_CONTEXT_VALUE), [deck]);
-  const children =
-    typeof deckglProps.children === 'function' ? null : (deckglProps.children ?? null);
-  const content = ContextProvider ? (
-    <ContextProvider value={contextValue}>{children}</ContextProvider>
-  ) : (
-    children
-  );
+/** A bounded migration adapter for standalone `Deck` applications. */
+export const DeckGL = createDeckGLAdapter(NativeDeckGL);
 
-  return (
-    <NativeDeckGL {...deckglProps} onDeckglChange={onDeckglChange}>
-      {content}
-    </NativeDeckGL>
-  );
-});
+export type {DeckGLInstance, DeckGLProps, DeckGLRef};

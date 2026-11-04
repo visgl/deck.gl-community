@@ -1,46 +1,31 @@
 import type {Deck} from '@deck.gl/core';
-import type {MapboxOverlay} from '@deck.gl/mapbox';
 import type {ReactNode} from 'react';
 import type {DeckglProps} from '../types/index';
 
-/** The deck.gl instance exposed by the compatibility adapter. */
-export type DeckGLInstance = Deck | MapboxOverlay;
+/** The deck.gl instance exposed by the standalone compatibility adapter. */
+export type DeckGLInstance = Deck;
 
-/**
- * The bounded context value supplied through a caller-provided ContextProvider.
- *
- * `deck` is null until the local renderer initializes its deck.gl instance.
- */
-export interface DeckGLContextValue {
-  deck: DeckGLInstance | null;
+/** The bounded context value supplied through a caller-provided ContextProvider. */
+export interface DeckGLContextValue<Instance = DeckGLInstance> {
+  deck: Instance | null;
 }
 
-/**
- * Props supported by the `DeckGL` compatibility adapter.
- *
- * Low-level renderer ownership props and the native lifecycle notification are
- * intentionally unsupported. Use the native `DeckGL` component when an application
- * needs to provide `gl`, `canvas`, `parent`, `_customRender`, or `onDeckglChange`.
- * Use this adapter's imperative ref or optional context provider to access its instance.
- */
-export type DeckGLProps = Omit<
-  DeckglProps,
+/** Props shared by compatibility adapters backed by a concrete native root. */
+export type CompatibilityDeckGLProps<NativeProps, Instance> = Omit<
+  NativeProps,
   'canvas' | 'children' | 'gl' | 'parent' | '_customRender' | 'onDeckglChange'
 > & {
   children?: ReactNode;
   /** Optional provider that receives the bounded `{deck}` compatibility context. */
-  ContextProvider?: React.JSXElementConstructor<React.ProviderProps<DeckGLContextValue>>;
+  ContextProvider?: React.JSXElementConstructor<React.ProviderProps<DeckGLContextValue<Instance>>>;
 };
 
-/**
- * Imperative surface exposed by the `DeckGL` compatibility adapter.
- *
- * Before renderer initialization, `deck` is null and picking calls throw an error.
- * Async picking is unavailable for interleaved `MapboxOverlay` roots because that
- * deck.gl integration exposes only synchronous picking methods.
- */
-export interface DeckGLRef {
-  deck: DeckGLInstance | null;
+/** Props supported by the standalone `@deck.gl/react` compatibility adapter. */
+export type DeckGLProps = CompatibilityDeckGLProps<DeckglProps, DeckGLInstance>;
+
+/** Imperative surface exposed by a compatibility adapter. */
+export interface DeckGLRef<Instance = DeckGLInstance> {
+  deck: Instance | null;
   pickObject: Deck['pickObject'];
   pickObjects: Deck['pickObjects'];
   pickMultipleObjects: Deck['pickMultipleObjects'];

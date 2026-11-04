@@ -4,6 +4,13 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- **react-fiber:** map overlays have their own entry points. The default `DeckGL` root renders a
+  standalone `Deck`; import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` (or the matching
+  `/compat/` paths) for a `MapboxOverlay` or `MapLibreOverlay`. See
+  [Using with maps](/docs/modules/react-fiber/developer-guide/using-with-maps). Custom overlays use
+  [`createDeckGL`](/docs/modules/react-fiber/api-reference/deckgl#custom-compatible-overlays), whose
+  `recreateOverlayOnChange` option replaces the overlay when a construction-only prop changes.
+
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
 - **Website:** fix the mobile navigation drawer, replace generic gallery artwork with
@@ -210,7 +217,7 @@ Released: September 7, 2026
 - **layers:** new dependency arrows, plus WebGPU support for path outlines and directional path markers.
 - **infovis-layers:** new animation, interval-block, and time-delta layers.
 - **widgets and panels:** new color legends, reusable panel components, floating dialogs, and binary and Apache Arrow data previews.
-- **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements.
+- **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements, with a bounded [`/compat` migration API](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react) for a supported subset of `@deck.gl/react` applications.
 - **editable-layers:** isolates edits from interleaved MapLibre/Mapbox pans, keeps `guideType` features selectable, and resumes editing after two-finger navigation.
 
 ## v9.3
