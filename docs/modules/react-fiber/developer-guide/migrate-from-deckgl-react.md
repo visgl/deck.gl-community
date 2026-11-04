@@ -6,7 +6,7 @@ The adapter uses the local DOM renderer. In an application that uses React Serve
 
 ## Replace the root import
 
-> **Breaking change for interleaved roots:** The plain `/compat` entry creates only `Deck`, and its props have no `interleaved` option. Replace a previous interleaved default import with `/compat/mapbox` or `/compat/maplibre`, according to the host map. Configure and attach the returned provider control from the application-owned map, as described in [Using with maps](./using-with-maps.md).
+> **Map overlays:** The plain `/compat` entry creates only `Deck`, and its props have no `interleaved` option. For a `MapboxOverlay` or `MapLibreOverlay`, import `/compat/mapbox` or `/compat/maplibre`, according to the host map. Configure and attach the returned provider control from the application-owned map, as described in [Using with maps](./using-with-maps.md).
 
 Change this:
 

@@ -4,9 +4,9 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
-- **Breaking, react-fiber:** the default `DeckGL` root always creates a standalone `Deck` and no
-  longer accepts `interleaved`. Import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` (and
-  `/compat/mapbox` or `/compat/maplibre`) to create a `MapboxOverlay` or `MapLibreOverlay`. See
+- **react-fiber:** map overlays have their own entry points. The default `DeckGL` root renders a
+  standalone `Deck`; import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` (or the matching
+  `/compat/` paths) for a `MapboxOverlay` or `MapLibreOverlay`. See
   [Using with maps](/docs/modules/react-fiber/developer-guide/using-with-maps). Custom overlays use
   [`createDeckGL`](/docs/modules/react-fiber/api-reference/deckgl#custom-compatible-overlays), whose
   `recreateOverlayOnChange` option replaces the overlay when a construction-only prop changes.
