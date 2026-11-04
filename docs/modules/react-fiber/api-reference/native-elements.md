@@ -63,7 +63,7 @@ Refs on these intrinsic elements resolve to their deck.gl `Layer` or `View` inst
 
 ## Mixing declarative and direct layers
 
-The `DeckGL` root also accepts its usual `layers` prop. The renderer prepends those direct layers to the layers produced by `<layer>` elements. This supports incremental adoption, but it also means IDs must be unique across both lists.
+The `DeckGL` root also accepts its usual `layers` prop. As in `@deck.gl/react`, the renderer places the layers produced by `<layer>` elements first and the direct layers after them, so direct layers draw on top. This supports incremental adoption, but it also means IDs must be unique across both lists.
 
 ```tsx
 <DeckGL layers={[new ScatterplotLayer({id: 'existing-layer', data: []})]}>

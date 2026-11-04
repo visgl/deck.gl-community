@@ -144,9 +144,9 @@ Give every view an explicit ID. Use deck.gl's normal view and layer configuratio
 view-specific behavior. The renderer reports missing or duplicate IDs in development because they
 make deck.gl's diffing unreliable.
 
-`DeckGL` also accepts deck.gl's ordinary `layers` prop. It prepends those layers to the layers
-created by JSX, which helps with incremental migration. IDs must remain unique across both
-sources.
+`DeckGL` also accepts deck.gl's ordinary `layers` prop. As in `@deck.gl/react`, it appends those
+layers after the layers created by JSX, so they draw on top. This helps with incremental
+migration. IDs must remain unique across both sources.
 
 ## Use a provider overlay
 

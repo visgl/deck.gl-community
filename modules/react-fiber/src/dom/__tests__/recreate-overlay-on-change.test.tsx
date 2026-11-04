@@ -88,7 +88,11 @@ describe('createDeckGL recreateOverlayOnChange', () => {
 
     expect(createExternalOverlay).toHaveBeenCalledOnce();
     expect(overlays[0].finalize).not.toHaveBeenCalled();
-    expect(overlays[0].setProps).toHaveBeenCalledWith({enabled: true, pickingRadius: 5});
+    expect(overlays[0].setProps).toHaveBeenCalledWith({
+      enabled: true,
+      layers: [LAYER],
+      pickingRadius: 5
+    });
 
     unmount();
   });

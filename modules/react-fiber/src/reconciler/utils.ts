@@ -1,7 +1,7 @@
 import {View} from '@deck.gl/core';
-import type {Layer} from '@deck.gl/core';
+import type {DeckProps, Layer, LayersList} from '@deck.gl/core';
 
-import type {Instance} from './types';
+import type {Instance, JsxDescriptors, ViewOrViews} from './types';
 
 /**
  * Type guard to check if a node is a View instance.
@@ -101,4 +101,38 @@ export function organizeList(list: Instance['node'][]) {
     },
     {layers: [], views: []}
   );
+}
+
+/** The root props that are combined with committed JSX descriptors. */
+interface RootDescriptorProps {
+  _passedLayers: LayersList;
+  isExternalOverlay?: boolean;
+}
+
+/**
+ * Combines a root's `layers` prop with the layers and views of its committed JSX tree.
+ *
+ * As in `@deck.gl/react`, JSX layers come first and `layers` prop layers follow them, so
+ * prop layers draw above JSX layers. External overlays receive no views because their host
+ * map owns them.
+ *
+ * @param props - The root's passed layers and whether it is an external overlay
+ * @param jsx - Layers and views from the committed JSX tree
+ * @returns The `layers` and, for a standalone root, `views` to send to deck.gl
+ */
+export function combineRootDescriptors(
+  props: RootDescriptorProps,
+  jsx: JsxDescriptors
+): Pick<DeckProps<ViewOrViews>, 'layers' | 'views'> {
+  const descriptors: Pick<DeckProps<ViewOrViews>, 'layers' | 'views'> = {
+    layers: [...jsx.layers, ...props._passedLayers]
+  };
+
+  // Standalone Deck must receive an explicit empty list when the last JSX view is
+  // removed so that ViewManager restores its default view.
+  if (!props.isExternalOverlay) {
+    descriptors.views = jsx.views;
+  }
+
+  return descriptors;
 }
