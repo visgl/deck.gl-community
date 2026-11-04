@@ -1,6 +1,4 @@
 import type {Deck, LayersList, View} from '@deck.gl/core';
-import {createStore as createVanillaStore} from 'zustand/vanilla';
-import type {StateCreator, StoreApi} from 'zustand/vanilla';
 
 /**
  * Global state shape for deckgl-fiber internal state management
@@ -42,15 +40,25 @@ export interface State {
 }
 
 /**
- * Zustand store API for deckgl-fiber global state
+ * Store API for deckgl-fiber root state.
  *
- * Provides access to store methods like getState(), setState(), subscribe().
+ * `setState` shallow-merges a partial state into a new state object.
  */
-export type Store = StoreApi<State>;
+export interface Store {
+  /** Returns the current state. */
+  getState: () => State;
+  /** Shallow-merges `partial` into the current state. */
+  setState: (partial: Partial<State>) => void;
+}
 
-const createState =
-  (isExternalOverlay: boolean): StateCreator<State> =>
-  set => ({
+/**
+ * Creates an isolated store for a reconciler root.
+ *
+ * Each root owns its deck.gl instance and the layers supplied through its
+ * component props.
+ */
+export function createStore(isExternalOverlay = false): Store {
+  let state: State = {
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
     _passedLayers: [],
@@ -60,16 +68,13 @@ const createState =
     isExternalOverlay,
 
     setDeckgl: instance => {
-      set({deckgl: instance});
+      setState({deckgl: instance});
     }
-  });
+  };
 
-/**
- * Creates an isolated store for a reconciler root.
- *
- * Each root owns its deck.gl instance and the layers supplied through its
- * component props.
- */
-export function createStore(isExternalOverlay = false): Store {
-  return createVanillaStore<State>(createState(isExternalOverlay));
+  function setState(partial: Partial<State>): void {
+    state = {...state, ...partial};
+  }
+
+  return {getState: () => state, setState};
 }
