@@ -1,5 +1,6 @@
+import type {Deck} from '@deck.gl/core';
 import {render, waitFor} from '@testing-library/react';
-import {StrictMode} from 'react';
+import {createRef, StrictMode} from 'react';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const providerMocks = vi.hoisted(() => {
@@ -503,6 +504,86 @@ describe('DeckGL Component Tests', () => {
       expect(replacementCallback.mock.invocationCallOrder[0]).toBeLessThan(
         mockUnmountAtNode.mock.invocationCallOrder[0]
       );
+    });
+  });
+
+  describe('ref', () => {
+    it('sets an object ref to the instance without forwarding it to deck.gl', () => {
+      const ref = createRef<Deck>();
+      const {unmount} = render(<DeckGL ref={ref} />);
+
+      expect(ref.current).toBe(mockDeckGL);
+      expect(mockConfigure).toHaveBeenCalledWith(
+        expect.not.objectContaining({ref: expect.anything()})
+      );
+
+      unmount();
+
+      expect(ref.current).toBeNull();
+    });
+
+    it('calls a callback ref once per instance, before onDeckChange, and with null on teardown', () => {
+      const ref = vi.fn();
+      const onDeckChange = vi.fn();
+      const {rerender, unmount} = render(
+        <DeckGL onDeckChange={onDeckChange} ref={ref} pickingRadius={1} />
+      );
+
+      rerender(<DeckGL onDeckChange={onDeckChange} ref={ref} pickingRadius={5} />);
+
+      expect(mockConfigure).toHaveBeenCalledTimes(2);
+      expect(ref).toHaveBeenCalledExactlyOnceWith(mockDeckGL);
+      expect(ref.mock.invocationCallOrder[0]).toBeLessThan(
+        onDeckChange.mock.invocationCallOrder[0]
+      );
+
+      unmount();
+
+      expect(ref).toHaveBeenLastCalledWith(null);
+      expect(ref).toHaveBeenCalledTimes(2);
+    });
+
+    it('runs a callback ref cleanup instead of calling it with null', () => {
+      const cleanup = vi.fn();
+      const ref = vi.fn(() => cleanup);
+      const {unmount} = render(<DeckGL ref={ref} />);
+
+      unmount();
+
+      expect(ref).toHaveBeenCalledExactlyOnceWith(mockDeckGL);
+      expect(cleanup).toHaveBeenCalledOnce();
+    });
+
+    it('moves the instance to a replacement ref without reconfiguring the root', () => {
+      const child = <div>Test</div>;
+      const firstRef = vi.fn();
+      const secondRef = createRef<Deck>();
+      const {rerender} = render(<DeckGL ref={firstRef}>{child}</DeckGL>);
+
+      rerender(<DeckGL ref={secondRef}>{child}</DeckGL>);
+
+      expect(firstRef.mock.calls).toEqual([[mockDeckGL], [null]]);
+      expect(secondRef.current).toBe(mockDeckGL);
+      expect(mockConfigure).toHaveBeenCalledOnce();
+      expect(mockUnmountAtNode).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {DeckGL: MapboxDeckGL, createOverlay: providerMocks.mapboxOverlay, name: 'Mapbox'},
+      {DeckGL: MapLibreDeckGL, createOverlay: providerMocks.maplibreOverlay, name: 'MapLibre'}
+    ])('follows the $name overlay when it is recreated', ({
+      DeckGL: ProviderDeckGL,
+      createOverlay
+    }) => {
+      const ref = vi.fn();
+      const {rerender, unmount} = render(<ProviderDeckGL interleaved={false} ref={ref} />);
+      const firstOverlay = createOverlay.mock.results[0]?.value;
+
+      rerender(<ProviderDeckGL interleaved ref={ref} />);
+      const secondOverlay = createOverlay.mock.results[1]?.value;
+      unmount();
+
+      expect(ref.mock.calls).toEqual([[firstOverlay], [null], [secondOverlay], [null]]);
     });
   });
 

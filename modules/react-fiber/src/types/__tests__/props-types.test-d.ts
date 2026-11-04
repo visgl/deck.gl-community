@@ -1,8 +1,10 @@
-import {type Deck, MapView} from '@deck.gl/core';
+import {MapView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import type {MapboxOverlay} from '@deck.gl/mapbox';
 import type {MapLibreOverlay} from '@deck.gl/maplibre';
-import type {ComponentProps, ReactNode} from 'react';
+import type {Deck} from '@deck.gl/core';
+import {createElement, createRef} from 'react';
+import type {ComponentProps, ReactNode, Ref} from 'react';
 import {DeckGL} from '../../dom/components';
 import {DeckGL as MapboxDeckGL} from '../../dom/mapbox';
 import {DeckGL as MapLibreDeckGL} from '../../dom/maplibre';
@@ -61,6 +63,38 @@ describe('Props Type Tests', () => {
     void byElement;
     void mapboxCanvas;
     void maplibreCanvas;
+  });
+
+  it('types the ref of each root as its own instance', () => {
+    const plainRef = {children: null, ref: createRef<Deck>()} satisfies ComponentProps<
+      typeof DeckGL
+    >;
+    const plainCallbackRef = {
+      children: null,
+      ref: (deckgl: Deck | null) => {
+        void deckgl;
+        return () => undefined;
+      }
+    } satisfies ComponentProps<typeof DeckGL>;
+    const mapboxRef = {children: null, ref: createRef<MapboxOverlay>()} satisfies ComponentProps<
+      typeof MapboxDeckGL
+    >;
+    const maplibreRef = {
+      children: null,
+      ref: createRef<MapLibreOverlay>()
+    } satisfies ComponentProps<typeof MapLibreDeckGL>;
+    const mapboxDeckRef: ComponentProps<typeof MapboxDeckGL> = {
+      children: null,
+      // @ts-expect-error A Mapbox root ref receives a MapboxOverlay, not a Deck.
+      ref: createRef<Deck>()
+    };
+    expectTypeOf<NonNullable<DeckGLProps['ref']>>().toEqualTypeOf<NonNullable<Ref<Deck>>>();
+    void createElement(DeckGL, {children: null, ref: createRef<Deck>()});
+    void plainRef;
+    void plainCallbackRef;
+    void mapboxRef;
+    void maplibreRef;
+    void mapboxDeckRef;
   });
 
   it('should DeckGLProps accept initialViewState', () => {
