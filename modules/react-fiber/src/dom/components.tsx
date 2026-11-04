@@ -15,7 +15,7 @@ import type {DeckGLRootProps, DeckGLProps, OnDeckChange} from '../types/index';
 import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
 import {useRef, useState} from 'react';
-import type {CSSProperties, ReactNode, RefObject} from 'react';
+import type {CSSProperties, RefObject} from 'react';
 import {useIsomorphicLayoutEffect} from '../shared/use-isomorphic-layout-effect';
 
 type CanvasSource = string | HTMLCanvasElement;
@@ -215,7 +215,7 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
 
   const recreateOverlayOnChange: readonly PropertyKey[] = options?.recreateOverlayOnChange ?? [];
 
-  return function DeckGL(props: ComponentProps<Props, Instance> & {children: ReactNode}) {
+  return function DeckGL(props: ComponentProps<Props, Instance>) {
     const generation = useRecreateGeneration(props, recreateOverlayOnChange);
     return (
       <FiberProvider>
@@ -248,6 +248,6 @@ export function createDeckGL<Props, Instance extends DeckGLRenderer>(
 }
 
 /** The standalone Deck root exported from the package root and `/dom`. */
-export function DeckGL(props: DeckGLProps & {children: ReactNode}) {
+export function DeckGL(props: DeckGLProps) {
   return <PlainDeckGLComponent {...props} />;
 }

@@ -97,6 +97,19 @@ describe('Props Type Tests', () => {
     void mapboxDeckRef;
   });
 
+  it('accepts every root without children', () => {
+    const layers = [new ScatterplotLayer({data: [], id: 'points'})];
+    const plain = {layers} satisfies ComponentProps<typeof DeckGL>;
+    const mapbox = {interleaved: true, layers} satisfies ComponentProps<typeof MapboxDeckGL>;
+    const maplibre = {layers} satisfies ComponentProps<typeof MapLibreDeckGL>;
+    void createElement(DeckGL, {layers});
+    void createElement(MapboxDeckGL, {layers});
+    void createElement(MapLibreDeckGL, {layers});
+    void plain;
+    void mapbox;
+    void maplibre;
+  });
+
   it('should DeckGLProps accept initialViewState', () => {
     // Arrange
     const props: DeckGLProps = {
