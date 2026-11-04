@@ -20,21 +20,6 @@ import {createDeckGL, DeckGL} from '../components';
 import {DeckGL as MapboxDeckGL} from '../mapbox';
 import {DeckGL as MapLibreDeckGL} from '../maplibre';
 
-// Mock the shared module for log
-vi.mock(import('../../shared'), () => {
-  const mockEnableLogging = vi.fn<() => void>();
-  const mockDisableLogging = vi.fn<() => void>();
-
-  return {
-    log: {
-      disableLogging: mockDisableLogging,
-      enableLogging: mockEnableLogging
-    },
-    mockDisableLogging,
-    mockEnableLogging
-  };
-});
-
 // Mock the reconciler module
 vi.mock(import('../../reconciler'), () => {
   const mockRender = vi.fn<() => void>();
@@ -96,11 +81,6 @@ const {mockRender, mockConfigure, mockCreateRoot, mockDeckgl, mockUnmountAtNode,
     mockUnmountAtNode: ReturnType<typeof vi.fn>;
     mockRoots: Map<unknown, unknown>;
   };
-
-const {mockEnableLogging, mockDisableLogging} = (await import('../../shared')) as unknown as {
-  mockEnableLogging: ReturnType<typeof vi.fn>;
-  mockDisableLogging: ReturnType<typeof vi.fn>;
-};
 
 describe('DeckGL Component Tests', () => {
   beforeEach(() => {
@@ -572,66 +552,15 @@ describe('DeckGL Component Tests', () => {
     });
   });
 
-  describe('Debug logging', () => {
-    it('should enable logging when debug prop is true', () => {
-      render(
-        <DeckGL debug>
-          <div>Test</div>
-        </DeckGL>
-      );
-
-      expect(mockEnableLogging).toHaveBeenCalledWith();
-    });
-
-    it('should disable logging when debug prop is false', () => {
-      render(
-        <DeckGL debug={false}>
-          <div>Test</div>
-        </DeckGL>
-      );
-
-      expect(mockDisableLogging).toHaveBeenCalledWith();
-    });
-
-    it('should handle undefined debug prop as falsy', () => {
-      render(
-        <DeckGL>
-          <div>Test</div>
-        </DeckGL>
-      );
-
-      expect(mockDisableLogging).toHaveBeenCalledWith();
-      expect(mockEnableLogging).not.toHaveBeenCalled();
-    });
-
-    it('should toggle debug mode', () => {
+  describe('Deck debug prop', () => {
+    it('passes debug through to the deck.gl configuration', () => {
       const {rerender} = render(
-        <DeckGL debug={false}>
-          <div>Test</div>
-        </DeckGL>
-      );
-
-      rerender(
         <DeckGL debug>
           <div>Test</div>
         </DeckGL>
       );
 
-      expect(mockEnableLogging).toHaveBeenCalledWith();
-    });
-
-    it('should toggle logging multiple times', () => {
-      const {rerender} = render(
-        <DeckGL debug={false}>
-          <div>Test</div>
-        </DeckGL>
-      );
-
-      rerender(
-        <DeckGL debug>
-          <div>Test</div>
-        </DeckGL>
-      );
+      expect(mockConfigure).toHaveBeenLastCalledWith(expect.objectContaining({debug: true}));
 
       rerender(
         <DeckGL debug={false}>
@@ -639,8 +568,7 @@ describe('DeckGL Component Tests', () => {
         </DeckGL>
       );
 
-      expect(mockEnableLogging).toHaveBeenCalledOnce();
-      expect(mockDisableLogging).toHaveBeenCalledTimes(2);
+      expect(mockConfigure).toHaveBeenLastCalledWith(expect.objectContaining({debug: false}));
     });
   });
 
