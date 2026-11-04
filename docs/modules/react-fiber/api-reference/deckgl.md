@@ -42,6 +42,18 @@ Deck event properties such as `onClick` remain deck.gl callbacks, not React synt
 
 `debug` is a deck.gl prop and is passed to `Deck` or the overlay unchanged. Warnings and traces go through deck.gl's `log`: root creation, unmounting and each commit log at level 3, and configured props at level 4. Enable them in the browser console with `deck.log.enable()` and `deck.log.level = 3`; see [Debugging](https://deck.gl/docs/developer-guide/debugging).
 
+## Root DOM and sizing
+
+Without a `canvas` prop, the standalone root renders the same wrapper and canvas as `@deck.gl/react`:
+
+```html
+<div id="deckgl-wrapper" style="position: absolute; z-index: 0; left: 0; top: 0; width: 100%; height: 100%">
+  <canvas id="deckgl-overlay" style="left: 0; top: 0"></canvas>
+</div>
+```
+
+The ids derive from the `id` prop: `id="map"` renders `map-wrapper` and a canvas with id `map`. Give each root a distinct `id` when a page has more than one. The wrapper fills its nearest positioned ancestor by default. `width` and `height` size the wrapper, `style` applies to the wrapper except `mixBlendMode`, which applies to the canvas, and the canvas fills the wrapper. With a caller-supplied `canvas`, the root renders no DOM and forwards `width`, `height`, and `style` to deck.gl unchanged. Provider roots never render DOM.
+
 ## Custom compatible overlays
 
 For a compatible overlay not covered by the provider roots, bind its factory once:

@@ -65,8 +65,9 @@ hydration. Server rendering a `DeckGL` root does not require `ssr: false`: the s
 renders its wrapper and canvas markup, provider roots render no markup, and deck.gl or the overlay
 is created only after hydration.
 
-Give the standalone root a sized container. Without a caller-provided `canvas`, it creates an
-unstyled wrapper and canvas. An unsized canvas defaults to 300 × 150 pixels.
+Give the standalone root a sized, positioned container. Without a caller-provided `canvas`, it
+creates a wrapper and canvas like `@deck.gl/react`: the wrapper is absolutely positioned and fills
+that container unless `width`, `height`, or `style` say otherwise.
 
 ```tsx
 'use client';
@@ -78,7 +79,7 @@ const points = [{position: [-122.4, 37.8] as [number, number]}];
 
 export function Map() {
   return (
-    <div style={{height: 500}}>
+    <div style={{height: 500, position: 'relative'}}>
       <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}} controller>
         <layer
           layer={

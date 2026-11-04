@@ -14,7 +14,7 @@ import type {DeckGLRootProps, DeckGLInstance, DeckGLProps, OnDeckChange} from '.
 import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
 import {useRef, useState} from 'react';
-import type {ReactNode, RefObject} from 'react';
+import type {CSSProperties, ReactNode, RefObject} from 'react';
 import {useIsomorphicLayoutEffect} from '../shared/use-isomorphic-layout-effect';
 
 type CanvasSource = string | HTMLCanvasElement;
@@ -48,6 +48,41 @@ function getCanvasRoot(
   const element = typeof source === 'string' ? findCanvasById(source) : source;
   resolvedCanvas.current = {source, element};
   return element;
+}
+
+/** Deck props for a canvas that the root renders; the wrapper owns its size and style. */
+const OWNED_CANVAS_PROPS = {height: '100%', style: null, width: '100%'} as const;
+
+/** Styles that apply to the canvas rather than to the wrapper, as in `@deck.gl/react`. */
+const CANVAS_ONLY_STYLES = new Set(['mixBlendMode']);
+
+/**
+ * Splits the root's `width`, `height`, and `style` between its wrapper and its canvas the
+ * way `@deck.gl/react` does: the wrapper is absolutely positioned at the top left of its
+ * containing block and has the root's size, and the canvas fills the wrapper.
+ */
+function getRootStyles(
+  width: string | number | null,
+  height: string | number | null,
+  style: Partial<CSSStyleDeclaration> | null | undefined
+): {containerStyle: CSSProperties; canvasStyle: CSSProperties} {
+  const containerStyle: Record<string, unknown> = {
+    position: 'absolute',
+    zIndex: 0,
+    left: 0,
+    top: 0,
+    width,
+    height
+  };
+  const canvasStyle: Record<string, unknown> = {left: 0, top: 0};
+
+  if (style) {
+    for (const [key, value] of Object.entries(style)) {
+      (CANVAS_ONLY_STYLES.has(key) ? canvasStyle : containerStyle)[key] = value;
+    }
+  }
+
+  return {containerStyle, canvasStyle};
 }
 
 /** Configuration for an externally owned deck.gl overlay root. */
@@ -131,7 +166,9 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
           canvas: canvasElement,
           parent:
             config.parent ||
-            (config.canvas ? (canvasElement.parentElement as HTMLDivElement) : wrapper.current)
+            (config.canvas ? (canvasElement.parentElement as HTMLDivElement) : wrapper.current),
+          // The wrapper takes the size and style of an owned canvas, which fills it.
+          ...(config.canvas ? null : OWNED_CANVAS_PROPS)
         };
       }
 
@@ -163,9 +200,12 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
       return null;
     }
 
+    const {id, width = '100%', height = '100%', style} = config;
+    const {containerStyle, canvasStyle} = getRootStyles(width, height, style);
+
     return (
-      <div ref={wrapper} id="deckgl-fiber-wrapper">
-        <canvas ref={canvas} id="deckgl-fiber-canvas" />
+      <div ref={wrapper} id={`${id || 'deckgl'}-wrapper`} style={containerStyle}>
+        <canvas ref={canvas} id={id || 'deckgl-overlay'} style={canvasStyle} />
       </div>
     );
   }
