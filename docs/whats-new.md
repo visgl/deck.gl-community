@@ -16,6 +16,14 @@ This page lists module additions and major changes in each release. For detailed
   and `/reconciler/config` are no longer exported. `debug` now reaches deck.gl, and warnings and
   traces use deck.gl's `log`.
 
+- **react-fiber:** the native `DeckGL` root behaves like `@deck.gl/react` where they differed. The
+  `layers` prop draws above JSX layers, the `views` prop merges with `<view>` children by id
+  (the prop wins) and a root with neither uses deck.gl's default view, and the standalone
+  wrapper is absolutely positioned at 100% size with ids
+  derived from `id` (`deckgl-wrapper` and `deckgl-overlay` by default). Roots accept a React 19
+  `ref` to their deck.gl instance, and `children` is optional. See
+  [`DeckGL`](/docs/modules/react-fiber/api-reference/deckgl#root-dom-and-sizing).
+
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
 - **Website:** fix the mobile navigation drawer, replace generic gallery artwork with
