@@ -24,7 +24,7 @@ Each provider entry point exposes its concrete overlay contract:
 
 | Entry point | Props and instance |
 | --- | --- |
-| Root or `/dom` | `DeckglProps` and `DeckglInstance`, which is `Deck` |
+| Root | `DeckglProps` and `DeckglInstance`, which is `Deck` |
 | `/mapbox` | `MapboxDeckGLProps`; `onDeckglChange` receives `MapboxOverlay \| null` |
 | `/maplibre` | `MapLibreDeckGLProps`; `onDeckglChange` receives `MapLibreOverlay \| null` |
 
@@ -39,6 +39,8 @@ The notification runs after configuration and receives `null` during cleanup. It
 On the standalone root, `canvas` accepts an `HTMLCanvasElement` or the id of a `<canvas>` element. An id is resolved with `document.getElementById` on the client after mount, so the canvas may be rendered in the same commit as `DeckGL`. An id that does not name a mounted `<canvas>` throws. Without `parent`, deck.gl uses the canvas's parent element. The root binds to the element found at mount; to bind a replacement element that reuses the id, pass that element as `canvas` or remount with a different React `key`.
 
 Deck event properties such as `onClick` remain deck.gl callbacks, not React synthetic events on `<layer>` or `<view>`.
+
+`debug` is a deck.gl prop and is passed to `Deck` or the overlay unchanged. To trace reconciler operations, raise deck.gl's log level to 4 with `log.setLevel(4)` (`import {log} from '@deck.gl/core'`) or `deck.log.setLevel(4)` in the browser console.
 
 ## Custom compatible overlays
 

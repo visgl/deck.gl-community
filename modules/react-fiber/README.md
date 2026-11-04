@@ -49,8 +49,10 @@ For example:
 yarn add @deck.gl/maplibre maplibre-gl
 ```
 
-The package requires React 19 or later and uses the deck.gl 9.4 package family. `@deck.gl/mapbox`
-and `@deck.gl/maplibre` are optional peers. A standalone import does not load either provider.
+The package requires React 19 or later and uses the deck.gl 9.4 package family. `@deck.gl/core`,
+`react` and `react-dom` are the only required peers. `@deck.gl/mapbox`, `@deck.gl/maplibre` and the
+layer packages used by the `/compat/*` wrappers are optional peers; install the ones you import. A
+standalone import does not load either provider.
 Keep installed deck.gl packages compatible with 9.4. TypeScript declarations are included, and a
 native root import adds the JSX declarations for `<layer>` and `<view>`.
 
@@ -104,12 +106,12 @@ Choose the renderer from its import path. Do not select a provider through a pro
 
 | Import path | Instance | Use it when |
 | --- | --- | --- |
-| `@deck.gl-community/react-fiber` or `/dom` | `Deck` | The application needs a standalone deck.gl canvas. This is the default. |
+| `@deck.gl-community/react-fiber` | `Deck` | The application needs a standalone deck.gl canvas. This is the default. |
 | `@deck.gl-community/react-fiber/mapbox` | `MapboxOverlay` | The application owns a Mapbox map and attaches a deck.gl control. |
 | `@deck.gl-community/react-fiber/maplibre` | `MapLibreOverlay` | The application owns a MapLibre map and attaches a deck.gl control. |
 
-The root and `/dom` entry points create only `Deck`. Their props are `DeckProps`, which has no
-`interleaved` option, and `onDeckglChange` receives `Deck | null`. Provider roots always create
+The root entry point creates only `Deck`. Its props are `DeckProps`, which has no `interleaved`
+option, and `onDeckglChange` receives `Deck | null`. Provider roots always create
 their matching overlay and pass `interleaved` to it unchanged. The overlay applies its own default
 (`false` for
 [`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#constructor) and
@@ -248,10 +250,13 @@ covers the overlay requirements, `recreateOverlayOnChange` and host attachment.
 configuration, rendering, and cleanup. Normal React applications should use `DeckGL`, which owns
 that lifecycle.
 
-The package manifest also exposes supporting implementation routes such as `/reconciler/config`,
-`/reconciler/utils`, and `/shared`. They are not the recommended application API. Prefer the
-native, compatibility, or reconciler entry points so upgrades do not couple an application to host
-configuration details.
+The package exports only the root, `/mapbox`, `/maplibre`, `/compat` (with `/compat/mapbox`,
+`/compat/maplibre` and the `/compat/*` layer families), and `/reconciler` entry points. Internal
+modules such as the host configuration and root store are not importable.
+
+The reconciler writes trace messages through deck.gl's `log` at level 4. Enable them with
+`log.setLevel(4)` (`import {log} from '@deck.gl/core'`), or with `deck.log.setLevel(4)` in the
+browser console. The `debug` prop is a deck.gl prop and is passed to `Deck` or the overlay unchanged.
 
 ## Commands
 
