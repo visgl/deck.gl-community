@@ -49,8 +49,10 @@ For example:
 yarn add @deck.gl/maplibre maplibre-gl
 ```
 
-The package requires React 19 or later and uses the deck.gl 9.4 package family. `@deck.gl/mapbox`
-and `@deck.gl/maplibre` are optional peers. A standalone import does not load either provider.
+The package requires React 19 or later and uses the deck.gl 9.4 package family. `@deck.gl/core`,
+`react` and `react-dom` are the only required peers. `@deck.gl/mapbox`, `@deck.gl/maplibre` and the
+layer packages used by the `/compat/*` wrappers are optional peers; install the ones you import. A
+standalone import does not load either provider.
 Keep installed deck.gl packages compatible with 9.4. TypeScript declarations are included, and a
 native root import adds the JSX declarations for `<layer>` and `<view>`.
 
