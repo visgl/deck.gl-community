@@ -16,7 +16,7 @@ import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
 import {useEffect, useRef, useState} from 'react';
 import type {ReactNode, RefObject} from 'react';
-import useIsomorphicLayoutEffect from 'use-isomorphic-layout-effect';
+import {useIsomorphicLayoutEffect} from '../shared/use-isomorphic-layout-effect';
 
 type CanvasSource = string | HTMLCanvasElement;
 

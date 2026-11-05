@@ -210,7 +210,7 @@ function createDeckglObject(type: Type, props: Props): Instance {
  *
  * @param type - Element type (`"layer"` or `"view"`)
  * @param props - Initial props for the instance
- * @param rootContainerInfo - Root container with Zustand store
+ * @param rootContainerInfo - Root container with its root store
  * @param hostContext - Context from parent (tracks View nesting, provides store access)
  * @param fiber - React Fiber node for debugging/error messages
  * @returns Instance wrapper with Deck.gl node and empty children array
@@ -1096,7 +1096,7 @@ export function shouldSetTextContent(type: Type, props: Props): boolean {
  *
  * **Deck.gl Context Usage:**
  * We use context to:
- * 1. Provide Zustand store access to all instances
+ * 1. Provide root store access to all instances
  * 2. Track View nesting (via `insideView` flag added in `getChildHostContext`)
  *
  * The root context contains just the store. As React renders the tree, `getChildHostContext`
@@ -1108,12 +1108,12 @@ export function shouldSetTextContent(type: Type, props: Props): boolean {
  * @example
  * ```tsx
  * // When creating the reconciler root:
- * const container = { store: zustandStore };
+ * const container = { store: rootStore };
  * const fiber = reconciler.createContainer(container, ...);
  *
  * // React calls getRootHostContext:
  * const rootContext = getRootHostContext(container);
- * // Returns: { store: zustandStore }
+ * // Returns: { store: rootStore }
  *
  * // This context is passed to createInstance for root elements
  * // and flows down via getChildHostContext
