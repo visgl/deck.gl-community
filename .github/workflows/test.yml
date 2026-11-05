@@ -205,6 +205,12 @@ jobs:
               });
             }
 
+      # The root projects exclude React Fiber's reconciler tests, which need the package's jsdom
+      # setup, and its type tests. Run independently of root test results and the coverage report.
+      - name: Run React Fiber package tests and type tests
+        if: ${{ !cancelled() }}
+        run: yarn --cwd modules/react-fiber test
+
   test-headless-shard:
     runs-on: ubuntu-26.04
 
