@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import {log} from '@deck.gl/core';
 import {render} from '@testing-library/react';
 import {createElement, useLayoutEffect} from 'react';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
@@ -35,7 +36,7 @@ describe('DeckGL compatibility adapter warnings', () => {
   });
 
   it('warns only in development for unsupported renderer props and function children', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warn = vi.spyOn(log, 'warn').mockReturnValue(() => {});
     const props = {
       canvas: document.createElement('canvas'),
       children: () => null
@@ -44,12 +45,8 @@ describe('DeckGL compatibility adapter warnings', () => {
     process.env.NODE_ENV = 'development';
     render(createElement(DeckGL, props));
 
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('DeckGL compat does not support canvas')
-    );
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('does not support function children')
-    );
+    expect(warn).toHaveBeenCalledWith('DeckGL compat ignores canvas; use the native DeckGL');
+    expect(warn).toHaveBeenCalledWith('DeckGL compat ignores function children');
 
     warn.mockClear();
     process.env.NODE_ENV = 'production';

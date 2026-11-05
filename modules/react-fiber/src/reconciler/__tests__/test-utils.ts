@@ -1,4 +1,5 @@
 import type {Layer, View} from '@deck.gl/core';
+import {log} from '@deck.gl/core';
 import {expect, vi} from 'vitest';
 
 import type {HostContext, Instance} from '../types';
@@ -41,9 +42,10 @@ export function assertValidInstance(instance: Instance | undefined): void {
 /**
  * Sets up console spies for warning/error detection
  */
-export function setupConsoleSpy() {
-  const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-  const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+export function setupLogSpy() {
+  // probe.gl log methods return the function that prints, so the mocks return a no-op.
+  const errorSpy = vi.spyOn(log, 'error').mockReturnValue(() => {});
+  const warnSpy = vi.spyOn(log, 'warn').mockReturnValue(() => {});
 
   return {errorSpy, warnSpy};
 }

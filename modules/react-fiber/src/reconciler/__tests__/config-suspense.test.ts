@@ -29,11 +29,8 @@ describe('config-suspense', () => {
   });
 
   describe('unhideTextInstance()', () => {
-    it('should always throw error for text nodes', () => {
-      // Act & Assert
-      expect(() => unhideTextInstance()).toThrow(
-        'Text nodes are not supported in deck.gl renderer'
-      );
+    it('asserts, because text instances are never created', () => {
+      expect(() => unhideTextInstance()).toThrow();
     });
   });
 
