@@ -96,7 +96,6 @@
   "dependencies": {
     "client-only": "^0.0.1",
     "its-fine": "^2.0.0",
-    "loglayer": "^9.0.0",
     "react-reconciler": "0.33.0"
   },
   "peerDependencies": {

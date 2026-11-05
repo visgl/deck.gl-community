@@ -7,14 +7,13 @@ import type {
   RootElement,
   RootOptions
 } from '../reconciler/types';
-import {log} from '../shared/index';
 import type {DeckGLRenderer} from '../shared/store';
 import {hasSameConfigProperties} from '../shared/has-same-config-properties';
 import {useEffectEvent} from '../shared/use-effect-event';
 import type {DeckGLRootProps, DeckGLProps, OnDeckChange} from '../types/index';
 import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
-import {useEffect, useRef, useState} from 'react';
+import {useRef, useState} from 'react';
 import type {ReactNode, RefObject} from 'react';
 import {useIsomorphicLayoutEffect} from '../shared/use-isomorphic-layout-effect';
 
@@ -68,9 +67,7 @@ export interface CreateDeckGLOptions<Props, Instance extends DeckGLRenderer> {
   recreateOverlayOnChange?: readonly (keyof Props & string)[];
 }
 
-type ComponentProps<Props, Instance extends DeckGLRenderer> = DeckGLRootProps<Instance, Props> & {
-  debug?: boolean;
-};
+type ComponentProps<Props, Instance extends DeckGLRenderer> = DeckGLRootProps<Instance, Props>;
 
 function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
   options?: CreateDeckGLOptions<Props, Instance>
@@ -94,7 +91,7 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
   }
 
   function DeckGLComponent(props: ComponentProps<Props, Instance>) {
-    const {children, debug, onDeckChange, ...deckglProps} = props;
+    const {children, onDeckChange, ...deckglProps} = props;
     const notifyDeckChange = useEffectEvent<Parameters<OnDeckChange<Instance>>, void>(deckgl => {
       onDeckChange?.(deckgl);
     });
@@ -105,12 +102,6 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
     const detachedRoot = useRef<HTMLDivElement | null>(null);
     const rootOptions = useRef<RootOptions | undefined>(undefined);
     const resolvedCanvas = useRef<ResolvedCanvas | null>(null);
-
-    // NOTE: enable/disable logging based on debug prop
-    useEffect(() => {
-      // oxlint-disable-next-line no-unused-expressions
-      debug ? log.enableLogging() : log.disableLogging();
-    }, [debug]);
 
     // Object-rest creates a new config object each render. Preserve the committed
     // config while its values are unchanged so a lifecycle callback replacement is non-reactive.

@@ -1171,7 +1171,6 @@ __metadata:
     fast-check: "npm:^4.0.0"
     its-fine: "npm:^2.0.0"
     jsdom: "npm:^26.0.0"
-    loglayer: "npm:^9.0.0"
     maplibre-gl: "npm:^6.13.0"
     react: "npm:^19.2.8"
     react-dom: "npm:^19.2.8"
@@ -3160,49 +3159,6 @@ __metadata:
   peerDependencies:
     "@loaders.gl/core": ~4.5.0
   checksum: 10c0/4e252c6614a7357f59c25323ab58925692b4e6c7477c7419fc35f484dd811bbed698f5cee0c4bd1288781ef08f3e5e907bcf482d21bfbcb01262c960c48366b2
-  languageName: node
-  linkType: hard
-
-"@loglayer/context-manager@npm:2.3.0":
-  version: 2.3.0
-  resolution: "@loglayer/context-manager@npm:2.3.0"
-  dependencies:
-    "@loglayer/shared": "npm:4.4.0"
-  checksum: 10c0/2a7f0bab5c0911e5ee358d6999957d8fe0280d4b2f501de14637186beac535e1609f4631b1ef7d05e4df7edbf3da64b1176f61c08904f9bb660f30e77474f290
-  languageName: node
-  linkType: hard
-
-"@loglayer/log-level-manager@npm:2.3.0":
-  version: 2.3.0
-  resolution: "@loglayer/log-level-manager@npm:2.3.0"
-  dependencies:
-    "@loglayer/shared": "npm:4.4.0"
-  checksum: 10c0/598b51c8eca83d3a0afa94465b689e2d2b7026070be41ad3bbeba0b11fc917239176e02d3946092ca5673e30d848b0f1d9f8a88224d756cded7bc010edbaa6e7
-  languageName: node
-  linkType: hard
-
-"@loglayer/plugin@npm:3.3.0":
-  version: 3.3.0
-  resolution: "@loglayer/plugin@npm:3.3.0"
-  dependencies:
-    "@loglayer/shared": "npm:4.4.0"
-  checksum: 10c0/dca7226ec6a9570b31d5d43cfdf03f82ba557095a94102b91b9e07e3bef6364ac47c3065fb4dc2e6db874f789113771ef6a0d2939bec0b8669bf53bbd589a4a4
-  languageName: node
-  linkType: hard
-
-"@loglayer/shared@npm:4.4.0":
-  version: 4.4.0
-  resolution: "@loglayer/shared@npm:4.4.0"
-  checksum: 10c0/c824a4adb76d627a19a4d32fa3da16130374e4a67668a266d629279b9b6243de9bb9849cdcd5528cf7de9a67b0df67ced53cbb23eb46dfc21ae5cb4c716470e6
-  languageName: node
-  linkType: hard
-
-"@loglayer/transport@npm:3.3.0":
-  version: 3.3.0
-  resolution: "@loglayer/transport@npm:3.3.0"
-  dependencies:
-    "@loglayer/shared": "npm:4.4.0"
-  checksum: 10c0/8360f0127e87b1b533cedd75d0deefb22a49ef646907f387e92a05a6ae54c95dcd88b9c8e4700887694564c93f21fe9b25b3d531a91d2da380cf16d0ed974dc6
   languageName: node
   linkType: hard
 
@@ -11214,19 +11170,6 @@ __metadata:
     chalk: "npm:^4.1.0"
     is-unicode-supported: "npm:^0.1.0"
   checksum: 10c0/67f445a9ffa76db1989d0fa98586e5bc2fd5247260dafb8ad93d9f0ccd5896d53fb830b0e54dade5ad838b9de2006c826831a3c528913093af20dff8bd24aca6
-  languageName: node
-  linkType: hard
-
-"loglayer@npm:^9.0.0":
-  version: 9.4.0
-  resolution: "loglayer@npm:9.4.0"
-  dependencies:
-    "@loglayer/context-manager": "npm:2.3.0"
-    "@loglayer/log-level-manager": "npm:2.3.0"
-    "@loglayer/plugin": "npm:3.3.0"
-    "@loglayer/shared": "npm:4.4.0"
-    "@loglayer/transport": "npm:3.3.0"
-  checksum: 10c0/5e878de68fa9037def88ce546f676db24e70bf24b67c7b4cdc5320d2f6103bb752a900a0897572854ed2ea79dec9e856160a02ba5d79a93eebc852c15f3a82d6
   languageName: node
   linkType: hard
 
