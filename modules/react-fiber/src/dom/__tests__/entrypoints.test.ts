@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 import * as dom from '../index';
 import * as mapbox from '../mapbox';
 import * as maplibre from '../maplibre';
+import packageJson from '../../../package.json';
 
 describe('native entrypoint export matrix', () => {
   it('exports standalone APIs from the shared root and /dom entrypoint', () => {
@@ -15,5 +16,13 @@ describe('native entrypoint export matrix', () => {
     expect(Object.keys(maplibre).sort()).toEqual(['DeckGL']);
     expect(mapbox.DeckGL).not.toBe(dom.DeckGL);
     expect(maplibre.DeckGL).not.toBe(dom.DeckGL);
+  });
+
+  it('requires only deck.gl core and React as peers', () => {
+    const optionalPeers = Object.keys(packageJson.peerDependenciesMeta);
+    const requiredPeers = Object.keys(packageJson.peerDependencies).filter(
+      name => !optionalPeers.includes(name)
+    );
+    expect(requiredPeers).toEqual(['@deck.gl/core', 'react', 'react-dom']);
   });
 });

@@ -11,6 +11,9 @@ This page lists module additions and major changes in each release. For detailed
   [`createDeckGL`](/docs/modules/react-fiber/api-reference/deckgl#custom-compatible-overlays), whose
   `recreateOverlayOnChange` option replaces the overlay when a construction-only prop changes.
 
+- **react-fiber:** requires only `@deck.gl/core`, `react` and `react-dom` as peers; the layer
+  packages behind `/compat/*` are optional.
+
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
 - **Website:** fix the mobile navigation drawer, replace generic gallery artwork with
