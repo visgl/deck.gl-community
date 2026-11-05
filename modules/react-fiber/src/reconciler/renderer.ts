@@ -131,9 +131,8 @@ function reportError(error: unknown): void {
 export function unmountAtNode(node: RootElement) {
   const root = roots.get(node);
 
-  log.log(3, 'DeckGL root unmounted')();
-
   if (root?.container) {
+    log.log(3, 'DeckGL root unmounted')();
     renderer.updateContainer(null, root.container, null, noop);
 
     const state = root.store.getState();
@@ -186,8 +185,6 @@ export function unmountAtNode(node: RootElement) {
  * ```
  */
 export function createRoot(node: RootElement, options: RootOptions = {}): ReconcilerRoot {
-  log.log(3, 'DeckGL root created')();
-
   const createExternalOverlay = options.createExternalOverlay;
   const isExternalOverlay = Boolean(createExternalOverlay);
 
@@ -203,6 +200,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   }
 
   // Create new root
+  log.log(3, 'DeckGL root created')();
   const store = createStore(isExternalOverlay);
 
   /**
