@@ -12,7 +12,8 @@ This page lists module additions and major changes in each release. For detailed
   `recreateOverlayOnChange` option replaces the overlay when a construction-only prop changes.
 
 - **react-fiber:** requires only `@deck.gl/core`, `react` and `react-dom` as peers; the layer
-  packages behind `/compat/*` are optional.
+  packages behind `/compat/*` are optional. Internal subpaths such as `/dom`, `/shared`, `/types`
+  and `/reconciler/config` are no longer exported.
 
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 

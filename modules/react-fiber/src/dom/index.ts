@@ -6,11 +6,6 @@ export {createDeckGL, DeckGL} from './components';
  * ```ts
  * import {type DeckglInstance} from '@deck.gl-community/react-fiber';
  * ```
- *
- * Without this export, consumers must import from the `/types` entry point:
- * ```ts
- * import type {DeckglInstance} from '@deck.gl-community/react-fiber/types';
- * ```
  */
 export type {DeckGLRootProps, DeckglInstance, DeckglProps, OnDeckglChange} from '../types/index';
 export {DeckCanvas} from './deck-canvas';

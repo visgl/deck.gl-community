@@ -24,7 +24,7 @@ Each provider entry point exposes its concrete overlay contract:
 
 | Entry point | Props and instance |
 | --- | --- |
-| Root or `/dom` | `DeckglProps` and `DeckglInstance`, which is `Deck` |
+| Root | `DeckglProps` and `DeckglInstance`, which is `Deck` |
 | `/mapbox` | `MapboxDeckGLProps`; `onDeckglChange` receives `MapboxOverlay \| null` |
 | `/maplibre` | `MapLibreDeckGLProps`; `onDeckglChange` receives `MapLibreOverlay \| null` |
 
