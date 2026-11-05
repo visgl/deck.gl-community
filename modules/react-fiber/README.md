@@ -106,12 +106,12 @@ Choose the renderer from its import path. Do not select a provider through a pro
 
 | Import path | Instance | Use it when |
 | --- | --- | --- |
-| `@deck.gl-community/react-fiber` or `/dom` | `Deck` | The application needs a standalone deck.gl canvas. This is the default. |
+| `@deck.gl-community/react-fiber` | `Deck` | The application needs a standalone deck.gl canvas. This is the default. |
 | `@deck.gl-community/react-fiber/mapbox` | `MapboxOverlay` | The application owns a Mapbox map and attaches a deck.gl control. |
 | `@deck.gl-community/react-fiber/maplibre` | `MapLibreOverlay` | The application owns a MapLibre map and attaches a deck.gl control. |
 
-The root and `/dom` entry points create only `Deck`. Their props are `DeckProps`, which has no
-`interleaved` option, and `onDeckglChange` receives `Deck | null`. Provider roots always create
+The root entry point creates only `Deck`. Its props are `DeckProps`, which has no `interleaved`
+option, and `onDeckglChange` receives `Deck | null`. Provider roots always create
 their matching overlay and pass `interleaved` to it unchanged. The overlay applies its own default
 (`false` for
 [`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#constructor) and
@@ -250,10 +250,9 @@ covers the overlay requirements, `recreateOverlayOnChange` and host attachment.
 configuration, rendering, and cleanup. Normal React applications should use `DeckGL`, which owns
 that lifecycle.
 
-The package manifest also exposes supporting implementation routes such as `/reconciler/config`,
-`/reconciler/utils`, and `/shared`. They are not the recommended application API. Prefer the
-native, compatibility, or reconciler entry points so upgrades do not couple an application to host
-configuration details.
+The package exports only the root, `/mapbox`, `/maplibre`, `/compat` (with `/compat/mapbox`,
+`/compat/maplibre` and the `/compat/*` layer families), and `/reconciler` entry points. Internal
+modules such as the host configuration and root store are not importable.
 
 ## Commands
 
