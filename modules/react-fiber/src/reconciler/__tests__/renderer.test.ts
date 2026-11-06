@@ -117,13 +117,13 @@ describe('renderer', () => {
 
       // Act
       root.configure({});
-      const firstDeckgl = root.store.getState().deckgl;
+      const firstDeckGL = root.store.getState().deckgl;
 
       root.configure({});
-      const secondDeckgl = root.store.getState().deckgl;
+      const secondDeckGL = root.store.getState().deckgl;
 
       // Assert
-      expect(secondDeckgl).toBe(firstDeckgl);
+      expect(secondDeckGL).toBe(firstDeckGL);
     });
 
     it('should update _passedLayers even when already configured', () => {

@@ -1,17 +1,17 @@
 import 'client-only';
-import {assert} from '@deck.gl/core';
+import {assert, type Deck} from '@deck.gl/core';
 import {createRoot, unmountAtNode} from '../reconciler/index';
 import type {
-  DeckglConfiguration,
+  DeckGLConfiguration,
   ReconcilerRoot,
   RootElement,
   RootOptions
 } from '../reconciler/types';
 import {log} from '../shared/index';
-import type {DeckglRenderer} from '../shared/store';
+import type {DeckGLRenderer} from '../shared/store';
 import {hasSameConfigProperties} from '../shared/has-same-config-properties';
 import {useEffectEvent} from '../shared/use-effect-event';
-import type {DeckGLRootProps, DeckglInstance, DeckglProps, OnDeckglChange} from '../types/index';
+import type {DeckGLRootProps, DeckGLProps, OnDeckChange} from '../types/index';
 import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
 import {useEffect, useRef, useState} from 'react';
@@ -52,7 +52,7 @@ function getCanvasRoot(
 }
 
 /** Configuration for an externally owned deck.gl overlay root. */
-export interface CreateDeckGLOptions<Props, Instance extends DeckglRenderer> {
+export interface CreateDeckGLOptions<Props, Instance extends DeckGLRenderer> {
   /** Creates the one external-overlay instance bound to the returned component. */
   createExternalOverlay: (props: Props) => Instance;
   /**
@@ -62,17 +62,17 @@ export interface CreateDeckGLOptions<Props, Instance extends DeckglRenderer> {
    * wired up when the overlay attaches to its map.
    *
    * When any listed prop changes (compared with `Object.is`), the component finalizes the
-   * current overlay and creates a new one with the full props. `onDeckglChange` receives
+   * current overlay and creates a new one with the full props. `onDeckChange` receives
    * `null` for the old instance and then the new instance, which the app must attach.
    */
   recreateOverlayOnChange?: readonly (keyof Props & string)[];
 }
 
-type ComponentProps<Props, Instance extends DeckglRenderer> = DeckGLRootProps<Instance, Props> & {
+type ComponentProps<Props, Instance extends DeckGLRenderer> = DeckGLRootProps<Instance, Props> & {
   debug?: boolean;
 };
 
-function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
+function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
   options?: CreateDeckGLOptions<Props, Instance>
 ) {
   const overlayFactory = options?.createExternalOverlay;
@@ -87,19 +87,17 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
     if (!detachedRoot.current) {
       detachedRoot.current = document.createElement('div');
       rootOptions.current = {
-        createExternalOverlay: config => overlayFactory?.(config as Props) as DeckglRenderer
+        createExternalOverlay: config => overlayFactory?.(config as Props) as DeckGLRenderer
       };
     }
     return detachedRoot.current;
   }
 
   function DeckGLComponent(props: ComponentProps<Props, Instance>) {
-    const {children, debug, onDeckglChange, ...deckglProps} = props;
-    const notifyDeckglChange = useEffectEvent<Parameters<OnDeckglChange<Instance>>, void>(
-      deckgl => {
-        onDeckglChange?.(deckgl);
-      }
-    );
+    const {children, debug, onDeckChange, ...deckglProps} = props;
+    const notifyDeckChange = useEffectEvent<Parameters<OnDeckChange<Instance>>, void>(deckgl => {
+      onDeckChange?.(deckgl);
+    });
 
     const Bridge: ContextBridge = useContextBridge();
     const wrapper = useRef<HTMLDivElement>(null);
@@ -116,8 +114,8 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
 
     // Object-rest creates a new config object each render. Preserve the committed
     // config while its values are unchanged so a lifecycle callback replacement is non-reactive.
-    const configCache = useRef(deckglProps as DeckglConfiguration);
-    const configCandidate = deckglProps as DeckglConfiguration;
+    const configCache = useRef(deckglProps as DeckGLConfiguration);
+    const configCandidate = deckglProps as DeckGLConfiguration;
     const config = hasSameConfigProperties(configCache.current, configCandidate)
       ? configCache.current
       : configCandidate;
@@ -128,7 +126,7 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
 
     useIsomorphicLayoutEffect(() => {
       let rootElement: RootElement;
-      let rootConfig: DeckglConfiguration = config;
+      let rootConfig: DeckGLConfiguration = config;
       if (isExternalOverlay) {
         rootElement = getDetachedRoot(detachedRoot, rootOptions);
       } else {
@@ -151,12 +149,12 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
         : createRoot(rootElement);
 
       root.configure(rootConfig);
-      notifyDeckglChange(root.store.getState().deckgl as Instance | null);
+      notifyDeckChange(root.store.getState().deckgl as Instance | null);
       root.render(<Bridge>{children}</Bridge>);
     }, [children, config, Bridge]);
 
     // A layout cleanup releases the old root before a replacement root's layout effect
-    // configures it, so `onDeckglChange` reports `null` before the new instance.
+    // configures it, so `onDeckChange` reports `null` before the new instance.
     useIsomorphicLayoutEffect(() => {
       const rootElement = isExternalOverlay
         ? getDetachedRoot(detachedRoot, rootOptions)
@@ -164,7 +162,7 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
 
       if (rootElement) {
         return () => {
-          notifyDeckglChange(null);
+          notifyDeckChange(null);
           unmountAtNode(rootElement);
         };
       }
@@ -206,16 +204,16 @@ function useRecreateGeneration(props: object, keys: readonly PropertyKey[]): num
   return committed.generation;
 }
 
-const PlainDeckGLComponent = createDeckGLComponent<DeckglProps, DeckglInstance>();
+const PlainDeckGLComponent = createDeckGLComponent<DeckGLProps, Deck>();
 
 /** Creates a native React Fiber component bound to a compatible external overlay factory. */
-export function createDeckGL<Props, Instance extends DeckglRenderer>(
+export function createDeckGL<Props, Instance extends DeckGLRenderer>(
   options: CreateDeckGLOptions<Props, Instance>
 ) {
   return createDeckGLComponent(options);
 }
 
 /** The standalone Deck root exported from the package root and `/dom`. */
-export function DeckGL(props: DeckglProps & {children: ReactNode}) {
+export function DeckGL(props: DeckGLProps & {children: ReactNode}) {
   return <PlainDeckGLComponent {...props} />;
 }

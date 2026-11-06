@@ -10,7 +10,7 @@ import * as config from './config';
 import type {
   ChildSet,
   Container,
-  DeckglConfiguration,
+  DeckGLConfiguration,
   HostContext,
   Instance,
   Props,
@@ -149,7 +149,7 @@ export function unmountAtNode(node: RootElement) {
       deckgl?.finalize();
     } finally {
       // Always clear state and remove from registry, even on error
-      state.setDeckgl(null);
+      state.setDeckGL(null);
       roots.delete(node);
     }
   }
@@ -243,7 +243,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
 
   let configured = false;
 
-  function configure(props: DeckglConfiguration) {
+  function configure(props: DeckGLConfiguration) {
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
     store.setState({_passedLayers: props.layers ?? []});
@@ -263,7 +263,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
       ? createExternalOverlay(props)
       : new Deck<View | View[] | null>(props);
 
-    state.setDeckgl(deckgl);
+    state.setDeckGL(deckgl);
 
     configured = true;
   }

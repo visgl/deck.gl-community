@@ -3,14 +3,14 @@ import {ScatterplotLayer} from '@deck.gl/layers';
 import {createElement} from 'react';
 import {describe, expect, it} from 'vitest';
 
-import type {DeckglElements} from '../jsx';
+import type {DeckGLElements} from '../jsx';
 
 describe('JSX type tests', () => {
   it('should expose native layer and view elements', () => {
     const layer = new ScatterplotLayer({data: [], id: 'points'});
     const view = new MapView({id: 'main'});
-    const validLayer: DeckglElements['layer'] = {layer};
-    const validView: DeckglElements['view'] = {view};
+    const validLayer: DeckGLElements['layer'] = {layer};
+    const validView: DeckGLElements['view'] = {view};
     const classicLayer: import('react').JSX.IntrinsicElements['layer'] = validLayer;
     const automaticLayer: import('react/jsx-runtime').JSX.IntrinsicElements['layer'] = validLayer;
     const developmentLayer: import('react/jsx-dev-runtime').JSX.IntrinsicElements['layer'] =
@@ -27,8 +27,8 @@ describe('JSX type tests', () => {
 
   it('should reject removed typed intrinsic declarations', () => {
     // @ts-expect-error Legacy typed layer intrinsics are not supported.
-    const _removedLayer: keyof DeckglElements = 'scatterplotLayer';
+    const _removedLayer: keyof DeckGLElements = 'scatterplotLayer';
     // @ts-expect-error Legacy typed view intrinsics are not supported.
-    const _removedView: keyof DeckglElements = 'mapView';
+    const _removedView: keyof DeckGLElements = 'mapView';
   });
 });

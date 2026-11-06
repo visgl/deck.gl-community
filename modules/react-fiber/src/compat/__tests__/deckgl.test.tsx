@@ -14,15 +14,15 @@ const deck = vi.hoisted(() => ({
 vi.mock('../../dom/components', () => ({
   DeckGL: ({
     children,
-    onDeckglChange
+    onDeckChange
   }: {
     children: React.ReactNode;
-    onDeckglChange?: (deck: unknown) => void;
+    onDeckChange?: (deck: unknown) => void;
   }) => {
     useLayoutEffect(() => {
-      onDeckglChange?.(deck);
-      return () => onDeckglChange?.(null);
-    }, [onDeckglChange]);
+      onDeckChange?.(deck);
+      return () => onDeckChange?.(null);
+    }, [onDeckChange]);
 
     return <>{children}</>;
   }

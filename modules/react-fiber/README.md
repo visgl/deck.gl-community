@@ -111,7 +111,7 @@ Choose the renderer from its import path. Do not select a provider through a pro
 | `@deck.gl-community/react-fiber/maplibre` | `MapLibreOverlay` | The application owns a MapLibre map and attaches a deck.gl control. |
 
 The root entry point creates only `Deck`. Its props are `DeckProps`, which has no `interleaved`
-option, and `onDeckglChange` receives `Deck | null`. Provider roots always create
+option, and `onDeckChange` receives `Deck | null`. Provider roots always create
 their matching overlay and pass `interleaved` to it unchanged. The overlay applies its own default
 (`false` for
 [`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#constructor) and
@@ -121,7 +121,7 @@ provider.
 
 Both overlays read `interleaved` only in their constructors. When the prop changes, the provider
 root finalizes the current overlay, which removes it from the map, and creates a new one.
-`onDeckglChange` receives `null` and then the new instance, which the application attaches.
+`onDeckChange` receives `null` and then the new instance, which the application attaches.
 
 ## Use layers and views
 
@@ -154,7 +154,7 @@ A provider root selects only the deck.gl control. It does not create, configure,
 host map. Pass map tokens, styles, camera settings, handlers, worker or CSP configuration, and
 other map options to the Mapbox or MapLibre map creator.
 
-Use `onDeckglChange` to receive the overlay, store it in state, and attach it to the map once per
+Use `onDeckChange` to receive the overlay, store it in state, and attach it to the map once per
 instance in an effect. Detach it during cleanup, then tear down the host map. Provider roots render
 no host DOM node, and the host map owns views, so JSX `<view>` descriptors do not configure
 external overlays.
@@ -169,15 +169,16 @@ Deck callbacks such as `onClick` remain deck.gl callbacks. They are not React sy
 
 ## Access the root instance
 
-Use `onDeckglChange` when an integration needs the root-specific `Deck`, `MapboxOverlay`, or
+Use `onDeckChange` when an integration needs the root-specific `Deck`, `MapboxOverlay`, or
 `MapLibreOverlay`. Store the instance in state so React can coordinate setup and cleanup:
 
 ```tsx
 import {useEffect, useState} from 'react';
-import {DeckGL, type DeckglInstance} from '@deck.gl-community/react-fiber';
+import type {Deck} from '@deck.gl/core';
+import {DeckGL} from '@deck.gl-community/react-fiber';
 
 export function Map() {
-  const [deckgl, setDeckgl] = useState<DeckglInstance | null>(null);
+  const [deckgl, setDeckGL] = useState<Deck | null>(null);
 
   useEffect(() => {
     if (!deckgl) return;
@@ -188,7 +189,7 @@ export function Map() {
     };
   }, [deckgl]);
 
-  return <DeckGL onDeckglChange={setDeckgl} />;
+  return <DeckGL onDeckChange={setDeckGL} />;
 }
 ```
 

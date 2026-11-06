@@ -6,7 +6,7 @@ import type {Deck, LayersList, View} from '@deck.gl/core';
  * Manages the deck.gl instance reference and layers passed via props.
  * Used internally by the reconciler to coordinate between React and deck.gl.
  */
-export type DeckglRenderer = Pick<Deck<View | View[] | null>, 'finalize' | 'setProps'>;
+export type DeckGLRenderer = Pick<Deck<View | View[] | null>, 'finalize' | 'setProps'>;
 
 export interface State {
   /**
@@ -16,7 +16,7 @@ export interface State {
    * overlays are intentionally represented structurally so the generic
    * reconciler does not import provider packages.
    */
-  deckgl: DeckglRenderer | null;
+  deckgl: DeckGLRenderer | null;
 
   /** Whether this root is backed by an externally owned overlay control. */
   isExternalOverlay: boolean;
@@ -26,7 +26,7 @@ export interface State {
    *
    * Called during DeckGL component mount/update lifecycle.
    */
-  setDeckgl: (instance: DeckglRenderer | null) => void;
+  setDeckGL: (instance: DeckGLRenderer | null) => void;
 
   /**
    * Layers passed directly via the `layers` prop (internal use)
@@ -67,7 +67,7 @@ export function createStore(isExternalOverlay = false): Store {
 
     isExternalOverlay,
 
-    setDeckgl: instance => {
+    setDeckGL: instance => {
       setState({deckgl: instance});
     }
   };

@@ -88,14 +88,15 @@ The React tree is flattened before deck.gl receives it. Therefore, a `<view>` ca
 
 ## 7. Access the root instance when necessary
 
-Use `onDeckglChange` to receive the root-specific `Deck` instance. Store it in React state if another component needs to react to the instance becoming available:
+Use `onDeckChange` to receive the root-specific `Deck` instance. Store it in React state if another component needs to react to the instance becoming available:
 
 ```tsx
 import {useEffect, useState} from 'react';
-import {DeckGL, type DeckglInstance} from '@deck.gl-community/react-fiber';
+import type {Deck} from '@deck.gl/core';
+import {DeckGL} from '@deck.gl-community/react-fiber';
 
 function Map() {
-  const [deckgl, setDeckgl] = useState<DeckglInstance | null>(null);
+  const [deckgl, setDeckGL] = useState<Deck | null>(null);
 
   useEffect(() => {
     if (!deckgl) {
@@ -106,7 +107,7 @@ function Map() {
   }, [deckgl]);
 
   return (
-    <DeckGL onDeckglChange={setDeckgl}>
+    <DeckGL onDeckChange={setDeckGL}>
       <layer layer={/* a deck.gl Layer instance */} />
     </DeckGL>
   );
@@ -117,7 +118,7 @@ The notification receives `null` when its root is cleaned up. It is not a callba
 
 ## Add a provider overlay
 
-Provider selection is an import-path decision. Use `/mapbox` for `MapboxOverlay` or `/maplibre` for `MapLibreOverlay`; install the matching `@deck.gl` package and create/configure the host map in your application. Store the overlay from `onDeckglChange` in state and attach it to the map in an effect, so it is attached once per instance and detached during cleanup. See [Attach the overlay to the host map](./using-with-maps.md#attach-the-overlay-to-the-host-map) for the lifecycle, and the [Mapbox](./base-maps/using-with-mapbox.md) and [MapLibre](./base-maps/using-with-maplibre.md) guides for complete examples.
+Provider selection is an import-path decision. Use `/mapbox` for `MapboxOverlay` or `/maplibre` for `MapLibreOverlay`; install the matching `@deck.gl` package and create/configure the host map in your application. Store the overlay from `onDeckChange` in state and attach it to the map in an effect, so it is attached once per instance and detached during cleanup. See [Attach the overlay to the host map](./using-with-maps.md#attach-the-overlay-to-the-host-map) for the lifecycle, and the [Mapbox](./base-maps/using-with-mapbox.md) and [MapLibre](./base-maps/using-with-maplibre.md) guides for complete examples.
 
 Deck callbacks such as `onClick` are deck.gl event handlers passed to the root, not React synthetic events on `<layer>` or `<view>`.
 

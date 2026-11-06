@@ -10,7 +10,7 @@ import type {} from 'react/jsx-runtime';
 import type {} from 'react/jsx-dev-runtime';
 
 /** JSX intrinsic elements supported by the deck.gl React Fiber renderer. */
-export interface DeckglElements {
+export interface DeckGLElements {
   /** The deck.gl Layer instance to render. */
   layer: {
     layer: Layer;
@@ -26,18 +26,18 @@ export interface DeckglElements {
 
 declare module 'react' {
   namespace JSX {
-    interface IntrinsicElements extends DeckglElements {}
+    interface IntrinsicElements extends DeckGLElements {}
   }
 }
 
 declare module 'react/jsx-runtime' {
   namespace JSX {
-    interface IntrinsicElements extends DeckglElements {}
+    interface IntrinsicElements extends DeckGLElements {}
   }
 }
 
 declare module 'react/jsx-dev-runtime' {
   namespace JSX {
-    interface IntrinsicElements extends DeckglElements {}
+    interface IntrinsicElements extends DeckGLElements {}
   }
 }

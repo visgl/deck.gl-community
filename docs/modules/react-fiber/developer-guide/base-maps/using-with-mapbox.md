@@ -78,7 +78,7 @@ export function MapboxMap() {
       initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}}
       onLoad={() => setLoaded(true)}
     >
-      <DeckGL interleaved onDeckglChange={setOverlay}>
+      <DeckGL interleaved onDeckChange={setOverlay}>
         {/* React Fiber <layer> elements */}
       </DeckGL>
     </Map>
@@ -137,7 +137,7 @@ export function ManualMapboxMap() {
 
   return (
     <div ref={containerRef} style={{height: 500}}>
-      <DeckGL interleaved onDeckglChange={setOverlay}>
+      <DeckGL interleaved onDeckChange={setOverlay}>
         {/* React Fiber <layer> elements */}
       </DeckGL>
     </div>
@@ -151,7 +151,7 @@ export function ManualMapboxMap() {
 
 deck.gl's guide attaches `MapboxOverlay` with React Map GL's `useControl` hook. Do not use
 `useControl` with a provider root: its factory runs once when the hook mounts, but the provider
-root creates the overlay itself and delivers it later through `onDeckglChange`. Attach the overlay
+root creates the overlay itself and delivers it later through `onDeckChange`. Attach the overlay
 in an effect, as in the example above.
 
 ### Mapbox token and alternatives

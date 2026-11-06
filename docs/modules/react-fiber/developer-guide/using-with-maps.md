@@ -52,7 +52,7 @@ Both provider roots pass `interleaved?: boolean` to the overlay unchanged:
 
 Both overlays read `interleaved` only in their constructors. When the prop changes, `DeckGL`
 finalizes the current overlay, which removes it from the map, and creates a new one.
-`onDeckglChange` receives `null` and then the new instance. The attachment effects in the provider
+`onDeckChange` receives `null` and then the new instance. The attachment effects in the provider
 guides handle the replacement because they depend on the overlay instance. The new overlay starts
 without the old one's internal state, such as the hovered object. `interleaved` does not select the
 provider; select Mapbox or MapLibre through the import path.
@@ -66,7 +66,7 @@ a manual `new Map({container})` integration without adding a child to the map co
 The lifecycle has four steps:
 
 1. Create the host map with its provider-specific options.
-2. Receive the matching overlay through `onDeckglChange`.
+2. Receive the matching overlay through `onDeckChange`.
 3. After the map is ready, attach that exact overlay once. Mapbox and MapLibre use
    `map.addControl`.
 4. During cleanup, detach the overlay only if it was attached, then destroy the map if the

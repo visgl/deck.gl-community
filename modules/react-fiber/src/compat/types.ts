@@ -1,6 +1,6 @@
 import type {Deck} from '@deck.gl/core';
 import type {ReactNode} from 'react';
-import type {DeckglProps} from '../types/index';
+import type {DeckGLProps as NativeDeckGLProps} from '../types/index';
 
 /** The deck.gl instance exposed by the standalone compatibility adapter. */
 export type DeckGLInstance = Deck;
@@ -13,7 +13,7 @@ export interface DeckGLContextValue<Instance = DeckGLInstance> {
 /** Props shared by compatibility adapters backed by a concrete native root. */
 export type CompatibilityDeckGLProps<NativeProps, Instance> = Omit<
   NativeProps,
-  'canvas' | 'children' | 'gl' | 'parent' | '_customRender' | 'onDeckglChange'
+  'canvas' | 'children' | 'gl' | 'parent' | '_customRender' | 'onDeckChange'
 > & {
   children?: ReactNode;
   /** Optional provider that receives the bounded `{deck}` compatibility context. */
@@ -21,7 +21,7 @@ export type CompatibilityDeckGLProps<NativeProps, Instance> = Omit<
 };
 
 /** Props supported by the standalone `@deck.gl/react` compatibility adapter. */
-export type DeckGLProps = CompatibilityDeckGLProps<DeckglProps, DeckGLInstance>;
+export type DeckGLProps = CompatibilityDeckGLProps<NativeDeckGLProps, DeckGLInstance>;
 
 /** Imperative surface exposed by a compatibility adapter. */
 export interface DeckGLRef<Instance = DeckGLInstance> {
