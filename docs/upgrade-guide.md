@@ -6,16 +6,11 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
-### `@deck.gl-community/editable-layers`: distance measurement units
+### Distance measurement units
 
-`MeasureDistanceMode` again honors `modeConfig.turfOptions.units` for geographic distances.
-Remove manual kilometer conversions from `formatTooltip` or `measurementCallback` when
-using this option: with `units: 'meters'`, their numeric arguments are already in meters.
-
-Cartesian measurements keep their native coordinate units and now use the neutral label
-`units` by default. Custom `EditModeCoordinateSystem` implementations that return kilometers
-can declare `distanceUnits: 'kilometers'` to enable geographic output conversion; omitted
-metadata preserves native values. See
+`MeasureDistanceMode` now returns geographic distances in `turfOptions.units`. Remove workarounds
+that convert kilometers to an already requested unit. Native values use the default label `units`.
+Custom kilometer-based adapters should declare `distanceUnits: 'kilometers'`; see
 [Coordinate units](./modules/editable-layers/api-reference/edit-modes/measurement-modes.md#coordinate-units).
 
 ### Consolidated sidebars

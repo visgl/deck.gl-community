@@ -5,11 +5,8 @@ This page lists module additions and major changes in each release. For detailed
 ## Unreleased
 
 - **editable-layers:** `MeasureDistanceMode` again honors `turfOptions.units` for geographic
-  distances in tooltips, custom formatters, and measurement callbacks
-  ([#1015](https://github.com/visgl/deck.gl-community/issues/1015)). Cartesian distances retain
-  their native values and use a neutral `units` label. Remove manual kilometer conversions
-  from formatters or callbacks when using `turfOptions.units`; see
-  [Coordinate units](/docs/modules/editable-layers/api-reference/edit-modes/measurement-modes#coordinate-units).
+  distances ([#1015](https://github.com/visgl/deck.gl-community/issues/1015)). See the
+  [upgrade note](./upgrade-guide.md#distance-measurement-units).
 
 - **react-fiber:** map overlays have their own entry points. The default `DeckGL` root renders a
   standalone `Deck`; import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` (or the matching
