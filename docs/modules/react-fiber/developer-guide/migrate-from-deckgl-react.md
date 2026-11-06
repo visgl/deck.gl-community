@@ -78,8 +78,7 @@ passes deck.gl's own objects through unchanged:
 
 ### Keep the old JSX syntax
 
-To keep `<ScatterplotLayer id="points" ... />` in your code, copy this helper into your app. It is
-the whole compatibility layer, so React Fiber does not ship one:
+To keep `<ScatterplotLayer id="points" ... />` in your code, copy this helper into your app:
 
 ```tsx
 import type {Layer} from '@deck.gl/core';
