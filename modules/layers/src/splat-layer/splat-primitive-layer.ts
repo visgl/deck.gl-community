@@ -27,6 +27,8 @@ import {
 import {SplatEffect} from './splat-effect';
 import {prepareShadowDraw} from './splat-shadow';
 import {SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL, SPLAT_TRANSMISSION_WGSL} from './splat.wgsl.js';
+import {getLayerWind} from '../wind-effect/wind-effect';
+import {wind} from '../wind-effect/wind-module';
 
 // Picking omits LightingEffect, but the effect's shadow shader remains a deck default module.
 // Retain its harmless fallback samplers from a draw pass so the pick pass can bind the module.
@@ -63,9 +65,9 @@ export type PreparedSplatProps<DataT> = {
   getColor?: Accessor<DataT, Color>;
   /** Bend height, stable phase, and flex multiplier. Defaults to a rigid source. */
   getDeformation?: Accessor<DataT, number[]>;
-  /** Bend strength as a fraction of the owner's height. @default 0 */
-  deformationStrength?: number;
-  /** Seconds, or null for the shared deck.gl animation clock. @default null */
+  /** Bend strength as a fraction of the owner's height, or null to follow the deck's `WindEffect`. @default null */
+  deformationStrength?: number | null;
+  /** Seconds, or null to follow the deck's `WindEffect` and then deck.gl's timeline. @default null */
   deformationTime?: number | null;
   /** Pixel variance added to projected covariance, with determinant opacity compensation. @default 0.3 */
   kernelVariance?: number;
@@ -114,7 +116,7 @@ const defaultProps: DefaultProps<SplatLayerProps> = {
   getTransformMatrix: {type: 'accessor', value: null},
   getColor: {type: 'accessor', value: [255, 255, 255, 255]},
   getDeformation: {type: 'accessor', value: [1, 0, 0]},
-  deformationStrength: 0,
+  deformationStrength: null,
   deformationTime: null,
   kernelVariance: {type: 'number', value: 0.3, min: 0},
   alphaCutoff: {type: 'number', value: 1 / 255, min: 0, max: 1},
@@ -186,7 +188,7 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
       vs: SPLAT_VERTEX,
       fs: SPLAT_FRAGMENT,
       source: SPLAT_WGSL,
-      modules: [project32, picking, phongMaterial, splatUniforms]
+      modules: [project32, picking, phongMaterial, wind, splatUniforms]
     });
   }
 
@@ -292,17 +294,21 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     if (viewport !== this.context.viewport && viewport.id === this.context.viewport?.id) return;
     const pickingActive = shaderModuleProps.picking?.isActive;
     const mode = shaderModuleProps.splat?.mode ?? 0;
+    // Shadow passes receive no effect props: resolve the deck's WindEffect here for every pass.
+    const {wind: windProps, animated} = getLayerWind(
+      this,
+      this.props.deformationStrength,
+      this.props.deformationTime
+    );
     if (shaderModuleProps.shadow?.drawToShadowMap) {
       if (!prepareShadowDraw(this)) return;
     } else if (!pickingActive && mode === 0) {
       if (shaderModuleProps.splat?.resolve)
         this.state.effect.resolve(renderPass, shaderModuleProps.project.viewport.id);
-      if (this.props.deformationStrength > 0 && this.props.deformationTime === null)
-        this.setNeedsRedraw();
+      if (animated) this.setNeedsRedraw();
       return;
     }
-    const {deformationStrength, deformationTime, kernelVariance, alphaCutoff, support} = this.props;
-    const time = deformationTime ?? this.context.timeline.getTime() / 1000;
+    const {kernelVariance, alphaCutoff, support} = this.props;
     const model =
       mode === 1
         ? this.state.accumulationModel || this.state.model
@@ -310,15 +316,8 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
           ? this.state.transmissionModel
           : this.state.model;
     model?.shaderInputs.setProps({
+      wind: windProps,
       splat: {
-        strength: deformationStrength,
-        time,
-        wave: [
-          Math.sin(time * 1.6),
-          Math.cos(time * 1.6),
-          Math.sin(time * 3.2),
-          Math.cos(time * 3.2)
-        ],
         opticalDepthMode: this.props.source.opticalDepths ? 1 : 0,
         kernelVariance,
         alphaCutoff,
@@ -333,6 +332,6 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     }
     model?.setInstanceCount(this.getNumInstances());
     model?.draw(renderPass);
-    if (deformationStrength > 0 && deformationTime === null) this.setNeedsRedraw();
+    if (animated) this.setNeedsRedraw();
   }
 }
