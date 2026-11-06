@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {SnappingStrategy} from './snapping/snapping-strategy';
+import type {EditModeCoordinateSystem} from './coordinate-system';
 
 import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {
@@ -15,18 +16,28 @@ import {
 } from './types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
-import {getEditModeCoordinateSystem} from './coordinate-system';
+import {GeoCoordinateSystem, getEditModeCoordinateSystem} from './coordinate-system';
 import {SnappableEditMode} from './snappable-edit-mode';
 import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
+/**
+ * Measures a path with cumulative distance tooltips and per-segment measurement callbacks.
+ * Built-in geographic output uses modeConfig.turfOptions.units (kilometers by default).
+ * Native distances retain their values; use modeConfig.formatTooltip for custom labels.
+ */
 export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEditMode {
   _isMeasuringSessionFinished = false;
   _currentTooltips: Tooltip[] = [];
   _currentDistance = 0;
+  _currentUnits?: string;
 
   _calculateDistanceForTooltip = ({positionA, positionB, modeConfig, coordinateSystem}) => {
-    const {measurementCallback} = modeConfig || {};
-    const distance = getEditModeCoordinateSystem(coordinateSystem).distance(positionA, positionB);
+    const {turfOptions, measurementCallback} = modeConfig || {};
+    const distance = getEditModeCoordinateSystem(coordinateSystem).distance(
+      positionA,
+      positionB,
+      turfOptions
+    );
 
     if (measurementCallback) {
       measurementCallback(distance);
@@ -35,19 +46,47 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
     return distance;
   };
 
-  _formatTooltip(distance, modeConfig?) {
+  _formatTooltip(distance: number, modeConfig?: any, coordinateSystem?: EditModeCoordinateSystem) {
     const {formatTooltip, turfOptions} = modeConfig || {};
-    const units = (turfOptions && turfOptions.units) || 'kilometers';
+    // Only the built-in distance implementation guarantees Turf's output units.
+    const units =
+      getEditModeCoordinateSystem(coordinateSystem).distance ===
+      GeoCoordinateSystem.prototype.distance
+        ? turfOptions?.units || 'kilometers'
+        : 'units';
 
     let text;
     if (formatTooltip) {
       text = formatTooltip(distance);
     } else {
       // By default, round to 2 decimal places and append units
-      text = `${parseFloat(distance).toFixed(2)} ${units}`;
+      text = `${distance.toFixed(2)} ${units}`;
     }
 
     return text;
+  }
+
+  _updateCachedMeasurements(props: ModeProps<SimpleFeatureCollection>) {
+    const {modeConfig} = props;
+    const {turfOptions, centerTooltipsOnLine = false} = modeConfig || {};
+    const units = turfOptions?.units;
+    if (units === this._currentUnits) return;
+
+    const positions = this.getClickSequence();
+    const coordSys = getEditModeCoordinateSystem(props.coordinateSystem);
+    let distance = 0;
+    const tooltips: Tooltip[] = positions.slice(1).map((position, index) => {
+      const previousPosition = positions[index];
+      distance += coordSys.distance(previousPosition, position, turfOptions);
+      return {
+        position: centerTooltipsOnLine ? coordSys.midpoint(previousPosition, position) : position,
+        text: this._formatTooltip(distance, modeConfig, coordSys)
+      };
+    });
+
+    this._currentDistance = distance;
+    this._currentTooltips = tooltips;
+    this._currentUnits = units;
   }
 
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
@@ -62,6 +101,8 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
       this._currentTooltips = [];
       this._currentDistance = 0;
     }
+
+    this._updateCachedMeasurements(props);
 
     const {picks} = event;
     const clickedEditHandle = getPickedEditHandle(picks);
@@ -100,7 +141,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
 
         this._currentTooltips.push({
           position: tooltipPosition,
-          text: this._formatTooltip(this._currentDistance, modeConfig)
+          text: this._formatTooltip(this._currentDistance, modeConfig, coordSys)
         });
       }
 
@@ -194,6 +235,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
   }
 
   getTooltips(props: ModeProps<SimpleFeatureCollection>): Tooltip[] {
+    this._updateCachedMeasurements(props);
     const {lastPointerMoveEvent, modeConfig} = props;
     const {centerTooltipsOnLine = false} = modeConfig || {};
     const positions = this.getClickSequence();
@@ -215,7 +257,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
         ...this._currentTooltips,
         {
           position: tooltipPosition,
-          text: this._formatTooltip(this._currentDistance + distance, modeConfig)
+          text: this._formatTooltip(this._currentDistance + distance, modeConfig, coordSys)
         }
       ];
     }

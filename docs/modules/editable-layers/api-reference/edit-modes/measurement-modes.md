@@ -6,29 +6,25 @@ A number of modes provide various measurement capabilities
 
 ## MeasureDistanceMode
 
-User can measure a distance between two points.
+Measure a path by clicking points. Configure it with `modeConfig`:
 
-The following options can be provided in the `modeConfig` object:
+- `turfOptions.units`: [units](https://turfjs.org/docs/api/types/Units) (default `'kilometers'`).
+- `formatTooltip`: formats cumulative distance (default: two decimals and units).
+- `measurementCallback`: receives segment distances, including pointer previews.
+- `centerTooltipsOnLine`: places tooltips at segment midpoints (default `false`).
 
-- `turfOptions` (Object, optional)
+```ts
+modeConfig: {
+  turfOptions: {
+    units: 'meters' // https://turfjs.org/docs/api/types/Units
+  }
+}
+```
 
-  - `options` object passed to turf's [distance](https://turfjs.org/docs/api/distance) function
-  - Default: `undefined`
+### Coordinate units
 
-- `formatTooltip` (Function, optional)
-
-  - Function to format tooltip text (argument is the numeric distance)
-  - Default: `(distance) => parseFloat(distance).toFixed(2) + units`
-
-- `measurementCallback` (Function, optional)
-
-  - Function to call as measurements are calculated
-  - Default: `undefined`
-
-- `centerTooltipsOnLine` (Boolean, optional)
-
-  - If true, the measurement tooltips appear on the middle of their respective line segments rather than at the end
-  - Default: `false`
+Cartesian distances retain native units, labeled `units` by default. Custom adapters receive
+`turfOptions` in `distance(a, b, options)`; use `formatTooltip` for custom unit labels.
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-distance-mode.ts)
 

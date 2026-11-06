@@ -4,6 +4,10 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- **editable-layers:** `MeasureDistanceMode` again honors `turfOptions.units` for geographic
+  distances ([#1015](https://github.com/visgl/deck.gl-community/issues/1015)). See the
+  [upgrade note](./upgrade-guide.md#distance-measurement-units).
+
 - **react-fiber:** map overlays have their own entry points. The default `DeckGL` root renders a
   standalone `Deck`; import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` (or the matching
   `/compat/` paths) for a `MapboxOverlay` or `MapLibreOverlay`. See

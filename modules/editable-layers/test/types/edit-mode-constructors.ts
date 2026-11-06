@@ -8,14 +8,17 @@ import type {
   EditModeProjection,
   ClickEvent,
   EditAction,
+  EditModeCoordinateSystem,
   GeoJsonEditModeConstructor,
   GeoJsonEditModeType,
   GuideFeatureCollection,
   ModeProps,
+  Position,
   SimpleFeature,
   SimpleFeatureCollection
 } from '@deck.gl-community/editable-layers';
 import type {FeatureCollection} from 'geojson';
+import type {Units} from '@turf/helpers';
 
 class CustomMode extends EditableLayers.GeoJsonEditMode {
   override handleClick(_event: ClickEvent, props: ModeProps<SimpleFeatureCollection>): void {
@@ -171,3 +174,59 @@ const projection: EditModeProjection = {
 };
 const projectedProps: ModeProps<SimpleFeatureCollection> = {...props, projection};
 void projectedProps;
+
+// Geographic subclasses forward optional units while preserving two-argument consumers.
+class ForwardingGeoCoordinateSystem extends EditableLayers.GeoCoordinateSystem {
+  override distance(a: Position, b: Position, options?: {units?: Units}): number {
+    return super.distance(a, b, options);
+  }
+}
+
+// Native subclasses ignore geographic output units and retain their own paired math.
+class NativeGeoCoordinateSystem extends EditableLayers.GeoCoordinateSystem {
+  override distance(a: Position, b: Position): number {
+    return EditableLayers.cartesianCoordinateSystem.distance(a, b);
+  }
+
+  override bearing(a: Position, b: Position): number {
+    return EditableLayers.cartesianCoordinateSystem.bearing(a, b);
+  }
+
+  override destination(origin: Position, distance: number, bearing: number): Position {
+    return EditableLayers.cartesianCoordinateSystem.destination(origin, distance, bearing);
+  }
+}
+
+for (const coordinateSystem of [
+  new ForwardingGeoCoordinateSystem(),
+  new NativeGeoCoordinateSystem()
+]) {
+  const customCoordinateSystem: EditModeCoordinateSystem = coordinateSystem;
+  const start: Position = [0, 0];
+  const end: Position = [1, 1];
+  const distance: number = customCoordinateSystem.distance(start, end);
+  const selectedDistance: number = customCoordinateSystem.distance(start, end, {units: 'meters'});
+  const endpoint: Position = customCoordinateSystem.destination(
+    start,
+    distance,
+    customCoordinateSystem.bearing(start, end)
+  );
+  const customProps: ModeProps<SimpleFeatureCollection> = {
+    ...props,
+    coordinateSystem: customCoordinateSystem
+  };
+  new EditableLayers.MeasureDistanceMode().getTooltips(customProps);
+  void endpoint;
+  void selectedDistance;
+}
+
+const geographicDistance: number = EditableLayers.geoCoordinateSystem.distance([0, 0], [1, 0], {
+  units: 'meters'
+});
+const nativeDistance: number = EditableLayers.cartesianCoordinateSystem.distance([0, 0], [3, 4], {
+  units: 'miles'
+});
+// @ts-expect-error Geographic units use Turf's supported unit names.
+EditableLayers.geoCoordinateSystem.distance([0, 0], [1, 0], {units: 'unsupported'});
+void geographicDistance;
+void nativeDistance;

@@ -82,7 +82,10 @@ All measurement modes accept:
 
 - `formatTooltip` (`(value: number) => string`) — Custom formatter for the tooltip.
 - `measurementCallback` (`(value: number) => void`) — Callback for programmatic access to measurements.
-- `turfOptions` (`object`) — Options passed to the underlying turf.js function.
+
+`MeasureDistanceMode` also accepts `turfOptions.units` for geographic output units. See
+[Measurement Modes](/docs/modules/editable-layers/api-reference/edit-modes/measurement-modes)
+for units and callback behavior.
 
 ## Selected Features
 
