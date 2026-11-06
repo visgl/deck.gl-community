@@ -216,6 +216,71 @@ describe('measurement units', () => {
     expect(measurementCallback).toHaveBeenLastCalledWith(expect.closeTo(111195.0802335329, 8));
   });
 
+  it('refreshes cached and live totals when geographic units change', () => {
+    const mode = new MeasureDistanceMode();
+    const measurementCallback = vi.fn();
+    const formatTooltip = vi.fn((distance: number) => `${distance.toFixed(2)} total`);
+    const props = createMeasurementProps({
+      modeConfig: {turfOptions: {units: 'kilometers'}, measurementCallback, formatTooltip},
+      lastPointerMoveEvent: null
+    });
+    mode.handleClick(createClickEvent([0, 0]), props);
+    mode.handleClick(createClickEvent([1, 0]), props);
+    mode.handleClick(createClickEvent([2, 0]), props);
+    expect(measurementCallback).toHaveBeenCalledTimes(2);
+    formatTooltip.mockClear();
+
+    const meterProps = {
+      ...props,
+      modeConfig: {...props.modeConfig, turfOptions: {units: 'meters'}},
+      lastPointerMoveEvent: createPointerMoveEvent([3, 0])
+    };
+    const tooltips = mode.getTooltips(meterProps);
+
+    expect(tooltips.map(tooltip => tooltip.text)).toEqual([
+      '111195.08 total',
+      '222390.16 total',
+      '333585.24 total'
+    ]);
+    expect(formatTooltip.mock.calls.map(([distance]) => distance)).toEqual([
+      expect.closeTo(111195.0802335329, 8),
+      expect.closeTo(222390.1604670658, 8),
+      expect.closeTo(333585.2407005987, 8)
+    ]);
+    // Recalculating historical segments must not replay their measurement callbacks.
+    expect(measurementCallback).toHaveBeenCalledTimes(3);
+    expect(measurementCallback).toHaveBeenLastCalledWith(expect.closeTo(111195.0802335329, 8));
+    mode.getTooltips({...meterProps, lastPointerMoveEvent: null});
+    expect(measurementCallback).toHaveBeenCalledTimes(3);
+  });
+
+  it('refreshes cached totals before a click using newly selected geographic units', () => {
+    const mode = new MeasureDistanceMode();
+    const measurementCallback = vi.fn();
+    const props = createMeasurementProps({
+      modeConfig: {turfOptions: {units: 'kilometers'}, measurementCallback},
+      lastPointerMoveEvent: null
+    });
+    mode.handleClick(createClickEvent([0, 0]), props);
+    mode.handleClick(createClickEvent([1, 0]), props);
+    mode.handleClick(createClickEvent([2, 0]), props);
+    const meterProps = {
+      ...props,
+      modeConfig: {...props.modeConfig, turfOptions: {units: 'meters'}}
+    };
+
+    // No tooltip read occurs between changing the units and committing the next segment.
+    mode.handleClick(createClickEvent([3, 0]), meterProps);
+
+    expect(mode.getTooltips(meterProps).map(tooltip => tooltip.text)).toEqual([
+      '111195.08 meters',
+      '222390.16 meters',
+      '333585.24 meters'
+    ]);
+    expect(measurementCallback).toHaveBeenCalledTimes(3);
+    expect(measurementCallback).toHaveBeenLastCalledWith(expect.closeTo(111195.0802335329, 8));
+  });
+
   const legacyCustomCoordinateSystem: EditModeCoordinateSystem = {
     distance: (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]),
     bearing: (a, b) => cartesianCoordinateSystem.bearing(a, b),
@@ -223,6 +288,40 @@ describe('measurement units', () => {
       cartesianCoordinateSystem.destination(origin, distance, bearing),
     midpoint: (a, b) => cartesianCoordinateSystem.midpoint(a, b)
   };
+
+  it.each([
+    {name: 'Cartesian', coordinateSystem: cartesianCoordinateSystem},
+    {name: 'legacy custom', coordinateSystem: legacyCustomCoordinateSystem}
+  ])('keeps $name totals native when the geographic unit option changes', ({coordinateSystem}) => {
+    const mode = new MeasureDistanceMode();
+    const measurementCallback = vi.fn();
+    const props = createMeasurementProps({
+      coordinateSystem,
+      modeConfig: {turfOptions: {units: 'kilometers'}, measurementCallback},
+      lastPointerMoveEvent: null
+    });
+    mode.handleClick(createClickEvent([0, 0]), props);
+    mode.handleClick(createClickEvent([3, 4]), props);
+    const meterProps = {
+      ...props,
+      modeConfig: {...props.modeConfig, turfOptions: {units: 'meters'}},
+      lastPointerMoveEvent: createPointerMoveEvent([6, 8])
+    };
+
+    expect(mode.getTooltips(meterProps).map(tooltip => tooltip.text)).toEqual([
+      '5.00 units',
+      '10.00 units'
+    ]);
+    expect(measurementCallback).toHaveBeenCalledTimes(2);
+    expect(measurementCallback).toHaveBeenLastCalledWith(5);
+
+    mode.handleClick(createClickEvent([6, 8]), meterProps);
+    expect(
+      mode.getTooltips({...meterProps, lastPointerMoveEvent: null}).map(tooltip => tooltip.text)
+    ).toEqual(['5.00 units', '10.00 units']);
+    expect(measurementCallback).toHaveBeenCalledTimes(3);
+    expect(measurementCallback).toHaveBeenLastCalledWith(5);
+  });
 
   class NativeGeoCoordinateSystem extends GeoCoordinateSystem {
     override readonly distanceUnits = 'native';

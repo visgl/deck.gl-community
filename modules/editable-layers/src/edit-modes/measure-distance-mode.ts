@@ -30,6 +30,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
   _isMeasuringSessionFinished = false;
   _currentTooltips: Tooltip[] = [];
   _currentDistance = 0;
+  _currentUnits?: string;
 
   _calculateDistanceForTooltip = ({positionA, positionB, modeConfig, coordinateSystem}) => {
     const {turfOptions, measurementCallback} = modeConfig || {};
@@ -64,6 +65,29 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
     return text;
   }
 
+  _updateCachedMeasurements(props: ModeProps<SimpleFeatureCollection>) {
+    const {modeConfig} = props;
+    const {turfOptions, centerTooltipsOnLine = false} = modeConfig || {};
+    const units = turfOptions?.units;
+    if (units === this._currentUnits) return;
+
+    const positions = this.getClickSequence();
+    const coordSys = getEditModeCoordinateSystem(props.coordinateSystem);
+    let distance = 0;
+    const tooltips: Tooltip[] = positions.slice(1).map((position, index) => {
+      const previousPosition = positions[index];
+      distance += coordSys.distance(previousPosition, position, turfOptions);
+      return {
+        position: centerTooltipsOnLine ? coordSys.midpoint(previousPosition, position) : position,
+        text: this._formatTooltip(distance, modeConfig, coordSys)
+      };
+    });
+
+    this._currentDistance = distance;
+    this._currentTooltips = tooltips;
+    this._currentUnits = units;
+  }
+
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     const {modeConfig, data, onEdit} = props;
     const {centerTooltipsOnLine = false} = modeConfig || {};
@@ -76,6 +100,8 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
       this._currentTooltips = [];
       this._currentDistance = 0;
     }
+
+    this._updateCachedMeasurements(props);
 
     const {picks} = event;
     const clickedEditHandle = getPickedEditHandle(picks);
@@ -219,6 +245,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
   }
 
   getTooltips(props: ModeProps<SimpleFeatureCollection>): Tooltip[] {
+    this._updateCachedMeasurements(props);
     const {lastPointerMoveEvent, modeConfig} = props;
     const {centerTooltipsOnLine = false} = modeConfig || {};
     const positions = this.getClickSequence();
