@@ -62,20 +62,6 @@ direct children of `DeckGL`. Use deck.gl's `layerFilter` for per-view layers:
 <DeckGL layerFilter={({layer, viewport}) => viewport.id !== 'minimap' || layer.id === 'points'}>
 ```
 
-### Why layer instances?
-
-`<layer layer={new ScatterplotLayer({...})} />` is longer than `<ScatterplotLayer ... />`, but it
-passes deck.gl's own objects through unchanged:
-
-- **Type safety.** Props are checked against the layer's own props type, including accessors typed
-  by `data`.
-- **Any layer works.** Custom, composite and community layers need no wrapper and no registration,
-  and the renderer does not depend on any layer package.
-- **One API.** It is the same constructor as the `layers` prop and every deck.gl example, so layers
-  can be built in hooks or helpers and new layer props work without a React release.
-- **Composition.** `<layer>` elements can live in your own components at any depth, where
-  `@deck.gl/react` reads JSX layers only from the direct children of `DeckGL`.
-
 ### Keep the old JSX syntax
 
 To keep `<ScatterplotLayer id="points" ... />` in your code, copy this helper into your app:
@@ -97,23 +83,21 @@ Wrap each layer class you use once, at module level:
 ```tsx
 import {
   PolygonLayer as DeckPolygonLayer,
-  ScatterplotLayer as DeckScatterplotLayer,
-  type ScatterplotLayerProps
+  ScatterplotLayer as DeckScatterplotLayer
 } from '@deck.gl/layers';
 import {DeckGL} from '@deck.gl-community/react-fiber';
 import {createLayerComponent} from './create-layer-component';
 
-type Point = {position: [number, number]};
-
-// Name the props type to keep typed accessors. Without it, `d` is `unknown`.
-const ScatterplotLayer = createLayerComponent<ScatterplotLayerProps<Point>>(DeckScatterplotLayer);
+const ScatterplotLayer = createLayerComponent(DeckScatterplotLayer);
 const PolygonLayer = createLayerComponent(DeckPolygonLayer);
+
+type Point = {position: [number, number]};
 
 export function Map({points}: {points: Point[]}) {
   return (
     <DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
       <PolygonLayer id="regions" data={[]} />
-      <ScatterplotLayer id="points" data={points} getPosition={d => d.position} />
+      <ScatterplotLayer<Point> id="points" data={points} getPosition={d => d.position} />
     </DeckGL>
   );
 }
@@ -121,6 +105,11 @@ export function Map({points}: {points: Point[]}) {
 
 Importing the deck.gl classes under an alias lets the components keep the class names, so
 existing JSX does not change.
+
+The wrapped component keeps the layer's type parameters. Pass the data type where you use it,
+`<ScatterplotLayer<Point> ... />`, just as you would write `new ScatterplotLayer<Point>({...})`.
+Accessors such as `getPosition` are then checked against `Point`. Without a type argument, `d` is
+`any`, as it is with the deck.gl constructor.
 
 Wrapped and native layers can be mixed in one tree, so an app can move one layer at a time.
 
