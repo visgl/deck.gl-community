@@ -24,6 +24,110 @@ const expectToBeCloseToArray = (actual: number[], expected: number[]) => {
   actual.forEach((x, index) => expect(x).toBeCloseTo(expected[index], 1));
 };
 
+describe('double click', () => {
+  let mode: MeasureDistanceMode;
+  let props: ModeProps<SimpleFeatureCollection>;
+
+  beforeEach(() => {
+    mode = new MeasureDistanceMode();
+    props = {
+      ...createFeatureCollectionProps({modeConfig: {measurementCallback: vi.fn()}}),
+      data: {type: 'FeatureCollection', features: []}
+    };
+  });
+
+  it.each([true, false])('finishes the measured line (endpoint picked: %s)', picksEndpoint => {
+    const positions = [
+      [1, 2],
+      [3, 4],
+      [4, 5]
+    ];
+    for (const position of positions) {
+      mode.handleClick(createClickEvent(position), props);
+    }
+    const tooltips = mode.getTooltips({...props, lastPointerMoveEvent: null});
+    const endpoint = mode.getGuides(props).features[positions.length];
+    const event = createClickEvent(
+      positions[positions.length - 1],
+      picksEndpoint ? [{index: -1, isGuide: true, object: endpoint}] : []
+    );
+
+    // A recognized double click is dispatched separately from handleClick.
+    mode.handleDoubleClick(event, props);
+
+    expect(props.onUpdateCursor).toHaveBeenCalledExactlyOnceWith('cell');
+    props.lastPointerMoveEvent = createPointerMoveEvent([6, 7]);
+    mode.handlePointerMove(props.lastPointerMoveEvent, props);
+    expect(mode.getGuides(props).features[0].geometry.coordinates).toEqual(positions);
+    expect(mode.getTooltips(props)).toEqual(tooltips);
+    expect(mode.getClickSequence()).toEqual(positions);
+    expect(props.modeConfig.measurementCallback).toHaveBeenCalledTimes(2);
+    expect(props.onEdit).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([0, 1])('ignores double clicks with %s committed positions', pointCount => {
+    if (pointCount) {
+      mode.handleClick(createClickEvent([1, 2]), props);
+    }
+
+    mode.handleDoubleClick(createClickEvent([3, 4]), props);
+
+    expect(mode._isMeasuringSessionFinished).toBe(false);
+    expect(mode.getClickSequence()).toEqual(pointCount ? [[1, 2]] : []);
+    expect(props.onUpdateCursor).not.toHaveBeenCalled();
+    expect(props.onEdit).toHaveBeenCalledTimes(pointCount);
+  });
+
+  it('refreshes the line when a native endpoint click precedes the double click', () => {
+    mode.handleClick(createClickEvent([1, 2]), props);
+    mode.handleClick(createClickEvent([3, 4]), props);
+    const endpoint = mode.getGuides(props).features[2];
+    const event = createClickEvent([3, 4], [{index: -1, isGuide: true, object: endpoint}]);
+
+    // Native input sends the first click immediately, then the double click.
+    mode.handleClick(event, props);
+    mode.handleDoubleClick(event, props);
+
+    expect(props.onUpdateCursor).toHaveBeenCalledExactlyOnceWith('cell');
+    props.lastPointerMoveEvent = createPointerMoveEvent([6, 7]);
+    expect(mode.getGuides(props).features[0].geometry.coordinates).toEqual([
+      [1, 2],
+      [3, 4]
+    ]);
+    expect(props.onEdit).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores double clicks after the measurement has finished', () => {
+    mode.handleClick(createClickEvent([1, 2]), props);
+    mode.handleClick(createClickEvent([3, 4]), props);
+    const event = createClickEvent([3, 4]);
+    mode.handleDoubleClick(event, props);
+    const guides = mode.getGuides(props);
+    const tooltips = mode.getTooltips(props);
+
+    mode.handleDoubleClick(event, props);
+
+    expect(mode.getGuides(props)).toEqual(guides);
+    expect(mode.getTooltips(props)).toEqual(tooltips);
+    expect(props.onUpdateCursor).toHaveBeenCalledExactlyOnceWith('cell');
+    expect(props.onEdit).toHaveBeenCalledTimes(2);
+  });
+
+  it('starts a fresh measurement on the next click', () => {
+    mode.handleClick(createClickEvent([1, 2]), props);
+    mode.handleClick(createClickEvent([3, 4]), props);
+    mode.handleDoubleClick(createClickEvent([3, 4]), props);
+
+    mode.handleClick(createClickEvent([10, 11]), props);
+    props.lastPointerMoveEvent = createPointerMoveEvent([10, 11]);
+
+    expect(mode._isMeasuringSessionFinished).toBe(false);
+    expect(mode.getClickSequence()).toEqual([[10, 11]]);
+    expect(mode.getTooltips(props)).toEqual([{position: [10, 11], text: '0.00 kilometers'}]);
+    expect(props.onEdit).toHaveBeenCalledTimes(3);
+  });
+});
+
 describe('measurement units', () => {
   // One degree along the equator, using Turf's mean Earth radius.
   const DISTANCE_KILOMETERS = 111.1950802335329;
