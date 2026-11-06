@@ -3,6 +3,9 @@
 // Copyright (c) vis.gl contributors
 
 import type {SnappingStrategy} from './snapping/snapping-strategy';
+import {convertLength} from '@turf/helpers';
+import type {Units} from '@turf/helpers';
+import type {EditModeCoordinateSystem} from './coordinate-system';
 
 import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {
@@ -19,9 +22,32 @@ import {getEditModeCoordinateSystem} from './coordinate-system';
 import {SnappableEditMode} from './snappable-edit-mode';
 import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
+/** Resolves measurement output without changing the coordinate system's geometric units. */
+function getDistanceMeasurement(
+  distance: number,
+  modeConfig: any,
+  coordinateSystem?: EditModeCoordinateSystem
+): {distance: number; units: string} {
+  if (getEditModeCoordinateSystem(coordinateSystem).distanceUnits !== 'kilometers') {
+    return {distance, units: 'units'};
+  }
+
+  const units: Units = modeConfig?.turfOptions?.units || 'kilometers';
+  return {
+    distance: units === 'kilometers' ? distance : convertLength(distance, 'kilometers', units),
+    units
+  };
+}
+
+/**
+ * Measures a path with cumulative distance tooltips and per-segment measurement callbacks.
+ * Geographic output uses modeConfig.turfOptions.units (kilometers by default); coordinate
+ * systems with native or unspecified distanceUnits retain their native values.
+ */
 export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEditMode {
   _isMeasuringSessionFinished = false;
   _currentTooltips: Tooltip[] = [];
+  // Keep accumulated distances in geometric units, even when output units change.
   _currentDistance = 0;
 
   _calculateDistanceForTooltip = ({positionA, positionB, modeConfig, coordinateSystem}) => {
@@ -29,22 +55,22 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
     const distance = getEditModeCoordinateSystem(coordinateSystem).distance(positionA, positionB);
 
     if (measurementCallback) {
-      measurementCallback(distance);
+      measurementCallback(getDistanceMeasurement(distance, modeConfig, coordinateSystem).distance);
     }
 
     return distance;
   };
 
-  _formatTooltip(distance, modeConfig?) {
-    const {formatTooltip, turfOptions} = modeConfig || {};
-    const units = (turfOptions && turfOptions.units) || 'kilometers';
+  _formatTooltip(distance: number, modeConfig?: any, coordinateSystem?: EditModeCoordinateSystem) {
+    const {formatTooltip} = modeConfig || {};
+    const measurement = getDistanceMeasurement(distance, modeConfig, coordinateSystem);
 
     let text;
     if (formatTooltip) {
-      text = formatTooltip(distance);
+      text = formatTooltip(measurement.distance);
     } else {
       // By default, round to 2 decimal places and append units
-      text = `${parseFloat(distance).toFixed(2)} ${units}`;
+      text = `${measurement.distance.toFixed(2)} ${measurement.units}`;
     }
 
     return text;
@@ -100,7 +126,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
 
         this._currentTooltips.push({
           position: tooltipPosition,
-          text: this._formatTooltip(this._currentDistance, modeConfig)
+          text: this._formatTooltip(this._currentDistance, modeConfig, coordSys)
         });
       }
 
@@ -215,7 +241,7 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
         ...this._currentTooltips,
         {
           position: tooltipPosition,
-          text: this._formatTooltip(this._currentDistance + distance, modeConfig)
+          text: this._formatTooltip(this._currentDistance + distance, modeConfig, coordSys)
         }
       ];
     }

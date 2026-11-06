@@ -82,7 +82,16 @@ All measurement modes accept:
 
 - `formatTooltip` (`(value: number) => string`) — Custom formatter for the tooltip.
 - `measurementCallback` (`(value: number) => void`) — Callback for programmatic access to measurements.
-- `turfOptions` (`object`) — Options passed to the underlying turf.js function.
+
+`MeasureDistanceMode` also accepts `turfOptions.units` to select geographic output units
+(default `'kilometers'`). The tooltip formatter receives the cumulative path distance; the
+measurement callback receives each calculated segment distance. Both use the selected units.
+For example, use `modeConfig: {turfOptions: {units: 'meters'}}` to receive meters.
+
+Cartesian distances remain in native coordinate units, with the default label `units`;
+`turfOptions.units` does not convert or relabel them. See
+[Measurement Modes](/docs/modules/editable-layers/api-reference/edit-modes/measurement-modes#coordinate-units)
+for custom coordinate systems and formatting.
 
 ## Selected Features
 

@@ -8,10 +8,12 @@ import type {
   EditModeProjection,
   ClickEvent,
   EditAction,
+  EditModeCoordinateSystem,
   GeoJsonEditModeConstructor,
   GeoJsonEditModeType,
   GuideFeatureCollection,
   ModeProps,
+  Position,
   SimpleFeature,
   SimpleFeatureCollection
 } from '@deck.gl-community/editable-layers';
@@ -171,3 +173,49 @@ const projection: EditModeProjection = {
 };
 const projectedProps: ModeProps<SimpleFeatureCollection> = {...props, projection};
 void projectedProps;
+
+// Custom subclasses may declare their measurement units while keeping geometry math paired.
+class KilometerCartesianCoordinateSystem extends EditableLayers.CartesianCoordinateSystem {
+  override readonly distanceUnits = 'kilometers';
+
+  override distance(a: Position, b: Position): number {
+    return super.distance(a, b) / 1000;
+  }
+
+  override destination(origin: Position, distance: number, bearing: number): Position {
+    return super.destination(origin, distance * 1000, bearing);
+  }
+}
+
+class MeterGeoCoordinateSystem extends EditableLayers.GeoCoordinateSystem {
+  override readonly distanceUnits = 'native';
+
+  override distance(a: Position, b: Position): number {
+    return super.distance(a, b) * 1000;
+  }
+
+  override destination(origin: Position, distance: number, bearing: number): Position {
+    return super.destination(origin, distance / 1000, bearing);
+  }
+}
+
+for (const coordinateSystem of [
+  new KilometerCartesianCoordinateSystem(),
+  new MeterGeoCoordinateSystem()
+]) {
+  const customCoordinateSystem: EditModeCoordinateSystem = coordinateSystem;
+  const start: Position = [0, 0];
+  const end: Position = [1, 1];
+  const distance: number = customCoordinateSystem.distance(start, end);
+  const endpoint: Position = customCoordinateSystem.destination(
+    start,
+    distance,
+    customCoordinateSystem.bearing(start, end)
+  );
+  const customProps: ModeProps<SimpleFeatureCollection> = {
+    ...props,
+    coordinateSystem: customCoordinateSystem
+  };
+  new EditableLayers.MeasureDistanceMode().getTooltips(customProps);
+  void endpoint;
+}

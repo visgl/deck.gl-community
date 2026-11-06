@@ -302,7 +302,7 @@ describe('snapping review regressions', () => {
     );
     const tips = mode.getTooltips(props);
     expect(tips[0].position).toEqual([0, 0]);
-    expect(tips[0].text).toBe('10.00 kilometers');
+    expect(tips[0].text).toBe('10.00 units');
   });
 
   test('moving edge targets are recomputed before applying the event', () => {
