@@ -94,8 +94,31 @@ export function Map({points}: {points: Point[]}) {
 }
 ```
 
-Wrapped and native layers can be mixed in one tree, so an app can move one layer at a time. The
-same pattern works for views: return `<view view={new ViewClass(props)} />`.
+Wrapped and native layers can be mixed in one tree, so an app can move one layer at a time.
+
+Views take the same approach. Pass `children` through so that layers nested in a JSX view still
+render:
+
+```tsx
+import {MapView, type View} from '@deck.gl/core';
+import type {ReactNode} from 'react';
+
+export function createViewComponent<PropsT extends {id?: string}>(
+  ViewClass: new (props: PropsT) => View
+) {
+  return function ViewComponent({children, ...props}: PropsT & {children?: ReactNode}) {
+    return <view view={new ViewClass(props as PropsT)}>{children}</view>;
+  };
+}
+
+const JsxMapView = createViewComponent(MapView);
+
+<JsxMapView id="main">
+  <JsxScatterplotLayer id="points" data={points} getPosition={d => d.position} />
+</JsxMapView>;
+```
+
+As with `<view>`, nesting keeps the tree readable but does not limit the layer to that view.
 
 ## Access the deck.gl instance
 

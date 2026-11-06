@@ -1,4 +1,4 @@
-import {Deck, type Layer, log, MapView} from '@deck.gl/core';
+import {Deck, type Layer, log, MapView, type View} from '@deck.gl/core';
 import {PolygonLayer, ScatterplotLayer} from '@deck.gl/layers';
 import * as fc from 'fast-check';
 import React from 'react';
@@ -8,13 +8,19 @@ import {createRoot, roots, unmountAtNode} from '../renderer';
 import type {ReconcilerRoot, RootElement} from '../types';
 import {createTestRoot} from './test-renderer';
 
-// The "Keep the old JSX syntax" recipe from the migration guide, kept in sync here so that the
-// documented helper stays working. The guide shows it in TSX.
+// The "Keep the old JSX syntax" helpers from the migration guide, kept in sync here so that the
+// documented helpers stay working. The guide shows them in TSX.
 function createLayerComponent<PropsT extends {id?: string}>(
   LayerClass: new (props: PropsT) => Layer
 ) {
   return function LayerComponent(props: PropsT) {
     return React.createElement('layer', {layer: new LayerClass(props)});
+  };
+}
+
+function createViewComponent<PropsT extends {id?: string}>(ViewClass: new (props: PropsT) => View) {
+  return function ViewComponent({children, ...props}: PropsT & {children?: React.ReactNode}) {
+    return React.createElement('view', {view: new ViewClass(props as PropsT)}, children);
   };
 }
 
@@ -412,6 +418,25 @@ describe('renderer', () => {
       expect(deck.layers[0]).toBe(nativePoints);
       expect(deck.layers[1]).toBeInstanceOf(PolygonLayer);
       expect(deck.layers[1]?.id).toBe('jsx-polygons');
+    });
+
+    it('keeps layers nested in the migration guide view component', async () => {
+      const {deck, root} = createTestRoot();
+      const JsxMapView = createViewComponent(MapView);
+      const JsxScatterplotLayer = createLayerComponent(ScatterplotLayer);
+
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            JsxMapView,
+            {id: 'main'},
+            React.createElement(JsxScatterplotLayer, {data: [], id: 'points'})
+          )
+        );
+      });
+
+      expect(deck.views.map(view => view.id)).toStrictEqual(['main']);
+      expect(deck.getLayerIds()).toStrictEqual(['points']);
     });
   });
 
