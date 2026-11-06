@@ -18,7 +18,7 @@ export type Type = string;
  * global store for all reconciler operations.
  */
 export interface Container {
-  /** Zustand store instance managing deck.gl state */
+  /** Root store managing deck.gl state */
   store: Store;
 }
 
@@ -37,7 +37,7 @@ export type Props = Record<string, unknown>;
  * inside a View element (affects rendering behavior).
  */
 export interface HostContext {
-  /** Zustand store instance for accessing deck.gl state */
+  /** Root store for accessing deck.gl state */
   store: Store;
 
   /** Whether the current element is nested inside a View element */
@@ -161,7 +161,7 @@ export type ViewOrViews = View | View[] | null;
  * React elements into the deck.gl scene. Follows React 18 createRoot API.
  */
 export interface ReconcilerRoot {
-  /** Zustand store managing deck.gl state */
+  /** Root store managing deck.gl state */
   store: Store;
 
   /** React Fiber root container (internal reconciler state) */
