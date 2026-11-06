@@ -51,8 +51,30 @@ import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
 
 Give every layer and view a stable `id`. deck.gl matches layers across renders by `id`, so creating
 a new layer instance on each render is expected and cheap. `<layer>` elements can sit inside your
-own components at any depth. Nesting a `<layer>` inside a `<view>` does not assign it to that view;
-use deck.gl's `layerFilter` for per-view layers.
+own components at any depth.
+
+Nesting a `<layer>` inside a `<view>` does not assign it to that view. The renderer flattens the
+tree into one `layers` list, and deck.gl draws every layer in every view, as it does for the
+`layers` prop. `@deck.gl/react` does not scope them either: it reads JSX layers only from the
+direct children of `DeckGL`. Use deck.gl's `layerFilter` for per-view layers:
+
+```tsx
+<DeckGL layerFilter={({layer, viewport}) => viewport.id !== 'minimap' || layer.id === 'points'}>
+```
+
+### Why layer instances?
+
+`<layer layer={new ScatterplotLayer({...})} />` is longer than `<ScatterplotLayer ... />`, but it
+passes deck.gl's own objects through unchanged:
+
+- **Type safety.** Props are checked against the layer's own props type, including accessors typed
+  by `data`.
+- **Any layer works.** Custom, composite and community layers need no wrapper and no registration,
+  and the renderer does not depend on any layer package.
+- **One API.** It is the same constructor as the `layers` prop and every deck.gl example, so layers
+  can be built in hooks or helpers and new layer props work without a React release.
+- **Composition.** `<layer>` elements can live in your own components at any depth, where
+  `@deck.gl/react` reads JSX layers only from the direct children of `DeckGL`.
 
 ### Keep the old JSX syntax
 
@@ -74,25 +96,32 @@ export function createLayerComponent<PropsT extends {id?: string}>(
 Wrap each layer class you use once, at module level:
 
 ```tsx
-import {PolygonLayer, ScatterplotLayer, type ScatterplotLayerProps} from '@deck.gl/layers';
+import {
+  PolygonLayer as DeckPolygonLayer,
+  ScatterplotLayer as DeckScatterplotLayer,
+  type ScatterplotLayerProps
+} from '@deck.gl/layers';
 import {DeckGL} from '@deck.gl-community/react-fiber';
 import {createLayerComponent} from './create-layer-component';
 
 type Point = {position: [number, number]};
 
 // Name the props type to keep typed accessors. Without it, `d` is `unknown`.
-const JsxScatterplotLayer = createLayerComponent<ScatterplotLayerProps<Point>>(ScatterplotLayer);
-const JsxPolygonLayer = createLayerComponent(PolygonLayer);
+const ScatterplotLayer = createLayerComponent<ScatterplotLayerProps<Point>>(DeckScatterplotLayer);
+const PolygonLayer = createLayerComponent(DeckPolygonLayer);
 
 export function Map({points}: {points: Point[]}) {
   return (
     <DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
-      <JsxPolygonLayer id="regions" data={[]} />
-      <JsxScatterplotLayer id="points" data={points} getPosition={d => d.position} />
+      <PolygonLayer id="regions" data={[]} />
+      <ScatterplotLayer id="points" data={points} getPosition={d => d.position} />
     </DeckGL>
   );
 }
 ```
+
+Importing the deck.gl classes under an alias lets the components keep the class names, so
+existing JSX does not change.
 
 Wrapped and native layers can be mixed in one tree, so an app can move one layer at a time.
 
@@ -100,7 +129,7 @@ Views take the same approach. Pass `children` through so that layers nested in a
 render:
 
 ```tsx
-import {MapView, type View} from '@deck.gl/core';
+import {MapView as DeckMapView, type View} from '@deck.gl/core';
 import type {ReactNode} from 'react';
 
 export function createViewComponent<PropsT extends {id?: string}>(
@@ -111,11 +140,11 @@ export function createViewComponent<PropsT extends {id?: string}>(
   };
 }
 
-const JsxMapView = createViewComponent(MapView);
+const MapView = createViewComponent(DeckMapView);
 
-<JsxMapView id="main">
-  <JsxScatterplotLayer id="points" data={points} getPosition={d => d.position} />
-</JsxMapView>;
+<MapView id="main">
+  <ScatterplotLayer id="points" data={points} getPosition={d => d.position} />
+</MapView>;
 ```
 
 As with `<view>`, nesting keeps the tree readable but does not limit the layer to that view.

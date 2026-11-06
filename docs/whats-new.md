@@ -23,10 +23,6 @@ This page lists module additions and major changes in each release. For detailed
   `ref` to their deck.gl instance, and `children` is optional. See
   [`DeckGL`](/docs/modules/react-fiber/api-reference/deckgl#root-dom-and-sizing).
 
-- **react-fiber:** the `/compat` entry points and their PascalCase layer and view wrappers are
-  removed. The [migration guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react#keep-the-old-jsx-syntax)
-  shows a `createLayerComponent` helper to copy instead.
-
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
 - **Website:** fix the mobile navigation drawer, replace generic gallery artwork with
