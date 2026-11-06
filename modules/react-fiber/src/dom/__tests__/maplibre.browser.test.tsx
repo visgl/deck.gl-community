@@ -36,7 +36,7 @@ webglTest(
     document.body.append(container);
 
     const image = new ImageData(new Uint8ClampedArray([255, 0, 0, 255]), 1, 1);
-    const onDeckglChange = vi.fn();
+    const onDeckChange = vi.fn();
     const reactRoot = createRoot(container);
     let overlay: MapLibreOverlay | null = null;
     const layer = new BitmapLayer({
@@ -52,9 +52,9 @@ webglTest(
         reactRoot.render(
           <DeckGL
             interleaved
-            onDeckglChange={deckgl => {
+            onDeckChange={deckgl => {
               overlay = deckgl;
-              onDeckglChange(deckgl);
+              onDeckChange(deckgl);
             }}
           >
             <layer layer={layer} />
@@ -110,7 +110,7 @@ webglTest(
       });
       await act(async () => {
         reactRoot.render(
-          <DeckGL interleaved onDeckglChange={onDeckglChange}>
+          <DeckGL interleaved onDeckChange={onDeckChange}>
             <layer layer={updatedLayer} />
           </DeckGL>
         );
@@ -124,7 +124,7 @@ webglTest(
       map.remove();
 
       await act(async () => reactRoot.unmount());
-      expect(onDeckglChange).toHaveBeenLastCalledWith(null);
+      expect(onDeckChange).toHaveBeenLastCalledWith(null);
     } finally {
       reactRoot.unmount();
       container.remove();
@@ -160,7 +160,7 @@ webglTest(
     const reactRoot = createRoot(reactHost);
     const overlays: MapLibreOverlay[] = [];
     // `finalize` detaches a replaced overlay, so the app only attaches each new one.
-    const onDeckglChange = (deckgl: MapLibreOverlay | null) => {
+    const onDeckChange = (deckgl: MapLibreOverlay | null) => {
       if (deckgl && !overlays.includes(deckgl)) {
         overlays.push(deckgl);
         map.addControl(deckgl);
@@ -177,7 +177,7 @@ webglTest(
     const renderDeckGL = (interleaved: boolean) =>
       act(async () => {
         reactRoot.render(
-          <DeckGL interleaved={interleaved} onDeckglChange={onDeckglChange}>
+          <DeckGL interleaved={interleaved} onDeckChange={onDeckChange}>
             <layer layer={layer} />
           </DeckGL>
         );

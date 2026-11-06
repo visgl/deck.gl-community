@@ -1,5 +1,5 @@
 import type {DeckProps, Layer, View} from '@deck.gl/core';
-import type {DeckglRenderer, Store} from '../shared/index';
+import type {DeckGLRenderer, Store} from '../shared/index';
 import type {ReactNode} from 'react';
 import type {Fiber} from 'react-reconciler';
 
@@ -136,10 +136,10 @@ export type RootElement = HTMLCanvasElement | HTMLDivElement;
  *
  * @internal
  */
-export type DeckglConfiguration = DeckProps<View | View[] | null>;
+export type DeckGLConfiguration = DeckProps<View | View[] | null>;
 
 /** @internal Factory bound to an external-overlay root at creation time. */
-export type CreateExternalOverlay = (props: DeckglConfiguration) => DeckglRenderer;
+export type CreateExternalOverlay = (props: DeckGLConfiguration) => DeckGLRenderer;
 
 /** @internal Immutable reconciler-root capability configuration. */
 export interface RootOptions {
@@ -171,7 +171,7 @@ export interface ReconcilerRoot {
   render: (element: ReactNode) => void;
 
   /** Configures the underlying Deck or externally owned overlay instance. */
-  configure: (props: DeckglConfiguration) => void;
+  configure: (props: DeckGLConfiguration) => void;
 
   /** @internal Whether this root was created for an external overlay control. */
   isExternalOverlay: boolean;

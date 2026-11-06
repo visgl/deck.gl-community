@@ -16,7 +16,7 @@ interface MapClientProps {
  * Map component with deck.gl + Maplibre integration
  */
 export function MapClient({children}: MapClientProps) {
-  const [deckglInstance, setDeckglInstance] = useState<MapLibreOverlay | null>(null);
+  const [deckglInstance, setDeckGLInstance] = useState<MapLibreOverlay | null>(null);
   const [, setSelected] = useSelected();
 
   const handleClick = (pickInfo: {picked?: boolean}) => {
@@ -38,7 +38,7 @@ export function MapClient({children}: MapClientProps) {
         interleaved
         parameters={PARAMETERS}
         onClick={handleClick}
-        onDeckglChange={setDeckglInstance}
+        onDeckChange={setDeckGLInstance}
       >
         {children}
       </DeckGL>

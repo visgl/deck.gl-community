@@ -299,7 +299,7 @@ describe('config-tree-operations', () => {
       const child2 = createMockInstance(layer2);
       const newChildren: ChildSet = [child1, child2];
 
-      const mockDeckgl = {
+      const mockDeckGL = {
         setProps: vi.fn<(props: {layers: unknown[]; views?: unknown[]}) => void>()
       };
 
@@ -312,7 +312,7 @@ describe('config-tree-operations', () => {
             }
           >(() => ({
             _passedLayers: [],
-            deckgl: mockDeckgl
+            deckgl: mockDeckGL
           }))
         }
       } as unknown as Container;
@@ -321,7 +321,7 @@ describe('config-tree-operations', () => {
       replaceContainerChildren(container, newChildren);
 
       // Assert
-      expect(mockDeckgl.setProps).toHaveBeenCalledExactlyOnceWith({
+      expect(mockDeckGL.setProps).toHaveBeenCalledExactlyOnceWith({
         layers: [layer1, layer2],
         views: []
       });
@@ -330,14 +330,14 @@ describe('config-tree-operations', () => {
     it.each(['Mapbox', 'MapLibre'])('omits JSX views for a %s external overlay root', () => {
       const layer = new ScatterplotLayer({data: [], id: 'layer'});
       const view = new MapView({id: 'view'});
-      const mockDeckgl = {
+      const mockDeckGL = {
         setProps: vi.fn<(props: {layers: unknown[]; views?: unknown[]}) => void>()
       };
       const container = {
         store: {
           getState: vi.fn(() => ({
             _passedLayers: [],
-            deckgl: mockDeckgl,
+            deckgl: mockDeckGL,
             isExternalOverlay: true
           }))
         }
@@ -346,8 +346,8 @@ describe('config-tree-operations', () => {
       replaceContainerChildren(container, [createMockInstance(view), createMockInstance(layer)]);
       replaceContainerChildren(container, [createMockInstance(layer)]);
 
-      expect(mockDeckgl.setProps).toHaveBeenNthCalledWith(1, {layers: [layer]});
-      expect(mockDeckgl.setProps).toHaveBeenNthCalledWith(2, {layers: [layer]});
+      expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(1, {layers: [layer]});
+      expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(2, {layers: [layer]});
     });
 
     it('should combine _passedLayers with JSX layers', () => {
@@ -357,7 +357,7 @@ describe('config-tree-operations', () => {
       const child = createMockInstance(jsxLayer);
       const newChildren: ChildSet = [child];
 
-      const mockDeckgl = {
+      const mockDeckGL = {
         setProps: vi.fn<(props: {layers: unknown[]; views?: unknown[]}) => void>()
       };
 
@@ -370,7 +370,7 @@ describe('config-tree-operations', () => {
             }
           >(() => ({
             _passedLayers: [passedLayer],
-            deckgl: mockDeckgl
+            deckgl: mockDeckGL
           }))
         }
       } as unknown as Container;
@@ -379,7 +379,7 @@ describe('config-tree-operations', () => {
       replaceContainerChildren(container, newChildren);
 
       // Assert
-      expect(mockDeckgl.setProps).toHaveBeenCalledWith({
+      expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [passedLayer, jsxLayer],
         views: []
       });
@@ -393,7 +393,7 @@ describe('config-tree-operations', () => {
       const viewChild = createMockInstance(view);
       const newChildren: ChildSet = [viewChild, layerChild];
 
-      const mockDeckgl = {
+      const mockDeckGL = {
         setProps: vi.fn<(props: {layers: unknown[]; views?: unknown[]}) => void>()
       };
 
@@ -406,7 +406,7 @@ describe('config-tree-operations', () => {
             }
           >(() => ({
             _passedLayers: [],
-            deckgl: mockDeckgl
+            deckgl: mockDeckGL
           }))
         }
       } as unknown as Container;
@@ -415,7 +415,7 @@ describe('config-tree-operations', () => {
       replaceContainerChildren(container, newChildren);
 
       // Assert
-      expect(mockDeckgl.setProps).toHaveBeenCalledWith({
+      expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [layer],
         views: [view]
       });
@@ -427,7 +427,7 @@ describe('config-tree-operations', () => {
       const child = createMockInstance(layer);
       const newChildren: ChildSet = [child];
 
-      const mockDeckgl = {
+      const mockDeckGL = {
         setProps: vi.fn<(props: {layers: unknown[]; views?: unknown[]}) => void>()
       };
 
@@ -440,7 +440,7 @@ describe('config-tree-operations', () => {
             }
           >(() => ({
             _passedLayers: [],
-            deckgl: mockDeckgl
+            deckgl: mockDeckGL
           }))
         }
       } as unknown as Container;
@@ -449,7 +449,7 @@ describe('config-tree-operations', () => {
       replaceContainerChildren(container, newChildren);
 
       // Assert
-      expect(mockDeckgl.setProps).toHaveBeenCalledWith({
+      expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [layer],
         views: []
       });

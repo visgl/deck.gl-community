@@ -4,7 +4,7 @@
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';
-import type {DeckglInstance, DeckglProps, OnDeckglChange} from '@deck.gl-community/react-fiber';
+import type {DeckGLInstance, DeckGLProps, OnDeckChange} from '@deck.gl-community/react-fiber';
 ```
 
 The root import creates only a standalone `Deck`. It owns a canvas unless the caller supplies `canvas`, and sends JSX `<view>` descriptors to deck.gl. Its props are `DeckProps`, which has no `interleaved` option.
@@ -18,21 +18,21 @@ import {DeckGL as MapboxDeckGL} from '@deck.gl-community/react-fiber/mapbox';
 import {DeckGL as MapLibreDeckGL} from '@deck.gl-community/react-fiber/maplibre';
 ```
 
-`/mapbox` always creates `MapboxOverlay`; `/maplibre` always creates `MapLibreOverlay`. They pass `interleaved` to the overlay unchanged, so the overlay's own default applies: `false` for [`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#constructor) and [`MapLibreOverlay`](https://deck.gl/docs/api-reference/maplibre/overview). Both overlays read `interleaved` only in their constructors. When the prop changes, the root finalizes the current overlay, which removes it from the map, and creates a new one. `onDeckglChange` receives `null` and then the new instance, which the application attaches. Provider roots render no host DOM node and use a detached internal registry key, so they are safe inside a map container that must remain child-free.
+`/mapbox` always creates `MapboxOverlay`; `/maplibre` always creates `MapLibreOverlay`. They pass `interleaved` to the overlay unchanged, so the overlay's own default applies: `false` for [`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#constructor) and [`MapLibreOverlay`](https://deck.gl/docs/api-reference/maplibre/overview). Both overlays read `interleaved` only in their constructors. When the prop changes, the root finalizes the current overlay, which removes it from the map, and creates a new one. `onDeckChange` receives `null` and then the new instance, which the application attaches. Provider roots render no host DOM node and use a detached internal registry key, so they are safe inside a map container that must remain child-free.
 
 Each provider entry point exposes its concrete overlay contract:
 
 | Entry point | Props and instance |
 | --- | --- |
-| Root | `DeckglProps` and `DeckglInstance`, which is `Deck` |
-| `/mapbox` | `MapboxDeckGLProps`; `onDeckglChange` receives `MapboxOverlay \| null` |
-| `/maplibre` | `MapLibreDeckGLProps`; `onDeckglChange` receives `MapLibreOverlay \| null` |
+| Root | `DeckGLProps` and `DeckGLInstance`, which is `Deck` |
+| `/mapbox` | `MapboxDeckGLProps`; `onDeckChange` receives `MapboxOverlay \| null` |
+| `/maplibre` | `MapLibreDeckGLProps`; `onDeckChange` receives `MapLibreOverlay \| null` |
 
-Provider overlay props exclude map-owned configuration such as `canvas`, `parent`, `device`, `viewState`, `initialViewState`, and `controller`. The MapLibre provider also excludes `width`, `height`, and `gl`. Configure those options on the application-owned Mapbox or MapLibre map, then attach the instance from `onDeckglChange` with `map.addControl` and remove the same control during cleanup. JSX `<view>` descriptors are not forwarded to external overlays because the host map owns views. See [Using with maps](../developer-guide/using-with-maps.md) for complete attachment and shared-context guidance.
+Provider overlay props exclude map-owned configuration such as `canvas`, `parent`, `device`, `viewState`, `initialViewState`, and `controller`. The MapLibre provider also excludes `width`, `height`, and `gl`. Configure those options on the application-owned Mapbox or MapLibre map, then attach the instance from `onDeckChange` with `map.addControl` and remove the same control during cleanup. JSX `<view>` descriptors are not forwarded to external overlays because the host map owns views. See [Using with maps](../developer-guide/using-with-maps.md) for complete attachment and shared-context guidance.
 
 ## Props and lifecycle
 
-`DeckglProps` is the standalone `DeckProps` surface plus React children and `onDeckglChange`; `DeckglInstance` is `Deck`. Provider entry points infer their concrete overlay instance in `onDeckglChange`.
+`DeckGLProps` is the standalone `DeckProps` surface plus React children and `onDeckChange`; `DeckGLInstance` is `Deck`. Provider entry points infer their concrete overlay instance in `onDeckChange`.
 
 The notification runs after configuration and receives `null` during cleanup. It is a lifecycle notification rather than a callback ref: replacing only its identity does not recreate the root, but later notifications use the replacement.
 
@@ -54,7 +54,7 @@ const DeckGL = createDeckGL({
 
 The factory runs only when the root is initially configured. It is not a render prop and never reaches `setProps`. The result must implement deck.gl's `setProps` and `finalize` lifecycle. See [Using with custom overlays](../developer-guide/base-maps/using-with-custom-overlays.md) for the overlay requirements and host attachment.
 
-`recreateOverlayOnChange` lists props that the overlay reads only at construction or attach time. When one of them changes (compared with `Object.is`), the component finalizes the overlay and calls the factory again with the full props. `onDeckglChange` receives `null` and then the new instance. The provider roots declare `recreateOverlayOnChange: ['interleaved']`.
+`recreateOverlayOnChange` lists props that the overlay reads only at construction or attach time. When one of them changes (compared with `Object.is`), the component finalizes the overlay and calls the factory again with the full props. `onDeckChange` receives `null` and then the new instance. The provider roots declare `recreateOverlayOnChange: ['interleaved']`.
 
 ```tsx
 const DeckGL = createDeckGL({

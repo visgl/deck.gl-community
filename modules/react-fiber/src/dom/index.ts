@@ -4,9 +4,9 @@ export {createDeckGL, DeckGL} from './components';
  *
  * This supports:
  * ```ts
- * import {type DeckglInstance} from '@deck.gl-community/react-fiber';
+ * import {type DeckGLInstance} from '@deck.gl-community/react-fiber';
  * ```
  */
-export type {DeckGLRootProps, DeckglInstance, DeckglProps, OnDeckglChange} from '../types/index';
+export type {DeckGLRootProps, DeckGLInstance, DeckGLProps, OnDeckChange} from '../types/index';
 export {DeckCanvas} from './deck-canvas';
 export type {DeckCanvasProps} from './deck-canvas';

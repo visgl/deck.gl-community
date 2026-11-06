@@ -121,7 +121,7 @@ export function MapLibreMap() {
       canvasContextAttributes={{antialias: true}}
       onLoad={() => setLoaded(true)}
     >
-      <DeckGL interleaved onDeckglChange={setOverlay}>
+      <DeckGL interleaved onDeckChange={setOverlay}>
         {/* React Fiber <layer> elements */}
       </DeckGL>
     </Map>
@@ -181,7 +181,7 @@ export function ManualMapLibreMap() {
 
   return (
     <div ref={containerRef} style={{height: 500}}>
-      <DeckGL interleaved onDeckglChange={setOverlay}>
+      <DeckGL interleaved onDeckChange={setOverlay}>
         {/* React Fiber <layer> elements */}
       </DeckGL>
     </div>
@@ -195,7 +195,7 @@ export function ManualMapLibreMap() {
 
 deck.gl's guide attaches `MapLibreOverlay` with React Map GL's `useControl` hook. Do not use
 `useControl` with a provider root: its factory runs once when the hook mounts, but the provider
-root creates the overlay itself and delivers it later through `onDeckglChange`. Attach the overlay
+root creates the overlay itself and delivers it later through `onDeckChange`. Attach the overlay
 in an effect, as in the example above.
 
 ### Choosing a map tile service

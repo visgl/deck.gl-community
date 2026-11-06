@@ -105,7 +105,7 @@ The native `DeckGL`, `<layer>`, and `<view>` APIs remain available from the root
 
 ## Ref and context
 
-The `/compat` adapter supports an imperative `ref` and optional `ContextProvider` as its instance-access paths. It does not accept the native `onDeckglChange` lifecycle notification.
+The `/compat` adapter supports an imperative `ref` and optional `ContextProvider` as its instance-access paths. It does not accept the native `onDeckChange` lifecycle notification.
 
 `DeckGLRef` has exactly these members:
 
