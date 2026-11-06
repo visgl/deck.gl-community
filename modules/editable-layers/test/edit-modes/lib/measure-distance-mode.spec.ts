@@ -5,6 +5,7 @@
 import {beforeEach, describe, it, expect, vi} from 'vitest';
 import {MeasureDistanceMode} from '../../../src/edit-modes/measure-distance-mode';
 import {
+  GeoCoordinateSystem,
   cartesianCoordinateSystem,
   geoCoordinateSystem
 } from '../../../src/edit-modes/coordinate-system';
@@ -185,27 +186,34 @@ describe('measurement units', () => {
     expect(() => mode.handleClick(createClickEvent([1, 0]), props)).toThrow(/invalid/);
   });
 
-  it('keeps cumulative geometry distances in native units when output units change', () => {
+  it('accumulates clicked and live distances in the configured units', () => {
     const mode = new MeasureDistanceMode();
-    const kilometerProps = createMeasurementProps({lastPointerMoveEvent: null});
-    mode.handleClick(createClickEvent([0, 0]), kilometerProps);
-    mode.handleClick(createClickEvent([1, 0]), kilometerProps);
-
     const measurementCallback = vi.fn();
-    const meterProps = {
-      ...kilometerProps,
-      modeConfig: {turfOptions: {units: 'meters'}, measurementCallback}
-    };
-    mode.handleClick(createClickEvent([2, 0]), meterProps);
+    const props = createMeasurementProps({
+      modeConfig: {turfOptions: {units: 'meters'}, measurementCallback},
+      lastPointerMoveEvent: null
+    });
+    mode.handleClick(createClickEvent([0, 0]), props);
+    mode.handleClick(createClickEvent([1, 0]), props);
+    mode.handleClick(createClickEvent([2, 0]), props);
 
-    const tooltips = mode.getTooltips(meterProps);
-    expect(tooltips[tooltips.length - 1].text).toBe('222390.16 meters');
+    expect(mode.getTooltips(props).map(tooltip => tooltip.text)).toEqual([
+      '111195.08 meters',
+      '222390.16 meters'
+    ]);
+    expect(measurementCallback).toHaveBeenCalledTimes(2);
     expect(measurementCallback).toHaveBeenLastCalledWith(expect.closeTo(111195.0802335329, 8));
 
-    const endpoint = geoCoordinateSystem.destination([0, 0], DISTANCE_KILOMETERS, 90);
-    expect(endpoint[0]).toBeCloseTo(1, 8);
-    expect(endpoint[1]).toBeCloseTo(0, 8);
-    expect(geoCoordinateSystem.distance([0, 0], [1, 0])).toBeCloseTo(DISTANCE_KILOMETERS, 8);
+    const formatTooltip = vi.fn((distance: number) => `${distance.toFixed(2)} meters total`);
+    const liveTooltips = mode.getTooltips({
+      ...props,
+      modeConfig: {...props.modeConfig, formatTooltip},
+      lastPointerMoveEvent: createPointerMoveEvent([3, 0])
+    });
+    expect(liveTooltips[liveTooltips.length - 1].text).toBe('333585.24 meters total');
+    expect(formatTooltip).toHaveBeenCalledExactlyOnceWith(expect.closeTo(333585.2407005987, 8));
+    expect(measurementCallback).toHaveBeenCalledTimes(3);
+    expect(measurementCallback).toHaveBeenLastCalledWith(expect.closeTo(111195.0802335329, 8));
   });
 
   const legacyCustomCoordinateSystem: EditModeCoordinateSystem = {
@@ -215,6 +223,14 @@ describe('measurement units', () => {
       cartesianCoordinateSystem.destination(origin, distance, bearing),
     midpoint: (a, b) => cartesianCoordinateSystem.midpoint(a, b)
   };
+
+  class NativeGeoCoordinateSystem extends GeoCoordinateSystem {
+    override readonly distanceUnits = 'native';
+
+    override distance(a: number[], b: number[]): number {
+      return cartesianCoordinateSystem.distance(a, b);
+    }
+  }
 
   it.each([
     {name: 'Cartesian', coordinateSystem: cartesianCoordinateSystem, units: undefined},
@@ -227,6 +243,11 @@ describe('measurement units', () => {
     {
       name: 'custom without unit metadata',
       coordinateSystem: legacyCustomCoordinateSystem,
+      units: 'miles'
+    },
+    {
+      name: 'geographic subclass with native unit metadata',
+      coordinateSystem: new NativeGeoCoordinateSystem(),
       units: 'miles'
     }
   ])('keeps $name measurements in native units (units=$units)', ({coordinateSystem, units}) => {
@@ -254,10 +275,10 @@ describe('measurement units', () => {
     expect(measurementCallback).toHaveBeenLastCalledWith(5);
   });
 
-  it('uses declared kilometer units on custom implementations without requiring a class', () => {
+  it('forwards configured units through custom geographic implementations', () => {
     const coordinateSystem: EditModeCoordinateSystem = {
       distanceUnits: 'kilometers',
-      distance: (a, b) => geoCoordinateSystem.distance(a, b),
+      distance: (a, b, options) => geoCoordinateSystem.distance(a, b, options),
       bearing: (a, b) => geoCoordinateSystem.bearing(a, b),
       destination: (origin, distance, bearing) =>
         geoCoordinateSystem.destination(origin, distance, bearing),

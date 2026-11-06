@@ -7,6 +7,7 @@ import {distance as turfDistance} from '@turf/distance';
 import {destination} from '@turf/destination';
 import {midpoint} from '@turf/midpoint';
 import {point} from '@turf/helpers';
+import type {Units} from '@turf/helpers';
 import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import type {CoordinateSystem} from '@deck.gl/core';
 
@@ -28,18 +29,18 @@ import {Position} from '../utils/geojson-types';
  */
 export interface EditModeCoordinateSystem {
   /**
-   * Units returned by distance() and accepted by destination().
-   * MeasureDistanceMode converts known kilometer distances to its configured output units.
-   * Native units, including an omitted value on custom implementations, are left unchanged.
+   * Default distance units, used to label measurements.
+   * Kilometer-based adapters honor distance() options; native adapters keep local values.
+   * Omitted metadata uses the native-unit label.
    */
   readonly distanceUnits?: 'kilometers' | 'native';
 
   /**
    * Returns the distance between two positions.
-   * For GeoCoordinateSystem the unit is kilometers; for CartesianCoordinateSystem it is the
-   * native coordinate unit (consistent with destination()).
+   * Geographic adapters accept Turf units; native adapters may ignore options.
+   * Without options, the units must match destination().
    */
-  distance(a: Position, b: Position): number;
+  distance(a: Position, b: Position, options?: {units?: Units}): number;
 
   /**
    * Returns the bearing from position `a` to position `b`.
@@ -64,11 +65,11 @@ export interface EditModeCoordinateSystem {
  * This is the default and preserves the existing behavior of all edit modes.
  */
 export class GeoCoordinateSystem implements EditModeCoordinateSystem {
-  /** Geographic geometry distances are always in kilometers. */
+  /** Geographic distances default to kilometers. */
   readonly distanceUnits: 'kilometers' | 'native' = 'kilometers';
 
-  distance(a: Position, b: Position): number {
-    return turfDistance(point(a), point(b));
+  distance(a: Position, b: Position, options?: {units?: Units}): number {
+    return turfDistance(point(a), point(b), options);
   }
 
   bearing(a: Position, b: Position): number {
@@ -96,7 +97,7 @@ export class CartesianCoordinateSystem implements EditModeCoordinateSystem {
   /** Cartesian geometry distances use the input coordinates' native units. */
   readonly distanceUnits: 'kilometers' | 'native' = 'native';
 
-  distance(a: Position, b: Position): number {
+  distance(a: Position, b: Position, _options?: {units?: Units}): number {
     const dx = b[0] - a[0];
     const dy = b[1] - a[1];
     return Math.sqrt(dx * dx + dy * dy);

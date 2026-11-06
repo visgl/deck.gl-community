@@ -6,32 +6,26 @@ A number of modes provide various measurement capabilities
 
 ## MeasureDistanceMode
 
-Measure a path by clicking points. Set these options in `modeConfig`:
+Measure a path by clicking points. Configure it with `modeConfig`:
 
-- `turfOptions` (Object, optional): `units` selects geographic output units
-  ([supported units](https://turfjs.org/docs/api/distance); default `'kilometers'`).
-- `formatTooltip` (Function, optional): formats the cumulative path distance.
-  Default: two decimal places followed by the units.
-- `measurementCallback` (Function, optional): receives each calculated segment distance,
-  including live pointer measurements.
-- `centerTooltipsOnLine` (Boolean, default `false`): places tooltips at segment midpoints.
-
-For meters:
+- `turfOptions.units`: geographic distance units (default `'kilometers'`).
+- `formatTooltip`: formats cumulative distance (default: two decimals and units).
+- `measurementCallback`: receives segment distances, including pointer previews.
+- `centerTooltipsOnLine`: places tooltips at segment midpoints (default `false`).
 
 ```ts
-modeConfig: {turfOptions: {units: 'meters'}}
+modeConfig: {
+  turfOptions: {
+    units: 'meters' // https://turfjs.org/docs/api/types/Units
+  }
+}
 ```
 
 ### Coordinate units
 
-Tooltips, formatters, and callbacks use the selected geographic units. Cartesian distances
-remain in native units with the default label `units`; `turfOptions.units` does not convert
-or relabel them. Use `formatTooltip` for custom labels.
-
-Custom `EditModeCoordinateSystem` implementations can declare `readonly distanceUnits` as
-`'kilometers'` to enable output conversion; `'native'` or omitted metadata preserves native
-values. This describes the units used by `distance()` and `destination()`, without changing
-their geometric calculations.
+Cartesian and native custom systems retain their units, labeled `units` by default.
+Custom geographic systems must honor `options.units` in `distance(a, b, options)`
+and declare `distanceUnits: 'kilometers'` for labels; the mode does not convert custom distances.
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-distance-mode.ts)
 

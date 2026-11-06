@@ -28,6 +28,15 @@ describe('GeoCoordinateSystem', () => {
     expect(d).toBeLessThan(112);
   });
 
+  test.each([
+    {units: undefined, expected: 111.1950802335329},
+    {units: 'kilometers', expected: 111.1950802335329},
+    {units: 'meters', expected: 111195.0802335329},
+    {units: 'miles', expected: 69.09341957563635}
+  ] as const)('distance: optional units=$units selects geographic output', ({units, expected}) => {
+    expect(cs.distance([0, 0], [1, 0], {units})).toBeCloseTo(expected, 8);
+  });
+
   test('bearing: due east is ~90°', () => {
     expect(cs.bearing([0, 0], [1, 0])).toBeCloseTo(90, 0);
   });
@@ -69,6 +78,10 @@ describe('CartesianCoordinateSystem', () => {
 
   test('distance: Pythagorean 3-4-5 triangle', () => {
     expect(cs.distance([0, 0], [3, 4])).toBeCloseTo(5, 5);
+  });
+
+  test('distance: geographic output options do not change native units', () => {
+    expect(cs.distance([0, 0], [3, 4], {units: 'miles'})).toBe(5);
   });
 
   test('distance: horizontal segment', () => {
