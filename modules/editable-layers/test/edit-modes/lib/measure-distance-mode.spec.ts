@@ -142,6 +142,8 @@ describe('measurement units', () => {
     };
   }
 
+  class InheritedGeoCoordinateSystem extends GeoCoordinateSystem {}
+
   it.each([
     {units: undefined, label: 'kilometers', expected: DISTANCE_KILOMETERS},
     {units: 'kilometers', label: 'kilometers', expected: DISTANCE_KILOMETERS},
@@ -175,6 +177,29 @@ describe('measurement units', () => {
     expect(formatTooltip).toHaveBeenLastCalledWith(expect.closeTo(expected * 2, 8));
     expect(customTooltips[customTooltips.length - 1].text).toBe(
       `distance=${formatTooltip.mock.calls[0][0]}`
+    );
+  });
+
+  it.each([
+    {name: 'a new geographic adapter', coordinateSystem: new GeoCoordinateSystem()},
+    {
+      name: 'an inherited geographic distance method',
+      coordinateSystem: new InheritedGeoCoordinateSystem()
+    }
+  ])('uses geographic labels for $name', ({coordinateSystem}) => {
+    const mode = new MeasureDistanceMode();
+    const measurementCallback = vi.fn();
+    const props = createMeasurementProps({
+      coordinateSystem,
+      modeConfig: {turfOptions: {units: 'meters'}, measurementCallback},
+      lastPointerMoveEvent: null
+    });
+    mode.handleClick(createClickEvent([0, 0]), props);
+    mode.handleClick(createClickEvent([1, 0]), props);
+
+    expect(mode.getTooltips(props)[0].text).toBe('111195.08 meters');
+    expect(measurementCallback).toHaveBeenCalledExactlyOnceWith(
+      expect.closeTo(111195.0802335329, 8)
     );
   });
 
@@ -324,8 +349,6 @@ describe('measurement units', () => {
   });
 
   class NativeGeoCoordinateSystem extends GeoCoordinateSystem {
-    override readonly distanceUnits = 'native';
-
     override distance(a: number[], b: number[]): number {
       return cartesianCoordinateSystem.distance(a, b);
     }
@@ -335,17 +358,17 @@ describe('measurement units', () => {
     {name: 'Cartesian', coordinateSystem: cartesianCoordinateSystem, units: undefined},
     {name: 'Cartesian', coordinateSystem: cartesianCoordinateSystem, units: 'miles'},
     {
-      name: 'custom without unit metadata',
+      name: 'legacy custom',
       coordinateSystem: legacyCustomCoordinateSystem,
       units: undefined
     },
     {
-      name: 'custom without unit metadata',
+      name: 'legacy custom',
       coordinateSystem: legacyCustomCoordinateSystem,
       units: 'miles'
     },
     {
-      name: 'geographic subclass with native unit metadata',
+      name: 'geographic subclass overriding distance with native math',
       coordinateSystem: new NativeGeoCoordinateSystem(),
       units: 'miles'
     }
@@ -374,9 +397,8 @@ describe('measurement units', () => {
     expect(measurementCallback).toHaveBeenLastCalledWith(5);
   });
 
-  it('forwards configured units through custom geographic implementations', () => {
+  it('supports custom formatting for geographic adapters that forward distance options', () => {
     const coordinateSystem: EditModeCoordinateSystem = {
-      distanceUnits: 'kilometers',
       distance: (a, b, options) => geoCoordinateSystem.distance(a, b, options),
       bearing: (a, b) => geoCoordinateSystem.bearing(a, b),
       destination: (origin, distance, bearing) =>
@@ -385,15 +407,17 @@ describe('measurement units', () => {
     };
     const mode = new MeasureDistanceMode();
     const measurementCallback = vi.fn();
+    const formatTooltip = vi.fn((distance: number) => `${distance.toFixed(2)} meters`);
     const props = createMeasurementProps({
       coordinateSystem,
-      modeConfig: {turfOptions: {units: 'meters'}, measurementCallback},
+      modeConfig: {turfOptions: {units: 'meters'}, measurementCallback, formatTooltip},
       lastPointerMoveEvent: null
     });
     mode.handleClick(createClickEvent([0, 0]), props);
     mode.handleClick(createClickEvent([1, 0]), props);
 
     expect(mode.getTooltips(props)[0].text).toBe('111195.08 meters');
+    expect(formatTooltip).toHaveBeenCalledExactlyOnceWith(expect.closeTo(111195.0802335329, 8));
     expect(measurementCallback).toHaveBeenCalledExactlyOnceWith(
       expect.closeTo(111195.0802335329, 8)
     );
