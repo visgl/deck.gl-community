@@ -8,7 +8,7 @@ A number of modes provide various measurement capabilities
 
 Measure a path by clicking points. Configure it with `modeConfig`:
 
-- `turfOptions.units`: geographic distance units (default `'kilometers'`).
+- `turfOptions.units`: [units](https://turfjs.org/docs/api/types/Units) (default `'kilometers'`).
 - `formatTooltip`: formats cumulative distance (default: two decimals and units).
 - `measurementCallback`: receives segment distances, including pointer previews.
 - `centerTooltipsOnLine`: places tooltips at segment midpoints (default `false`).
