@@ -1,13 +1,22 @@
-import {Deck, log, MapView} from '@deck.gl/core';
+import {Deck, type Layer, log, MapView} from '@deck.gl/core';
 import {PolygonLayer, ScatterplotLayer} from '@deck.gl/layers';
 import * as fc from 'fast-check';
 import React from 'react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {PolygonLayer as CompatPolygonLayer} from '../../compat/layers';
 import {createRoot, roots, unmountAtNode} from '../renderer';
 import type {ReconcilerRoot, RootElement} from '../types';
 import {createTestRoot} from './test-renderer';
+
+// The "Keep the old JSX syntax" recipe from the migration guide, kept in sync here so that the
+// documented helper stays working. The guide shows it in TSX.
+function createLayerComponent<PropsT extends {id?: string}>(
+  LayerClass: new (props: PropsT) => Layer
+) {
+  return function LayerComponent(props: PropsT) {
+    return React.createElement('layer', {layer: new LayerClass(props)});
+  };
+}
 
 /**
  * Creates a lightweight RootElement for testing renderer API
@@ -382,8 +391,9 @@ describe('renderer', () => {
       expect(second.deck.finalize).toHaveBeenCalledOnce();
     });
 
-    it('renders native layer primitives and compat layer wrappers together', async () => {
+    it('renders the migration guide layer component next to native layers', async () => {
       const {deck, flush, root} = createTestRoot();
+      const JsxPolygonLayer = createLayerComponent(PolygonLayer);
       const nativePoints = new ScatterplotLayer({data: [], id: 'native-points'});
 
       await React.act(async () => {
@@ -392,16 +402,16 @@ describe('renderer', () => {
             React.Fragment,
             null,
             React.createElement('layer', {layer: nativePoints}),
-            React.createElement(CompatPolygonLayer, {data: [], id: 'compat-polygons'})
+            React.createElement(JsxPolygonLayer, {data: [], id: 'jsx-polygons'})
           )
         );
         await flush();
       });
 
-      expect(deck.getLayerIds()).toStrictEqual(['native-points', 'compat-polygons']);
+      expect(deck.getLayerIds()).toStrictEqual(['native-points', 'jsx-polygons']);
       expect(deck.layers[0]).toBe(nativePoints);
       expect(deck.layers[1]).toBeInstanceOf(PolygonLayer);
-      expect(deck.layers[1]?.id).toBe('compat-polygons');
+      expect(deck.layers[1]?.id).toBe('jsx-polygons');
     });
   });
 

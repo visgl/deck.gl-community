@@ -5,14 +5,13 @@ This page lists module additions and major changes in each release. For detailed
 ## Unreleased
 
 - **react-fiber:** map overlays have their own entry points. The default `DeckGL` root renders a
-  standalone `Deck`; import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` (or the matching
-  `/compat/` paths) for a `MapboxOverlay` or `MapLibreOverlay`. See
+  standalone `Deck`; import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` for a
+  `MapboxOverlay` or `MapLibreOverlay`. See
   [Using with maps](/docs/modules/react-fiber/developer-guide/using-with-maps). Custom overlays use
   [`createDeckGL`](/docs/modules/react-fiber/api-reference/deckgl#custom-compatible-overlays), whose
   `recreateOverlayOnChange` option replaces the overlay when a construction-only prop changes.
 
-- **react-fiber:** requires only `@deck.gl/core`, `react` and `react-dom` as peers; the layer
-  packages behind `/compat/*` are optional. Internal subpaths such as `/dom`, `/shared`, `/types`
+- **react-fiber:** requires only `@deck.gl/core`, `react` and `react-dom` as peers. Internal subpaths such as `/dom`, `/shared`, `/types`
   and `/reconciler/config` are no longer exported. `debug` now reaches deck.gl, and warnings and
   traces use deck.gl's `log`.
 
@@ -23,6 +22,10 @@ This page lists module additions and major changes in each release. For detailed
   derived from `id` (`deckgl-wrapper` and `deckgl-overlay` by default). Roots accept a React 19
   `ref` to their deck.gl instance, and `children` is optional. See
   [`DeckGL`](/docs/modules/react-fiber/api-reference/deckgl#root-dom-and-sizing).
+
+- **react-fiber:** the `/compat` entry points and their PascalCase layer and view wrappers are
+  removed. The [migration guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react#keep-the-old-jsx-syntax)
+  shows a `createLayerComponent` helper to copy instead.
 
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 

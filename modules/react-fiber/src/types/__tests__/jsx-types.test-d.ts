@@ -1,5 +1,5 @@
-import {MapView} from '@deck.gl/core';
-import {ScatterplotLayer} from '@deck.gl/layers';
+import {type Layer, MapView} from '@deck.gl/core';
+import {PolygonLayer, ScatterplotLayer, type ScatterplotLayerProps} from '@deck.gl/layers';
 import {createElement} from 'react';
 import {describe, expect, it} from 'vitest';
 
@@ -30,5 +30,34 @@ describe('JSX type tests', () => {
     const _removedLayer: keyof DeckGLElements = 'scatterplotLayer';
     // @ts-expect-error Legacy typed view intrinsics are not supported.
     const _removedView: keyof DeckGLElements = 'mapView';
+  });
+
+  it('should type the migration guide layer component recipe', () => {
+    // Mirrors the "Keep the old JSX syntax" recipe in the migration guide.
+    function createLayerComponent<PropsT extends {id?: string}>(
+      LayerClass: new (props: PropsT) => Layer
+    ) {
+      return function LayerComponent(props: PropsT) {
+        return createElement('layer', {layer: new LayerClass(props)});
+      };
+    }
+
+    type Point = {position: [number, number]};
+    // Name the props type to keep typed accessors; inference alone gives `unknown` data.
+    const JsxScatterplotLayer =
+      createLayerComponent<ScatterplotLayerProps<Point>>(ScatterplotLayer);
+    const JsxPolygonLayer = createLayerComponent(PolygonLayer);
+    const points = createElement(JsxScatterplotLayer, {
+      data: [{position: [0, 0]}],
+      getPosition: d => d.position,
+      getRadius: 10,
+      id: 'points'
+    });
+    const polygons = createElement(JsxPolygonLayer, {data: [], id: 'polygons'});
+    // @ts-expect-error Layer props are checked against the wrapped layer class.
+    const _invalid = createElement(JsxScatterplotLayer, {getRadius: 'large', id: 'points'});
+
+    expect(points).toBeDefined();
+    expect(polygons).toBeDefined();
   });
 });

@@ -4,12 +4,11 @@
 
 `@deck.gl-community/react-fiber` is a client-side React 19 renderer for deck.gl. It lets an application describe deck.gl layers and views in a React tree while keeping deck.gl's normal descriptor objects and ID-based diffing model.
 
-The package has two deliberately different public surfaces:
+The package has two public surfaces:
 
 | Use case | Import | What it provides |
 | --- | --- | --- |
-| New applications and renderer-level control | `@deck.gl-community/react-fiber` | The native `DeckGL` root plus the `<layer>` and `<view>` elements. |
-| A gradual move from `@deck.gl/react` | `@deck.gl-community/react-fiber/compat` | A bounded `DeckGL` adapter and a supported set of JSX layer and view wrappers. |
+| Applications | `@deck.gl-community/react-fiber` | The native `DeckGL` root plus the `<layer>` and `<view>` elements. |
 | Direct reconciler integration | `@deck.gl-community/react-fiber/reconciler` | Advanced root-management APIs. Most applications should use the native root instead. |
 
 ## Client-only renderer
@@ -67,7 +66,7 @@ Without `canvas`, a standalone root renders an unstyled wrapper and canvas. Give
 
 - [Get started](./developer-guide/get-started.md) explains the native root, client boundaries, layers, views, and instance access.
 - [Using with maps](./developer-guide/using-with-maps.md) explains provider roots and links the [Mapbox](./developer-guide/base-maps/using-with-mapbox.md) and [MapLibre](./developer-guide/base-maps/using-with-maplibre.md) guides.
-- [Migrate from `@deck.gl/react`](./developer-guide/migrate-from-deckgl-react.md) lists the supported compatibility wrappers and their limits.
+- [Migrate from `@deck.gl/react`](./developer-guide/migrate-from-deckgl-react.md) lists each change, with a recipe for keeping the old JSX layer syntax.
 - [DeckGL API](./api-reference/deckgl.md) documents root ownership and lifecycle behavior.
 - [Native elements](./api-reference/native-elements.md) documents `<layer>` and `<view>`.
 - [React Fiber examples](/examples/react-fiber/overview) link to the maintained Vite, Next.js, React Router, and TanStack Start applications.
