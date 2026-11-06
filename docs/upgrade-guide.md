@@ -10,7 +10,8 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 `MeasureDistanceMode` now returns geographic distances in `turfOptions.units`. Remove workarounds
 that convert kilometers to an already requested unit. Native values use the default label `units`.
-Custom kilometer-based adapters should declare `distanceUnits: 'kilometers'`; see
+Custom geographic adapters must honor the optional `options.units` argument in `distance(a, b, options)`
+and declare `distanceUnits: 'kilometers'` for labels. See
 [Coordinate units](./modules/editable-layers/api-reference/edit-modes/measurement-modes.md#coordinate-units).
 
 ### Consolidated sidebars

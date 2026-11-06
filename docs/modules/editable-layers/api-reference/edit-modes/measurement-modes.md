@@ -23,8 +23,9 @@ modeConfig: {
 
 ### Coordinate units
 
-Cartesian and custom systems retain native units, labeled `units` by default. Custom systems
-that return kilometers can enable conversion with `distanceUnits: 'kilometers'`.
+Cartesian and native custom systems retain their units, labeled `units` by default.
+Custom geographic systems must honor `options.units` in `distance(a, b, options)`
+and declare `distanceUnits: 'kilometers'` for labels; the mode does not convert custom distances.
 
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-distance-mode.ts)
 
