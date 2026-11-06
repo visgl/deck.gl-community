@@ -29,13 +29,6 @@ import {Position} from '../utils/geojson-types';
  */
 export interface EditModeCoordinateSystem {
   /**
-   * Default distance units, used to label measurements.
-   * Kilometer-based adapters honor distance() options; native adapters keep local values.
-   * Omitted metadata uses the native-unit label.
-   */
-  readonly distanceUnits?: 'kilometers' | 'native';
-
-  /**
    * Returns the distance between two positions.
    * Geographic adapters accept Turf units; native adapters may ignore options.
    * Without options, the units must match destination().
@@ -65,9 +58,6 @@ export interface EditModeCoordinateSystem {
  * This is the default and preserves the existing behavior of all edit modes.
  */
 export class GeoCoordinateSystem implements EditModeCoordinateSystem {
-  /** Geographic distances default to kilometers. */
-  readonly distanceUnits: 'kilometers' | 'native' = 'kilometers';
-
   distance(a: Position, b: Position, options?: {units?: Units}): number {
     return turfDistance(point(a), point(b), options);
   }
@@ -94,9 +84,6 @@ export class GeoCoordinateSystem implements EditModeCoordinateSystem {
  * 0° = +Y axis, 90° = +X axis (clockwise from north/up).
  */
 export class CartesianCoordinateSystem implements EditModeCoordinateSystem {
-  /** Cartesian geometry distances use the input coordinates' native units. */
-  readonly distanceUnits: 'kilometers' | 'native' = 'native';
-
   distance(a: Position, b: Position, _options?: {units?: Units}): number {
     const dx = b[0] - a[0];
     const dy = b[1] - a[1];

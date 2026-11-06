@@ -184,8 +184,6 @@ class ForwardingGeoCoordinateSystem extends EditableLayers.GeoCoordinateSystem {
 
 // Native subclasses ignore geographic output units and retain their own paired math.
 class NativeGeoCoordinateSystem extends EditableLayers.GeoCoordinateSystem {
-  override readonly distanceUnits = 'native';
-
   override distance(a: Position, b: Position): number {
     return EditableLayers.cartesianCoordinateSystem.distance(a, b);
   }

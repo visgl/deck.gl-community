@@ -16,14 +16,14 @@ import {
 } from './types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
-import {getEditModeCoordinateSystem} from './coordinate-system';
+import {GeoCoordinateSystem, getEditModeCoordinateSystem} from './coordinate-system';
 import {SnappableEditMode} from './snappable-edit-mode';
 import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
 /**
  * Measures a path with cumulative distance tooltips and per-segment measurement callbacks.
- * Geographic output uses modeConfig.turfOptions.units (kilometers by default); coordinate
- * systems with native or unspecified distanceUnits retain their native values.
+ * Built-in geographic output uses modeConfig.turfOptions.units (kilometers by default).
+ * Native distances retain their values; use modeConfig.formatTooltip for custom labels.
  */
 export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEditMode {
   _isMeasuringSessionFinished = false;
@@ -48,8 +48,10 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
 
   _formatTooltip(distance: number, modeConfig?: any, coordinateSystem?: EditModeCoordinateSystem) {
     const {formatTooltip, turfOptions} = modeConfig || {};
+    // Only the built-in distance implementation guarantees Turf's output units.
     const units =
-      getEditModeCoordinateSystem(coordinateSystem).distanceUnits === 'kilometers'
+      getEditModeCoordinateSystem(coordinateSystem).distance ===
+      GeoCoordinateSystem.prototype.distance
         ? turfOptions?.units || 'kilometers'
         : 'units';
 
