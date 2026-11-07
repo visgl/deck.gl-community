@@ -178,18 +178,18 @@ import type {Deck} from '@deck.gl/core';
 import {DeckGL} from '@deck.gl-community/react-fiber';
 
 export function Map() {
-  const [deckgl, setDeckGL] = useState<Deck | null>(null);
+  const [deck, setDeck] = useState<Deck | null>(null);
 
   useEffect(() => {
-    if (!deckgl) return;
+    if (!deck) return;
 
     // Add standalone-root-specific imperative integration here.
     return () => {
       // Remove that integration before the instance changes or disappears.
     };
-  }, [deckgl]);
+  }, [deck]);
 
-  return <DeckGL onDeckChange={setDeckGL} />;
+  return <DeckGL onDeckChange={setDeck} />;
 }
 ```
 

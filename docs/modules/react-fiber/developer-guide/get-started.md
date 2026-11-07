@@ -96,18 +96,18 @@ import type {Deck} from '@deck.gl/core';
 import {DeckGL} from '@deck.gl-community/react-fiber';
 
 function Map() {
-  const [deckgl, setDeckGL] = useState<Deck | null>(null);
+  const [deck, setDeck] = useState<Deck | null>(null);
 
   useEffect(() => {
-    if (!deckgl) {
+    if (!deck) {
       return;
     }
 
     // Connect imperative behavior to this root instance.
-  }, [deckgl]);
+  }, [deck]);
 
   return (
-    <DeckGL onDeckChange={setDeckGL}>
+    <DeckGL onDeckChange={setDeck}>
       <layer layer={/* a deck.gl Layer instance */} />
     </DeckGL>
   );

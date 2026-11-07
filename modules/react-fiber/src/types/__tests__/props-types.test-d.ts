@@ -15,16 +15,16 @@ describe('Props Type Tests', () => {
     const mapboxProps = {
       children: null,
       interleaved: true,
-      onDeckChange: deckgl => {
-        const instance: MapboxOverlay | null = deckgl;
+      onDeckChange: overlay => {
+        const instance: MapboxOverlay | null = overlay;
         expect(instance).toBeDefined();
       }
     } satisfies ComponentProps<typeof MapboxDeckGL>;
     const maplibreProps = {
       children: null,
       interleaved: false,
-      onDeckChange: deckgl => {
-        const instance: MapLibreOverlay | null = deckgl;
+      onDeckChange: overlay => {
+        const instance: MapLibreOverlay | null = overlay;
         expect(instance).toBeDefined();
       }
     } satisfies ComponentProps<typeof MapLibreDeckGL>;
@@ -101,8 +101,8 @@ describe('Props Type Tests', () => {
 
   it('should DeckGLProps accept onDeckChange', () => {
     const props: DeckGLProps = {
-      onDeckChange: deckgl => {
-        const instance: Deck | null = deckgl;
+      onDeckChange: deck => {
+        const instance: Deck | null = deck;
         expect(instance).toBeDefined();
       }
     };

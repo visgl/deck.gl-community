@@ -13,7 +13,7 @@ function Panels({londonLayers, tokyoLayers}) {
   const parent = useRef<HTMLDivElement>(null);
   const [deck, setDeck] = useState<Deck | null>(null);
   useEffect(() => {
-    const instance = new Deck({
+    const deckInstance = new Deck({
       parent: parent.current!,
       _canvases: [],
       views: [],
@@ -22,8 +22,8 @@ function Panels({londonLayers, tokyoLayers}) {
         tokyo: {longitude: 139.7588, latitude: 35.6762, zoom: 10}
       }
     });
-    setDeck(instance);
-    return () => instance.finalize();
+    setDeck(deckInstance);
+    return () => deckInstance.finalize();
   }, []);
   return <div ref={parent} style={{position: 'relative'}}>
     {deck && <>

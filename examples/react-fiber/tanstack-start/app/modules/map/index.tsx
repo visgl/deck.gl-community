@@ -14,7 +14,7 @@ interface MapClientProps {
  * Map component with deck.gl + Maplibre integration
  */
 export function MapClient({children}: MapClientProps) {
-  const [deckglInstance, setDeckGLInstance] = useState<MapLibreOverlay | null>(null);
+  const [overlay, setOverlay] = useState<MapLibreOverlay | null>(null);
   const setSelected = useAppStore(state => state.setSelected);
 
   const handleClick = (pickInfo: {picked?: boolean}) => {
@@ -24,20 +24,15 @@ export function MapClient({children}: MapClientProps) {
   };
 
   useEffect(() => {
-    if (deckglInstance) {
-      const cleanup = connect(deckglInstance);
+    if (overlay) {
+      const cleanup = connect(overlay);
       return cleanup;
     }
-  }, [deckglInstance]);
+  }, [overlay]);
 
   return (
     <div id="maplibre" style={{inset: 0, position: 'absolute'}}>
-      <DeckGL
-        interleaved
-        parameters={PARAMETERS}
-        onClick={handleClick}
-        onDeckChange={setDeckGLInstance}
-      >
+      <DeckGL interleaved parameters={PARAMETERS} onClick={handleClick} onDeckChange={setOverlay}>
         {children}
       </DeckGL>
     </div>
