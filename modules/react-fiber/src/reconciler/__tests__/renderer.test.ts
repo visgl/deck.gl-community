@@ -1,4 +1,4 @@
-import {Deck} from '@deck.gl/core';
+import {Deck, log} from '@deck.gl/core';
 import {PolygonLayer, ScatterplotLayer} from '@deck.gl/layers';
 import * as fc from 'fast-check';
 import React from 'react';
@@ -89,6 +89,29 @@ describe('renderer', () => {
 
       expect(root1.store).not.toBe(root2.store);
       expect(root2.store.getState()._passedLayers).toStrictEqual([]);
+    });
+  });
+
+  describe('lifecycle traces', () => {
+    it('traces root creation once and unmounting only when a root is torn down', () => {
+      const traceSpy = vi.spyOn(log, 'log').mockReturnValue(() => {});
+      const traced = (message: string) =>
+        traceSpy.mock.calls.filter(([, text]) => text === message).length;
+
+      try {
+        const node = createTestRootElement();
+        createRoot(node);
+        createRoot(node);
+        expect(traced('DeckGL root created')).toBe(1);
+
+        unmountAtNode(createTestRootElement());
+        expect(traced('DeckGL root unmounted')).toBe(0);
+
+        unmountAtNode(node);
+        expect(traced('DeckGL root unmounted')).toBe(1);
+      } finally {
+        traceSpy.mockRestore();
+      }
     });
   });
 
