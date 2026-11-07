@@ -162,13 +162,14 @@ or props instead.
 
 ## Review unsupported patterns
 
-- **HTML and function children.** `DeckGL` children may only be `<layer>`, `<view>` and components
-  that render them. Render HTML overlays as siblings of `DeckGL` in a positioned container. For
+- **HTML and function children.** `DeckGL` children may only be
+  [native elements](../api-reference/native-elements.md) and components that render them. Render HTML overlays as siblings of `DeckGL` in a positioned container. For
   per-view content, read viewports from the instance with `deck.getViewports()`.
 - **react-map-gl `<Map>` as a child.** Create the map yourself and use a map root. See
   [Reverse-controlled maps](./using-with-maps.md#reverse-controlled-maps).
-- **JSX widgets and `useWidget`.** Pass widget instances in the `widgets` prop:
-  `widgets={[new ZoomWidget()]}`.
+- **JSX widgets and `useWidget`.** Render each widget as a
+  [`<widget>`](../api-reference/native-elements.md#widget) element, or pass instances in the
+  `widgets` prop.
 - **A custom `Deck` class.** Not supported. For a custom overlay, use
   [`createDeckGL`](../api-reference/deckgl.md#custom-compatible-overlays).
 - **React 18 and earlier.** React Fiber requires React 19.

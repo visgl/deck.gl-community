@@ -1,6 +1,6 @@
 # Get started
 
-`@deck.gl-community/react-fiber` renders deck.gl in a React client tree. The native package exports `DeckGL`; it also adds the `<layer>` and `<view>` JSX elements that pass already constructed deck.gl descriptors to the renderer.
+`@deck.gl-community/react-fiber` renders deck.gl in a React client tree. The native package exports `DeckGL`; it also adds the `<layer>`, `<view>` and `<widget>` JSX elements that pass already constructed deck.gl descriptors to the renderer.
 
 ## 1. Install the packages you use
 
