@@ -5,15 +5,14 @@ This page lists module additions and major changes in each release. For detailed
 ## Unreleased
 
 - **react-fiber:** map overlays have their own entry points. The default `DeckGL` root renders a
-  standalone `Deck`; import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` (or the matching
-  `/compat/` paths) for a `MapboxOverlay` or `MapLibreOverlay`. See
+  standalone `Deck`; import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` for a
+  `MapboxOverlay` or `MapLibreOverlay`. See
   [Using with maps](/docs/modules/react-fiber/developer-guide/using-with-maps). Custom overlays use
   [`createDeckGL`](/docs/modules/react-fiber/api-reference/deckgl#custom-compatible-overlays), whose
   `recreateOverlayOnChange` option replaces the overlay when a construction-only prop changes.
 
-- **react-fiber:** requires only `@deck.gl/core`, `react` and `react-dom` as peers; the layer
-  packages behind `/compat/*` are optional. Internal subpaths such as `/dom`, `/shared`, `/types`
-  and `/reconciler/config` are no longer exported.
+- **react-fiber:** requires only `@deck.gl/core`, `react` and `react-dom` as peers. Internal
+  subpaths such as `/dom`, `/shared`, `/types` and `/reconciler/config` are no longer exported.
 
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
