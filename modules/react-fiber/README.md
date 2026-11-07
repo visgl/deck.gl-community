@@ -14,7 +14,7 @@ views while deck.gl keeps its descriptor objects and ID-based diffing.
 - [Use layers and views](#use-layers-and-views)
 - [Use a provider overlay](#use-a-provider-overlay)
 - [Access the root instance](#access-the-root-instance)
-- [Compatibility API](#compatibility-api)
+- [Migration from deck.gl React](#migration-from-deckgl-react)
 - [Custom compatible overlays](#custom-compatible-overlays)
 - [Advanced reconciler API](#advanced-reconciler-api)
 - [Documentation and examples](#documentation-and-examples)
@@ -50,9 +50,8 @@ yarn add @deck.gl/maplibre maplibre-gl
 ```
 
 The package requires React 19 or later and uses the deck.gl 9.4 package family. `@deck.gl/core`,
-`react` and `react-dom` are the only required peers. `@deck.gl/mapbox`, `@deck.gl/maplibre` and the
-layer packages used by the `/compat/*` wrappers are optional peers; install the ones you import. A
-standalone import does not load either provider.
+`react` and `react-dom` are the only required peers. `@deck.gl/mapbox` and `@deck.gl/maplibre` are
+optional peers; install the one you import. A standalone import does not load either provider.
 Keep installed deck.gl packages compatible with 9.4. TypeScript declarations are included, and a
 native root import adds the JSX declarations for `<layer>` and `<view>`.
 
@@ -198,35 +197,12 @@ receives `null` during root cleanup. It is not a callback ref: changing only the
 does not reconfigure or unmount the root, and the replacement is used only for later
 notifications.
 
-## Compatibility API
+## Migration from deck.gl React
 
-Use the compatibility API only to migrate a supported `@deck.gl/react` component tree gradually.
-Choose its root with the same import-path rule:
-
-| Import path | Instance |
-| --- | --- |
-| `@deck.gl-community/react-fiber/compat` | `Deck` |
-| `@deck.gl-community/react-fiber/compat/mapbox` | `MapboxOverlay` |
-| `@deck.gl-community/react-fiber/compat/maplibre` | `MapLibreOverlay` |
-
-The plain `/compat` root accepts `DeckProps`, which has no `interleaved` option.
-Provider-specific compatibility roots keep the same host-map ownership, `interleaved` behavior, and
-view limitations as their native counterparts. When a provider root recreates its overlay,
-`ref.deck` points at the new instance.
-
-Layer wrappers are split across these public entry points:
-
-| Import path | Wrapper family |
-| --- | --- |
-| `@deck.gl-community/react-fiber/compat/layers` | Core deck.gl layer wrappers |
-| `@deck.gl-community/react-fiber/compat/geo-layers` | Geospatial layer wrappers |
-| `@deck.gl-community/react-fiber/compat/aggregation-layers` | Aggregation layer wrappers |
-| `@deck.gl-community/react-fiber/compat/mesh-layers` | Mesh layer wrappers |
-
-The compatibility adapter deliberately does not provide full `@deck.gl/react` parity. In
-particular, use the native root when an application needs `canvas`, `gl`, `parent`, or
-`_customRender`. Read the migration guide before replacing imports; it lists the supported wrapper
-matrix, ref and context limits, overlay choices, and unsupported function children and widgets.
+There is no compatibility entry point. Rewrite JSX layers as `<layer>` elements, or copy the
+10-line `createLayerComponent` helper from the
+[migration guide](../../docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react.md#keep-the-old-jsx-syntax)
+to keep `<ScatterplotLayer id="points" ... />` syntax in your app.
 
 ## Custom compatible overlays
 
@@ -251,8 +227,7 @@ covers the overlay requirements, `recreateOverlayOnChange` and host attachment.
 configuration, rendering, and cleanup. Normal React applications should use `DeckGL`, which owns
 that lifecycle.
 
-The package exports only the root, `/mapbox`, `/maplibre`, `/compat` (with `/compat/mapbox`,
-`/compat/maplibre` and the `/compat/*` layer families), and `/reconciler` entry points. Internal
+The package exports only the root, `/mapbox`, `/maplibre` and `/reconciler` entry points. Internal
 modules such as the host configuration and root store are not importable.
 
 ## Commands
@@ -277,7 +252,7 @@ yarn lint
 - [DeckGL API](../../docs/modules/react-fiber/api-reference/deckgl.md) defines standalone and provider-root props, ownership, lifecycle notifications, and custom compatible overlays.
 - [Using with maps](../../docs/modules/react-fiber/developer-guide/using-with-maps.md) explains host-map ownership and the overlay lifecycle, and links one guide per provider with worker setup and shared-context rendering.
 - [Native elements](../../docs/modules/react-fiber/api-reference/native-elements.md) defines the `<layer>` and `<view>` contract.
-- [Migrate from `@deck.gl/react`](../../docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react.md) documents the compatibility wrapper matrix and limits.
+- [Migrate from `@deck.gl/react`](../../docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react.md) lists each change and the `createLayerComponent` recipe.
 - Maintained applications show native MapLibre integration with [Vite](../../examples/react-fiber/vite), [Next.js](../../examples/react-fiber/nextjs), [React Router](../../examples/react-fiber/react-router), and [TanStack Start](../../examples/react-fiber/tanstack-start).
 
 ## License and origin
