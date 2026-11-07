@@ -646,8 +646,8 @@ export function finalizeContainerChildren(container: Container, newChildren: Chi
     // oxlint-disable-next-line no-inner-declarations
     function countLayerIds(instances: Instance[]): void {
       for (const instance of instances) {
-        // Check if node is a Layer (not a View)
-        if (!isView(instance.node)) {
+        // Check if node is a Layer (not a View or Widget)
+        if (!isView(instance.node) && !isWidget(instance.node)) {
           const layer = instance.node;
           if (layer.id) {
             idCounts.set(layer.id, (idCounts.get(layer.id) ?? 0) + 1);

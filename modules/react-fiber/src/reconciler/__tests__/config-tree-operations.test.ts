@@ -242,6 +242,22 @@ describe('config-tree-operations', () => {
       expect(errorSpy).not.toHaveBeenCalled();
     });
 
+    it('should ignore Widget IDs', () => {
+      process.env.NODE_ENV = 'development';
+      const {errorSpy} = setupConsoleSpy();
+
+      // A widget may share an id with a layer or another widget: deck.gl keeps them apart.
+      const newChildren: ChildSet = [
+        createMockInstance(new ScatterplotLayer({data: [], id: 'shared'})),
+        createMockInstance(new TestWidget({id: 'shared'})),
+        createMockInstance(new TestWidget({id: 'shared'}))
+      ];
+
+      finalizeContainerChildren({store: {} as never} as Container, newChildren);
+
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
     it('should handle nested layers correctly', () => {
       // Arrange
       process.env.NODE_ENV = 'development';
