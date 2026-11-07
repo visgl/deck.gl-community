@@ -199,7 +199,7 @@ notifications.
 
 ## Migration from deck.gl React
 
-There is no compatibility entry point. Rewrite JSX layers as `<layer>` elements, or copy the
+Rewrite JSX layers as `<layer>` elements, or copy the
 10-line `createLayerComponent` helper from the
 [migration guide](../../docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react.md#keep-the-old-jsx-syntax)
 to keep `<ScatterplotLayer id="points" ... />` syntax in your app.
