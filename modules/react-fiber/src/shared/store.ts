@@ -1,4 +1,4 @@
-import type {Deck, LayersList, View} from '@deck.gl/core';
+import type {Deck, DeckProps, LayersList, View} from '@deck.gl/core';
 
 /**
  * Global state shape for deckgl-fiber internal state management
@@ -37,6 +37,15 @@ export interface State {
    * @internal
    */
   _passedLayers: LayersList;
+
+  /**
+   * Widgets passed directly via the `widgets` prop (internal use)
+   *
+   * Merged with JSX `<widget>` children; `undefined` when the prop is absent.
+   *
+   * @internal
+   */
+  _passedWidgets?: DeckProps<View | View[] | null>['widgets'];
 }
 
 /**

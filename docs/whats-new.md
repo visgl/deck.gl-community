@@ -14,6 +14,9 @@ This page lists module additions and major changes in each release. For detailed
 - **react-fiber:** requires only `@deck.gl/core`, `react` and `react-dom` as peers. Internal
   subpaths such as `/dom`, `/shared`, `/types` and `/reconciler/config` are no longer exported.
 
+- **react-fiber:** new [`<widget>`](/docs/modules/react-fiber/api-reference/native-elements#widget)
+  element adds a deck.gl widget from the React tree, merged with the `widgets` prop by id.
+
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
 - **Website:** fix the mobile navigation drawer, replace generic gallery artwork with
