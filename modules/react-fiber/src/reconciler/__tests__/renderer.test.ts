@@ -8,6 +8,7 @@ import {PolygonLayer as CompatPolygonLayer} from '../../compat/layers';
 import {createRoot, roots, unmountAtNode} from '../renderer';
 import type {ReconcilerRoot, RootElement} from '../types';
 import {createTestRoot} from './test-renderer';
+import {TestWidget} from './test-widget';
 
 /**
  * Creates a lightweight RootElement for testing renderer API
@@ -170,7 +171,7 @@ describe('renderer', () => {
 
       root.configure({layers});
 
-      expect(deck.setProps).toHaveBeenCalledWith({layers});
+      expect(deck.setProps).toHaveBeenCalledWith({layers, widgets: []});
     });
 
     it('should forward replacement controlled view state and callback', () => {
@@ -185,7 +186,8 @@ describe('renderer', () => {
 
       expect(deck.setProps).toHaveBeenLastCalledWith({
         viewState: secondViewState,
-        onViewStateChange: secondHandler
+        onViewStateChange: secondHandler,
+        widgets: []
       });
     });
 
@@ -218,7 +220,11 @@ describe('renderer', () => {
       expect(createExternalOverlay).toHaveBeenCalledExactlyOnceWith({interleaved: true});
       expect(root.isExternalOverlay).toBe(true);
       expect(root.store.getState().isExternalOverlay).toBe(true);
-      expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({interleaved: true, layers: []});
+      expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({
+        interleaved: true,
+        layers: [],
+        widgets: []
+      });
     });
 
     // Recreating the overlay for a construction-only prop is the component's job
@@ -254,7 +260,11 @@ describe('renderer', () => {
       root.configure({...updateProps, layers: []});
 
       expect(createExternalOverlay).toHaveBeenCalledExactlyOnceWith(initialProps);
-      expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({...updateProps, layers: []});
+      expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({
+        ...updateProps,
+        layers: [],
+        widgets: []
+      });
     });
 
     it('rejects reuse of a root with a different overlay factory', () => {
@@ -400,6 +410,87 @@ describe('renderer', () => {
       expect(deck.layers[0]).toBe(nativePoints);
       expect(deck.layers[1]).toBeInstanceOf(PolygonLayer);
       expect(deck.layers[1]?.id).toBe('compat-polygons');
+    });
+  });
+
+  describe('widgets', () => {
+    it('sends JSX widgets to deck.gl in tree order, from any depth', async () => {
+      const {root, deck} = createTestRoot();
+      const first = new TestWidget({id: 'first'});
+      const second = new TestWidget({id: 'second'});
+      function Controls() {
+        return React.createElement('widget', {widget: second});
+      }
+
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            React.Fragment,
+            null,
+            React.createElement('widget', {widget: first}),
+            React.createElement(
+              'layer',
+              {layer: new ScatterplotLayer({data: [], id: 'points'})},
+              React.createElement(Controls)
+            )
+          )
+        );
+      });
+
+      expect(deck.widgets).toStrictEqual([first, second]);
+      expect(deck.getLayerIds()).toStrictEqual(['points']);
+    });
+
+    it('merges the widgets prop with JSX widgets by id, the prop winning', async () => {
+      const {root, deck} = createTestRoot();
+      const jsxZoom = new TestWidget({id: 'zoom'});
+      const jsxCompass = new TestWidget({id: 'compass'});
+      const propZoom = new TestWidget({id: 'zoom'});
+      const propFullscreen = new TestWidget({id: 'fullscreen'});
+
+      root.configure({widgets: [propZoom, propFullscreen]});
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            React.Fragment,
+            null,
+            React.createElement('widget', {widget: jsxZoom}),
+            React.createElement('widget', {widget: jsxCompass})
+          )
+        );
+      });
+
+      expect(deck.widgets).toStrictEqual([propZoom, jsxCompass, propFullscreen]);
+    });
+
+    it('keeps committed JSX widgets when only the widgets prop changes', async () => {
+      const {root, deck} = createTestRoot();
+      const jsxWidget = new TestWidget({id: 'jsx'});
+
+      root.configure({});
+      await React.act(async () => {
+        root.render(React.createElement('widget', {widget: jsxWidget}));
+      });
+
+      const propWidget = new TestWidget({id: 'prop'});
+      root.configure({widgets: [propWidget]});
+
+      expect(deck.widgets).toStrictEqual([jsxWidget, propWidget]);
+    });
+
+    it('removes the last JSX widget from deck.gl', async () => {
+      const {root, deck} = createTestRoot();
+
+      await React.act(async () => {
+        root.render(React.createElement('widget', {widget: new TestWidget({id: 'zoom'})}));
+      });
+      expect(deck.widgets).toHaveLength(1);
+
+      await React.act(async () => {
+        root.render(null);
+      });
+
+      expect(deck.widgets).toStrictEqual([]);
     });
   });
 

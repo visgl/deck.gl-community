@@ -11,6 +11,7 @@ import {
 } from '../config';
 import type {Instance, Props, Type} from '../types';
 import {createMockHostContext, setupLogSpy} from './test-utils';
+import {TestWidget} from './test-widget';
 
 describe('config-instance-creation', () => {
   let originalEnv: string | undefined;
@@ -59,6 +60,32 @@ describe('config-instance-creation', () => {
       expect(instance).toHaveProperty('children');
       expect(instance.node).toBe(view);
       expect(instance.children).toStrictEqual([]);
+    });
+
+    it('should create instance for <widget> element', () => {
+      const widget = new TestWidget({id: 'test-widget'});
+
+      const instance = createInstance(
+        'widget',
+        {widget},
+        {} as never,
+        createMockHostContext(),
+        {} as never
+      );
+
+      expect(instance.node).toBe(widget);
+      expect(instance.children).toStrictEqual([]);
+    });
+
+    it('should throw if <widget> element is not given a widget', () => {
+      const hostContext = createMockHostContext();
+      const layer = new ScatterplotLayer({data: [], id: 'not-a-widget'});
+
+      for (const props of [{}, {widget: layer}]) {
+        expect(() =>
+          createInstance('widget', props, {} as never, hostContext, {} as never)
+        ).toThrow("<widget> element requires a 'widget' prop");
+      }
     });
 
     it('should throw if <layer> element missing layer prop', () => {

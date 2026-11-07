@@ -1,4 +1,4 @@
-import type {DeckProps, Layer, View} from '@deck.gl/core';
+import type {DeckProps, Layer, View, Widget} from '@deck.gl/core';
 import type {DeckGLRenderer, Store} from '../shared/index';
 import type {ReactNode} from 'react';
 import type {Fiber} from 'react-reconciler';
@@ -20,6 +20,14 @@ export type Type = string;
 export interface Container {
   /** Root store managing deck.gl state */
   store: Store;
+
+  /**
+   * Widgets from the most recently committed JSX tree. A prop-only update can reconfigure the
+   * root without a new commit, so configuration merges the `widgets` prop with these.
+   *
+   * @internal
+   */
+  jsxWidgets?: Widget[];
 }
 
 /**
@@ -51,8 +59,8 @@ export interface HostContext {
  * its children, forming the reconciler's internal tree structure.
  */
 export interface Instance {
-  /** The underlying deck.gl Layer or View object */
-  node: Layer | View;
+  /** The underlying deck.gl Layer, View or Widget object */
+  node: Layer | View | Widget;
 
   /** Child instances in the reconciler tree */
   children: Instance[];

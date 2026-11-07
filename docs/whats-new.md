@@ -16,6 +16,9 @@ This page lists module additions and major changes in each release. For detailed
   and `/reconciler/config` are no longer exported. `debug` now reaches deck.gl, and warnings and
   traces use deck.gl's `log`.
 
+- **react-fiber:** new [`<widget>`](/docs/modules/react-fiber/api-reference/native-elements#widget)
+  element adds a deck.gl widget from the React tree, merged with the `widgets` prop by id.
+
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
 - **Website:** fix the mobile navigation drawer, replace generic gallery artwork with
