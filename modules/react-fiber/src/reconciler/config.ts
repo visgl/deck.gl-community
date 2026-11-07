@@ -1,4 +1,4 @@
-import type {Layer, View} from '@deck.gl/core';
+import type {Layer, View, Widget} from '@deck.gl/core';
 import {assert, log} from '@deck.gl/core';
 import {globalScope} from '../shared/constants';
 import {createContext} from 'react';
@@ -21,7 +21,7 @@ import type {
   Type,
   UpdatePayload
 } from './types';
-import {combineRootDescriptors, flattenTree, isView, organizeList} from './utils';
+import {combineRootDescriptors, flattenTree, isView, isWidget, organizeList} from './utils';
 
 type EventPriority = number;
 
@@ -112,8 +112,8 @@ export const scheduleMicrotask = queueMicrotask;
 /**
  * Creates the supported native deck.gl elements.
  *
- * The reconciler accepts only pre-instantiated descriptors through `<layer>`
- * and `<view>`, so JavaScript callers receive the same runtime contract as
+ * The reconciler accepts only pre-instantiated descriptors through `<layer>`,
+ * `<view>` and `<widget>`, so JavaScript callers receive the same runtime contract as
  * TypeScript callers.
  */
 function createDeckGLObject(type: Type, props: Props): Instance {
@@ -163,6 +163,17 @@ function createDeckGLObject(type: Type, props: Props): Instance {
     return {
       children: [],
       node: props.layer as Layer
+    };
+  }
+
+  if (type === 'widget') {
+    if (!isWidget(props.widget as Widget)) {
+      throw new Error("<widget> element requires a 'widget' prop");
+    }
+
+    return {
+      children: [],
+      node: props.widget as Widget
     };
   }
 

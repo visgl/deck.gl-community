@@ -8,7 +8,7 @@ The package has two deliberately different public surfaces:
 
 | Use case | Import | What it provides |
 | --- | --- | --- |
-| New applications and renderer-level control | `@deck.gl-community/react-fiber` | The native `DeckGL` root plus the `<layer>` and `<view>` elements. |
+| New applications and renderer-level control | `@deck.gl-community/react-fiber` | The native `DeckGL` root plus the `<layer>`, `<view>` and `<widget>` elements. |
 | A gradual move from `@deck.gl/react` | `@deck.gl-community/react-fiber/compat` | A bounded `DeckGL` adapter and a supported set of JSX layer and view wrappers. |
 | Direct reconciler integration | `@deck.gl-community/react-fiber/reconciler` | Advanced root-management APIs. Most applications should use the native root instead. |
 
@@ -22,6 +22,7 @@ The root `DeckGL` entry point owns one standalone `Deck`. Import `/mapbox` or `/
 
 - `<layer>` receives a constructed deck.gl `Layer` instance.
 - `<view>` receives a constructed deck.gl `View` instance.
+- `<widget>` receives a constructed deck.gl `Widget` instance.
 
 The renderer flattens the committed React tree into deck.gl's `layers` and `views` arrays. React components may be nested for application composition, but nesting a `<layer>` inside a `<view>` does not assign that layer to that view. Keep view-specific behavior in normal deck.gl configuration such as a layer filter, and give every layer and view a stable, explicit `id`.
 
@@ -69,5 +70,5 @@ Without `canvas`, a standalone root renders an unstyled wrapper and canvas. Give
 - [Using with maps](./developer-guide/using-with-maps.md) explains provider roots and links the [Mapbox](./developer-guide/base-maps/using-with-mapbox.md) and [MapLibre](./developer-guide/base-maps/using-with-maplibre.md) guides.
 - [Migrate from `@deck.gl/react`](./developer-guide/migrate-from-deckgl-react.md) lists the supported compatibility wrappers and their limits.
 - [DeckGL API](./api-reference/deckgl.md) documents root ownership and lifecycle behavior.
-- [Native elements](./api-reference/native-elements.md) documents `<layer>` and `<view>`.
+- [Native elements](./api-reference/native-elements.md) documents `<layer>`, `<view>` and `<widget>`.
 - [React Fiber examples](/examples/react-fiber/overview) link to the maintained Vite, Next.js, React Router, and TanStack Start applications.

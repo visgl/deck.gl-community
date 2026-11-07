@@ -91,7 +91,8 @@ describe('createDeckGL recreateOverlayOnChange', () => {
     expect(overlays[0].setProps).toHaveBeenCalledWith({
       enabled: true,
       layers: [LAYER],
-      pickingRadius: 5
+      pickingRadius: 5,
+      widgets: []
     });
 
     unmount();

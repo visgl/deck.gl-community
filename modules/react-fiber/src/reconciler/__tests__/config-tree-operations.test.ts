@@ -13,6 +13,7 @@ import {
 } from '../config';
 import type {ChildSet, Container, Instance} from '../types';
 import {flattenTree, organizeList} from '../utils';
+import {TestWidget} from './test-widget';
 import {createMockInstance} from './test-utils';
 
 describe('config-tree-operations', () => {
@@ -212,7 +213,8 @@ describe('config-tree-operations', () => {
       // Assert
       expect(mockDeckGL.setProps).toHaveBeenCalledExactlyOnceWith({
         layers: [layer1, layer2],
-        views: null
+        views: null,
+        widgets: []
       });
     });
 
@@ -235,8 +237,8 @@ describe('config-tree-operations', () => {
       replaceContainerChildren(container, [createMockInstance(view), createMockInstance(layer)]);
       replaceContainerChildren(container, [createMockInstance(layer)]);
 
-      expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(1, {layers: [layer]});
-      expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(2, {layers: [layer]});
+      expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(1, {layers: [layer], widgets: []});
+      expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(2, {layers: [layer], widgets: []});
     });
 
     it('should place _passedLayers after JSX layers, as @deck.gl/react does', () => {
@@ -270,7 +272,8 @@ describe('config-tree-operations', () => {
       // Assert
       expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [jsxLayer, passedLayer],
-        views: null
+        views: null,
+        widgets: []
       });
     });
 
@@ -306,7 +309,8 @@ describe('config-tree-operations', () => {
       // Assert
       expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [layer],
-        views: [view]
+        views: [view],
+        widgets: []
       });
     });
 
@@ -341,7 +345,8 @@ describe('config-tree-operations', () => {
       // Assert
       expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [layer],
-        views: null
+        views: null,
+        widgets: []
       });
     });
 
@@ -367,7 +372,11 @@ describe('config-tree-operations', () => {
 
         replaceContainerChildren(container, []);
 
-        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({layers: [], views: propView});
+        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
+          layers: [],
+          views: propView,
+          widgets: []
+        });
       });
 
       it('falls back to the views prop when the last JSX view is removed', () => {
@@ -377,7 +386,11 @@ describe('config-tree-operations', () => {
         replaceContainerChildren(container, [createMockInstance(new MapView({id: 'jsx'}))]);
         replaceContainerChildren(container, []);
 
-        expect(deckgl.setProps).toHaveBeenLastCalledWith({layers: [], views: propViews});
+        expect(deckgl.setProps).toHaveBeenLastCalledWith({
+          layers: [],
+          views: propViews,
+          widgets: []
+        });
       });
 
       it('merges JSX views with the views prop, which wins on an id clash', () => {
@@ -394,7 +407,8 @@ describe('config-tree-operations', () => {
 
         expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
           layers: [],
-          views: [propMain, jsxMinimap, propExtra]
+          views: [propMain, jsxMinimap, propExtra],
+          widgets: []
         });
       });
 
@@ -407,7 +421,8 @@ describe('config-tree-operations', () => {
 
         expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
           layers: [],
-          views: [jsxView, propView]
+          views: [jsxView, propView],
+          widgets: []
         });
       });
 
@@ -416,7 +431,7 @@ describe('config-tree-operations', () => {
 
         replaceContainerChildren(container, [createMockInstance(new MapView({id: 'jsx'}))]);
 
-        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({layers: []});
+        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({layers: [], widgets: []});
       });
     });
 
@@ -454,6 +469,18 @@ describe('config-tree-operations', () => {
       // Assert
       expect(result.views).toStrictEqual([view]);
       expect(result.layers).toStrictEqual([layer1, layer2]);
+    });
+
+    it('should separate widgets from layers and views', () => {
+      const view = new MapView({id: 'view-1'});
+      const layer = new ScatterplotLayer({data: [], id: 'layer-1'});
+      const widget = new TestWidget({id: 'widget-1'});
+
+      const result = organizeList([widget, view, layer]);
+
+      expect(result.widgets).toStrictEqual([widget]);
+      expect(result.views).toStrictEqual([view]);
+      expect(result.layers).toStrictEqual([layer]);
     });
 
     it('should handle list with only views', () => {

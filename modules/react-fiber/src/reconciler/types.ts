@@ -1,4 +1,4 @@
-import type {DeckProps, Layer, View} from '@deck.gl/core';
+import type {DeckProps, Layer, View, Widget} from '@deck.gl/core';
 import type {DeckGLRenderer, Store} from '../shared/index';
 import type {ReactNode} from 'react';
 import type {Fiber} from 'react-reconciler';
@@ -22,7 +22,7 @@ export interface Container {
   store: Store;
 
   /**
-   * Layers and views from the most recently committed JSX tree. A prop-only update can
+   * Layers, views and widgets from the most recently committed JSX tree. A prop-only update can
    * reconfigure the root without a new commit, so configuration reapplies these.
    *
    * @internal
@@ -31,13 +31,14 @@ export interface Container {
 }
 
 /**
- * Layers and views collected from one committed JSX tree, in depth-first order.
+ * Layers, views and widgets collected from one committed JSX tree, in depth-first order.
  *
  * @internal
  */
 export interface JsxDescriptors {
   layers: Layer[];
   views: View[];
+  widgets: Widget[];
 }
 
 /**
@@ -69,8 +70,8 @@ export interface HostContext {
  * its children, forming the reconciler's internal tree structure.
  */
 export interface Instance {
-  /** The underlying deck.gl Layer or View object */
-  node: Layer | View;
+  /** The underlying deck.gl Layer, View or Widget object */
+  node: Layer | View | Widget;
 
   /** Child instances in the reconciler tree */
   children: Instance[];

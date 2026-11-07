@@ -1,4 +1,4 @@
-import type {Layer, LayersList, View} from '@deck.gl/core';
+import type {Layer, LayersList, View, Widget} from '@deck.gl/core';
 import {vi} from 'vitest';
 
 import {createRoot} from '../renderer';
@@ -16,19 +16,25 @@ import type {RootElement} from '../types';
 export class TestDeckRenderer {
   public layers: Layer[] = [];
   public views: View[] = [];
+  public widgets: Widget[] = [];
 
   /**
    * Updates deck.gl properties
    * Matches: `Deck.prototype.setProps(props: Partial<DeckProps>): void`
    */
-  setProps = vi.fn((props: {layers?: LayersList; views?: View[] | null}): void => {
-    if (props.layers !== undefined) {
-      this.layers = props.layers.filter(Boolean) as Layer[];
+  setProps = vi.fn(
+    (props: {layers?: LayersList; views?: View[] | null; widgets?: (Widget | null)[]}): void => {
+      if (props.layers !== undefined) {
+        this.layers = props.layers.filter(Boolean) as Layer[];
+      }
+      if (props.views !== undefined) {
+        this.views = props.views ? [...props.views] : [];
+      }
+      if (props.widgets !== undefined) {
+        this.widgets = props.widgets.filter(Boolean) as Widget[];
+      }
     }
-    if (props.views !== undefined) {
-      this.views = props.views ? [...props.views] : [];
-    }
-  });
+  );
 
   /**
    * Frees all resources

@@ -162,7 +162,7 @@ Before changing imports, review the application for these patterns:
 - `gl`, `canvas`, `parent`, and `_customRender`: compat does not accept these low-level renderer ownership props. Continue using the native `DeckGL` component when they are required.
 - Reverse-controlled maps: a React Map GL `<Map>` or other DOM child of `DeckGL` is not supported. See [Reverse-controlled maps](./using-with-maps.md#reverse-controlled-maps).
 - Function children: compat does not support function-child render callbacks. Render supported layers and views directly instead.
-- Widgets, JSX widget wrappers, and `useWidget`: these APIs are deferred and unavailable from compat.
+- Widgets, JSX widget wrappers, and `useWidget`: Render each widget as a [`<widget>`](../api-reference/native-elements.md#widget) element, or pass instances in the `widgets` prop.
 - Extra layer or view components: only the export matrix above is supported.
 - Provider overlays: use `/compat/mapbox` or `/compat/maplibre`, not the plain `/compat` entry. The host map owns views, so compat view wrappers do not configure an external overlay. See [Using with maps](./using-with-maps.md) for the attachment lifecycle.
 
