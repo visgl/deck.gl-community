@@ -8,7 +8,7 @@ The native renderer accepts three deck.gl JSX elements: `<layer>`, `<view>` and 
 import {DeckGL} from '@deck.gl-community/react-fiber';
 ```
 
-The import also provides the TypeScript JSX declarations. The elements are not DOM elements and they do not create DOM nodes. Each one carries a constructed deck.gl descriptor into the React Fiber renderer. Normal React components can organize the tree when they ultimately return these elements, but raw DOM nodes and text do not belong inside `DeckGL`: the custom renderer rejects host children other than `<layer>`, `<view>` and `<widget>`.
+The import also provides the TypeScript JSX declarations. The elements are not DOM elements and they do not create DOM nodes. Each one carries a constructed deck.gl descriptor into the React Fiber renderer. Normal React components can organize the tree when they ultimately return these elements, but raw DOM nodes and text do not belong inside `DeckGL`: the custom renderer rejects any other host children.
 
 ## `<layer>`
 
@@ -74,7 +74,7 @@ This means that nesting is useful for React composition but does not create a pa
 
 Use deck.gl's normal view and layer configuration when an application needs view-specific rendering behavior. For an interleaved `MapboxOverlay` root, the host map owns views; the renderer does not send JSX views to that overlay.
 
-Refs on these intrinsic elements resolve to their deck.gl `Layer`, `View` or `Widget` instance, not an internal renderer wrapper. Use this low-level escape hatch sparingly; normal React data flow and deck.gl props are easier to keep in sync.
+Refs on these intrinsic elements resolve to their deck.gl instance, not an internal renderer wrapper. Use this low-level escape hatch sparingly; normal React data flow and deck.gl props are easier to keep in sync.
 
 ## Mixing declarative and direct layers
 
@@ -89,7 +89,3 @@ The `DeckGL` root also accepts its usual `layers` prop. The renderer prepends th
 ## Mixing JSX and direct widgets
 
 The `widgets` prop is merged with `<widget>` children by ID: a widget from the prop replaces the `<widget>` with the same ID, and other prop widgets follow the JSX widgets. Removing the last `<widget>` leaves only the prop widgets. Unlike views, widgets are also sent to external-overlay roots, which pass them to the overlay's own `widgets` prop.
-
-## Errors and limits
-
-A `<layer>` without a `layer` prop, a `<view>` without a `view` prop and a `<widget>` without a `Widget` instance fail at runtime. The renderer rejects every other native element type. Pass a `View` to `<view>`, not to `<layer>`; development builds report that mistake to help catch it early.
