@@ -7,6 +7,7 @@ import type {HostConfig} from 'react-reconciler';
 import {ConcurrentRoot} from 'react-reconciler/constants.js';
 
 import * as config from './config';
+import {mergeWidgets} from './utils';
 import type {
   ChildSet,
   Container,
@@ -228,8 +229,9 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
    *
    * @see https://github.com/facebook/react/blob/main/packages/react-noop-renderer/src/createReactNoop.js#L1159
    */
+  const containerInfo: Container = {store};
   const container = renderer.createContainer(
-    {store},
+    containerInfo,
     ConcurrentRoot,
     null,
     false,
@@ -246,12 +248,17 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   function configure(props: DeckGLConfiguration) {
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
-    store.setState({_passedLayers: props.layers ?? []});
+    store.setState({_passedLayers: props.layers ?? [], _passedWidgets: props.widgets});
 
     if (configured) {
       const deckgl = store.getState().deckgl;
       if (deckgl) {
-        deckgl.setProps(props);
+        // A prop-only update need not commit the JSX tree again, so merge the `widgets` prop
+        // with the last committed JSX widgets.
+        deckgl.setProps({
+          ...props,
+          widgets: mergeWidgets(containerInfo.jsxWidgets ?? [], props.widgets)
+        });
       }
       return;
     }

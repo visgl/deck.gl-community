@@ -11,6 +11,7 @@ import {
 } from '../config';
 import type {Instance, Props, Type} from '../types';
 import {createMockHostContext, setupConsoleSpy} from './test-utils';
+import {TestWidget} from './test-widget';
 
 describe('config-instance-creation', () => {
   let originalEnv: string | undefined;
@@ -61,6 +62,32 @@ describe('config-instance-creation', () => {
       expect(instance.children).toStrictEqual([]);
     });
 
+    it('should create instance for <widget> element', () => {
+      const widget = new TestWidget({id: 'test-widget'});
+
+      const instance = createInstance(
+        'widget',
+        {widget},
+        {} as never,
+        createMockHostContext(),
+        {} as never
+      );
+
+      expect(instance.node).toBe(widget);
+      expect(instance.children).toStrictEqual([]);
+    });
+
+    it('should throw if <widget> element is not given a widget', () => {
+      const hostContext = createMockHostContext();
+      const layer = new ScatterplotLayer({data: [], id: 'not-a-widget'});
+
+      for (const props of [{}, {widget: layer}]) {
+        expect(() =>
+          createInstance('widget', props, {} as never, hostContext, {} as never)
+        ).toThrow("<widget> element requires a 'widget' prop");
+      }
+    });
+
     it('should throw if <layer> element missing layer prop', () => {
       // Arrange
       const type: Type = 'layer';
@@ -90,7 +117,9 @@ describe('config-instance-creation', () => {
 
       expect(() =>
         createInstance('unsupported', {}, {} as never, hostContext, {} as never)
-      ).toThrow('Unsupported element type: "unsupported". Only <layer> and <view> are supported.');
+      ).toThrow(
+        'Unsupported element type: "unsupported". Only <layer>, <view> and <widget> are supported.'
+      );
     });
 
     it('should warn in dev mode for missing layer ID', () => {

@@ -54,7 +54,7 @@ The package requires React 19 or later and uses the deck.gl 9.4 package family. 
 layer packages used by the `/compat/*` wrappers are optional peers; install the ones you import. A
 standalone import does not load either provider.
 Keep installed deck.gl packages compatible with 9.4. TypeScript declarations are included, and a
-native root import adds the JSX declarations for `<layer>` and `<view>`.
+native root import adds the JSX declarations for `<layer>`, `<view>` and `<widget>`.
 
 ## Quick start
 
@@ -276,7 +276,7 @@ yarn lint
 - [Get started](../../docs/modules/react-fiber/developer-guide/get-started.md) covers client boundaries, layers, views, mixed layer sources, provider installation, and instance access.
 - [DeckGL API](../../docs/modules/react-fiber/api-reference/deckgl.md) defines standalone and provider-root props, ownership, lifecycle notifications, and custom compatible overlays.
 - [Using with maps](../../docs/modules/react-fiber/developer-guide/using-with-maps.md) explains host-map ownership and the overlay lifecycle, and links one guide per provider with worker setup and shared-context rendering.
-- [Native elements](../../docs/modules/react-fiber/api-reference/native-elements.md) defines the `<layer>` and `<view>` contract.
+- [Native elements](../../docs/modules/react-fiber/api-reference/native-elements.md) defines the `<layer>`, `<view>` and `<widget>` contract.
 - [Migrate from `@deck.gl/react`](../../docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react.md) documents the compatibility wrapper matrix and limits.
 - Maintained applications show native MapLibre integration with [Vite](../../examples/react-fiber/vite), [Next.js](../../examples/react-fiber/nextjs), [React Router](../../examples/react-fiber/react-router), and [TanStack Start](../../examples/react-fiber/tanstack-start).
 

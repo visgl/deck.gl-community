@@ -3,8 +3,8 @@
 // oxlint-disable import/no-empty-named-blocks
 // oxlint-disable typescript/no-empty-interface
 // oxlint-disable typescript/no-namespace
-import type {Layer, View} from '@deck.gl/core';
-import type {ReactNode} from 'react';
+import type {Layer, View, Widget} from '@deck.gl/core';
+import type {ReactNode, Ref} from 'react';
 import type {} from 'react';
 import type {} from 'react/jsx-runtime';
 import type {} from 'react/jsx-dev-runtime';
@@ -15,12 +15,23 @@ export interface DeckGLElements {
   layer: {
     layer: Layer;
     children?: ReactNode;
+    /** Receives the `layer` instance. */
+    ref?: Ref<Layer>;
   };
 
   /** The deck.gl View instance that owns its child elements. */
   view: {
     view: View;
     children?: ReactNode;
+    /** Receives the `view` instance. */
+    ref?: Ref<View>;
+  };
+
+  /** The deck.gl Widget instance to add. Widgets have no children. */
+  widget: {
+    widget: Widget;
+    /** Receives the `widget` instance. */
+    ref?: Ref<Widget>;
   };
 }
 

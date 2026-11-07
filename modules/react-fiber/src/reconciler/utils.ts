@@ -1,5 +1,5 @@
-import {View} from '@deck.gl/core';
-import type {Layer} from '@deck.gl/core';
+import {View, Widget} from '@deck.gl/core';
+import type {DeckProps, Layer} from '@deck.gl/core';
 
 import type {Instance} from './types';
 
@@ -26,6 +26,11 @@ import type {Instance} from './types';
  */
 export function isView(instance: Instance['node']): instance is View {
   return instance instanceof View;
+}
+
+/** Type guard to check if a node is a Widget instance. */
+export function isWidget(instance: Instance['node']): instance is Widget {
+  return instance instanceof Widget;
 }
 
 /**
@@ -72,13 +77,13 @@ export function flattenTree(arr: Instance[]): Instance['node'][] {
 }
 
 /**
- * Partitions a list of nodes into separate views and layers arrays.
+ * Partitions a list of nodes into separate views, layers and widgets arrays.
  *
- * Uses the isView type guard to separate View objects from Layer objects,
+ * Uses the isView and isWidget type guards to separate View and Widget objects from Layer objects,
  * organizing them into the structure expected by deck.gl's setProps method.
  *
- * @param list - Array of Layer and View nodes to partition
- * @returns Object with separate arrays for views and layers
+ * @param list - Array of Layer, View and Widget nodes to partition
+ * @returns Object with separate arrays for views, layers and widgets
  *
  * @example
  * ```typescript
@@ -90,15 +95,48 @@ export function flattenTree(arr: Instance[]): Instance['node'][] {
  */
 export function organizeList(list: Instance['node'][]) {
   // oxlint-disable-next-line unicorn/no-array-reduce
-  return list.reduce<{views: View[]; layers: Layer[]}>(
+  return list.reduce<{views: View[]; layers: Layer[]; widgets: Widget[]}>(
     (acc, curr) => {
       if (isView(curr)) {
         acc.views.push(curr);
+      } else if (isWidget(curr)) {
+        acc.widgets.push(curr);
       } else {
         acc.layers.push(curr);
       }
       return acc;
     },
-    {layers: [], views: []}
+    {layers: [], views: [], widgets: []}
   );
+}
+
+/** The `widgets` prop of a root. */
+export type RootWidgets = DeckProps<View | View[] | null>['widgets'];
+
+/**
+ * Merges JSX widgets with the `widgets` prop by id.
+ *
+ * deck.gl's WidgetManager matches widgets by id, so two widgets with one id would be added
+ * twice. A prop widget replaces the JSX widget with the same id, and other prop widgets
+ * follow the JSX widgets. The result is never `undefined`, so removing the last JSX widget
+ * removes it from deck.gl.
+ */
+export function mergeWidgets(
+  jsxWidgets: Widget[],
+  passedWidgets: RootWidgets | undefined
+): NonNullable<RootWidgets> {
+  if (jsxWidgets.length === 0) {
+    return passedWidgets ?? [];
+  }
+  if (!passedWidgets) {
+    return jsxWidgets;
+  }
+
+  const widgetsById = new Map<string, NonNullable<RootWidgets>[number]>();
+  for (const widget of [...jsxWidgets, ...passedWidgets]) {
+    if (widget) {
+      widgetsById.set(widget.id, widget);
+    }
+  }
+  return [...widgetsById.values()];
 }
