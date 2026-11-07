@@ -7,14 +7,14 @@ import type {DeckGLProps} from '../types';
 vi.mock('../../dom/components', () => ({
   DeckGL: ({
     children,
-    onDeckglChange
+    onDeckChange
   }: {
     children: React.ReactNode;
-    onDeckglChange?: (deck: unknown) => void;
+    onDeckChange?: (deck: unknown) => void;
   }) => {
     useLayoutEffect(() => {
-      onDeckglChange?.(null);
-    }, [onDeckglChange]);
+      onDeckChange?.(null);
+    }, [onDeckChange]);
 
     return createElement('div', null, children);
   }

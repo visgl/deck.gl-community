@@ -39,7 +39,7 @@ vi.mock(import('../../shared'), () => {
 vi.mock(import('../../reconciler'), () => {
   const mockRender = vi.fn<() => void>();
   const mockConfigure = vi.fn<() => void>();
-  const mockDeckgl = {};
+  const mockDeckGL = {};
   const mockRoots = new Map();
   const mockCreateRoot = vi.fn(
     (node: unknown, options?: {createExternalOverlay?: (props: unknown) => unknown}) => {
@@ -47,7 +47,7 @@ vi.mock(import('../../reconciler'), () => {
       if (existingRoot) {
         return existingRoot;
       }
-      let deckgl = mockRoots.size === 0 ? mockDeckgl : {};
+      let deckgl = mockRoots.size === 0 ? mockDeckGL : {};
       let configured = false;
       const root = {
         configure: (props: unknown) => {
@@ -77,7 +77,7 @@ vi.mock(import('../../reconciler'), () => {
     createRoot: mockCreateRoot,
     mockConfigure,
     mockCreateRoot,
-    mockDeckgl,
+    mockDeckGL,
     mockRender,
     mockRoots,
     mockUnmountAtNode,
@@ -87,12 +87,12 @@ vi.mock(import('../../reconciler'), () => {
 });
 
 // Get the mocks after they've been set up
-const {mockRender, mockConfigure, mockCreateRoot, mockDeckgl, mockUnmountAtNode, mockRoots} =
+const {mockRender, mockConfigure, mockCreateRoot, mockDeckGL, mockUnmountAtNode, mockRoots} =
   (await import('../../reconciler')) as unknown as {
     mockRender: ReturnType<typeof vi.fn>;
     mockConfigure: ReturnType<typeof vi.fn>;
     mockCreateRoot: ReturnType<typeof vi.fn>;
-    mockDeckgl: object;
+    mockDeckGL: object;
     mockUnmountAtNode: ReturnType<typeof vi.fn>;
     mockRoots: Map<unknown, unknown>;
   };
@@ -149,10 +149,10 @@ describe('DeckGL Component Tests', () => {
       DeckGL: ProviderDeckGL,
       createOverlay
     }) => {
-      const onDeckglChange = vi.fn();
+      const onDeckChange = vi.fn();
       const child = <div>Content</div>;
       const {rerender} = render(
-        <ProviderDeckGL interleaved={false} onDeckglChange={onDeckglChange}>
+        <ProviderDeckGL interleaved={false} onDeckChange={onDeckChange}>
           {child}
         </ProviderDeckGL>
       );
@@ -160,7 +160,7 @@ describe('DeckGL Component Tests', () => {
       const firstOverlay = createOverlay.mock.results[0]?.value;
 
       rerender(
-        <ProviderDeckGL interleaved onDeckglChange={onDeckglChange}>
+        <ProviderDeckGL interleaved onDeckChange={onDeckChange}>
           {child}
         </ProviderDeckGL>
       );
@@ -169,16 +169,16 @@ describe('DeckGL Component Tests', () => {
       expect(createOverlay).toHaveBeenCalledTimes(2);
       expect(createOverlay).toHaveBeenLastCalledWith({interleaved: true});
       expect(mockUnmountAtNode).toHaveBeenCalledExactlyOnceWith(firstRoot);
-      expect(onDeckglChange.mock.calls).toEqual([[firstOverlay], [null], [secondOverlay]]);
+      expect(onDeckChange.mock.calls).toEqual([[firstOverlay], [null], [secondOverlay]]);
     });
 
     it.each([
       {DeckGL: MapboxDeckGL, createOverlay: providerMocks.mapboxOverlay, name: 'Mapbox'},
       {DeckGL: MapLibreDeckGL, createOverlay: providerMocks.maplibreOverlay, name: 'MapLibre'}
     ])('creates one detached $name overlay root', ({DeckGL: ProviderDeckGL, createOverlay}) => {
-      const onDeckglChange = vi.fn();
+      const onDeckChange = vi.fn();
       const {container, unmount} = render(
-        <ProviderDeckGL interleaved onDeckglChange={onDeckglChange}>
+        <ProviderDeckGL interleaved onDeckChange={onDeckChange}>
           <div>Content</div>
         </ProviderDeckGL>
       );
@@ -190,7 +190,7 @@ describe('DeckGL Component Tests', () => {
       expect(container.childElementCount).toBe(0);
       expect(rootElement).toBeInstanceOf(HTMLDivElement);
       expect(rootElement.isConnected).toBe(false);
-      expect(onDeckglChange).toHaveBeenCalledExactlyOnceWith(overlay);
+      expect(onDeckChange).toHaveBeenCalledExactlyOnceWith(overlay);
       expect(mockConfigure).toHaveBeenCalledWith(
         expect.not.objectContaining({canvas: expect.anything(), parent: expect.anything()})
       );
@@ -198,7 +198,7 @@ describe('DeckGL Component Tests', () => {
       unmount();
 
       expect(mockUnmountAtNode).toHaveBeenCalledWith(rootElement);
-      expect(onDeckglChange).toHaveBeenLastCalledWith(null);
+      expect(onDeckChange).toHaveBeenLastCalledWith(null);
     });
 
     it('uses a detached registry key for a bound external overlay', () => {
@@ -233,10 +233,10 @@ describe('DeckGL Component Tests', () => {
         createExternalOverlay,
         recreateOverlayOnChange: ['enabled']
       });
-      const onDeckglChange = vi.fn();
+      const onDeckChange = vi.fn();
       const child = <div>Content</div>;
       const {rerender} = render(
-        <CustomDeckGL enabled={false} onDeckglChange={onDeckglChange}>
+        <CustomDeckGL enabled={false} onDeckChange={onDeckChange}>
           {child}
         </CustomDeckGL>
       );
@@ -244,7 +244,7 @@ describe('DeckGL Component Tests', () => {
       const firstOverlay = createExternalOverlay.mock.results[0].value;
 
       rerender(
-        <CustomDeckGL enabled={false} pickingRadius={5} onDeckglChange={onDeckglChange}>
+        <CustomDeckGL enabled={false} pickingRadius={5} onDeckChange={onDeckChange}>
           {child}
         </CustomDeckGL>
       );
@@ -252,7 +252,7 @@ describe('DeckGL Component Tests', () => {
       expect(mockUnmountAtNode).not.toHaveBeenCalled();
 
       rerender(
-        <CustomDeckGL enabled pickingRadius={5} onDeckglChange={onDeckglChange}>
+        <CustomDeckGL enabled pickingRadius={5} onDeckChange={onDeckChange}>
           {child}
         </CustomDeckGL>
       );
@@ -263,13 +263,13 @@ describe('DeckGL Component Tests', () => {
       expect(secondRoot).not.toBe(firstRoot);
       expect(mockUnmountAtNode).toHaveBeenCalledExactlyOnceWith(firstRoot);
       expect(createExternalOverlay).toHaveBeenLastCalledWith({enabled: true, pickingRadius: 5});
-      expect(onDeckglChange.mock.calls).toEqual([
+      expect(onDeckChange.mock.calls).toEqual([
         [firstOverlay],
         [firstOverlay],
         [null],
         [secondOverlay]
       ]);
-      expect(onDeckglChange.mock.invocationCallOrder[2]).toBeLessThan(
+      expect(onDeckChange.mock.invocationCallOrder[2]).toBeLessThan(
         mockUnmountAtNode.mock.invocationCallOrder[0]
       );
       expect(mockUnmountAtNode.mock.invocationCallOrder[0]).toBeLessThan(
@@ -367,72 +367,72 @@ describe('DeckGL Component Tests', () => {
     });
   });
 
-  describe('onDeckglChange', () => {
+  describe('onDeckChange', () => {
     it('should receive the configured root instance without forwarding the callback to deck.gl', () => {
-      const onDeckglChange = vi.fn();
+      const onDeckChange = vi.fn();
 
       render(
-        <DeckGL onDeckglChange={onDeckglChange}>
+        <DeckGL onDeckChange={onDeckChange}>
           <div>Test</div>
         </DeckGL>
       );
 
-      expect(onDeckglChange).toHaveBeenCalledExactlyOnceWith(mockDeckgl);
+      expect(onDeckChange).toHaveBeenCalledExactlyOnceWith(mockDeckGL);
       expect(mockConfigure).toHaveBeenCalledWith(
-        expect.not.objectContaining({onDeckglChange: expect.anything()})
+        expect.not.objectContaining({onDeckChange: expect.anything()})
       );
     });
 
     it('should notify updates with the root-specific instance', () => {
-      const onDeckglChange = vi.fn();
+      const onDeckChange = vi.fn();
       const {rerender} = render(
-        <DeckGL onDeckglChange={onDeckglChange}>
+        <DeckGL onDeckChange={onDeckChange}>
           <div>Initial</div>
         </DeckGL>
       );
 
       rerender(
-        <DeckGL onDeckglChange={onDeckglChange}>
+        <DeckGL onDeckChange={onDeckChange}>
           <div>Updated</div>
         </DeckGL>
       );
 
-      expect(onDeckglChange).toHaveBeenCalledTimes(2);
-      expect(onDeckglChange).toHaveBeenLastCalledWith(mockDeckgl);
+      expect(onDeckChange).toHaveBeenCalledTimes(2);
+      expect(onDeckChange).toHaveBeenLastCalledWith(mockDeckGL);
     });
 
     it('keeps lifecycle notifications and cleanup scoped to each sibling root', () => {
-      const firstOnDeckglChange = vi.fn();
-      const secondOnDeckglChange = vi.fn();
+      const firstOnDeckChange = vi.fn();
+      const secondOnDeckChange = vi.fn();
       const {rerender} = render(
         <>
-          <DeckGL key="first" onDeckglChange={firstOnDeckglChange}>
+          <DeckGL key="first" onDeckChange={firstOnDeckChange}>
             <div>First</div>
           </DeckGL>
-          <DeckGL key="second" onDeckglChange={secondOnDeckglChange}>
+          <DeckGL key="second" onDeckChange={secondOnDeckChange}>
             <div>Second</div>
           </DeckGL>
         </>
       );
 
-      const firstDeckgl = firstOnDeckglChange.mock.calls[0][0];
-      const secondDeckgl = secondOnDeckglChange.mock.calls[0][0];
+      const firstDeckGL = firstOnDeckChange.mock.calls[0][0];
+      const secondDeckGL = secondOnDeckChange.mock.calls[0][0];
       const firstCanvas = mockCreateRoot.mock.calls[0][0];
       const secondCanvas = mockCreateRoot.mock.calls[1][0];
 
       expect(mockCreateRoot).toHaveBeenCalledTimes(2);
-      expect(firstDeckgl).not.toBe(secondDeckgl);
-      expect(mockRoots.get(firstCanvas)?.store.getState().deckgl).toBe(firstDeckgl);
-      expect(mockRoots.get(secondCanvas)?.store.getState().deckgl).toBe(secondDeckgl);
+      expect(firstDeckGL).not.toBe(secondDeckGL);
+      expect(mockRoots.get(firstCanvas)?.store.getState().deckgl).toBe(firstDeckGL);
+      expect(mockRoots.get(secondCanvas)?.store.getState().deckgl).toBe(secondDeckGL);
 
       rerender(
-        <DeckGL key="second" onDeckglChange={secondOnDeckglChange}>
+        <DeckGL key="second" onDeckChange={secondOnDeckChange}>
           <div>Second</div>
         </DeckGL>
       );
 
-      expect(firstOnDeckglChange).toHaveBeenLastCalledWith(null);
-      expect(secondOnDeckglChange).not.toHaveBeenCalledWith(null);
+      expect(firstOnDeckChange).toHaveBeenLastCalledWith(null);
+      expect(secondOnDeckChange).not.toHaveBeenCalledWith(null);
       expect(mockUnmountAtNode).toHaveBeenCalledTimes(1);
       expect(mockUnmountAtNode.mock.calls[0][0]).toBe(firstCanvas);
       expect(mockUnmountAtNode.mock.calls[0][0]).not.toBe(secondCanvas);
@@ -442,14 +442,14 @@ describe('DeckGL Component Tests', () => {
       const child = <div>Test</div>;
       const firstCallback = vi.fn();
       const replacementCallback = vi.fn();
-      const {rerender} = render(<DeckGL onDeckglChange={firstCallback}>{child}</DeckGL>);
+      const {rerender} = render(<DeckGL onDeckChange={firstCallback}>{child}</DeckGL>);
 
-      rerender(<DeckGL onDeckglChange={replacementCallback}>{child}</DeckGL>);
+      rerender(<DeckGL onDeckChange={replacementCallback}>{child}</DeckGL>);
 
       expect(mockConfigure).toHaveBeenCalledOnce();
       expect(mockRender).toHaveBeenCalledOnce();
       expect(mockUnmountAtNode).not.toHaveBeenCalled();
-      expect(firstCallback).toHaveBeenCalledExactlyOnceWith(mockDeckgl);
+      expect(firstCallback).toHaveBeenCalledExactlyOnceWith(mockDeckGL);
       expect(replacementCallback).not.toHaveBeenCalled();
     });
 
@@ -457,12 +457,12 @@ describe('DeckGL Component Tests', () => {
       const child = <div>Test</div>;
       const firstCallback = vi.fn();
       const replacementCallback = vi.fn();
-      const {rerender, unmount} = render(<DeckGL onDeckglChange={firstCallback}>{child}</DeckGL>);
+      const {rerender, unmount} = render(<DeckGL onDeckChange={firstCallback}>{child}</DeckGL>);
 
-      rerender(<DeckGL onDeckglChange={replacementCallback}>{child}</DeckGL>);
+      rerender(<DeckGL onDeckChange={replacementCallback}>{child}</DeckGL>);
       unmount();
 
-      expect(firstCallback).toHaveBeenCalledExactlyOnceWith(mockDeckgl);
+      expect(firstCallback).toHaveBeenCalledExactlyOnceWith(mockDeckGL);
       expect(replacementCallback).toHaveBeenCalledExactlyOnceWith(null);
       expect(replacementCallback.mock.invocationCallOrder[0]).toBeLessThan(
         mockUnmountAtNode.mock.invocationCallOrder[0]
@@ -678,17 +678,17 @@ describe('DeckGL Component Tests', () => {
     });
 
     it('should notify cleanup before unmounting the root', () => {
-      const onDeckglChange = vi.fn();
+      const onDeckChange = vi.fn();
       const {unmount} = render(
-        <DeckGL onDeckglChange={onDeckglChange}>
+        <DeckGL onDeckChange={onDeckChange}>
           <div>Test</div>
         </DeckGL>
       );
 
       unmount();
 
-      expect(onDeckglChange).toHaveBeenLastCalledWith(null);
-      expect(onDeckglChange.mock.invocationCallOrder[1]).toBeLessThan(
+      expect(onDeckChange).toHaveBeenLastCalledWith(null);
+      expect(onDeckChange.mock.invocationCallOrder[1]).toBeLessThan(
         mockUnmountAtNode.mock.invocationCallOrder[0]
       );
     });
@@ -696,21 +696,21 @@ describe('DeckGL Component Tests', () => {
     it('reports null for the old canvas root before the replacement instance', () => {
       const firstCanvas = document.createElement('canvas');
       const secondCanvas = document.createElement('canvas');
-      const onDeckglChange = vi.fn();
+      const onDeckChange = vi.fn();
       const child = <div>Test</div>;
       const {rerender} = render(
-        <DeckGL canvas={firstCanvas} onDeckglChange={onDeckglChange}>
+        <DeckGL canvas={firstCanvas} onDeckChange={onDeckChange}>
           {child}
         </DeckGL>
       );
 
       rerender(
-        <DeckGL canvas={secondCanvas} onDeckglChange={onDeckglChange}>
+        <DeckGL canvas={secondCanvas} onDeckChange={onDeckChange}>
           {child}
         </DeckGL>
       );
 
-      expect(onDeckglChange.mock.calls.map(([deckgl]) => deckgl === null)).toEqual([
+      expect(onDeckChange.mock.calls.map(([deckgl]) => deckgl === null)).toEqual([
         false,
         true,
         false
@@ -749,10 +749,10 @@ describe('DeckGL Component Tests', () => {
 
     it('resolves the id to its canvas element for the root, canvas, and parent', () => {
       const {host, element} = mountCanvasHost('test-canvas');
-      const onDeckglChange = vi.fn();
+      const onDeckChange = vi.fn();
 
       render(
-        <DeckGL canvas="test-canvas" onDeckglChange={onDeckglChange}>
+        <DeckGL canvas="test-canvas" onDeckChange={onDeckChange}>
           <div>Test</div>
         </DeckGL>
       );
@@ -761,7 +761,7 @@ describe('DeckGL Component Tests', () => {
       expect(mockConfigure).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({canvas: element, parent: host})
       );
-      expect(onDeckglChange).toHaveBeenCalledExactlyOnceWith(mockDeckgl);
+      expect(onDeckChange).toHaveBeenCalledExactlyOnceWith(mockDeckGL);
       expect(mockRender).toHaveBeenCalledOnce();
     });
 

@@ -47,7 +47,7 @@ them in `recreateOverlayOnChange` so that a change finalizes the overlay and cal
 
 The root does not attach the overlay; the application does, with the host's own API. Follow the
 lifecycle in [Attach the overlay to the host map](../using-with-maps.md#attach-the-overlay-to-the-host-map):
-store the instance from `onDeckglChange` in state, attach it once per instance in an effect after
+store the instance from `onDeckChange` in state, attach it once per instance in an effect after
 the host map is ready, and detach it in the effect's cleanup. The Mapbox and MapLibre guides show
 this pattern with `map.addControl` and `map.removeControl`.
 

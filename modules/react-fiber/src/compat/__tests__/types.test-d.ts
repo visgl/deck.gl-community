@@ -1,6 +1,6 @@
 import type {Deck} from '@deck.gl/core';
 import {createDeckGL} from '../../dom';
-import type {DeckglConfiguration} from '../../reconciler/types';
+import type {DeckGLConfiguration} from '../../reconciler/types';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import type {MapboxOverlay} from '@deck.gl/mapbox';
 import type {MapLibreOverlay} from '@deck.gl/maplibre';
@@ -32,8 +32,8 @@ const unsupportedCanvas: DeckGLProps = {canvas: document.createElement('canvas')
 void unsupportedCanvas;
 
 // @ts-expect-error Native lifecycle notifications are intentionally excluded from compat.
-const unsupportedOnDeckglChange: DeckGLProps = {onDeckglChange: () => undefined};
-void unsupportedOnDeckglChange;
+const unsupportedOnDeckChange: DeckGLProps = {onDeckChange: () => undefined};
+void unsupportedOnDeckChange;
 
 // @ts-expect-error `interleaved` is an overlay option that `DeckProps` does not declare.
 const unsupportedInterleaved: DeckGLProps = {interleaved: true};
@@ -44,7 +44,7 @@ const unsupportedComponentInterleaved = {interleaved: true} satisfies ComponentP
 void unsupportedComponentInterleaved;
 
 // @ts-expect-error `interleaved` is an external-overlay option, not a Deck configuration prop.
-const unsupportedConfigurationInterleaved: DeckglConfiguration = {interleaved: true};
+const unsupportedConfigurationInterleaved: DeckGLConfiguration = {interleaved: true};
 void unsupportedConfigurationInterleaved;
 
 const refProps = {
@@ -80,7 +80,7 @@ const CustomDeckGL = createDeckGL<CustomOverlayProps, CustomOverlay>({
     return new CustomOverlay();
   }
 });
-expectTypeOf<Parameters<typeof CustomDeckGL>[0]['onDeckglChange']>().toEqualTypeOf<
+expectTypeOf<Parameters<typeof CustomDeckGL>[0]['onDeckChange']>().toEqualTypeOf<
   ((deckgl: CustomOverlay | null) => void) | undefined
 >();
 

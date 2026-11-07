@@ -21,12 +21,12 @@ function createFakeOverlayRoot() {
     overlays.push(overlay);
     return overlay;
   });
-  const onDeckglChange = vi.fn((deckgl: unknown) => {
+  const onDeckChange = vi.fn((deckgl: unknown) => {
     events.push(deckgl ? `change:${overlays.indexOf(deckgl as never)}` : 'change:null');
   });
   const CustomDeckGL = createDeckGL({createExternalOverlay, recreateOverlayOnChange: ['enabled']});
 
-  return {CustomDeckGL, createExternalOverlay, events, onDeckglChange, overlays};
+  return {CustomDeckGL, createExternalOverlay, events, onDeckChange, overlays};
 }
 
 const LAYER = {id: 'points'} as never;
@@ -39,17 +39,17 @@ async function flush() {
 
 describe('createDeckGL recreateOverlayOnChange', () => {
   it('replaces the overlay and commits the JSX layers to the new instance', async () => {
-    const {CustomDeckGL, createExternalOverlay, events, onDeckglChange, overlays} =
+    const {CustomDeckGL, createExternalOverlay, events, onDeckChange, overlays} =
       createFakeOverlayRoot();
     const {rerender, unmount} = render(
-      <CustomDeckGL enabled={false} onDeckglChange={onDeckglChange}>
+      <CustomDeckGL enabled={false} onDeckChange={onDeckChange}>
         <layer layer={LAYER} />
       </CustomDeckGL>
     );
     await flush();
 
     rerender(
-      <CustomDeckGL enabled onDeckglChange={onDeckglChange}>
+      <CustomDeckGL enabled onDeckChange={onDeckChange}>
         <layer layer={LAYER} />
       </CustomDeckGL>
     );
@@ -94,10 +94,10 @@ describe('createDeckGL recreateOverlayOnChange', () => {
   });
 
   it('recreates once per change under StrictMode', async () => {
-    const {CustomDeckGL, onDeckglChange, overlays} = createFakeOverlayRoot();
+    const {CustomDeckGL, onDeckChange, overlays} = createFakeOverlayRoot();
     const {rerender, unmount} = render(
       <StrictMode>
-        <CustomDeckGL enabled={false} onDeckglChange={onDeckglChange}>
+        <CustomDeckGL enabled={false} onDeckChange={onDeckChange}>
           <layer layer={LAYER} />
         </CustomDeckGL>
       </StrictMode>
@@ -107,7 +107,7 @@ describe('createDeckGL recreateOverlayOnChange', () => {
 
     rerender(
       <StrictMode>
-        <CustomDeckGL enabled onDeckglChange={onDeckglChange}>
+        <CustomDeckGL enabled onDeckChange={onDeckChange}>
           <layer layer={LAYER} />
         </CustomDeckGL>
       </StrictMode>
@@ -118,7 +118,7 @@ describe('createDeckGL recreateOverlayOnChange', () => {
     expect(overlays).toHaveLength(createdOnMount * 2);
     expect(overlays.slice(createdOnMount).every(overlay => overlay.props.enabled)).toBe(true);
     expect(overlays.at(-1)?.props).toEqual({enabled: true});
-    expect(onDeckglChange).toHaveBeenLastCalledWith(overlays.at(-1));
+    expect(onDeckChange).toHaveBeenLastCalledWith(overlays.at(-1));
 
     unmount();
   });

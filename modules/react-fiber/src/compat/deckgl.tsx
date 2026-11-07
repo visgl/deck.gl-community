@@ -107,7 +107,7 @@ export function createDeckGLAdapter<Props, Instance>(
 
       warnForUnsupportedUsage(runtimeProps);
 
-      const onDeckglChange = useCallback((nextDeck: Instance | null) => {
+      const onDeckChange = useCallback((nextDeck: Instance | null) => {
         setDeck(nextDeck);
       }, []);
 
@@ -136,7 +136,7 @@ export function createDeckGLAdapter<Props, Instance>(
       );
 
       return (
-        <NativeComponent {...(deckglProps as Props)} onDeckglChange={onDeckglChange}>
+        <NativeComponent {...(deckglProps as Props)} onDeckChange={onDeckChange}>
           {content}
         </NativeComponent>
       );

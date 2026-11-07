@@ -77,15 +77,15 @@ export function App() {
   const [hoveredLandmark, setHoveredLandmark] = useState<Landmark | null>(null);
   const [showSydney, setShowSydney] = useState(true);
   useEffect(() => {
-    const instance = new Deck({
+    const deckInstance = new Deck({
       parent: mapGrid.current!,
       _canvases: [],
       views: [],
       initialViewState: INITIAL_VIEW_STATE,
       getTooltip: ({object}) => (object ? `${object.name}\n${CITY_TITLES[object.cityId]}` : null)
     });
-    setDeck(instance);
-    return () => instance.finalize();
+    setDeck(deckInstance);
+    return () => deckInstance.finalize();
   }, []);
 
   return (

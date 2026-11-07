@@ -116,7 +116,7 @@ export const scheduleMicrotask = queueMicrotask;
  * and `<view>`, so JavaScript callers receive the same runtime contract as
  * TypeScript callers.
  */
-function createDeckglObject(type: Type, props: Props): Instance {
+function createDeckGLObject(type: Type, props: Props): Instance {
   if (type === 'view') {
     if (!props.view) {
       throw new Error("<view> element requires a 'view' prop");
@@ -244,7 +244,7 @@ export function createInstance(
 ): Instance {
   log.withMetadata({fiber, hostContext, props, rootContainerInfo, type}).debug('createInstance');
 
-  return createDeckglObject(type, props);
+  return createDeckGLObject(type, props);
 }
 
 /**
@@ -368,7 +368,7 @@ export function cloneInstance(
     return undefined;
   }
 
-  const cloned = createDeckglObject(type, newProps);
+  const cloned = createDeckGLObject(type, newProps);
 
   // Handle children based on keepChildren flag
   // If we're not keeping children and there's a recyclable instance with children, use those
@@ -1014,7 +1014,7 @@ export function resetAfterCommit(container: Container): void {
  * **What are Portals:**
  * Portals let you render children into a different part of the tree:
  * ```tsx
- * ReactDOM.createPortal(<LayerGroup />, differentDeckglContainer)
+ * ReactDOM.createPortal(<LayerGroup />, differentDeckGLContainer)
  * ```
  *
  * **Deck.gl Implementation:**
