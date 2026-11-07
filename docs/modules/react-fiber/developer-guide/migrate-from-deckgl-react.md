@@ -101,6 +101,8 @@ Use the native root `DeckGL` when you need to control the renderer with props su
 
 Using both styles does not add compat support for other APIs. Unsupported wrappers, widgets, function children, and renderer-control props are still not available from compat.
 
+The standalone root renders the same wrapper and canvas as `@deck.gl/react`, with the same default styles and ids derived from `id`, and orders the `layers` and `views` props relative to JSX layers and views the same way. See [Root DOM and sizing](../api-reference/deckgl.md#root-dom-and-sizing) and [Native elements](../api-reference/native-elements.md#mixing-declarative-and-direct-layers).
+
 The native `DeckGL`, `<layer>`, and `<view>` APIs remain available from the root package. Both the native renderer and the compatibility adapter are named `DeckGL`; choose the intended component by its import path. Use the native component when you need a renderer feature that compat does not support. The native root can also combine the ordinary `layers` prop with `<layer>` children; compat wrappers are only a JSX-to-native-element migration aid.
 
 ## Ref and context

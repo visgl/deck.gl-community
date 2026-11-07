@@ -63,13 +63,26 @@ Refs on these intrinsic elements resolve to their deck.gl `Layer` or `View` inst
 
 ## Mixing declarative and direct layers
 
-The `DeckGL` root also accepts its usual `layers` prop. The renderer prepends those direct layers to the layers produced by `<layer>` elements. This supports incremental adoption, but it also means IDs must be unique across both lists.
+The `DeckGL` root also accepts its usual `layers` prop. As in `@deck.gl/react`, the renderer places the layers produced by `<layer>` elements first and the direct layers after them, so direct layers draw on top. This supports incremental adoption, but it also means IDs must be unique across both lists.
 
 ```tsx
 <DeckGL layers={[new ScatterplotLayer({id: 'existing-layer', data: []})]}>
   <layer layer={new ScatterplotLayer({id: 'react-layer', data: []})} />
 </DeckGL>;
 ```
+
+## Mixing JSX and direct views
+
+The `views` prop works like it does in `@deck.gl/react`. Without `<view>` children, the root sends the `views` prop to deck.gl unchanged; without either, deck.gl uses its default view. When the root has both, it merges them by ID: a view from the prop replaces the `<view>` with the same ID, and other prop views follow the JSX views. Removing the last `<view>` falls back to the `views` prop, or to deck.gl's default view when there is no prop.
+
+```tsx
+<DeckGL views={[new MapView({id: 'main-map', controller: true})]}>
+  <view view={new MapView({id: 'main-map'})} />
+  <view view={new MapView({id: 'minimap', x: '75%', width: '25%', height: '25%'})} />
+</DeckGL>;
+```
+
+Here deck.gl receives the prop's `main-map` view, then `minimap`. External-overlay roots do not merge views: they never send JSX views to the overlay, because the host map owns views, and they forward a `views` prop unchanged like any other overlay prop.
 
 ## Errors and limits
 

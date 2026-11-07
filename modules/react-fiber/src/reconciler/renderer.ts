@@ -7,12 +7,14 @@ import type {HostConfig} from 'react-reconciler';
 import {ConcurrentRoot} from 'react-reconciler/constants.js';
 
 import * as config from './config';
+import {combineRootDescriptors} from './utils';
 import type {
   ChildSet,
   Container,
   DeckGLConfiguration,
   HostContext,
   Instance,
+  JsxDescriptors,
   Props,
   ReconcilerRoot,
   RootElement,
@@ -92,6 +94,8 @@ export const renderer: ReturnType<typeof reactReconciler> = reactReconciler(
  * ```
  */
 export const roots = new Map<RootElement, ReconcilerRoot>();
+
+const EMPTY_JSX_DESCRIPTORS: JsxDescriptors = {layers: [], views: []};
 
 function reportError(error: unknown): void {
   log.error('DeckGL error', error)();
@@ -202,6 +206,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   // Create new root
   log.log(3, 'DeckGL root created')();
   const store = createStore(isExternalOverlay);
+  const containerInfo: Container = {store};
 
   /**
    * Create a new React reconciler container with the following configuration:
@@ -218,7 +223,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
    * @see https://github.com/facebook/react/blob/main/packages/react-noop-renderer/src/createReactNoop.js#L1159
    */
   const container = renderer.createContainer(
-    {store},
+    containerInfo,
     ConcurrentRoot,
     null,
     false,
@@ -235,12 +240,20 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   function configure(props: DeckGLConfiguration) {
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
-    store.setState({_passedLayers: props.layers ?? []});
+    store.setState({_passedLayers: props.layers ?? [], _passedViews: props.views});
 
     if (configured) {
       const deckgl = store.getState().deckgl;
       if (deckgl) {
-        deckgl.setProps(props);
+        // A prop-only update need not commit the JSX tree again, so reapply its last
+        // committed layers and views in the same order that a commit uses.
+        deckgl.setProps({
+          ...props,
+          ...combineRootDescriptors(
+            store.getState(),
+            containerInfo.jsxDescriptors ?? EMPTY_JSX_DESCRIPTORS
+          )
+        });
       }
       return;
     }
