@@ -8,6 +8,7 @@ views while deck.gl keeps its descriptor objects and ID-based diffing.
 
 ## Contents
 
+- [Why layer instances](#why-layer-instances)
 - [Installation](#installation)
 - [Quick start](#quick-start)
 - [Choose a root](#choose-a-root)
@@ -18,6 +19,22 @@ views while deck.gl keeps its descriptor objects and ID-based diffing.
 - [Custom compatible overlays](#custom-compatible-overlays)
 - [Advanced reconciler API](#advanced-reconciler-api)
 - [Documentation and examples](#documentation-and-examples)
+
+## Why layer instances
+
+`<layer layer={new ScatterplotLayer({...})} />` is longer than the `<ScatterplotLayer ... />` JSX of
+`@deck.gl/react`. In exchange, React Fiber passes deck.gl's own objects through unchanged:
+
+| | `@deck.gl/react` JSX layers | React Fiber `<layer>` |
+| --- | --- | --- |
+| Where layers go | Direct children of `DeckGL` only | Any depth, inside your own components |
+| Hooks and context | Only in the component that renders `DeckGL` | In every component that renders a `<layer>`. Contexts from outside `DeckGL` reach them. |
+| TypeScript | Layer classes are not valid JSX components, so their props are not checked | Props are checked against the layer class, and `new ScatterplotLayer<Point>({...})` types the accessors |
+| API | A JSX form to learn next to the deck.gl constructor | The deck.gl constructor, as used by the `layers` prop and every deck.gl example |
+
+Custom, composite and community layers work the same way, with no wrapper or registration. To keep
+the old JSX syntax anyway, copy the
+[`createLayerComponent` helper](../../docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react.md#keep-the-old-jsx-syntax).
 
 ## Installation
 
