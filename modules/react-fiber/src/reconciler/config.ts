@@ -1,4 +1,4 @@
-import type {DeckProps, Layer, View} from '@deck.gl/core';
+import type {DeckProps, Layer, View, Widget} from '@deck.gl/core';
 import {log} from '../shared/index';
 import {globalScope} from '../shared/constants';
 import {createContext} from 'react';
@@ -21,7 +21,7 @@ import type {
   Type,
   UpdatePayload
 } from './types';
-import {flattenTree, isView, organizeList} from './utils';
+import {flattenTree, isView, isWidget, mergeWidgets, organizeList} from './utils';
 
 type EventPriority = number;
 
@@ -112,8 +112,8 @@ export const scheduleMicrotask = queueMicrotask;
 /**
  * Creates the supported native deck.gl elements.
  *
- * The reconciler accepts only pre-instantiated descriptors through `<layer>`
- * and `<view>`, so JavaScript callers receive the same runtime contract as
+ * The reconciler accepts only pre-instantiated descriptors through `<layer>`,
+ * `<view>` and `<widget>`, so JavaScript callers receive the same runtime contract as
  * TypeScript callers.
  */
 function createDeckGLObject(type: Type, props: Props): Instance {
@@ -182,7 +182,20 @@ function createDeckGLObject(type: Type, props: Props): Instance {
     };
   }
 
-  throw new Error(`Unsupported element type: "${type}". Only <layer> and <view> are supported.`);
+  if (type === 'widget') {
+    if (!isWidget(props.widget as Widget)) {
+      throw new Error("<widget> element requires a 'widget' prop");
+    }
+
+    return {
+      children: [],
+      node: props.widget as Widget
+    };
+  }
+
+  throw new Error(
+    `Unsupported element type: "${type}". Only <layer>, <view> and <widget> are supported.`
+  );
 }
 
 /**
@@ -633,8 +646,8 @@ export function finalizeContainerChildren(container: Container, newChildren: Chi
     // oxlint-disable-next-line no-inner-declarations
     function countLayerIds(instances: Instance[]): void {
       for (const instance of instances) {
-        // Check if node is a Layer (not a View)
-        if (!isView(instance.node)) {
+        // Check if node is a Layer (not a View or Widget)
+        if (!isView(instance.node) && !isWidget(instance.node)) {
           const layer = instance.node;
           if (layer.id) {
             idCounts.set(layer.id, (idCounts.get(layer.id) ?? 0) + 1);
@@ -743,8 +756,12 @@ export function replaceContainerChildren(container: Container, newChildren: Chil
       })
       .debug('deck.setProps views and layers');
 
-    const propsUpdate: Pick<DeckProps<View | View[] | null>, 'layers' | 'views'> = {
-      layers: combinedLayers
+    // NOTE: a prop-only update merges the `widgets` prop with these, so keep the last committed set
+    container.jsxWidgets = types.widgets;
+
+    const propsUpdate: Pick<DeckProps<View | View[] | null>, 'layers' | 'views' | 'widgets'> = {
+      layers: combinedLayers,
+      widgets: mergeWidgets(types.widgets, state._passedWidgets)
     };
 
     // External overlays own views through their host map. Standalone Deck must
