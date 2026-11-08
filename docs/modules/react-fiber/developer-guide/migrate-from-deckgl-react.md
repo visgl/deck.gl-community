@@ -48,8 +48,7 @@ import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
 </DeckGL>
 ```
 
-Give every layer and view a stable `id`. deck.gl matches layers across renders by `id`, so creating
-a new layer instance on each render is expected and cheap. `<layer>` elements can sit inside your
+`<layer>` elements can sit inside your
 own components at any depth.
 
 Nesting a `<layer>` inside a `<view>` does not assign it to that view. The renderer flattens the
@@ -62,6 +61,11 @@ direct children of `DeckGL`. Use deck.gl's `layerFilter` for per-view layers:
 ```
 
 ### Keep the old JSX syntax
+
+Native `<layer>` elements are the recommended form: they use the same constructor call as the
+`layers` prop and every deck.gl example, and they accept any layer class without extra code. If you
+would rather keep your existing JSX during a migration, wrapping layer classes as components is an
+option, at the cost of one wrapper per layer class that your app maintains.
 
 To keep `<ScatterplotLayer id="points" ... />` in your code, copy this helper into your app:
 
