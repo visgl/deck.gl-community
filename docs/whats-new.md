@@ -4,6 +4,11 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- **panels:** `FullScreenComponent` and `FullScreenController` add native fullscreen with a
+  viewport fallback for unsupported or rejected requests, including iPhone browsers. They
+  preserve visualization state, manage focus and background scrolling, and clean up on removal.
+  See [Fullscreen controls](./modules/panels/api-reference/panel-components/full-screen-component.md).
+
 - **react-fiber:** map overlays have their own entry points. The default `DeckGL` root renders a
   standalone `Deck`; import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` (or the matching
   `/compat/` paths) for a `MapboxOverlay` or `MapLibreOverlay`. See

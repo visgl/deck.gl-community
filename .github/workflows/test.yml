@@ -298,19 +298,49 @@ jobs:
           DECK_GL_SOURCE: ${{ github.workspace }}/.terrain-sdk
           DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
 
+  test-panels-fullscreen:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+      - run: corepack enable yarn
+      - run: yarn install --immutable
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
+      - name: Cache Playwright browser
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ubuntu24-panels-${{ matrix.browser }}-${{ hashFiles('node_modules/playwright-core/browsers.json') }}
+      - name: Install browser and dependencies
+        run: yarn playwright install --with-deps ${{ matrix.browser }}
+      - name: Verify native fullscreen and viewport fallback
+        run: yarn test:panels-fullscreen
+        env:
+          PANEL_FULLSCREEN_BROWSER: ${{ matrix.browser }}
+
   # Preserve the required check name and fail if any browser job fails or is skipped.
   test-headless:
     runs-on: ubuntu-26.04
-    needs: [test-headless-shard, test-webgpu]
+    needs: [test-headless-shard, test-webgpu, test-panels-fullscreen]
     if: ${{ always() }}
     steps:
       - name: Require all browser checks
         env:
           SHARDS_RESULT: ${{ needs.test-headless-shard.result }}
           WEBGPU_RESULT: ${{ needs.test-webgpu.result }}
+          FULLSCREEN_RESULT: ${{ needs.test-panels-fullscreen.result }}
         run: |
           test "$SHARDS_RESULT" = success
           test "$WEBGPU_RESULT" = success
+          test "$FULLSCREEN_RESULT" = success
 
   website-build:
     runs-on: ubuntu-26.04
