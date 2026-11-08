@@ -12,7 +12,7 @@ const outDir = await mkdtemp(join(tmpdir(), 'panels-fullscreen-'));
 const options = {
   root: fileURLToPath(new URL('.', import.meta.url)),
   configFile: false,
-  build: {outDir, emptyOutDir: true},
+  build: {outDir, emptyOutDir: true, rollupOptions: {input: {index: fileURLToPath(new URL('index.html', import.meta.url)), standalone: fileURLToPath(new URL('standalone.html', import.meta.url))}}},
   preview: {host: '127.0.0.1', port: 0}
 };
 await build(options);
@@ -76,6 +76,28 @@ try {
     await context.close();
     console.log(`${engine}: ${mode} fullscreen, rotation, canvas/state preservation, focus, and cleanup passed`);
   }
+  const standalone = await browser.newPage({viewport: sizes[0], isMobile: true, hasTouch: true});
+  await standalone.addInitScript(() => {
+    Object.defineProperty(Element.prototype, 'requestFullscreen', {configurable: true, value: undefined});
+  });
+  await standalone.goto(new URL('standalone.html', server.resolvedUrls.local[0]).href);
+  await standalone.getByRole('textbox', {name: 'Standalone value'}).fill('preserved');
+  const canvas = await standalone.locator('canvas').elementHandle();
+  await standalone.getByRole('button', {name: 'Enter fullscreen'}).tap();
+  await standalone.waitForFunction(() => document.body.getAttribute('data-deck-panel-fullscreen') === 'fallback');
+  for (const size of sizes) {
+    await standalone.setViewportSize(size);
+    const exit = standalone.getByRole('button', {name: 'Exit fullscreen'});
+    const bounds = await exit.boundingBox();
+    assert.ok(bounds && bounds.width >= 44 && bounds.height >= 44 && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= size.width && bounds.y + bounds.height <= size.height);
+  }
+  await standalone.getByRole('button', {name: 'Exit fullscreen'}).tap();
+  await standalone.waitForFunction(() => !document.body.hasAttribute('data-deck-panel-fullscreen'));
+  assert.equal(await standalone.getByRole('textbox', {name: 'Standalone value'}).inputValue(), 'preserved');
+  assert.equal(await canvas.evaluate(element => element === document.querySelector('canvas')), true);
+  await standalone.close();
+  console.log(`${engine}: shared standalone entry point touch control, rotation, and state preservation passed`);
+
 } finally {
   await browser.close();
   server.httpServer.closeAllConnections?.();

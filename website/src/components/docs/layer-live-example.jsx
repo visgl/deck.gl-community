@@ -1,3 +1,4 @@
+import FullscreenExample from '../example/fullscreen-example';
 import React, {useEffect, useRef} from 'react';
 import {EXAMPLE_PANEL_STYLE} from '../../../../examples/utils/panel-theme';
 import BrowserOnly from '@docusaurus/BrowserOnly';
@@ -104,7 +105,9 @@ function LayerLiveExampleHost({highlight, height}) {
     };
   }, [highlight]);
 
-  return <div ref={hostRef} style={{...WRAPPER_STYLE, height}} />;
+  return <FullscreenExample style={{...WRAPPER_STYLE, height}}>
+    <div ref={hostRef} style={{width: '100%', height: '100%'}} />
+  </FullscreenExample>;
 }
 
 export default function LayerLiveExample({highlight, size = 'narrow', height}) {
