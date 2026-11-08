@@ -73,7 +73,15 @@ export class FullScreenComponent extends PanelComponent<FullScreenComponentProps
     root.classList.add('deck-widget', this.className);
     Object.assign(
       root.style,
-      {position: 'absolute', pointerEvents: 'auto', zIndex: '99'},
+      {
+        position: 'absolute',
+        pointerEvents: 'auto',
+        zIndex: '99',
+        top: this.placement.includes('top') ? '0px' : 'auto',
+        bottom: this.placement.includes('top') ? 'auto' : '0px',
+        left: this.placement.includes('right') ? 'auto' : '0px',
+        right: this.placement.includes('right') ? '0px' : 'auto'
+      },
       this.props.style
     );
     if (this.#controller?.target !== this.props.target) {

@@ -120,8 +120,12 @@ export class FullScreenController {
 
   async #enter(generation: number): Promise<void> {
     if (!this.target.isConnected) throw new Error('Fullscreen target must be connected');
-    const previous = OWNERS.get(this.#document);
-    if (previous && previous !== this) await previous.exit();
+    let previous = OWNERS.get(this.#document);
+    while (previous && previous !== this) {
+      await previous.exit();
+      if (this.#disposed || generation !== this.#generation) return;
+      previous = OWNERS.get(this.#document);
+    }
     if (this.#disposed || generation !== this.#generation) return;
     const view = this.#document.defaultView;
     this.#focus = this.#document.activeElement as HTMLElement | null;
@@ -193,6 +197,7 @@ export class FullScreenController {
   #setMode(mode: FullScreenMode): void {
     if (mode === this.#mode) return;
     this.#mode = mode;
+    this.#document.dispatchEvent(new Event('deck-panel-fullscreenchange'));
     if (!this.#disposed) this.#options.onChange?.(mode);
   }
 
@@ -218,6 +223,7 @@ export class FullScreenController {
     this.#style?.remove();
     this.#style = null;
     if (OWNERS.get(this.#document) === this) OWNERS.delete(this.#document);
+    if (changed) this.#document.dispatchEvent(new Event('deck-panel-fullscreenchange'));
     if (changed && !this.#disposed) this.#options.onChange?.('none');
     if (this.target.isConnected && this.#focus?.isConnected) {
       this.#document.defaultView?.scrollTo({

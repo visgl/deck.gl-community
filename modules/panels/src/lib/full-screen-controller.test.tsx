@@ -148,6 +148,21 @@ describe('FullScreenController', () => {
     expect(target.getAttribute('role')).toBe('region');
   });
 
+  it('keeps a single owner when two controllers enter while another exits', async () => {
+    const a = create();
+    const b = create();
+    const c = create();
+    for (const value of [a, b, c]) missing(value.target);
+    await a.controller.enter();
+    await Promise.all([b.controller.enter(), c.controller.enter()]);
+    expect([a, b, c].filter(value => value.controller.active)).toHaveLength(1);
+    expect(document.querySelectorAll('[data-deck-panel-fullscreen="fallback"]')).toHaveLength(1);
+    const active = [a, b, c].find(value => value.controller.active)!;
+    expect(getComputedStyle(document.documentElement).overflow).toBe('hidden');
+    await active.controller.exit();
+    expect(document.documentElement.hasAttribute('data-deck-panel-fullscreen-lock')).toBe(false);
+  });
+
   it('handles a target with no focusable children and restores existing attributes', async () => {
     const {target, controller} = create();
     target.innerHTML = '';

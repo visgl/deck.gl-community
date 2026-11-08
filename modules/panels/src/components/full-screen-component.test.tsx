@@ -1,3 +1,4 @@
+import {PanelManager} from '../panels/panel-manager';
 import {afterEach, expect, it} from 'vitest';
 import {FullScreenComponent} from './full-screen-component';
 
@@ -25,4 +26,25 @@ it('renders accessible enter/exit controls and releases fallback state when remo
   component.onRemove();
   expect(root.children.length).toBe(0);
   expect(document.documentElement.hasAttribute('data-deck-panel-fullscreen-lock')).toBe(false);
+});
+
+it('keeps default and reconciled corner placements inside a clipping PanelManager host', () => {
+  const target = document.createElement('div');
+  target.style.cssText = 'position:relative;width:300px;height:200px;overflow:hidden';
+  document.body.append(target);
+  const component = new FullScreenComponent({target});
+  const manager = new PanelManager({parentElement: target, components: [component]});
+  try {
+    for (const placement of ['bottom-right', 'top-left', 'top-right', 'bottom-left'] as const) {
+      manager.setProps({components: [new FullScreenComponent({target, placement})]});
+      const button = target.querySelector('button')!.getBoundingClientRect();
+      const host = target.getBoundingClientRect();
+      expect(button.left).toBeGreaterThanOrEqual(host.left);
+      expect(button.top).toBeGreaterThanOrEqual(host.top);
+      expect(button.right).toBeLessThanOrEqual(host.right);
+      expect(button.bottom).toBeLessThanOrEqual(host.bottom);
+    }
+  } finally {
+    manager.finalize();
+  }
 });

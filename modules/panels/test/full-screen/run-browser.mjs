@@ -12,6 +12,7 @@ const outDir = await mkdtemp(join(tmpdir(), 'panels-fullscreen-'));
 const options = {
   root: fileURLToPath(new URL('.', import.meta.url)),
   configFile: false,
+  resolve: {alias: {'@deck.gl-community/panels': fileURLToPath(new URL('../../src/index.ts', import.meta.url))}},
   build: {outDir, emptyOutDir: true, rollupOptions: {input: {index: fileURLToPath(new URL('index.html', import.meta.url)), standalone: fileURLToPath(new URL('standalone.html', import.meta.url))}}},
   preview: {host: '127.0.0.1', port: 0}
 };
