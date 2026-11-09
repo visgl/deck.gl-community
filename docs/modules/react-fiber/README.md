@@ -11,19 +11,34 @@ The package has two public surfaces:
 | Applications | `@deck.gl-community/react-fiber` | The native `DeckGL` root plus the `<layer>`, `<view>` and `<widget>` elements. |
 | Direct reconciler integration | `@deck.gl-community/react-fiber/reconciler` | Advanced root-management APIs. Most applications should use the native root instead. |
 
+## Why layer instances
+
+`<layer>` takes the same layer instance as deck.gl's `layers` prop, and React Fiber passes it to
+deck.gl unchanged. Compared with the JSX layers of `@deck.gl/react`:
+
+| | `@deck.gl/react` JSX layers | React Fiber `<layer>` |
+| --- | --- | --- |
+| Where layers go | Direct children of `DeckGL` only | Any depth, inside your own components |
+| Hooks and context | Only in the component that renders `DeckGL` | In every component that renders a `<layer>`. Contexts from outside `DeckGL` reach them. |
+| TypeScript | Layer classes are not valid JSX components, so their props are not checked | Props are checked against the layer class, and `new ScatterplotLayer<Point>({...})` types the accessors |
+| API | A JSX form to learn next to the deck.gl constructor | The deck.gl constructor, as used by the `layers` prop and every deck.gl example |
+
+Custom, composite and community layers work the same way, with no wrapper or registration, and
+the renderer depends on no layer package.
+
 ## Client-only renderer
 
 The native root creates a canvas-backed deck.gl renderer. In an application that uses React Server Components, put `'use client'` at the beginning of the module that imports and renders `DeckGL`, or import it from an existing client-marked module. This React directive marks that module and its transitive dependencies as client code; Next.js is one framework that supports it. In a traditional SSR application without React Server Components, create the map or overlay after hydration in an effect. Server rendering a `DeckGL` root does not require `ssr: false`: the standalone root renders its wrapper and canvas markup, provider roots render no markup, and deck.gl or the overlay is created only after hydration.
 
 ## How the native API works
 
-The root `DeckGL` entry point owns one standalone `Deck`. Import `/mapbox` or `/maplibre` when an application needs an external provider overlay; `interleaved` then selects that bound overlay's mode. Its children use two intrinsic React elements:
+The root `DeckGL` entry point owns one standalone `Deck`. Import `/mapbox` or `/maplibre` when an application needs an external provider overlay; `interleaved` then selects that bound overlay's mode. Its children use three intrinsic React elements:
 
 - `<layer>` receives a constructed deck.gl `Layer` instance.
 - `<view>` receives a constructed deck.gl `View` instance.
 - `<widget>` receives a constructed deck.gl `Widget` instance.
 
-The renderer flattens the committed React tree into deck.gl's `layers` and `views` arrays. React components may be nested for application composition, but nesting a `<layer>` inside a `<view>` does not assign that layer to that view. Keep view-specific behavior in normal deck.gl configuration such as a layer filter, and give every layer and view a stable, explicit `id`.
+The renderer flattens the committed React tree into deck.gl's `layers`, `views` and `widgets` arrays. React components may be nested for application composition, but nesting a `<layer>` inside a `<view>` does not assign that layer to that view. Keep view-specific behavior in normal deck.gl configuration such as a layer filter, and give every layer and view a stable, explicit `id`.
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';

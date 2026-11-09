@@ -31,7 +31,8 @@ import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
 ## Rewrite JSX layers and views
 
 `@deck.gl/react` accepts layer classes as JSX children. React Fiber takes a layer instance on a
-`<layer>` element and a view instance on a `<view>` element:
+`<layer>` element and a view instance on a `<view>` element. See
+[Why layer instances](../README.md#why-layer-instances) for what this syntax buys.
 
 ```tsx
 // Before
