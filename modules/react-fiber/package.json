@@ -42,41 +42,6 @@
       "require": "./dist/dom/maplibre.cjs",
       "import": "./dist/dom/maplibre.js"
     },
-    "./compat": {
-      "types": "./dist/compat/index.d.ts",
-      "require": "./dist/compat/index.cjs",
-      "import": "./dist/compat/index.js"
-    },
-    "./compat/mapbox": {
-      "types": "./dist/compat/mapbox.d.ts",
-      "require": "./dist/compat/mapbox.cjs",
-      "import": "./dist/compat/mapbox.js"
-    },
-    "./compat/maplibre": {
-      "types": "./dist/compat/maplibre.d.ts",
-      "require": "./dist/compat/maplibre.cjs",
-      "import": "./dist/compat/maplibre.js"
-    },
-    "./compat/layers": {
-      "types": "./dist/compat/layers.d.ts",
-      "require": "./dist/compat/layers.cjs",
-      "import": "./dist/compat/layers.js"
-    },
-    "./compat/geo-layers": {
-      "types": "./dist/compat/geo-layers.d.ts",
-      "require": "./dist/compat/geo-layers.cjs",
-      "import": "./dist/compat/geo-layers.js"
-    },
-    "./compat/aggregation-layers": {
-      "types": "./dist/compat/aggregation-layers.d.ts",
-      "require": "./dist/compat/aggregation-layers.cjs",
-      "import": "./dist/compat/aggregation-layers.js"
-    },
-    "./compat/mesh-layers": {
-      "types": "./dist/compat/mesh-layers.d.ts",
-      "require": "./dist/compat/mesh-layers.cjs",
-      "import": "./dist/compat/mesh-layers.js"
-    },
     "./reconciler": {
       "types": "./dist/reconciler/index.d.ts",
       "require": "./dist/reconciler/index.cjs",
@@ -99,45 +64,26 @@
     "react-reconciler": "0.33.0"
   },
   "peerDependencies": {
-    "@deck.gl/aggregation-layers": "~9.4.1",
     "@deck.gl/core": "~9.4.1",
-    "@deck.gl/geo-layers": "~9.4.1",
-    "@deck.gl/layers": "~9.4.1",
     "@deck.gl/mapbox": "~9.4.1",
     "@deck.gl/maplibre": "~9.4.1",
-    "@deck.gl/mesh-layers": "~9.4.1",
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0"
   },
   "peerDependenciesMeta": {
-    "@deck.gl/aggregation-layers": {
-      "optional": true
-    },
-    "@deck.gl/geo-layers": {
-      "optional": true
-    },
-    "@deck.gl/layers": {
-      "optional": true
-    },
     "@deck.gl/mapbox": {
       "optional": true
     },
     "@deck.gl/maplibre": {
       "optional": true
-    },
-    "@deck.gl/mesh-layers": {
-      "optional": true
     }
   },
   "devDependencies": {
-    "@deck.gl/aggregation-layers": "~9.4.1",
     "@deck.gl/core": "~9.4.1",
     "@deck.gl/extensions": "~9.4.1",
-    "@deck.gl/geo-layers": "~9.4.1",
     "@deck.gl/layers": "~9.4.1",
     "@deck.gl/mapbox": "~9.4.1",
     "@deck.gl/maplibre": "~9.4.1",
-    "@deck.gl/mesh-layers": "~9.4.1",
     "@loaders.gl/core": "^4.5.1",
     "@luma.gl/core": "~9.4.2",
     "@luma.gl/engine": "~9.4.2",

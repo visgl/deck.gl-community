@@ -8,8 +8,6 @@ import {describe, expect, it, vi} from 'vitest';
 import {createDeckGL, DeckGL} from '../index';
 import {DeckGL as MapboxDeckGL} from '../mapbox';
 import {DeckGL as MapLibreDeckGL} from '../maplibre';
-import {DeckGL as CompatMapboxDeckGL} from '../../compat/mapbox';
-import {DeckGL as CompatMapLibreDeckGL} from '../../compat/maplibre';
 
 function renderOnServer(Component: ComponentType<any>, props: object = {}): string {
   return renderToString(createElement(Component, props, null));
@@ -37,9 +35,7 @@ describe('server rendering without a DOM', () => {
 
   it.each([
     ['/mapbox', MapboxDeckGL],
-    ['/maplibre', MapLibreDeckGL],
-    ['/compat/mapbox', CompatMapboxDeckGL],
-    ['/compat/maplibre', CompatMapLibreDeckGL]
+    ['/maplibre', MapLibreDeckGL]
   ])('renders the %s provider root as empty markup', (_name, Component) => {
     expect(renderOnServer(Component, {interleaved: true})).toBe('');
     expect(renderOnServer(Component)).toBe('');

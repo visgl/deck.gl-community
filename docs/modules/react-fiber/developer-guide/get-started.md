@@ -1,6 +1,6 @@
 # Get started
 
-`@deck.gl-community/react-fiber` renders deck.gl in a React client tree. The native package exports `DeckGL`; it also adds the `<layer>`, `<view>` and `<widget>` JSX elements that pass already constructed deck.gl descriptors to the renderer.
+`@deck.gl-community/react-fiber` renders deck.gl in a React client tree. The native package exports `DeckGL`; it also adds the `<layer>`, `<view>` and `<widget>` JSX elements that pass already constructed deck.gl descriptors to the renderer. See [Why layer instances](../README.md#why-layer-instances) for what this syntax buys over `@deck.gl/react` JSX layers.
 
 ## 1. Install the packages you use
 
@@ -126,6 +126,6 @@ Deck callbacks such as `onClick` are deck.gl event handlers passed to the root, 
 
 Read the [DeckGL API](../api-reference/deckgl.md) for standalone and interleaved ownership details, [Using with maps](./using-with-maps.md) for host-map lifecycle and provider guides, and [Native elements](../api-reference/native-elements.md) for the exact `<layer>` and `<view>` contract.
 
-If you are migrating an existing `@deck.gl/react` application, use the bounded compatibility adapter rather than changing native imports in place. See [Migrate from `@deck.gl/react`](./migrate-from-deckgl-react.md) for its supported wrapper matrix and limitations.
+If you are migrating an existing `@deck.gl/react` application, see [Migrate from `@deck.gl/react`](./migrate-from-deckgl-react.md).
 
 For framework-specific project layouts, see the [React Fiber examples](/examples/react-fiber/overview).

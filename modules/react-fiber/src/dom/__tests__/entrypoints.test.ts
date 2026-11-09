@@ -23,13 +23,6 @@ describe('native entrypoint export matrix', () => {
       '.',
       './mapbox',
       './maplibre',
-      './compat',
-      './compat/mapbox',
-      './compat/maplibre',
-      './compat/layers',
-      './compat/geo-layers',
-      './compat/aggregation-layers',
-      './compat/mesh-layers',
       './reconciler',
       './package.json'
     ]);
