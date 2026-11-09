@@ -59,12 +59,33 @@ direct children of `DeckGL`. Use deck.gl's `layerFilter` for per-view layers:
 <DeckGL layerFilter={({layer, viewport}) => viewport.id !== 'minimap' || layer.id === 'points'}>
 ```
 
-### Keep the old JSX syntax
+## Access the deck.gl instance
 
-Native `<layer>` elements are the recommended form: they use the same constructor call as the
-`layers` prop and every deck.gl example, and they accept any layer class without extra code. If you
-would rather keep your existing JSX during a migration, wrapping layer classes as components is an
-option, at the cost of one wrapper per layer class that your app maintains.
+`onDeckChange` receives the `Deck` instance, or the overlay on a map root, and then `null` on
+teardown. Store it in state and call picking methods on the instance itself:
+
+```tsx
+// Before
+const deckRef = useRef<DeckGLRef>(null);
+deckRef.current?.pickObject({x, y});
+
+// After
+const [deck, setDeck] = useState<Deck | null>(null);
+deck?.pickObject({x, y});
+
+<DeckGL onDeckChange={setDeck}>{/* ... */}</DeckGL>;
+```
+
+`@deck.gl/react`'s `DeckGLContext` has no equivalent. Pass the instance through your own context
+or props instead.
+
+## Keep the old JSX syntax
+
+Native `<layer>` elements are the recommended form. The `new` call shows where deck.gl builds the
+layer, matches the `layers` prop and deck.gl's examples, and works for any layer class without extra
+code. Wrapping layer classes as components keeps your existing JSX during a migration. The cost is
+one wrapper per layer class, plus JSX that looks like React components but follows deck.gl's layer
+lifecycle. Type checking is the same in both forms.
 
 To keep `<ScatterplotLayer id="points" ... />` in your code, copy this helper into your app:
 
@@ -136,26 +157,6 @@ As with `<view>`, nesting keeps the tree readable but does not limit the layer t
 In `.tsx` files, TypeScript resolves `<view>` to the SVG element from `@types/react`, so the helper
 creates the element with `createElement`. See
 [#1037](https://github.com/visgl/deck.gl-community/issues/1037).
-
-## Access the deck.gl instance
-
-`onDeckChange` receives the `Deck` instance, or the overlay on a map root, and then `null` on
-teardown. Store it in state and call picking methods on the instance itself:
-
-```tsx
-// Before
-const deckRef = useRef<DeckGLRef>(null);
-deckRef.current?.pickObject({x, y});
-
-// After
-const [deck, setDeck] = useState<Deck | null>(null);
-deck?.pickObject({x, y});
-
-<DeckGL onDeckChange={setDeck}>{/* ... */}</DeckGL>;
-```
-
-`@deck.gl/react`'s `DeckGLContext` has no equivalent. Pass the instance through your own context
-or props instead.
 
 ## Unsupported
 
