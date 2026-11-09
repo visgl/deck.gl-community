@@ -9,7 +9,9 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 `FullScreenPanelContainer` renders one panel inside a large inset full-screen container.
 
 Use it when one focused standalone panel layout should occupy most of the host
-while preserving a visible edge around it.
+while preserving a visible edge around it. This fills the host; it does not invoke
+the browser Fullscreen API. Add a [FullScreenComponent](../panel-components/full-screen-component.md)
+inside the host to provide native fullscreen and the viewport fallback.
 
 <PanelLiveExample highlight="full-screen-panel-container" size="tall" />
 

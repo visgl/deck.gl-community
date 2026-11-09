@@ -70,3 +70,21 @@ sidebar.setProps({
 sidebar.setProps({hidden: true});
 
 new BoxPanelContainer({headerPanel: summary, panel: accordion}).setProps({headerPanel: undefined});
+
+import {
+  FullScreenComponent,
+  FullScreenController,
+  type FullScreenMode
+} from '@deck.gl-community/panels';
+const host = document.createElement('div');
+const fullscreen = new FullScreenComponent({
+  target: host,
+  onChange: mode => {
+    const value: FullScreenMode = mode;
+    void value;
+  }
+});
+fullscreen.setProps({enterLabel: 'Expand'});
+new FullScreenController({target: host, label: 'Map'}).destroy();
+// @ts-expect-error A connected target is required.
+new FullScreenComponent({});

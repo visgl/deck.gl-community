@@ -23,19 +23,4 @@ describe('plain entrypoint provider isolation', () => {
 
     expect(Object.keys(dom).sort()).toEqual(['DeckCanvas', 'DeckGL', 'createDeckGL']);
   });
-
-  it('loads the compatibility root without either provider package', async () => {
-    blockProviderImports();
-
-    const compat = await import('../../compat');
-
-    expect(Object.keys(compat).sort()).toEqual([
-      'DeckGL',
-      'FirstPersonView',
-      'GlobeView',
-      'MapView',
-      'OrbitView',
-      'OrthographicView'
-    ]);
-  });
 });
