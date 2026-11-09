@@ -3,7 +3,7 @@
 React Fiber's `DeckGL` root takes the same deck.gl props as `@deck.gl/react`. Most of a migration
 is changing imports and rewriting JSX layers and views as `<layer>` and `<view>` elements. This
 page lists each change. Apps that render HTML or function children inside `DeckGL` need the most
-work; see [Limitations](#limitations) first.
+work; see [Unsupported](#unsupported) first.
 
 The root is client-only. In an app that uses React Server Components, import it from a
 `'use client'` module, as described in [Get started](./get-started.md).
@@ -156,7 +156,7 @@ deck?.pickObject({x, y});
 `@deck.gl/react`'s `DeckGLContext` has no equivalent. Pass the instance through your own context
 or props instead.
 
-## Limitations
+## Unsupported
 
 - **HTML and function children.** `DeckGL` children may only be
   [native elements](../api-reference/native-elements.md) and components that render them. Render
@@ -167,6 +167,6 @@ or props instead.
 - **JSX widgets and `useWidget`.** Render each widget as a
   [`<widget>`](../api-reference/native-elements.md#widget) element, or pass instances in the
   `widgets` prop.
-- **A custom `Deck` class.** Not supported. For a custom overlay, use
+- **A custom `Deck` class.** For a custom overlay, use
   [`createDeckGL`](../api-reference/deckgl.md#custom-compatible-overlays).
 - **React 18 and earlier.** React Fiber requires React 19.
