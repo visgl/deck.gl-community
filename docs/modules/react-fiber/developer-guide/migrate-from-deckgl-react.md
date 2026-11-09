@@ -105,15 +105,9 @@ export function Map({points}: {points: Point[]}) {
 }
 ```
 
-Importing the deck.gl classes under an alias lets the components keep the class names, so
-existing JSX does not change.
-
-The wrapped component keeps the layer's type parameters. Pass the data type where you use it,
-`<ScatterplotLayer<Point> ... />`, just as you would write `new ScatterplotLayer<Point>({...})`.
-Accessors such as `getPosition` are then checked against `Point`. Without a type argument, `d` is
-`any`, as it is with the deck.gl constructor.
-
-Wrapped and native layers can be mixed in one tree, so an app can move one layer at a time.
+Aliasing the deck.gl imports keeps existing JSX unchanged. Wrapped components keep the layer's
+type parameters, so `<ScatterplotLayer<Point> ... />` checks accessors against `Point`. Wrapped and
+native layers can be mixed, so you can migrate one layer at a time.
 
 For views, pass `children` through:
 
