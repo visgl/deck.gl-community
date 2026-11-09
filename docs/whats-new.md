@@ -12,15 +12,14 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
   See [Fullscreen controls](./modules/panels/api-reference/panel-components/full-screen-component.md).
 
 - **react-fiber:** map overlays have their own entry points. The default `DeckGL` root renders a
-  standalone `Deck`; import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` (or the matching
-  `/compat/` paths) for a `MapboxOverlay` or `MapLibreOverlay`. See
+  standalone `Deck`; import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` for a
+  `MapboxOverlay` or `MapLibreOverlay`. See
   [Using with maps](/docs/modules/react-fiber/developer-guide/using-with-maps). Custom overlays use
   [`createDeckGL`](/docs/modules/react-fiber/api-reference/deckgl#custom-compatible-overlays), whose
   `recreateOverlayOnChange` option replaces the overlay when a construction-only prop changes.
 
-- **react-fiber:** requires only `@deck.gl/core`, `react` and `react-dom` as peers; the layer
-  packages behind `/compat/*` are optional. Internal subpaths such as `/dom`, `/shared`, `/types`
-  and `/reconciler/config` are no longer exported.
+- **react-fiber:** requires only `@deck.gl/core`, `react` and `react-dom` as peers. Internal
+  subpaths such as `/dom`, `/shared`, `/types` and `/reconciler/config` are no longer exported.
 
 - **react-fiber:** new [`<widget>`](/docs/modules/react-fiber/api-reference/native-elements#widget)
   element adds a deck.gl widget from the React tree, merged with the `widgets` prop by id.
