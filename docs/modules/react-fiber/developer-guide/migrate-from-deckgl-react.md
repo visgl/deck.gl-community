@@ -47,8 +47,7 @@ import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
 </DeckGL>
 ```
 
-`<layer>` elements can sit inside your
-own components at any depth.
+`<layer>` elements can sit inside your own components at any depth.
 
 Nesting a `<layer>` inside a `<view>` does not assign it to that view. The renderer flattens the
 tree into one `layers` list, and deck.gl draws every layer in every view, as it does for the
