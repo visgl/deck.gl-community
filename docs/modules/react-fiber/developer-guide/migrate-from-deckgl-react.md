@@ -3,7 +3,7 @@
 React Fiber's `DeckGL` root takes the same deck.gl props as `@deck.gl/react`. Most of a migration
 is changing imports and rewriting JSX layers and views as `<layer>` and `<view>` elements. This
 page lists each change. Apps that render HTML or function children inside `DeckGL` need the most
-work; see [Review unsupported patterns](#review-unsupported-patterns) first.
+work; see [Limitations](#limitations) first.
 
 The root is client-only. In an app that uses React Server Components, import it from a
 `'use client'` module, as described in [Get started](./get-started.md).
@@ -115,8 +115,7 @@ Accessors such as `getPosition` are then checked against `Point`. Without a type
 
 Wrapped and native layers can be mixed in one tree, so an app can move one layer at a time.
 
-Views take the same approach. Pass `children` through so that layers nested in a JSX view still
-render:
+For views, pass `children` through:
 
 ```tsx
 import {MapView as DeckMapView, type View} from '@deck.gl/core';
@@ -164,11 +163,12 @@ deck?.pickObject({x, y});
 `@deck.gl/react`'s `DeckGLContext` has no equivalent. Pass the instance through your own context
 or props instead.
 
-## Review unsupported patterns
+## Limitations
 
 - **HTML and function children.** `DeckGL` children may only be
-  [native elements](../api-reference/native-elements.md) and components that render them. Render HTML overlays as siblings of `DeckGL` in a positioned container. For
-  per-view content, read viewports from the instance with `deck.getViewports()`.
+  [native elements](../api-reference/native-elements.md) and components that render them. Render
+  HTML overlays as siblings of `DeckGL` in a positioned container. For per-view content, read
+  viewports from the instance with `deck.getViewports()`.
 - **react-map-gl `<Map>` as a child.** Create the map yourself and use a map root. See
   [Reverse-controlled maps](./using-with-maps.md#reverse-controlled-maps).
 - **JSX widgets and `useWidget`.** Render each widget as a
