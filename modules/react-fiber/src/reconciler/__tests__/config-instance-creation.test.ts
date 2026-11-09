@@ -10,7 +10,7 @@ import {
   createTextInstance
 } from '../config';
 import type {Instance, Props, Type} from '../types';
-import {createMockHostContext, setupConsoleSpy} from './test-utils';
+import {createMockHostContext, setupLogSpy} from './test-utils';
 import {TestWidget} from './test-widget';
 
 describe('config-instance-creation', () => {
@@ -117,15 +117,13 @@ describe('config-instance-creation', () => {
 
       expect(() =>
         createInstance('unsupported', {}, {} as never, hostContext, {} as never)
-      ).toThrow(
-        'Unsupported element type: "unsupported". Only <layer>, <view> and <widget> are supported.'
-      );
+      ).toThrow('Unsupported element <unsupported>');
     });
 
     it('should warn in dev mode for missing layer ID', () => {
       // Arrange
       process.env.NODE_ENV = 'development';
-      const {warnSpy} = setupConsoleSpy();
+      const {warnSpy} = setupLogSpy();
 
       const layer = new ScatterplotLayer({data: [], id: 'unknown'}); // "unknown" ID triggers warning
       const type: Type = 'layer';
@@ -136,15 +134,13 @@ describe('config-instance-creation', () => {
       createInstance(type, props, {} as never, hostContext, {} as never);
 
       // Assert
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Layer missing explicit "id" prop')
-      );
+      expect(warnSpy).toHaveBeenCalledWith('ScatterplotLayer needs a stable id');
     });
 
     it('should warn in dev mode for missing view ID', () => {
       // Arrange
       process.env.NODE_ENV = 'development';
-      const {warnSpy} = setupConsoleSpy();
+      const {warnSpy} = setupLogSpy();
 
       const view = new MapView({id: 'unknown'}); // "unknown" ID triggers warning
       const type: Type = 'view';
@@ -155,15 +151,13 @@ describe('config-instance-creation', () => {
       createInstance(type, props, {} as never, hostContext, {} as never);
 
       // Assert
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('View missing explicit "id" prop')
-      );
+      expect(warnSpy).toHaveBeenCalledWith('MapView needs a stable id');
     });
 
-    it('should error in dev mode when View passed to <layer>', () => {
+    it('should warn in dev mode when View passed to <layer>', () => {
       // Arrange
       process.env.NODE_ENV = 'development';
-      const {errorSpy} = setupConsoleSpy();
+      const {warnSpy} = setupLogSpy();
 
       const view = new MapView({id: 'test-view'});
       const type: Type = 'layer';
@@ -174,15 +168,13 @@ describe('config-instance-creation', () => {
       createInstance(type, props, {} as never, hostContext, {} as never);
 
       // Assert
-      expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('View instance passed to <layer> element')
-      );
+      expect(warnSpy).toHaveBeenCalledWith('Pass MapView to <view>, not <layer>');
     });
 
     it('should not warn in production mode for missing IDs', () => {
       // Arrange
       process.env.NODE_ENV = 'production';
-      const {warnSpy} = setupConsoleSpy();
+      const {warnSpy} = setupLogSpy();
 
       const layer = new ScatterplotLayer({data: []}); // No ID
       const type: Type = 'layer';
@@ -390,11 +382,8 @@ describe('config-instance-creation', () => {
   });
 
   describe('cloneHiddenTextInstance()', () => {
-    it('should always throw error for text nodes', () => {
-      // Act & Assert
-      expect(() => cloneHiddenTextInstance()).toThrow(
-        'Text nodes are not supported in deck.gl renderer'
-      );
+    it('asserts, because text instances are never created', () => {
+      expect(() => cloneHiddenTextInstance()).toThrow();
     });
   });
 });

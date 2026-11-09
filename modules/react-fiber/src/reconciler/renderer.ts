@@ -1,6 +1,6 @@
 import type {Layer, View} from '@deck.gl/core';
-import {Deck, assert} from '@deck.gl/core';
-import {createStore, noop, log} from '../shared/index';
+import {Deck, assert, log} from '@deck.gl/core';
+import {createStore, noop} from '../shared/index';
 import type {ReactNode} from 'react';
 import reactReconciler from 'react-reconciler';
 import type {HostConfig} from 'react-reconciler';
@@ -95,7 +95,7 @@ export const renderer: ReturnType<typeof reactReconciler> = reactReconciler(
 export const roots = new Map<RootElement, ReconcilerRoot>();
 
 function reportError(error: unknown): void {
-  console.error(error);
+  log.error('DeckGL error', error)();
 }
 
 /**
@@ -132,14 +132,8 @@ function reportError(error: unknown): void {
 export function unmountAtNode(node: RootElement) {
   const root = roots.get(node);
 
-  log
-    .withMetadata({
-      node,
-      root
-    })
-    .debug('renderer.unmountAtNode');
-
   if (root?.container) {
+    log.log(3, 'DeckGL root unmounted')();
     renderer.updateContainer(null, root.container, null, noop);
 
     const state = root.store.getState();
@@ -192,12 +186,6 @@ export function unmountAtNode(node: RootElement) {
  * ```
  */
 export function createRoot(node: RootElement, options: RootOptions = {}): ReconcilerRoot {
-  log
-    .withMetadata({
-      node
-    })
-    .debug('renderer.createRoot');
-
   const createExternalOverlay = options.createExternalOverlay;
   const isExternalOverlay = Boolean(createExternalOverlay);
 
@@ -213,6 +201,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   }
 
   // Create new root
+  log.log(3, 'DeckGL root created')();
   const store = createStore(isExternalOverlay);
 
   /**
@@ -263,7 +252,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
       return;
     }
 
-    log.withMetadata(props).debug('renderer.configure');
+    log.log(4, 'DeckGL configure', props)();
 
     const state = store.getState();
     const deckgl = createExternalOverlay
@@ -276,12 +265,6 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   }
 
   function render(children: ReactNode) {
-    log
-      .withMetadata({
-        children
-      })
-      .debug('renderer.render');
-
     renderer.updateContainer(children, container, null, noop);
   }
 
