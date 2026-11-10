@@ -8,7 +8,7 @@ The package has two public surfaces:
 
 | Use case | Import | What it provides |
 | --- | --- | --- |
-| Applications | `@deck.gl-community/react-fiber` | The native `DeckGL` root plus the `<layer>`, `<view>` and `<widget>` elements. |
+| Applications | `@deck.gl-community/react-fiber` | The native `DeckGL` root plus the `<layer>`, `<view>`, `<widget>` and `<effect>` elements. |
 | Direct reconciler integration | `@deck.gl-community/react-fiber/reconciler` | Advanced root-management APIs. Most applications should use the native root instead. |
 
 ## Why layer instances
@@ -32,13 +32,14 @@ The native root creates a canvas-backed deck.gl renderer. In an application that
 
 ## How the native API works
 
-The root `DeckGL` entry point owns one standalone `Deck`. Import `/mapbox` or `/maplibre` when an application needs an external provider overlay; `interleaved` then selects that bound overlay's mode. Its children use three intrinsic React elements:
+The root `DeckGL` entry point owns one standalone `Deck`. Import `/mapbox` or `/maplibre` when an application needs an external provider overlay; `interleaved` then selects that bound overlay's mode. Its children use four intrinsic React elements:
 
 - `<layer>` receives a constructed deck.gl `Layer` instance.
 - `<view>` receives a constructed deck.gl `View` instance.
 - `<widget>` receives a constructed deck.gl `Widget` instance.
+- `<effect>` receives a constructed deck.gl effect, such as a `LightingEffect`.
 
-The renderer flattens the committed React tree into deck.gl's `layers`, `views` and `widgets` arrays. React components may be nested for application composition, but nesting a `<layer>` inside a `<view>` does not assign that layer to that view. Keep view-specific behavior in normal deck.gl configuration such as a layer filter, and give every layer and view a stable, explicit `id`.
+The renderer flattens the committed React tree into deck.gl's `layers`, `views`, `widgets` and `effects` arrays. React components may be nested for application composition, but nesting a `<layer>` inside a `<view>` does not assign that layer to that view. Keep view-specific behavior in normal deck.gl configuration such as a layer filter, and give every layer and view a stable, explicit `id`.
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';
@@ -85,5 +86,5 @@ Without `canvas`, a standalone root renders an unstyled wrapper and canvas. Give
 - [Migrate from `@deck.gl/react`](./developer-guide/migrate-from-deckgl-react.md) lists each change, with a recipe for keeping the old JSX layer syntax.
 - [Debugging](./developer-guide/debugging.md) explains how to trace a problem through the renderer, with logs, React DevTools and error boundaries.
 - [DeckGL API](./api-reference/deckgl.md) documents root ownership and lifecycle behavior.
-- [Native elements](./api-reference/native-elements.md) documents `<layer>`, `<view>` and `<widget>`.
+- [Native elements](./api-reference/native-elements.md) documents `<layer>`, `<view>`, `<widget>` and `<effect>`.
 - [React Fiber examples](/examples/react-fiber/overview) link to the maintained Vite, Next.js, React Router, and TanStack Start applications.

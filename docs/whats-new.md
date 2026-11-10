@@ -11,8 +11,8 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
   preserve visualization state, manage focus and background scrolling, and clean up on removal.
   See [Fullscreen controls](./modules/panels/api-reference/panel-components/full-screen-component.md).
 
-- **react-fiber:** the `DeckGL` root matches `@deck.gl/react`, a new `<widget>` element adds
-  deck.gl widgets from the React tree, and `/mapbox` and `/maplibre` roots attach to map overlays.
+- **react-fiber:** the `DeckGL` root matches `@deck.gl/react`, new `<widget>` and `<effect>`
+  elements add deck.gl widgets and effects from the React tree, and `/mapbox` and `/maplibre` roots attach to map overlays.
   See the [migration guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react).
 
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.

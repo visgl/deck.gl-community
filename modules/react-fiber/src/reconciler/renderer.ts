@@ -105,7 +105,7 @@ renderer.injectIntoDevTools({
  */
 export const roots = new Map<RootElement, ReconcilerRoot>();
 
-const EMPTY_JSX_DESCRIPTORS: JsxDescriptors = {layers: [], views: [], widgets: []};
+const EMPTY_JSX_DESCRIPTORS: JsxDescriptors = {effects: [], layers: [], views: [], widgets: []};
 
 function reportError(error: unknown): void {
   log.error('DeckGL error', error)();
@@ -264,14 +264,15 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
     store.setState({
       _passedLayers: props.layers ?? [],
       _passedViews: props.views,
-      _passedWidgets: props.widgets
+      _passedWidgets: props.widgets,
+      _passedEffects: props.effects
     });
 
     if (configured) {
       const deckgl = store.getState().deckgl;
       if (deckgl) {
         // A prop-only update need not commit the JSX tree again, so reapply its last
-        // committed layers, views and widgets in the same order that a commit uses.
+        // committed layers, views, widgets and effects in the same order that a commit uses.
         deckgl.setProps({
           ...props,
           ...combineRootDescriptors(

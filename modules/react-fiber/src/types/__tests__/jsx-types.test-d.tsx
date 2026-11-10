@@ -1,4 +1,10 @@
-import {MapView, Widget, type WidgetPlacement} from '@deck.gl/core';
+import {
+  LightingEffect,
+  MapView,
+  PostProcessEffect,
+  Widget,
+  type WidgetPlacement
+} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {createElement} from 'react';
 import {describe, expect, it} from 'vitest';
@@ -40,6 +46,23 @@ describe('JSX type tests', () => {
     const _widgetWithChildren: DeckGLElements['widget'] = {children: null, widget};
 
     expect(widgetElement).toBeDefined();
+  });
+
+  it('should type the effect element', () => {
+    const lighting = new LightingEffect();
+    const validEffect: DeckGLElements['effect'] = {effect: lighting};
+    const effectElement = createElement('effect', validEffect);
+    const _postProcess = (
+      <effect effect={new PostProcessEffect({name: 'p', passes: []} as never, {} as never)} />
+    );
+    const lightingElement = <effect effect={lighting} />;
+    // @ts-expect-error A layer is not an effect.
+    const _layerAsEffect: DeckGLElements['effect'] = {effect: new ScatterplotLayer({id: 'x'})};
+    // @ts-expect-error Effects have no children.
+    const _effectWithChildren: DeckGLElements['effect'] = {children: null, effect: lighting};
+
+    expect(effectElement).toBeDefined();
+    expect(lightingElement).toBeDefined();
   });
 
   it('should reject removed typed intrinsic declarations', () => {

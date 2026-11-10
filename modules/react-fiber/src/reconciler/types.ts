@@ -1,4 +1,4 @@
-import type {DeckProps, Layer, View, Widget} from '@deck.gl/core';
+import type {DeckProps, Effect, Layer, View, Widget} from '@deck.gl/core';
 import type {DeckGLRenderer, Store} from '../shared/index';
 import type {ReactNode} from 'react';
 import type {Fiber} from 'react-reconciler';
@@ -36,6 +36,7 @@ export interface Container {
  * @internal
  */
 export interface JsxDescriptors {
+  effects: Effect[];
   layers: Layer[];
   views: View[];
   widgets: Widget[];
@@ -70,8 +71,8 @@ export interface HostContext {
  * its children, forming the reconciler's internal tree structure.
  */
 export interface Instance {
-  /** The underlying deck.gl Layer, View or Widget object */
-  node: Layer | View | Widget;
+  /** The underlying deck.gl Layer, View, Widget or effect object */
+  node: Layer | View | Widget | Effect;
 
   /** Child instances in the reconciler tree */
   children: Instance[];

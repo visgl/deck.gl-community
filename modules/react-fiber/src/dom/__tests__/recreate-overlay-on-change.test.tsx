@@ -94,7 +94,9 @@ describe('createDeckGL recreateOverlayOnChange', () => {
       enabled: true,
       layers: [LAYER],
       pickingRadius: 5,
-      widgets: []
+      widgets: [],
+      effects: [],
+      effects: []
     });
 
     unmount();

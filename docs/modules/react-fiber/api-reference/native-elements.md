@@ -2,7 +2,7 @@
 
 ![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
 
-The native renderer accepts three deck.gl JSX elements: `<layer>`, `<view>` and `<widget>`. They are available after importing the root package:
+The native renderer accepts four deck.gl JSX elements: `<layer>`, `<view>`, `<widget>` and `<effect>`. They are available after importing the root package:
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';
@@ -60,9 +60,25 @@ import {CompassWidget, ZoomWidget} from '@deck.gl/widgets';
 
 deck.gl matches widgets by ID, as it does layers. Rendering a new widget instance with the same ID updates the mounted widget's props instead of adding another one, so creating the instance during render is fine. A widget has no children. Like `<layer>`, nesting a `<widget>` inside a `<view>` does not attach it to that view; set the widget's `viewId` instead.
 
+## `<effect>`
+
+`<effect>` requires one prop named `effect`. Its value must be a deck.gl effect, such as a `LightingEffect` or a `PostProcessEffect`.
+
+```tsx
+import {AmbientLight, LightingEffect, PostProcessEffect} from '@deck.gl/core';
+import {vignette} from '@luma.gl/effects';
+
+<DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
+  <effect effect={new LightingEffect({ambient: new AmbientLight({intensity: 1})})} />
+  {showVignette && <effect effect={new PostProcessEffect(vignette, {radius: 0.8})} />}
+</DeckGL>;
+```
+
+deck.gl matches effects by ID, as it does widgets. Rendering a new effect instance with the same ID updates the mounted effect's props instead of adding another one, so creating the instance during render is fine. A `LightingEffect` always has the ID `lighting-effect`, and a `PostProcessEffect` takes its ID from its shader module, so render at most one `LightingEffect` and one `PostProcessEffect` per shader module. An effect has no children.
+
 ## Tree shape and deck.gl output
 
-React components may return, nest, or conditionally render these elements. At commit time, the renderer walks the complete tree in depth-first order, then builds separate flat `layers`, `views` and `widgets` arrays for deck.gl. The order of the flattened layer list is the order deck.gl receives, so keep ordering deliberate.
+React components may return, nest, or conditionally render these elements. At commit time, the renderer walks the complete tree in depth-first order, then builds separate flat `layers`, `views`, `widgets` and `effects` arrays for deck.gl. The order of the flattened layer list is the order deck.gl receives, so keep ordering deliberate.
 
 This means that nesting is useful for React composition but does not create a parent-child deck.gl relationship. In this example, the layer is still placed in the root's flat layer list:
 
@@ -102,3 +118,7 @@ Here deck.gl receives the prop's `main-map` view, then `minimap`. The Mapbox and
 ## Mixing JSX and direct widgets
 
 The `widgets` prop is merged with `<widget>` children by ID, the same way as views: a widget from the prop replaces the `<widget>` with the same ID, and other prop widgets follow the JSX widgets. Removing the last `<widget>` leaves only the prop widgets. Unlike views, widgets are also sent to external-overlay roots, which pass them to the overlay's own `widgets` prop.
+
+## Mixing JSX and direct effects
+
+The `effects` prop is merged with `<effect>` children by ID, the same way as widgets: an effect from the prop replaces the `<effect>` with the same ID, and other prop effects follow the JSX effects. Removing the last `<effect>` leaves only the prop effects. Effects are also sent to external-overlay roots.

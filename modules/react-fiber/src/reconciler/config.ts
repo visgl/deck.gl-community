@@ -26,6 +26,7 @@ import {
   flattenTree,
   isLayer,
   isView,
+  isEffect,
   isWidget,
   organizeList
 } from './utils';
@@ -139,7 +140,7 @@ function warnIfDefaultId(descriptor: Layer | View): void {
  * Creates the supported native deck.gl elements.
  *
  * The reconciler accepts only pre-instantiated descriptors through `<layer>`,
- * `<view>` and `<widget>`, each of its own kind, so JavaScript callers receive the same
+ * `<view>`, `<widget>` and `<effect>`, each of its own kind, so JavaScript callers receive the same
  * runtime contract as TypeScript callers. A wrong or missing descriptor throws in every build.
  */
 function createDeckGLObject(type: Type, props: Props): Instance {
@@ -167,6 +168,14 @@ function createDeckGLObject(type: Type, props: Props): Instance {
       throw new Error(`<widget> needs a Widget, got ${describeValue(widget)}`);
     }
     return {children: [], node: widget};
+  }
+
+  if (type === 'effect') {
+    const effect = props.effect;
+    if (!isEffect(effect)) {
+      throw new Error(`<effect> needs a deck.gl effect, got ${describeValue(effect)}`);
+    }
+    return {children: [], node: effect};
   }
 
   throw new Error(`Unsupported element <${type}>`);

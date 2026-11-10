@@ -138,3 +138,69 @@ webglTest('the effects prop applies, keeps and removes deck.gl effects', async (
     container.remove();
   }
 });
+
+webglTest('<effect> elements apply and remove effects alongside the effects prop', async () => {
+  const container = document.createElement('div');
+  Object.assign(container.style, {height: '300px', position: 'relative', width: '400px'});
+  document.body.append(container);
+  const reactRoot = createRoot(container);
+  let deck: Deck | null = null;
+  let center: number[] = [];
+  let renders = 0;
+  const lighting = new LightingEffect({ambient: new AmbientLight({intensity: 1})});
+
+  const render = (invertInJsx: boolean) =>
+    reactRoot.render(
+      <DeckGL
+        effects={[lighting]}
+        initialViewState={{latitude: 0, longitude: 0, zoom: 0}}
+        onAfterRender={({gl}) => {
+          const pixel = new Uint8Array(4);
+          gl.readPixels(
+            gl.drawingBufferWidth / 2,
+            gl.drawingBufferHeight / 2,
+            1,
+            1,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            pixel
+          );
+          center = [...pixel];
+          renders++;
+        }}
+        onDeckChange={instance => {
+          deck = instance as Deck | null;
+        }}
+      >
+        <layer layer={createLayer()} />
+        {invertInJsx ? <effect effect={new PostProcessEffect(invert, {})} /> : null}
+      </DeckGL>
+    );
+
+  const renderAndWait = async (invertInJsx: boolean) => {
+    const before = renders;
+    await act(async () => render(invertInJsx));
+    await waitFor(() => renders > before);
+  };
+
+  try {
+    await renderAndWait(true);
+    await waitFor(() => center.join() === '0,255,255,255');
+    const [mounted] = getEffects(deck).filter(effect => effect.id === 'invert-pass');
+    expect(mounted).toBeDefined();
+    expect(getEffects(deck)).toContain(lighting);
+
+    // A new <effect> instance with the same id keeps the mounted effect.
+    await renderAndWait(true);
+    expect(center.join()).toBe('0,255,255,255');
+    expect(getEffects(deck)).toContain(mounted);
+
+    await renderAndWait(false);
+    await waitFor(() => center.join() === '255,0,0,255');
+    expect(getEffects(deck)).not.toContain(mounted);
+    expect(getEffects(deck)).toContain(lighting);
+  } finally {
+    act(() => reactRoot.unmount());
+    container.remove();
+  }
+});

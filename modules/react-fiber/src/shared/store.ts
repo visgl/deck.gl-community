@@ -58,6 +58,15 @@ export interface State {
    * @internal
    */
   _passedWidgets?: DeckProps<View | View[] | null>['widgets'];
+
+  /**
+   * Effects passed directly via the `effects` prop (internal use)
+   *
+   * Merged with JSX `<effect>` children; `undefined` when the prop is absent.
+   *
+   * @internal
+   */
+  _passedEffects?: DeckProps<View | View[] | null>['effects'];
 }
 
 /**

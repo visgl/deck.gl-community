@@ -1,4 +1,4 @@
-import {MapView} from '@deck.gl/core';
+import {LightingEffect, MapView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
@@ -214,7 +214,9 @@ describe('config-tree-operations', () => {
       expect(mockDeckGL.setProps).toHaveBeenCalledExactlyOnceWith({
         layers: [layer1, layer2],
         views: null,
-        widgets: []
+        widgets: [],
+        effects: [],
+        effects: []
       });
     });
 
@@ -237,8 +239,16 @@ describe('config-tree-operations', () => {
       replaceContainerChildren(container, [createMockInstance(view), createMockInstance(layer)]);
       replaceContainerChildren(container, [createMockInstance(layer)]);
 
-      expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(1, {layers: [layer], widgets: []});
-      expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(2, {layers: [layer], widgets: []});
+      expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(1, {
+        layers: [layer],
+        widgets: [],
+        effects: []
+      });
+      expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(2, {
+        layers: [layer],
+        widgets: [],
+        effects: []
+      });
     });
 
     it('should place _passedLayers after JSX layers, as @deck.gl/react does', () => {
@@ -273,7 +283,9 @@ describe('config-tree-operations', () => {
       expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [jsxLayer, passedLayer],
         views: null,
-        widgets: []
+        widgets: [],
+        effects: [],
+        effects: []
       });
     });
 
@@ -310,7 +322,9 @@ describe('config-tree-operations', () => {
       expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [layer],
         views: [view],
-        widgets: []
+        widgets: [],
+        effects: [],
+        effects: []
       });
     });
 
@@ -346,7 +360,9 @@ describe('config-tree-operations', () => {
       expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [layer],
         views: null,
-        widgets: []
+        widgets: [],
+        effects: [],
+        effects: []
       });
     });
 
@@ -380,7 +396,9 @@ describe('config-tree-operations', () => {
         expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
           layers: [],
           views: propView,
-          widgets: []
+          widgets: [],
+          effects: [],
+          effects: []
         });
       });
 
@@ -394,7 +412,9 @@ describe('config-tree-operations', () => {
         expect(deckgl.setProps).toHaveBeenLastCalledWith({
           layers: [],
           views: propViews,
-          widgets: []
+          widgets: [],
+          effects: [],
+          effects: []
         });
       });
 
@@ -413,7 +433,9 @@ describe('config-tree-operations', () => {
         expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
           layers: [],
           views: [propMain, jsxMinimap, propExtra],
-          widgets: []
+          widgets: [],
+          effects: [],
+          effects: []
         });
       });
 
@@ -427,7 +449,9 @@ describe('config-tree-operations', () => {
         expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
           layers: [],
           views: [jsxView, propView],
-          widgets: []
+          widgets: [],
+          effects: [],
+          effects: []
         });
       });
 
@@ -436,7 +460,11 @@ describe('config-tree-operations', () => {
 
         replaceContainerChildren(container, [createMockInstance(new MapView({id: 'jsx'}))]);
 
-        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({layers: [], widgets: []});
+        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
+          layers: [],
+          widgets: [],
+          effects: []
+        });
       });
 
       it('merges and sends views for an external overlay root that forwards them', () => {
@@ -456,13 +484,17 @@ describe('config-tree-operations', () => {
         expect(deckgl.setProps).toHaveBeenNthCalledWith(1, {
           layers: [],
           views: [mapView, minimap, propExtra],
-          widgets: []
+          widgets: [],
+          effects: [],
+          effects: []
         });
         // Without JSX views, the views prop is used unchanged.
         expect(deckgl.setProps).toHaveBeenNthCalledWith(2, {
           layers: [],
           views: propExtra,
-          widgets: []
+          widgets: [],
+          effects: [],
+          effects: []
         });
       });
 
@@ -473,7 +505,12 @@ describe('config-tree-operations', () => {
         replaceContainerChildren(container, []);
 
         // null makes the overlay fall back to its own map view.
-        expect(deckgl.setProps).toHaveBeenLastCalledWith({layers: [], views: null, widgets: []});
+        expect(deckgl.setProps).toHaveBeenLastCalledWith({
+          layers: [],
+          views: null,
+          widgets: [],
+          effects: []
+        });
       });
     });
 
@@ -522,6 +559,18 @@ describe('config-tree-operations', () => {
 
       expect(result.widgets).toStrictEqual([widget]);
       expect(result.views).toStrictEqual([view]);
+      expect(result.layers).toStrictEqual([layer]);
+    });
+
+    it('should separate effects from layers, views and widgets', () => {
+      const layer = new ScatterplotLayer({data: [], id: 'layer-1'});
+      const widget = new TestWidget({id: 'widget-1'});
+      const effect = new LightingEffect();
+
+      const result = organizeList([effect, widget, layer]);
+
+      expect(result.effects).toStrictEqual([effect]);
+      expect(result.widgets).toStrictEqual([widget]);
       expect(result.layers).toStrictEqual([layer]);
     });
 
