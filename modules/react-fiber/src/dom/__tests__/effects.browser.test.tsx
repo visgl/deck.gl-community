@@ -111,6 +111,14 @@ webglTest('the effects prop applies, keeps and removes deck.gl effects', async (
     expect(center.join()).toBe('0,255,255,255');
     expect(getEffects(deck)).toEqual(expect.arrayContaining(effects));
 
+    // deck.gl matches effects by id, so new instances update the mounted ones.
+    await renderAndWait([
+      new PostProcessEffect(invert, {}),
+      new LightingEffect({ambient: new AmbientLight({intensity: 1})})
+    ]);
+    expect(center.join()).toBe('0,255,255,255');
+    expect(getEffects(deck)).toEqual(expect.arrayContaining(effects));
+
     await renderAndWait([]);
     await waitFor(() => center.join() === '255,0,0,255');
     expect(getEffects(deck)).not.toContain(invertEffect);
