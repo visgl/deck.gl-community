@@ -194,14 +194,21 @@ function mergeWidgets(
  * An external overlay receives views only when its root forwards them, as the Mapbox and
  * MapLibre roots do; other overlays keep only their `views` prop.
  *
+ * A root with no views leaves deck.gl's `views` alone, as `@deck.gl/react` does, so a
+ * widget such as `SplitterWidget` can set them. After the last view is removed, the root
+ * sends `null` once, which restores deck.gl's default view.
+ *
  * @param props - The root's passed descriptors, and whether it is an external overlay that
  *   forwards views
  * @param jsx - Layers, views and widgets from the committed JSX tree
- * @returns The `layers`, `widgets` and, unless the overlay keeps its own, `views` to send
+ * @param sentViews - Whether the previous update sent views
+ * @returns The `layers` and `widgets` to send, and `views` when the root has any or just
+ *   removed its last one
  */
 export function combineRootDescriptors(
   props: RootDescriptorProps,
-  jsx: JsxDescriptors
+  jsx: JsxDescriptors,
+  sentViews = false
 ): Pick<DeckProps<ViewOrViews>, 'layers' | 'views' | 'widgets'> {
   const descriptors: Pick<DeckProps<ViewOrViews>, 'layers' | 'views' | 'widgets'> = {
     layers: [...jsx.layers, ...props._passedLayers],
@@ -209,7 +216,10 @@ export function combineRootDescriptors(
   };
 
   if (!props.isExternalOverlay || props.forwardViews) {
-    descriptors.views = mergeViews(jsx.views, props._passedViews);
+    const views = mergeViews(jsx.views, props._passedViews);
+    if (views || sentViews) {
+      descriptors.views = views;
+    }
   }
 
   return descriptors;

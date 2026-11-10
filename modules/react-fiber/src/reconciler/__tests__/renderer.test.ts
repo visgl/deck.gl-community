@@ -206,7 +206,7 @@ describe('renderer', () => {
 
       root.configure({layers});
 
-      expect(deck.setProps).toHaveBeenCalledWith({layers, views: null, widgets: []});
+      expect(deck.setProps).toHaveBeenCalledWith({layers, widgets: []});
     });
 
     it('should forward replacement controlled view state and callback', () => {
@@ -222,7 +222,6 @@ describe('renderer', () => {
       expect(deck.setProps).toHaveBeenLastCalledWith({
         layers: [],
         viewState: secondViewState,
-        views: null,
         widgets: [],
         onViewStateChange: secondHandler
       });

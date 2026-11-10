@@ -213,7 +213,6 @@ describe('config-tree-operations', () => {
       // Assert
       expect(mockDeckGL.setProps).toHaveBeenCalledExactlyOnceWith({
         layers: [layer1, layer2],
-        views: null,
         widgets: []
       });
     });
@@ -272,7 +271,6 @@ describe('config-tree-operations', () => {
       // Assert
       expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [jsxLayer, passedLayer],
-        views: null,
         widgets: []
       });
     });
@@ -315,7 +313,7 @@ describe('config-tree-operations', () => {
     });
 
     // `null` restores deck.gl's default view; an empty list would leave it with no view.
-    it('should reset views to the default view without JSX views or a views prop', () => {
+    it("leaves deck.gl's views alone without JSX views or a views prop", () => {
       // Arrange
       const layer = new ScatterplotLayer({data: [], id: 'layer'});
       const child = createMockInstance(layer);
@@ -343,9 +341,9 @@ describe('config-tree-operations', () => {
       replaceContainerChildren(container, newChildren);
 
       // Assert
-      expect(mockDeckGL.setProps).toHaveBeenCalledWith({
+      // A widget such as SplitterWidget may have set deck.gl's views, as in @deck.gl/react.
+      expect(mockDeckGL.setProps).toHaveBeenCalledExactlyOnceWith({
         layers: [layer],
-        views: null,
         widgets: []
       });
     });
@@ -464,6 +462,18 @@ describe('config-tree-operations', () => {
           views: propExtra,
           widgets: []
         });
+      });
+
+      it('sends null once after the last JSX view is removed, then leaves views alone', () => {
+        const {container, deckgl} = createViewsContainer(undefined);
+
+        replaceContainerChildren(container, [createMockInstance(new MapView({id: 'minimap'}))]);
+        replaceContainerChildren(container, []);
+        // null restores deck.gl's default view.
+        expect(deckgl.setProps).toHaveBeenLastCalledWith({layers: [], views: null, widgets: []});
+
+        replaceContainerChildren(container, []);
+        expect(deckgl.setProps).toHaveBeenLastCalledWith({layers: [], widgets: []});
       });
 
       it('sends null to a view-forwarding overlay after its last JSX view is removed', () => {
