@@ -1,6 +1,6 @@
 import type {DeckProps, Layer, View} from '@deck.gl/core';
 import {assert, log} from '@deck.gl/core';
-import {globalScope} from '../shared/constants';
+import {RENDERER_PACKAGE_NAME, RENDERER_VERSION, globalScope} from '../shared/constants';
 import {createContext} from 'react';
 import type {Fiber, ReactContext} from 'react-reconciler';
 import {
@@ -93,6 +93,13 @@ export const supportsMicrotasks = true;
  * React DOM or some other existing renderer, set it to `false`.
  */
 export const isPrimaryRenderer = false;
+
+/** The renderer name and version that React DevTools reads when the renderer registers. */
+export const rendererPackageName = RENDERER_PACKAGE_NAME;
+export const rendererVersion = RENDERER_VERSION;
+
+/** No custom inspection config for React DevTools. */
+export const extraDevToolsConfig = null;
 
 /**
  * You can proxy this to `setTimeout` or its equivalent in your environment.
