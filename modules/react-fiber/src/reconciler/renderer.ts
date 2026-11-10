@@ -8,6 +8,7 @@ import type {HostConfig} from 'react-reconciler';
 import {ConcurrentRoot} from 'react-reconciler/constants.js';
 
 import * as config from './config';
+import {RootErrorBoundary} from './error-boundary';
 import {combineRootDescriptors} from './utils';
 import type {
   ChildSet,
@@ -108,6 +109,15 @@ const EMPTY_JSX_DESCRIPTORS: JsxDescriptors = {layers: [], views: [], widgets: [
 
 function reportError(error: unknown): void {
   log.error('DeckGL error', error)();
+}
+
+function reportCaughtError(error: unknown, info: object): void {
+  // `DeckGL` rethrows what its own boundary catches, so React reports that error in the host tree.
+  // React passes the catching boundary in `info`, although @types/react-reconciler omits it.
+  if ((info as {errorBoundary?: unknown}).errorBoundary instanceof RootErrorBoundary) {
+    return;
+  }
+  reportError(error);
 }
 
 /**
@@ -225,7 +235,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
    * - concurrentUpdatesByDefaultOverride: null
    * - identifierPrefix: empty string
    * - onUncaughtError: reportError handler
-   * - onCaughtError: reportError handler
+   * - onCaughtError: reportCaughtError, which skips errors that `DeckGL` rethrows
    * - onRecoverableError: reportError handler
    * - transitionCallbacks: null
    *
@@ -239,7 +249,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
     null,
     '',
     reportError,
-    reportError,
+    reportCaughtError,
     reportError,
     () => null
   );
