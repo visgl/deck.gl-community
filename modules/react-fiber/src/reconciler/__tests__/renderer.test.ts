@@ -270,7 +270,6 @@ describe('renderer', () => {
         interleaved: true,
         layers: [],
         widgets: [],
-        effects: [],
         effects: []
       });
     });
@@ -312,7 +311,6 @@ describe('renderer', () => {
         ...updateProps,
         layers: [],
         widgets: [],
-        effects: [],
         effects: []
       });
     });
@@ -649,7 +647,7 @@ describe('renderer', () => {
 
   describe('effects', () => {
     function createPostProcessEffect(name: string) {
-      return new PostProcessEffect({name, fs: '', passes: []} as never, {});
+      return new PostProcessEffect({name, fs: '', passes: []} as never, {} as never);
     }
 
     it('sends JSX effects to deck.gl in tree order, from any depth', async () => {

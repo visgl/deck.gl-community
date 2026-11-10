@@ -215,7 +215,6 @@ describe('config-tree-operations', () => {
         layers: [layer1, layer2],
         views: null,
         widgets: [],
-        effects: [],
         effects: []
       });
     });
@@ -284,7 +283,6 @@ describe('config-tree-operations', () => {
         layers: [jsxLayer, passedLayer],
         views: null,
         widgets: [],
-        effects: [],
         effects: []
       });
     });
@@ -323,7 +321,6 @@ describe('config-tree-operations', () => {
         layers: [layer],
         views: [view],
         widgets: [],
-        effects: [],
         effects: []
       });
     });
@@ -361,7 +358,6 @@ describe('config-tree-operations', () => {
         layers: [layer],
         views: null,
         widgets: [],
-        effects: [],
         effects: []
       });
     });
@@ -397,7 +393,6 @@ describe('config-tree-operations', () => {
           layers: [],
           views: propView,
           widgets: [],
-          effects: [],
           effects: []
         });
       });
@@ -413,7 +408,6 @@ describe('config-tree-operations', () => {
           layers: [],
           views: propViews,
           widgets: [],
-          effects: [],
           effects: []
         });
       });
@@ -434,7 +428,6 @@ describe('config-tree-operations', () => {
           layers: [],
           views: [propMain, jsxMinimap, propExtra],
           widgets: [],
-          effects: [],
           effects: []
         });
       });
@@ -450,7 +443,6 @@ describe('config-tree-operations', () => {
           layers: [],
           views: [jsxView, propView],
           widgets: [],
-          effects: [],
           effects: []
         });
       });
@@ -485,7 +477,6 @@ describe('config-tree-operations', () => {
           layers: [],
           views: [mapView, minimap, propExtra],
           widgets: [],
-          effects: [],
           effects: []
         });
         // Without JSX views, the views prop is used unchanged.
@@ -493,7 +484,6 @@ describe('config-tree-operations', () => {
           layers: [],
           views: propExtra,
           widgets: [],
-          effects: [],
           effects: []
         });
       });

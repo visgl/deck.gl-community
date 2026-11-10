@@ -95,7 +95,6 @@ describe('createDeckGL recreateOverlayOnChange', () => {
       layers: [LAYER],
       pickingRadius: 5,
       widgets: [],
-      effects: [],
       effects: []
     });
 
