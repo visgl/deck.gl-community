@@ -622,7 +622,8 @@ export function replaceContainerChildren(container: Container, newChildren: Chil
     // NOTE: keep the committed descriptors so a prop-only reconfigure can reapply them,
     // then combine them with the `layers` prop on `<DeckGL />` (JSX layers first)
     container.jsxDescriptors = types;
-    const propsUpdate = combineRootDescriptors(state, types);
+    const propsUpdate = combineRootDescriptors(state, types, container.sentViews);
+    container.sentViews = Boolean(propsUpdate.views);
 
     log.log(3, 'DeckGL commit', propsUpdate)();
 

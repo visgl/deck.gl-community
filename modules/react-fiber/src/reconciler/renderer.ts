@@ -273,13 +273,13 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
       if (deckgl) {
         // A prop-only update need not commit the JSX tree again, so reapply its last
         // committed layers, views, widgets and effects in the same order that a commit uses.
-        deckgl.setProps({
-          ...props,
-          ...combineRootDescriptors(
-            store.getState(),
-            containerInfo.jsxDescriptors ?? EMPTY_JSX_DESCRIPTORS
-          )
-        });
+        const descriptors = combineRootDescriptors(
+          store.getState(),
+          containerInfo.jsxDescriptors ?? EMPTY_JSX_DESCRIPTORS,
+          containerInfo.sentViews
+        );
+        containerInfo.sentViews = Boolean(descriptors.views);
+        deckgl.setProps({...props, ...descriptors});
       }
       return;
     }
@@ -290,6 +290,8 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
       : new Deck<View | View[] | null>(props);
 
     state.setDeckGL(deckgl);
+    // The instance starts with the `views` prop, so removing it later must send `null`.
+    containerInfo.sentViews = Boolean(props.views);
 
     configured = true;
   }

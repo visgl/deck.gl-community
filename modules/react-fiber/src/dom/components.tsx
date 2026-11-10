@@ -1,5 +1,5 @@
 import 'client-only';
-import {assert, type Deck} from '@deck.gl/core';
+import {assert, type Deck, type View} from '@deck.gl/core';
 import {createRoot, unmountAtNode} from '../reconciler/index';
 import {RootErrorBoundary} from '../reconciler/error-boundary';
 import type {
@@ -267,7 +267,13 @@ export function createDeckGL<Props, Instance extends DeckGLRenderer>(
   return createDeckGLComponent(options);
 }
 
-/** The standalone Deck root exported from the package root and `/dom`. */
-export function DeckGL(props: DeckGLProps) {
-  return <PlainDeckGLComponent {...props} />;
+/**
+ * The standalone Deck root exported from the package root and `/dom`.
+ *
+ * As in `@deck.gl/react`, the view state props are typed from the `views` prop. Without it,
+ * they take one map view state. For views from `<view>` children or a widget, name their
+ * type: `<DeckGL<MapView[]> initialViewState={{left: ..., right: ...}}>`.
+ */
+export function DeckGL<ViewsT extends View | View[] | null = null>(props: DeckGLProps<ViewsT>) {
+  return <PlainDeckGLComponent {...(props as DeckGLProps)} />;
 }

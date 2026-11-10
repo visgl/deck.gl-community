@@ -84,6 +84,7 @@
     "@deck.gl/layers": "~9.4.1",
     "@deck.gl/mapbox": "~9.4.1",
     "@deck.gl/maplibre": "~9.4.1",
+    "@deck.gl/widgets": "~9.4.1",
     "@loaders.gl/core": "^4.5.1",
     "@luma.gl/core": "~9.4.2",
     "@luma.gl/engine": "~9.4.2",

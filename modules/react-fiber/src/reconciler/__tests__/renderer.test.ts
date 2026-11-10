@@ -214,7 +214,7 @@ describe('renderer', () => {
 
       root.configure({layers});
 
-      expect(deck.setProps).toHaveBeenCalledWith({layers, views: null, widgets: [], effects: []});
+      expect(deck.setProps).toHaveBeenCalledWith({layers, widgets: [], effects: []});
     });
 
     it('should forward replacement controlled view state and callback', () => {
@@ -230,7 +230,6 @@ describe('renderer', () => {
       expect(deck.setProps).toHaveBeenLastCalledWith({
         layers: [],
         viewState: secondViewState,
-        views: null,
         widgets: [],
         effects: [],
         onViewStateChange: secondHandler
@@ -253,6 +252,24 @@ describe('renderer', () => {
 
       expect(() => root.configure({canvas, interleaved: true} as never)).not.toThrow();
       expect(root.store.getState().deckgl).toBeInstanceOf(Deck);
+    });
+
+    it('restores the default view when the views prop of the first configure is removed', () => {
+      const overlay = {finalize: vi.fn(), setProps: vi.fn()};
+      const root = createRoot(createTestRootElement(), {
+        createExternalOverlay: () => overlay,
+        forwardViews: true
+      });
+
+      root.configure({views: [new MapView({id: 'custom'})]});
+      root.configure({});
+
+      expect(overlay.setProps).toHaveBeenLastCalledWith({
+        layers: [],
+        views: null,
+        widgets: [],
+        effects: []
+      });
     });
 
     it('creates a bound external overlay once and forwards later props', () => {

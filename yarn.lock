@@ -1155,6 +1155,7 @@ __metadata:
     "@deck.gl/layers": "npm:~9.4.1"
     "@deck.gl/mapbox": "npm:~9.4.1"
     "@deck.gl/maplibre": "npm:~9.4.1"
+    "@deck.gl/widgets": "npm:~9.4.1"
     "@loaders.gl/core": "npm:^4.5.1"
     "@luma.gl/core": "npm:~9.4.2"
     "@luma.gl/engine": "npm:~9.4.2"
