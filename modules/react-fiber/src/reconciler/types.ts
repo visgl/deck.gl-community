@@ -28,6 +28,14 @@ export interface Container {
    * @internal
    */
   jsxDescriptors?: JsxDescriptors;
+
+  /**
+   * Whether the last update sent `views`. The root sends `null` once after its last view is
+   * removed, then leaves deck.gl's views alone.
+   *
+   * @internal
+   */
+  sentViews?: boolean;
 }
 
 /**

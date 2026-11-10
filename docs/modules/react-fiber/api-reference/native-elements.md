@@ -60,6 +60,30 @@ import {CompassWidget, ZoomWidget} from '@deck.gl/widgets';
 
 deck.gl matches widgets by ID, as it does layers. Rendering a new widget instance with the same ID updates the mounted widget's props instead of adding another one, so creating the instance during render is fine. A widget has no children. Like `<layer>`, nesting a `<widget>` inside a `<view>` does not attach it to that view; set the widget's `viewId` instead.
 
+`SplitterWidget` from `@deck.gl/widgets` sets deck.gl's views itself. Without `<view>` children or a `views` prop, the root leaves them alone, so the split survives re-renders. To keep the views in React state instead, pass `onChange` and render the views it reports:
+
+```tsx
+import {_SplitterWidget as SplitterWidget} from '@deck.gl/widgets';
+
+function App() {
+  const [views, setViews] = useState<View[]>([]);
+  const splitter = useMemo(
+    () => new SplitterWidget({id: 'splitter', onChange: setViews, viewLayout: VIEW_LAYOUT}),
+    []
+  );
+  return (
+    <DeckGL<MapView[]> initialViewState={INITIAL_VIEW_STATE} controller>
+      {views.map(view => (
+        <view key={view.id} view={view} />
+      ))}
+      <widget widget={splitter} />
+    </DeckGL>
+  );
+}
+```
+
+In TypeScript, the view state props are typed from the `views` prop, as in `@deck.gl/react`. For views from `<view>` children or a widget, name their type to pass one view state per view: `<DeckGL<MapView[]> initialViewState={{left: LEFT_VIEW_STATE, right: RIGHT_VIEW_STATE}}>`.
+
 ## Tree shape and deck.gl output
 
 React components may return, nest, or conditionally render these elements. At commit time, the renderer walks the complete tree in depth-first order, then builds separate flat `layers`, `views` and `widgets` arrays for deck.gl. The order of the flattened layer list is the order deck.gl receives, so keep ordering deliberate.
@@ -88,7 +112,7 @@ The `DeckGL` root also accepts its usual `layers` prop. As in `@deck.gl/react`, 
 
 ## Mixing JSX and direct views
 
-The `views` prop works like it does in `@deck.gl/react`. Without `<view>` children, the root sends the `views` prop to deck.gl unchanged; without either, deck.gl uses its default view. When the root has both, it merges them by ID: a view from the prop replaces the `<view>` with the same ID, and other prop views follow the JSX views. Removing the last `<view>` falls back to the `views` prop, or to deck.gl's default view when there is no prop.
+The `views` prop works like it does in `@deck.gl/react`. Without `<view>` children, the root sends the `views` prop to deck.gl unchanged. Without either, the root leaves deck.gl's views alone, so deck.gl shows its default view or the views a widget such as `SplitterWidget` sets. When the root has both, it merges them by ID: a view from the prop replaces the `<view>` with the same ID, and other prop views follow the JSX views. Removing the last `<view>` falls back to the `views` prop, or to deck.gl's default view when there is no prop.
 
 ```tsx
 <DeckGL views={[new MapView({id: 'main-map', controller: true})]}>
