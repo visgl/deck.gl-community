@@ -1,5 +1,6 @@
 import type {Layer, View} from '@deck.gl/core';
 import {Deck, assert, log} from '@deck.gl/core';
+import {RENDERER_PACKAGE_NAME, RENDERER_VERSION} from '../shared/constants';
 import {createStore, noop} from '../shared/index';
 import type {ReactNode} from 'react';
 import reactReconciler from 'react-reconciler';
@@ -75,6 +76,14 @@ export const renderer: ReturnType<typeof reactReconciler> = reactReconciler(
     null
   >
 );
+
+// Lets React DevTools show the tree inside each `DeckGL` root. react-reconciler@0.33 reads the
+// name and version from the host config; the argument only satisfies older typings.
+renderer.injectIntoDevTools({
+  bundleType: process.env.NODE_ENV === 'production' ? 0 : 1,
+  rendererPackageName: RENDERER_PACKAGE_NAME,
+  version: RENDERER_VERSION
+});
 
 /**
  * Active reconciler roots registry
