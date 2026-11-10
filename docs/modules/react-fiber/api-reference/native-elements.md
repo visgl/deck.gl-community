@@ -116,33 +116,26 @@ Use deck.gl's normal view and layer configuration when an application needs view
 
 Refs on these intrinsic elements resolve to their deck.gl instance, not an internal renderer wrapper. Use this low-level escape hatch sparingly; normal React data flow and deck.gl props are easier to keep in sync.
 
-## Mixing declarative and direct layers
+## Mixing elements and props
 
-The `DeckGL` root also accepts its usual `layers` prop. As in `@deck.gl/react`, the renderer places the layers produced by `<layer>` elements first and the direct layers after them, so direct layers draw on top. This supports incremental adoption, but it also means IDs must be unique across both lists.
+Each element has a matching `DeckGL` prop: `layers`, `views`, `widgets` and `effects`. The root combines the two, as `@deck.gl/react` does:
+
+- **Layers.** `<layer>` layers come first and `layers` prop layers after them, so prop layers draw on top. IDs must be unique across both lists.
+- **Views, widgets and effects.** The root merges them by ID. A prop entry replaces the element with the same ID, and other prop entries follow the elements.
 
 ```tsx
-<DeckGL layers={[new ScatterplotLayer({id: 'existing-layer', data: []})]}>
+<DeckGL
+  layers={[new ScatterplotLayer({id: 'existing-layer', data: []})]}
+  views={[new MapView({id: 'main-map', controller: true})]}
+>
   <layer layer={new ScatterplotLayer({id: 'react-layer', data: []})} />
-</DeckGL>;
-```
-
-## Mixing JSX and direct views
-
-The `views` prop works like it does in `@deck.gl/react`. Without `<view>` children, the root sends the `views` prop to deck.gl unchanged. Without either, the root leaves deck.gl's views alone, so deck.gl shows its default view or the views a widget such as `SplitterWidget` sets. When the root has both, it merges them by ID: a view from the prop replaces the `<view>` with the same ID, and other prop views follow the JSX views. Removing the last `<view>` falls back to the `views` prop, or to deck.gl's default view when there is no prop.
-
-```tsx
-<DeckGL views={[new MapView({id: 'main-map', controller: true})]}>
   <view view={new MapView({id: 'main-map'})} />
   <view view={new MapView({id: 'minimap', x: '75%', width: '25%', height: '25%'})} />
 </DeckGL>;
 ```
 
-Here deck.gl receives the prop's `main-map` view, then `minimap`. The Mapbox and MapLibre roots merge views the same way; a custom overlay root does only with [`forwardViews`](./deckgl.md#custom-compatible-overlays).
+Here deck.gl receives `react-layer` then `existing-layer`, and the prop's `main-map` view then `minimap`.
 
-## Mixing JSX and direct widgets
+Removing the last element of a kind leaves only the prop's entries; removing the last `<view>` with no `views` prop brings back deck.gl's default view. A root with neither leaves deck.gl's views alone, so a widget such as `SplitterWidget` can set them.
 
-The `widgets` prop is merged with `<widget>` children by ID, the same way as views: a widget from the prop replaces the `<widget>` with the same ID, and other prop widgets follow the JSX widgets. Removing the last `<widget>` leaves only the prop widgets. Unlike views, widgets are also sent to external-overlay roots, which pass them to the overlay's own `widgets` prop.
-
-## Mixing JSX and direct effects
-
-The `effects` prop is merged with `<effect>` children by ID, the same way as widgets: an effect from the prop replaces the `<effect>` with the same ID, and other prop effects follow the JSX effects. Removing the last `<effect>` leaves only the prop effects. Effects are also sent to external-overlay roots.
+The Mapbox and MapLibre roots merge views the same way; a custom overlay root does only with [`forwardViews`](./deckgl.md#custom-compatible-overlays). Widgets and effects are sent to every external-overlay root.
