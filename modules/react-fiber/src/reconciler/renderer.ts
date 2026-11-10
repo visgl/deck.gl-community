@@ -289,6 +289,8 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
       : new Deck<View | View[] | null>(props);
 
     state.setDeckGL(deckgl);
+    // The instance starts with the `views` prop, so removing it later must send `null`.
+    containerInfo.sentViews = Boolean(props.views);
 
     configured = true;
   }
