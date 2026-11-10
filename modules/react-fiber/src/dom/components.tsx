@@ -1,6 +1,7 @@
 import 'client-only';
 import {assert, type Deck} from '@deck.gl/core';
 import {createRoot, unmountAtNode} from '../reconciler/index';
+import {RootErrorBoundary} from '../reconciler/error-boundary';
 import type {
   DeckGLConfiguration,
   ReconcilerRoot,
@@ -13,7 +14,7 @@ import {useEffectEvent} from '../shared/use-effect-event';
 import type {DeckGLRootProps, DeckGLProps, OnDeckChange} from '../types/index';
 import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
-import {useRef, useState} from 'react';
+import {useCallback, useRef, useState} from 'react';
 import type {ReactNode, RefObject} from 'react';
 import {useIsomorphicLayoutEffect} from '../shared/use-isomorphic-layout-effect';
 
@@ -97,6 +98,10 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
     });
 
     const Bridge: ContextBridge = useContextBridge();
+    // An error caught inside the reconciler root, rethrown below so the application's
+    // error boundaries handle it.
+    const [rootError, setRootError] = useState<{error: unknown} | null>(null);
+    const handleRootError = useCallback((error: unknown) => setRootError({error}), []);
     const wrapper = useRef<HTMLDivElement>(null);
     const canvas = useRef<HTMLCanvasElement>(null);
     const detachedRoot = useRef<HTMLDivElement | null>(null);
@@ -141,8 +146,12 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
 
       root.configure(rootConfig);
       notifyDeckChange(root.store.getState().deckgl as Instance | null);
-      root.render(<Bridge>{children}</Bridge>);
-    }, [children, config, Bridge]);
+      root.render(
+        <Bridge>
+          <RootErrorBoundary onError={handleRootError}>{children}</RootErrorBoundary>
+        </Bridge>
+      );
+    }, [children, config, Bridge, handleRootError]);
 
     // A layout cleanup releases the old root before a replacement root's layout effect
     // configures it, so `onDeckChange` reports `null` before the new instance.
@@ -158,6 +167,10 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
         };
       }
     }, [config.canvas]);
+
+    if (rootError) {
+      throw rootError.error;
+    }
 
     if (isExternalOverlay || config.canvas) {
       return null;
