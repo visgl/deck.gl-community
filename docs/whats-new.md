@@ -28,9 +28,6 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
 - **react-fiber:** React DevTools shows the `<layer>`, `<view>` and `<widget>` elements inside
   each `DeckGL` root, with their props.
 
-- **react-fiber:** errors thrown inside `DeckGL` reach the application's error boundaries.
-  Before, React tore down the tree inside the root and only logged the error.
-
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
 - **Website:** fix the mobile navigation drawer, replace generic gallery artwork with
