@@ -27,10 +27,12 @@ new TreeLayer({
       crop: {kind: 'fruit', color: [244, 153, 34, 255], count: 40, radius: 0.08}
     }
   ],
-  windStrength: 0.025,
   pickable: true
 });
 ```
+
+Wind comes from a [`WindEffect`](./wind-effect.md) on the deck, so every tree layer bends in the
+same direction: `new Deck({effects: [new WindEffect({strength: 0.025})], layers})`.
 
 Each row is a [`TreeSpec`](#treespec) by default. Use `getTree` to map other records:
 
@@ -51,8 +53,8 @@ properties. Picking, `autoHighlight` and `highlightedObjectIndex` use the source
 | `getTree` | `d => d` | Returns the [`TreeSpec`](#treespec) for a row. |
 | `characteristics` | `{}` | Shared crown morphology for every tree. See [Characteristics](#characteristics). |
 | `sizeScale` | `1` | Multiplier for all tree and crop dimensions. |
-| `windStrength` | `0` | Wind bend as a fraction of tree height. `0.025` is a gentle breeze. |
-| `windTime` | `null` | Wind clock in seconds. `null` follows deck.gl's animation timeline. |
+| `windStrength` | `null` | Wind bend as a fraction of tree height. `null` follows the [`WindEffect`](./wind-effect.md); `0` keeps this layer still. |
+| `windTime` | `null` | Wind clock in seconds. `null` follows the `WindEffect`, then deck.gl's animation timeline. |
 | `maxCanopySplats` | `'auto'` | Shared foliage splat budget. `'auto'` picks one for the device. |
 | `maxCanopyPixels` | `Infinity` | Pixel cap for foliage rendering. Lower values soften leaves. |
 | `foveationStrength` | `0` | `0`–`1`. Under a tight budget, favors crowns near the screen center. |
@@ -97,7 +99,7 @@ crown radius in metres, set `crownRadius` in `getTree` instead.
 | `elevation` | Base elevation in metres. |
 | `season` | `spring`, `summer`, `autumn` or `winter`. |
 | `crop` | Optional [`CropConfig`](#cropconfig). Trees never get crops unless you supply them. |
-| `wind` | `true`, `false` or a bend fraction up to `0.2`. Defaults to `windStrength`. |
+| `wind` | `true` (`0.025`), `false` or a bend fraction up to `0.2`. Defaults to `windStrength`, or the `WindEffect` strength. |
 | `characteristics` | Per-tree [characteristics](#characteristics), merged over the layer prop. |
 | `trunkColor` | RGBA bark color override. |
 | `canopyColor` | RGBA foliage color override. |
