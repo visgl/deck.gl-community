@@ -8,7 +8,7 @@ The native renderer accepts three deck.gl JSX elements: `<layer>`, `<view>` and 
 import {DeckGL} from '@deck.gl-community/react-fiber';
 ```
 
-The import also provides the TypeScript JSX declarations. The elements are not DOM elements and they do not create DOM nodes. Each one carries a constructed deck.gl descriptor into the React Fiber renderer. Normal React components can organize the tree when they ultimately return these elements, but raw DOM nodes and text do not belong inside `DeckGL`: the custom renderer rejects any other host children.
+The import also provides the TypeScript JSX declarations. The elements are not DOM elements and they do not create DOM nodes. Each one carries a constructed deck.gl descriptor into the React Fiber renderer. Normal React components can organize the tree when they ultimately return these elements, but raw DOM nodes and text do not belong inside `DeckGL`: the custom renderer rejects any other host children. Each element also throws, in every build, when its prop is missing or holds another kind of descriptor, for example a `View` passed to `<layer>`.
 
 ## `<layer>`
 
@@ -29,7 +29,7 @@ import {ScatterplotLayer} from '@deck.gl/layers';
 />;
 ```
 
-Use a stable, unique `id` for every layer. deck.gl uses IDs to compare new descriptors with prior descriptors. In development, the renderer warns about a missing layer ID and reports duplicate layer IDs in the committed JSX tree.
+Use a stable, unique `id` for every layer. deck.gl uses IDs to compare new descriptors with prior descriptors. Outside production builds, the renderer warns about a missing layer ID, and deck.gl warns when two layers share one.
 
 The `layer` prop is intentionally an instance rather than a set of JSX props. Use the layer class from its deck.gl package for its full, typed property API. For example, import `ScatterplotLayer` from `@deck.gl/layers`, not from the native React Fiber package.
 
@@ -43,7 +43,7 @@ import {MapView} from '@deck.gl/core';
 <view view={new MapView({id: 'main-map'})} />;
 ```
 
-Give every view an explicit ID. The renderer warns in development when a view has no ID or uses deck.gl's default `unknown` ID.
+Give every view an explicit ID. Outside production builds, the renderer warns when a view has no ID or uses deck.gl's default `unknown` ID.
 
 ## `<widget>`
 

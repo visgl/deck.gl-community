@@ -1,5 +1,5 @@
-import {View, Widget} from '@deck.gl/core';
-import type {DeckProps, Layer} from '@deck.gl/core';
+import {Layer, View, Widget} from '@deck.gl/core';
+import type {DeckProps} from '@deck.gl/core';
 
 import type {Instance} from './types';
 
@@ -24,13 +24,18 @@ import type {Instance} from './types';
  * }
  * ```
  */
-export function isView(instance: Instance['node']): instance is View {
+export function isView(instance: unknown): instance is View {
   return instance instanceof View;
 }
 
 /** Type guard to check if a node is a Widget instance. */
-export function isWidget(instance: Instance['node']): instance is Widget {
+export function isWidget(instance: unknown): instance is Widget {
   return instance instanceof Widget;
+}
+
+/** Type guard to check if a node is a Layer instance. */
+export function isLayer(instance: unknown): instance is Layer {
+  return instance instanceof Layer;
 }
 
 /**

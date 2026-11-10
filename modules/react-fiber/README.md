@@ -155,8 +155,8 @@ import {MapView} from '@deck.gl/core';
 ```
 
 Give every view an explicit ID. Use deck.gl's normal view and layer configuration when you need
-view-specific behavior. The renderer reports missing or duplicate IDs in development because they
-make deck.gl's diffing unreliable.
+view-specific behavior. Outside production builds, the renderer warns about missing IDs and deck.gl
+warns about duplicate layer IDs, because both make deck.gl's diffing unreliable.
 
 `DeckGL` also accepts deck.gl's ordinary `layers` prop. It prepends those layers to the layers
 created by JSX, which helps with incremental migration. IDs must remain unique across both
@@ -246,8 +246,8 @@ The package exports only the root, `/mapbox`, `/maplibre` and `/reconciler` entr
 modules such as the host configuration and root store are not importable.
 
 Warnings and traces go through deck.gl's `log`. Root creation, unmounting and commits log at
-level 3, and configured props at level 4: run `deck.log.enable()` and `deck.log.level = 3` in the
-browser console. The `debug` prop is a deck.gl prop and is passed to `Deck` or the overlay unchanged.
+level 3, and the props of every configure at level 4: run `deck.log.enable()` and
+`deck.log.level = 3` in the browser console. The `debug` prop is a deck.gl prop and is passed to `Deck` or the overlay unchanged.
 
 ## Commands
 

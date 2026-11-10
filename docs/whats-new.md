@@ -25,6 +25,9 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
 - **react-fiber:** new [`<widget>`](/docs/modules/react-fiber/api-reference/native-elements#widget)
   element adds a deck.gl widget from the React tree, merged with the `widgets` prop by id.
 
+- **react-fiber:** React DevTools shows the `<layer>`, `<view>` and `<widget>` elements inside
+  each `DeckGL` root, with their props.
+
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
 - **Website:** fix the mobile navigation drawer, replace generic gallery artwork with

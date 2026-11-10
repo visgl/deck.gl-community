@@ -1,5 +1,6 @@
 // Uses the real reconciler: a recreated overlay must receive the JSX layers through a
 // full commit into its new root, not only the `layers` prop.
+import {ScatterplotLayer} from '@deck.gl/layers';
 import {act, render} from '@testing-library/react';
 import {StrictMode} from 'react';
 import {describe, expect, it, vi} from 'vitest';
@@ -29,7 +30,8 @@ function createFakeOverlayRoot() {
   return {CustomDeckGL, createExternalOverlay, events, onDeckChange, overlays};
 }
 
-const LAYER = {id: 'points'} as never;
+// A real layer: `<layer>` rejects anything that is not a deck.gl Layer.
+const LAYER = new ScatterplotLayer({id: 'points', data: []});
 
 async function flush() {
   await act(async () => {

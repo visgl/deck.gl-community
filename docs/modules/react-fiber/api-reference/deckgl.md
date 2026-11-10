@@ -40,7 +40,9 @@ On the standalone root, `canvas` accepts an `HTMLCanvasElement` or the id of a `
 
 Deck event properties such as `onClick` remain deck.gl callbacks, not React synthetic events on `<layer>` or `<view>`.
 
-`debug` is a deck.gl prop and is passed to `Deck` or the overlay unchanged. Warnings and traces go through deck.gl's `log`: root creation, unmounting and each commit log at level 3, and configured props at level 4. Enable them in the browser console with `deck.log.enable()` and `deck.log.level = 3`; see [Debugging](https://deck.gl/docs/developer-guide/debugging). The React Fiber [debugging guide](../developer-guide/debugging.md) explains how to read these logs alongside deck.gl's.
+`debug` is a deck.gl prop and is passed to `Deck` or the overlay unchanged. Warnings and traces go through deck.gl's `log`: root creation, unmounting and each commit log at level 3, and the props of every configure, including prop-only updates, at level 4. Enable them in the browser console with `deck.log.enable()` and `deck.log.level = 3`; see [Debugging](https://deck.gl/docs/developer-guide/debugging). The React Fiber [debugging guide](../developer-guide/debugging.md) explains how to read these logs alongside deck.gl's.
+
+The renderer registers with [React DevTools](https://react.dev/learn/react-developer-tools), so the Components tab shows the `<layer>`, `<view>` and `<widget>` elements inside each root, with their props and the components that render them.
 
 ## Custom compatible overlays
 
