@@ -77,39 +77,48 @@ describe('config-instance-creation', () => {
       expect(instance.children).toStrictEqual([]);
     });
 
-    it('should throw if <widget> element is not given a widget', () => {
+    it('throws when an element is missing its descriptor or gets another kind', () => {
       const hostContext = createMockHostContext();
-      const layer = new ScatterplotLayer({data: [], id: 'not-a-widget'});
+      const layer = new ScatterplotLayer({data: [], id: 'points'});
+      const view = new MapView({id: 'main'});
+      const widget = new TestWidget({id: 'widget'});
+      const cases: [Type, Props, string][] = [
+        ['layer', {}, '<layer> needs a Layer, got undefined'],
+        ['layer', {layer: null as never}, '<layer> needs a Layer, got null'],
+        ['layer', {layer: view as never}, '<layer> needs a Layer, got MapView'],
+        ['layer', {layer: widget as never}, '<layer> needs a Layer, got TestWidget'],
+        ['layer', {layer: {id: 'plain'} as never}, '<layer> needs a Layer, got Object'],
+        ['view', {}, '<view> needs a View, got undefined'],
+        ['view', {view: layer as never}, '<view> needs a View, got ScatterplotLayer'],
+        ['widget', {}, '<widget> needs a Widget, got undefined'],
+        ['widget', {widget: layer as never}, '<widget> needs a Widget, got ScatterplotLayer']
+      ];
 
-      for (const props of [{}, {widget: layer}]) {
-        expect(() =>
-          createInstance('widget', props, {} as never, hostContext, {} as never)
-        ).toThrow("<widget> element requires a 'widget' prop");
+      // The check runs in every build, not only in development.
+      for (const env of ['development', 'production']) {
+        process.env.NODE_ENV = env;
+        for (const [type, props, message] of cases) {
+          expect(() => createInstance(type, props, {} as never, hostContext, {} as never)).toThrow(
+            message
+          );
+        }
       }
     });
 
-    it('should throw if <layer> element missing layer prop', () => {
-      // Arrange
-      const type: Type = 'layer';
-      const props: Props = {};
-      const hostContext = createMockHostContext();
-
-      // Act & Assert
-      expect(() => createInstance(type, props, {} as never, hostContext, {} as never)).toThrow(
-        "<layer> element requires a 'layer' prop"
+    it('throws when an update swaps in another kind of descriptor', () => {
+      const layer = new ScatterplotLayer({data: [], id: 'points'});
+      const view = new MapView({id: 'main'});
+      const instance = createInstance(
+        'layer',
+        {layer},
+        {} as never,
+        createMockHostContext(),
+        {} as never
       );
-    });
 
-    it('should throw if <view> element missing view prop', () => {
-      // Arrange
-      const type: Type = 'view';
-      const props: Props = {};
-      const hostContext = createMockHostContext();
-
-      // Act & Assert
-      expect(() => createInstance(type, props, {} as never, hostContext, {} as never)).toThrow(
-        "<view> element requires a 'view' prop"
-      );
+      expect(() =>
+        cloneInstance(instance, 'layer', {layer}, {layer: view as never}, false, null)
+      ).toThrow('<layer> needs a Layer, got MapView');
     });
 
     it('should reject unsupported element types', () => {
@@ -154,21 +163,22 @@ describe('config-instance-creation', () => {
       expect(warnSpy).toHaveBeenCalledWith('MapView needs a stable id');
     });
 
-    it('should warn in dev mode when View passed to <layer>', () => {
-      // Arrange
-      process.env.NODE_ENV = 'development';
+    it('warns about default ids in every build except production, as deck.gl does', () => {
       const {warnSpy} = setupLogSpy();
-
-      const view = new MapView({id: 'test-view'});
-      const type: Type = 'layer';
-      const props: Props = {layer: view as never}; // Wrong type
       const hostContext = createMockHostContext();
 
-      // Act
-      createInstance(type, props, {} as never, hostContext, {} as never);
-
-      // Assert
-      expect(warnSpy).toHaveBeenCalledWith('Pass MapView to <view>, not <layer>');
+      for (const env of ['test', 'staging']) {
+        process.env.NODE_ENV = env;
+        warnSpy.mockClear();
+        createInstance(
+          'layer',
+          {layer: new ScatterplotLayer({data: [], id: 'unknown'})},
+          {} as never,
+          hostContext,
+          {} as never
+        );
+        expect(warnSpy).toHaveBeenCalledWith('ScatterplotLayer needs a stable id');
+      }
     });
 
     it('should not warn in production mode for missing IDs', () => {

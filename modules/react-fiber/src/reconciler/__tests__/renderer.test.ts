@@ -129,6 +129,26 @@ describe('renderer', () => {
         traceSpy.mockRestore();
       }
     });
+
+    it('traces the props of every configure, not only the first', () => {
+      const traceSpy = vi.spyOn(log, 'log').mockReturnValue(() => {});
+
+      try {
+        const root = createRoot(createTestRootElement());
+        const first = {layers: [new ScatterplotLayer({id: 'first', data: []})]};
+        const second = {layers: [new ScatterplotLayer({id: 'second', data: []})]};
+        root.configure(first);
+        root.configure(second);
+
+        const configures = traceSpy.mock.calls.filter(([, text]) => text === 'DeckGL configure');
+        expect(configures).toStrictEqual([
+          [4, 'DeckGL configure', first],
+          [4, 'DeckGL configure', second]
+        ]);
+      } finally {
+        traceSpy.mockRestore();
+      }
+    });
   });
 
   describe('configure', () => {

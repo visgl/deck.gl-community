@@ -247,6 +247,8 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   let configured = false;
 
   function configure(props: DeckGLConfiguration) {
+    log.log(4, 'DeckGL configure', props)();
+
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
     store.setState({
@@ -270,8 +272,6 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
       }
       return;
     }
-
-    log.log(4, 'DeckGL configure', props)();
 
     const state = store.getState();
     const deckgl = createExternalOverlay
