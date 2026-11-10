@@ -39,6 +39,15 @@ export interface State {
   _passedLayers: LayersList;
 
   /**
+   * Views passed directly via the `views` prop (internal use)
+   *
+   * Merged with JSX `<view>` children; `undefined` when the prop is absent.
+   *
+   * @internal
+   */
+  _passedViews?: View | View[] | null;
+
+  /**
    * Widgets passed directly via the `widgets` prop (internal use)
    *
    * Merged with JSX `<widget>` children; `undefined` when the prop is absent.

@@ -206,7 +206,7 @@ describe('renderer', () => {
 
       root.configure({layers});
 
-      expect(deck.setProps).toHaveBeenCalledWith({layers, widgets: []});
+      expect(deck.setProps).toHaveBeenCalledWith({layers, views: null, widgets: []});
     });
 
     it('should forward replacement controlled view state and callback', () => {
@@ -220,9 +220,11 @@ describe('renderer', () => {
       root.configure({viewState: secondViewState, onViewStateChange: secondHandler});
 
       expect(deck.setProps).toHaveBeenLastCalledWith({
+        layers: [],
         viewState: secondViewState,
-        onViewStateChange: secondHandler,
-        widgets: []
+        views: null,
+        widgets: [],
+        onViewStateChange: secondHandler
       });
     });
 
@@ -465,6 +467,89 @@ describe('renderer', () => {
 
       expect(deck.views.map(view => view.id)).toStrictEqual(['main']);
       expect(deck.getLayerIds()).toStrictEqual(['points']);
+    });
+  });
+
+  describe('layer order', () => {
+    function renderLayers(root: ReconcilerRoot, children: React.ReactNode) {
+      return React.act(async () => {
+        root.render(children);
+      });
+    }
+
+    it('places JSX layers before layers passed through the prop', async () => {
+      const {root, deck} = createTestRoot();
+      const passed = new ScatterplotLayer({data: [], id: 'passed'});
+      const jsx = new ScatterplotLayer({data: [], id: 'jsx'});
+
+      root.configure({layers: [passed]});
+      await renderLayers(root, React.createElement('layer', {layer: jsx}));
+
+      expect(deck.getLayerIds()).toStrictEqual(['jsx', 'passed']);
+    });
+
+    it('keeps JSX layers first when only the layers prop changes without a commit', async () => {
+      const {root, deck} = createTestRoot();
+      const jsx = new ScatterplotLayer({data: [], id: 'jsx'});
+      // A stable element: rendering it again does not commit a new JSX tree.
+      const children = React.createElement('layer', {layer: jsx});
+
+      root.configure({layers: [new ScatterplotLayer({data: [], id: 'first'})]});
+      await renderLayers(root, children);
+      const setPropsCalls = deck.setProps.mock.calls.length;
+
+      root.configure({layers: [new ScatterplotLayer({data: [], id: 'second'})]});
+      await renderLayers(root, children);
+
+      expect(deck.setProps.mock.calls.length).toBe(setPropsCalls + 1);
+      expect(deck.getLayerIds()).toStrictEqual(['jsx', 'second']);
+    });
+
+    it('keeps JSX layers when the layers prop is removed', async () => {
+      const {root, deck} = createTestRoot();
+      const children = React.createElement('layer', {
+        layer: new ScatterplotLayer({data: [], id: 'jsx'})
+      });
+
+      root.configure({layers: [new ScatterplotLayer({data: [], id: 'passed'})]});
+      await renderLayers(root, children);
+      root.configure({});
+      await renderLayers(root, children);
+
+      expect(deck.getLayerIds()).toStrictEqual(['jsx']);
+    });
+  });
+
+  describe('views prop', () => {
+    it('keeps the views prop when no JSX view is rendered', async () => {
+      const {root, deck} = createTestRoot();
+      const propView = new MapView({id: 'prop'});
+
+      root.configure({views: [propView]});
+      await React.act(async () => {
+        root.render(
+          React.createElement('layer', {layer: new ScatterplotLayer({data: [], id: 'jsx'})})
+        );
+      });
+
+      expect(deck.views).toStrictEqual([propView]);
+    });
+
+    it('merges a reconfigured views prop with committed JSX views without a commit', async () => {
+      const {root, deck} = createTestRoot();
+      const jsxView = new MapView({id: 'jsx'});
+      const children = React.createElement('view', {view: jsxView});
+
+      root.configure({});
+      await React.act(async () => {
+        root.render(children);
+      });
+      expect(deck.views).toStrictEqual([jsxView]);
+
+      const propView = new MapView({id: 'prop'});
+      root.configure({views: propView});
+
+      expect(deck.views).toStrictEqual([jsxView, propView]);
     });
   });
 

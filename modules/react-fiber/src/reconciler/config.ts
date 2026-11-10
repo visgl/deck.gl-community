@@ -1,4 +1,4 @@
-import type {DeckProps, Layer, View} from '@deck.gl/core';
+import type {Layer, View} from '@deck.gl/core';
 import {assert, log} from '@deck.gl/core';
 import {RENDERER_PACKAGE_NAME, RENDERER_VERSION, globalScope} from '../shared/constants';
 import {createContext} from 'react';
@@ -21,7 +21,14 @@ import type {
   Type,
   UpdatePayload
 } from './types';
-import {flattenTree, isLayer, isView, isWidget, mergeWidgets, organizeList} from './utils';
+import {
+  combineRootDescriptors,
+  flattenTree,
+  isLayer,
+  isView,
+  isWidget,
+  organizeList
+} from './utils';
 
 type EventPriority = number;
 
@@ -571,7 +578,8 @@ export function finalizeContainerChildren(): void {
  * - JSX children: `<layer layer={...} />`
  * - Direct prop: `<DeckGL layers={[...]} />`
  *
- * The `_passedLayers` from the store are prepended to JSX layers.
+ * As in `@deck.gl/react`, JSX layers come first and the `_passedLayers` from the store
+ * follow them. See {@link combineRootDescriptors}.
  *
  * **Deck.gl Integration:**
  * Calls `deckgl.setProps({ layers, views })` which triggers Deck.gl's ID-based diffing.
@@ -602,26 +610,12 @@ export function replaceContainerChildren(container: Container, newChildren: Chil
     // NOTE: splits views and layers into separate arrays
     const types = organizeList(list);
 
-    // NOTE: apply layers passed to the `layers` prop on `<DeckGL />` component
-    // oxlint-disable-next-line unicorn/prefer-spread
-    const combinedLayers = state._passedLayers.concat(types.layers);
+    // NOTE: keep the committed descriptors so a prop-only reconfigure can reapply them,
+    // then combine them with the `layers` prop on `<DeckGL />` (JSX layers first)
+    container.jsxDescriptors = types;
+    const propsUpdate = combineRootDescriptors(state, types);
 
-    log.log(3, 'DeckGL commit', {layers: combinedLayers, views: types.views})();
-
-    // NOTE: a prop-only update merges the `widgets` prop with these, so keep the last committed set
-    container.jsxWidgets = types.widgets;
-
-    const propsUpdate: Pick<DeckProps<View | View[] | null>, 'layers' | 'views' | 'widgets'> = {
-      layers: combinedLayers,
-      widgets: mergeWidgets(types.widgets, state._passedWidgets)
-    };
-
-    // External overlays own views through their host map. Standalone Deck must
-    // receive an explicit empty list when the last JSX view is removed so that
-    // ViewManager restores its default view.
-    if (!state.isExternalOverlay) {
-      propsUpdate.views = types.views;
-    }
+    log.log(3, 'DeckGL commit', propsUpdate)();
 
     deckgl.setProps(propsUpdate);
   }

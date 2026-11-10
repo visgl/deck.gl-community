@@ -19,9 +19,17 @@ describe('server rendering without a DOM', () => {
     expect(typeof window).toBe('undefined');
   });
 
-  it('renders the standalone root markup', () => {
+  it('renders the standalone root markup with @deck.gl/react ids and wrapper styles', () => {
     expect(renderOnServer(DeckGL)).toBe(
-      '<div id="deckgl-fiber-wrapper"><canvas id="deckgl-fiber-canvas"></canvas></div>'
+      '<div id="deckgl-wrapper" style="position:absolute;z-index:0;left:0;top:0;width:100%;height:100%">' +
+        '<canvas id="deckgl-overlay" style="left:0;top:0"></canvas></div>'
+    );
+  });
+
+  it('derives the standalone root ids from id and sizes the wrapper', () => {
+    expect(renderOnServer(DeckGL, {height: 300, id: 'map', width: '50%'})).toBe(
+      '<div id="map-wrapper" style="position:absolute;z-index:0;left:0;top:0;width:50%;height:300px">' +
+        '<canvas id="map" style="left:0;top:0"></canvas></div>'
     );
   });
 

@@ -19,7 +19,9 @@ import {DeckGL} from '@deck.gl-community/react-fiber';
 ```
 
 The root is a named export. It takes deck.gl props directly, including controlled `viewState`
-and `initialViewState`.
+and `initialViewState`. It renders the same wrapper and canvas as `@deck.gl/react`, with ids
+derived from `id`, and orders the `layers` and `views` props against JSX layers and views the same
+way. See [Root DOM and sizing](../api-reference/deckgl.md#root-dom-and-sizing).
 
 For a `MapboxOverlay` or `MapLibreOverlay`, import the matching root instead and attach the
 overlay to the map you create. See [Using with maps](./using-with-maps.md).
@@ -61,8 +63,9 @@ direct children of `DeckGL`. Use deck.gl's `layerFilter` for per-view layers:
 
 ## Access the deck.gl instance
 
-`onDeckChange` receives the `Deck` instance, or the overlay on a map root, and then `null` on
-teardown. Store it in state and call picking methods on the instance itself:
+The root's `ref` receives the `Deck` instance, or the overlay on a map root, instead of
+`@deck.gl/react`'s `DeckGLRef`. Picking calls stay the same; replace `deckRef.current.deck` with
+`deckRef.current`:
 
 ```tsx
 // Before
@@ -70,8 +73,17 @@ const deckRef = useRef<DeckGLRef>(null);
 deckRef.current?.pickObject({x, y});
 
 // After
+const deckRef = useRef<Deck>(null);
+deckRef.current?.pickObject({x, y});
+
+<DeckGL ref={deckRef}>{/* ... */}</DeckGL>;
+```
+
+To re-render when the instance is created or torn down, store it in state with `onDeckChange`,
+which receives the instance and then `null` on teardown:
+
+```tsx
 const [deck, setDeck] = useState<Deck | null>(null);
-deck?.pickObject({x, y});
 
 <DeckGL onDeckChange={setDeck}>{/* ... */}</DeckGL>;
 ```

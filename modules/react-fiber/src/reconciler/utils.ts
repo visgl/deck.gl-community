@@ -1,7 +1,7 @@
 import {Layer, View, Widget} from '@deck.gl/core';
-import type {DeckProps} from '@deck.gl/core';
+import type {DeckProps, LayersList} from '@deck.gl/core';
 
-import type {Instance} from './types';
+import type {Instance, JsxDescriptors, ViewOrViews} from './types';
 
 /**
  * Type guard to check if a node is a View instance.
@@ -84,8 +84,8 @@ export function flattenTree(arr: Instance[]): Instance['node'][] {
 /**
  * Partitions a list of nodes into separate views, layers and widgets arrays.
  *
- * Uses the isView and isWidget type guards to separate View and Widget objects from Layer objects,
- * organizing them into the structure expected by deck.gl's setProps method.
+ * Uses the isView and isWidget type guards to separate View and Widget objects from Layer
+ * objects, organizing them into the structure expected by deck.gl's setProps method.
  *
  * @param list - Array of Layer, View and Widget nodes to partition
  * @returns Object with separate arrays for views, layers and widgets
@@ -100,7 +100,7 @@ export function flattenTree(arr: Instance[]): Instance['node'][] {
  */
 export function organizeList(list: Instance['node'][]) {
   // oxlint-disable-next-line unicorn/no-array-reduce
-  return list.reduce<{views: View[]; layers: Layer[]; widgets: Widget[]}>(
+  return list.reduce<JsxDescriptors>(
     (acc, curr) => {
       if (isView(curr)) {
         acc.views.push(curr);
@@ -116,17 +116,54 @@ export function organizeList(list: Instance['node'][]) {
 }
 
 /** The `widgets` prop of a root. */
-export type RootWidgets = DeckProps<View | View[] | null>['widgets'];
+type RootWidgets = DeckProps<ViewOrViews>['widgets'];
+
+/** The root props that are combined with committed JSX descriptors. */
+interface RootDescriptorProps {
+  _passedLayers: LayersList;
+  _passedViews?: ViewOrViews;
+  _passedWidgets?: RootWidgets;
+  isExternalOverlay?: boolean;
+}
 
 /**
- * Merges JSX widgets with the `widgets` prop by id.
+ * Merges JSX views with the `views` prop as `@deck.gl/react` does.
+ *
+ * Without JSX views, the prop is used unchanged. When it is also absent, the result is
+ * `null`, which makes deck.gl restore its default view after the last JSX view is removed.
+ * An empty list would leave deck.gl with no view at all. With JSX views, prop views are
+ * merged in by id: a prop view replaces the JSX view with the same id, and other prop
+ * views follow the JSX views.
+ */
+function mergeViews(jsxViews: View[], passedViews: ViewOrViews | undefined): ViewOrViews {
+  if (jsxViews.length === 0) {
+    return passedViews ?? null;
+  }
+  if (!passedViews) {
+    return jsxViews;
+  }
+
+  const viewsById = new Map<string, View>();
+  for (const view of jsxViews) {
+    viewsById.set(view.id, view);
+  }
+  for (const view of Array.isArray(passedViews) ? passedViews : [passedViews]) {
+    if (view) {
+      viewsById.set(view.id, view);
+    }
+  }
+  return [...viewsById.values()];
+}
+
+/**
+ * Merges JSX widgets with the `widgets` prop by id, the way views are merged.
  *
  * deck.gl's WidgetManager matches widgets by id, so two widgets with one id would be added
  * twice. A prop widget replaces the JSX widget with the same id, and other prop widgets
  * follow the JSX widgets. The result is never `undefined`, so removing the last JSX widget
  * removes it from deck.gl.
  */
-export function mergeWidgets(
+function mergeWidgets(
   jsxWidgets: Widget[],
   passedWidgets: RootWidgets | undefined
 ): NonNullable<RootWidgets> {
@@ -144,4 +181,33 @@ export function mergeWidgets(
     }
   }
   return [...widgetsById.values()];
+}
+
+/**
+ * Combines a root's `layers`, `views` and `widgets` props with the layers and views of its committed
+ * JSX tree.
+ *
+ * As in `@deck.gl/react`, JSX layers come first and `layers` prop layers follow them, so
+ * prop layers draw above JSX layers, and JSX views are merged with the `views` prop by id,
+ * with the prop winning. JSX widgets are merged with the `widgets` prop the same way.
+ * External overlays receive no views because their host map owns them.
+ *
+ * @param props - The root's passed descriptors and whether it is an external overlay
+ * @param jsx - Layers, views and widgets from the committed JSX tree
+ * @returns The `layers`, `widgets` and, for a standalone root, `views` to send to deck.gl
+ */
+export function combineRootDescriptors(
+  props: RootDescriptorProps,
+  jsx: JsxDescriptors
+): Pick<DeckProps<ViewOrViews>, 'layers' | 'views' | 'widgets'> {
+  const descriptors: Pick<DeckProps<ViewOrViews>, 'layers' | 'views' | 'widgets'> = {
+    layers: [...jsx.layers, ...props._passedLayers],
+    widgets: mergeWidgets(jsx.widgets, props._passedWidgets)
+  };
+
+  if (!props.isExternalOverlay) {
+    descriptors.views = mergeViews(jsx.views, props._passedViews);
+  }
+
+  return descriptors;
 }

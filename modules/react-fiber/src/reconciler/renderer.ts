@@ -9,13 +9,14 @@ import {ConcurrentRoot} from 'react-reconciler/constants.js';
 
 import * as config from './config';
 import {RootErrorBoundary} from './error-boundary';
-import {mergeWidgets} from './utils';
+import {combineRootDescriptors} from './utils';
 import type {
   ChildSet,
   Container,
   DeckGLConfiguration,
   HostContext,
   Instance,
+  JsxDescriptors,
   Props,
   ReconcilerRoot,
   RootElement,
@@ -103,6 +104,8 @@ renderer.injectIntoDevTools({
  * ```
  */
 export const roots = new Map<RootElement, ReconcilerRoot>();
+
+const EMPTY_JSX_DESCRIPTORS: JsxDescriptors = {layers: [], views: [], widgets: []};
 
 function reportError(error: unknown): void {
   log.error('DeckGL error', error)();
@@ -222,6 +225,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   // Create new root
   log.log(3, 'DeckGL root created')();
   const store = createStore(isExternalOverlay);
+  const containerInfo: Container = {store};
 
   /**
    * Create a new React reconciler container with the following configuration:
@@ -237,7 +241,6 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
    *
    * @see https://github.com/facebook/react/blob/main/packages/react-noop-renderer/src/createReactNoop.js#L1159
    */
-  const containerInfo: Container = {store};
   const container = renderer.createContainer(
     containerInfo,
     ConcurrentRoot,
@@ -258,16 +261,23 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
 
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
-    store.setState({_passedLayers: props.layers ?? [], _passedWidgets: props.widgets});
+    store.setState({
+      _passedLayers: props.layers ?? [],
+      _passedViews: props.views,
+      _passedWidgets: props.widgets
+    });
 
     if (configured) {
       const deckgl = store.getState().deckgl;
       if (deckgl) {
-        // A prop-only update need not commit the JSX tree again, so merge the `widgets` prop
-        // with the last committed JSX widgets.
+        // A prop-only update need not commit the JSX tree again, so reapply its last
+        // committed layers, views and widgets in the same order that a commit uses.
         deckgl.setProps({
           ...props,
-          widgets: mergeWidgets(containerInfo.jsxWidgets ?? [], props.widgets)
+          ...combineRootDescriptors(
+            store.getState(),
+            containerInfo.jsxDescriptors ?? EMPTY_JSX_DESCRIPTORS
+          )
         });
       }
       return;

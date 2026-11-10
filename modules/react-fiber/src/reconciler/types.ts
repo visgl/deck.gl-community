@@ -22,12 +22,23 @@ export interface Container {
   store: Store;
 
   /**
-   * Widgets from the most recently committed JSX tree. A prop-only update can reconfigure the
-   * root without a new commit, so configuration merges the `widgets` prop with these.
+   * Layers, views and widgets from the most recently committed JSX tree. A prop-only update can
+   * reconfigure the root without a new commit, so configuration reapplies these.
    *
    * @internal
    */
-  jsxWidgets?: Widget[];
+  jsxDescriptors?: JsxDescriptors;
+}
+
+/**
+ * Layers, views and widgets collected from one committed JSX tree, in depth-first order.
+ *
+ * @internal
+ */
+export interface JsxDescriptors {
+  layers: Layer[];
+  views: View[];
+  widgets: Widget[];
 }
 
 /**

@@ -79,8 +79,9 @@ hydration. Server rendering a `DeckGL` root does not require `ssr: false`: the s
 renders its wrapper and canvas markup, provider roots render no markup, and deck.gl or the overlay
 is created only after hydration.
 
-Give the standalone root a sized container. Without a caller-provided `canvas`, it creates an
-unstyled wrapper and canvas. An unsized canvas defaults to 300 × 150 pixels.
+Give the standalone root a sized, positioned container. Without a caller-provided `canvas`, it
+creates a wrapper and canvas like `@deck.gl/react`: the wrapper is absolutely positioned and fills
+that container unless `width`, `height`, or `style` say otherwise.
 
 ```tsx
 'use client';
@@ -92,7 +93,7 @@ const points = [{position: [-122.4, 37.8] as [number, number]}];
 
 export function Map() {
   return (
-    <div style={{height: 500}}>
+    <div style={{height: 500, position: 'relative'}}>
       <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}} controller>
         <layer
           layer={
@@ -158,9 +159,9 @@ Give every view an explicit ID. Use deck.gl's normal view and layer configuratio
 view-specific behavior. Outside production builds, the renderer warns about missing IDs and deck.gl
 warns about duplicate layer IDs, because both make deck.gl's diffing unreliable.
 
-`DeckGL` also accepts deck.gl's ordinary `layers` prop. It prepends those layers to the layers
-created by JSX, which helps with incremental migration. IDs must remain unique across both
-sources.
+`DeckGL` also accepts deck.gl's ordinary `layers` prop. As in `@deck.gl/react`, it appends those
+layers after the layers created by JSX, so they draw on top. This helps with incremental
+migration. IDs must remain unique across both sources.
 
 ## Use a provider overlay
 

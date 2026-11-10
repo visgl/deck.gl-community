@@ -28,7 +28,7 @@ The native root creates a browser renderer. In an application that uses React Se
 
 ## 3. Size a standalone root
 
-Without a `canvas` prop, `DeckGL` renders an unstyled wrapper and canvas. Give its container a size in application CSS, or the browser uses a 300 × 150 canvas by default. Supplying `canvas` tells the component to use a canvas you render and size yourself; it then renders no wrapper or canvas.
+Without a `canvas` prop, `DeckGL` renders a wrapper and canvas like `@deck.gl/react`: the wrapper is absolutely positioned with `width` and `height` of `100%` by default, so it fills the nearest positioned ancestor. Give that container a size in application CSS, or set `width`, `height`, or `style` on `DeckGL`. See [Root DOM and sizing](../api-reference/deckgl.md#root-dom-and-sizing). Supplying `canvas` tells the component to use a canvas you render and size yourself; it then renders no wrapper or canvas.
 
 ## 4. Create layers as React elements
 
@@ -75,7 +75,7 @@ The React tree is flattened before deck.gl receives it. Therefore, a `<view>` ca
 
 ## 6. Combine JSX and `layers` only when needed
 
-`DeckGL` accepts the normal deck.gl `layers` prop as well as `<layer>` children. The renderer prepends the `layers` prop to the layers produced by JSX. This is useful while incrementally moving an existing deck.gl configuration to React, but all layers across both sources must have unique IDs.
+`DeckGL` accepts the normal deck.gl `layers` prop as well as `<layer>` children. As in `@deck.gl/react`, the renderer appends the `layers` prop after the layers produced by JSX, so prop layers draw on top. This is useful while incrementally moving an existing deck.gl configuration to React, but all layers across both sources must have unique IDs.
 
 ```tsx
 <DeckGL
