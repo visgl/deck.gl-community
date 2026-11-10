@@ -18,7 +18,8 @@
             "modules/react-fiber/developer-guide/base-maps/using-with-custom-overlays"
           ]
         },
-        "modules/react-fiber/developer-guide/migrate-from-deckgl-react"
+        "modules/react-fiber/developer-guide/migrate-from-deckgl-react",
+        "modules/react-fiber/developer-guide/debugging"
       ]
     },
     {
