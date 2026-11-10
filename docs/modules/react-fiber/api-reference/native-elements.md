@@ -97,7 +97,7 @@ The `views` prop works like it does in `@deck.gl/react`. Without `<view>` childr
 </DeckGL>;
 ```
 
-Here deck.gl receives the prop's `main-map` view, then `minimap`. The Mapbox and MapLibre roots merge views the same way and send them to the overlay. A custom overlay root sends views only when it sets [`forwardViews`](./deckgl.md#custom-compatible-overlays); otherwise it forwards the `views` prop unchanged like any other overlay prop.
+Here deck.gl receives the prop's `main-map` view, then `minimap`. The Mapbox and MapLibre roots merge views the same way; a custom overlay root does only with [`forwardViews`](./deckgl.md#custom-compatible-overlays).
 
 ## Mixing JSX and direct widgets
 

@@ -64,12 +64,10 @@ a manual `new Map({container})` integration without adding a child to the map co
 
 The Mapbox and MapLibre roots send `<view>` children, merged with the `views` prop, to the overlay,
 which supports deck.gl's [multi-view usage](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#multi-view-usage).
-The overlay keeps one view in step with the map camera: the view with id `mapbox` on the `/mapbox`
-root and `maplibre` on the `/maplibre` root. It adds that view when the list has none, as the
-first view. Give a `<view>` that id to change where the map view sits in the list, and so the
-order in which views draw; other views render beside it, and `layerFilter` chooses which layers
-draw in each. Keep that view the full size of the map: the overlay still applies the map camera to
-it, so a smaller or offset map view draws layers out of line with the basemap.
+Only one view follows the map camera and receives map interaction: the view with id `mapbox` on
+the `/mapbox` root and `maplibre` on the `/maplibre` root. The overlay adds it first when the list
+has none. Give a `<view>` that id to set the map view's position in the list. Keep it the full size
+of the map, or its layers drift off the basemap.
 
 ```tsx
 import {OrthographicView} from '@deck.gl/core';
@@ -83,8 +81,6 @@ import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
   <layer layer={insetLayer} />
 </DeckGL>;
 ```
-
-Only the map's view follows the map camera and receives map interaction.
 
 ## Attach the overlay to the host map
 
