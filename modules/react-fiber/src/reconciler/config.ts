@@ -1,4 +1,4 @@
-import type {DeckProps, Layer, View, Widget} from '@deck.gl/core';
+import type {DeckProps, Layer, View} from '@deck.gl/core';
 import {assert, log} from '@deck.gl/core';
 import {RENDERER_PACKAGE_NAME, RENDERER_VERSION, globalScope} from '../shared/constants';
 import {createContext} from 'react';
@@ -21,7 +21,7 @@ import type {
   Type,
   UpdatePayload
 } from './types';
-import {flattenTree, isView, isWidget, mergeWidgets, organizeList} from './utils';
+import {flattenTree, isLayer, isView, isWidget, mergeWidgets, organizeList} from './utils';
 
 type EventPriority = number;
 
@@ -116,72 +116,50 @@ export const cancelTimeout = clearTimeout;
  */
 export const scheduleMicrotask = queueMicrotask;
 
+/** Names a value for an error message: its class name, or `undefined` / `null`. */
+function describeValue(value: unknown): string {
+  return (value as object | null | undefined)?.constructor?.name ?? String(value);
+}
+
+/** Warns, outside production builds, when a layer or view keeps a default id. */
+function warnIfDefaultId(descriptor: Layer | View): void {
+  if (process.env.NODE_ENV !== 'production' && (!descriptor.id || descriptor.id === 'unknown')) {
+    log.warn(`${descriptor.constructor.name} needs a stable id`)();
+  }
+}
+
 /**
  * Creates the supported native deck.gl elements.
  *
  * The reconciler accepts only pre-instantiated descriptors through `<layer>`,
- * `<view>` and `<widget>`, so JavaScript callers receive the same runtime contract as
- * TypeScript callers.
+ * `<view>` and `<widget>`, each of its own kind, so JavaScript callers receive the same
+ * runtime contract as TypeScript callers. A wrong or missing descriptor throws in every build.
  */
 function createDeckGLObject(type: Type, props: Props): Instance {
   if (type === 'view') {
-    if (!props.view) {
-      throw new Error("<view> element requires a 'view' prop");
+    const view = props.view;
+    if (!isView(view)) {
+      throw new Error(`<view> needs a View, got ${describeValue(view)}`);
     }
-
-    // Development-mode warning for missing or default view ID
-    if (process.env.NODE_ENV === 'development') {
-      const view = props.view as View;
-
-      if (!view.id || view.id === 'unknown') {
-        const viewName = view.constructor.name;
-
-        log.warn(`${viewName} needs a stable id`)();
-      }
-    }
-
-    return {
-      children: [],
-      node: props.view as View
-    };
+    warnIfDefaultId(view);
+    return {children: [], node: view};
   }
 
   if (type === 'layer') {
-    if (!props.layer) {
-      throw new Error("<layer> element requires a 'layer' prop");
+    const layer = props.layer;
+    if (!isLayer(layer)) {
+      throw new Error(`<layer> needs a Layer, got ${describeValue(layer)}`);
     }
-
-    // Development-mode warning for missing or default layer ID
-    if (process.env.NODE_ENV === 'development') {
-      const layer = props.layer as Layer;
-
-      if (!layer.id || layer.id === 'unknown') {
-        const layerName = layer.constructor.name;
-
-        log.warn(`${layerName} needs a stable id`)();
-      }
-
-      // Development-mode warning if View passed to <layer>
-      if (isView(props.layer as Layer | View)) {
-        log.warn(`Pass ${layer.constructor.name} to <view>, not <layer>`)();
-      }
-    }
-
-    return {
-      children: [],
-      node: props.layer as Layer
-    };
+    warnIfDefaultId(layer);
+    return {children: [], node: layer};
   }
 
   if (type === 'widget') {
-    if (!isWidget(props.widget as Widget)) {
-      throw new Error("<widget> element requires a 'widget' prop");
+    const widget = props.widget;
+    if (!isWidget(widget)) {
+      throw new Error(`<widget> needs a Widget, got ${describeValue(widget)}`);
     }
-
-    return {
-      children: [],
-      node: props.widget as Widget
-    };
+    return {children: [], node: widget};
   }
 
   throw new Error(`Unsupported element <${type}>`);

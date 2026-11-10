@@ -42,7 +42,7 @@ Deck event properties such as `onClick` remain deck.gl callbacks, not React synt
 
 An error thrown while rendering inside a root, including one the renderer raises for an invalid element, is rethrown from the `DeckGL` component. The nearest [error boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary) around `DeckGL` handles it, as it would for any other component, and the framework's development error overlay shows it. An error boundary inside `DeckGL` catches errors from its own children first; its fallback can only render native elements or `null`.
 
-`debug` is a deck.gl prop and is passed to `Deck` or the overlay unchanged. Warnings and traces go through deck.gl's `log`: root creation, unmounting and each commit log at level 3, and configured props at level 4. Enable them in the browser console with `deck.log.enable()` and `deck.log.level = 3`; see [Debugging](https://deck.gl/docs/developer-guide/debugging).
+`debug` is a deck.gl prop and is passed to `Deck` or the overlay unchanged. Warnings and traces go through deck.gl's `log`: root creation, unmounting and each commit log at level 3, and the props of every configure, including prop-only updates, at level 4. Enable them in the browser console with `deck.log.enable()` and `deck.log.level = 3`; see [Debugging](https://deck.gl/docs/developer-guide/debugging).
 
 The renderer registers with [React DevTools](https://react.dev/learn/react-developer-tools), so the Components tab shows the `<layer>`, `<view>` and `<widget>` elements inside each root, with their props and the components that render them.
 
