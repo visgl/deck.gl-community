@@ -272,6 +272,7 @@ yarn lint
 - [Using with maps](../../docs/modules/react-fiber/developer-guide/using-with-maps.md) explains host-map ownership and the overlay lifecycle, and links one guide per provider with worker setup and shared-context rendering.
 - [Native elements](../../docs/modules/react-fiber/api-reference/native-elements.md) defines the `<layer>`, `<view>` and `<widget>` contract.
 - [Migrate from `@deck.gl/react`](../../docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react.md) lists each change and the `createLayerComponent` recipe.
+- [Debugging](../../docs/modules/react-fiber/developer-guide/debugging.md) explains how to trace a problem through the renderer.
 - Maintained applications show native MapLibre integration with [Vite](../../examples/react-fiber/vite), [Next.js](../../examples/react-fiber/nextjs), [React Router](../../examples/react-fiber/react-router), and [TanStack Start](../../examples/react-fiber/tanstack-start).
 
 ## License and origin
