@@ -171,8 +171,8 @@ other map options to the Mapbox or MapLibre map creator.
 
 Use `onDeckChange` to receive the overlay, store it in state, and attach it to the map once per
 instance in an effect. Detach it during cleanup, then tear down the host map. Provider roots render
-no host DOM node, and the host map owns views, so JSX `<view>` descriptors do not configure
-external overlays.
+no host DOM node. `<view>` children render beside the map's own view, which the overlay keeps in
+step with the map camera.
 
 [Using with maps](../../docs/modules/react-fiber/developer-guide/using-with-maps.md) describes the
 shared lifecycle. The [Mapbox](../../docs/modules/react-fiber/developer-guide/base-maps/using-with-mapbox.md)

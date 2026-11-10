@@ -218,7 +218,7 @@ describe('config-tree-operations', () => {
       });
     });
 
-    it.each(['Mapbox', 'MapLibre'])('omits JSX views for a %s external overlay root', () => {
+    it('omits JSX views for an external overlay root that does not forward views', () => {
       const layer = new ScatterplotLayer({data: [], id: 'layer'});
       const view = new MapView({id: 'view'});
       const mockDeckGL = {
@@ -351,7 +351,11 @@ describe('config-tree-operations', () => {
     });
 
     describe('views prop', () => {
-      function createViewsContainer(passedViews: unknown, isExternalOverlay = false) {
+      function createViewsContainer(
+        passedViews: unknown,
+        isExternalOverlay = false,
+        forwardViews = false
+      ) {
         const deckgl = {setProps: vi.fn<(props: {layers: unknown[]; views?: unknown}) => void>()};
         const container = {
           store: {
@@ -359,6 +363,7 @@ describe('config-tree-operations', () => {
               _passedLayers: [],
               _passedViews: passedViews,
               deckgl,
+              forwardViews,
               isExternalOverlay
             }))
           }
@@ -426,12 +431,49 @@ describe('config-tree-operations', () => {
         });
       });
 
-      it('omits views for an external overlay root even with a views prop', () => {
+      it('omits views for an external overlay root that does not forward views', () => {
         const {container, deckgl} = createViewsContainer(new MapView({id: 'prop'}), true);
 
         replaceContainerChildren(container, [createMockInstance(new MapView({id: 'jsx'}))]);
 
         expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({layers: [], widgets: []});
+      });
+
+      it('merges and sends views for an external overlay root that forwards them', () => {
+        // The Mapbox and MapLibre roots forward views; the overlay adds its map view when the
+        // list has no view with the reserved id.
+        const mapView = new MapView({id: 'mapbox'});
+        const minimap = new MapView({id: 'minimap'});
+        const propExtra = new MapView({id: 'extra'});
+        const {container, deckgl} = createViewsContainer(propExtra, true, true);
+
+        replaceContainerChildren(container, [
+          createMockInstance(mapView),
+          createMockInstance(minimap)
+        ]);
+        replaceContainerChildren(container, []);
+
+        expect(deckgl.setProps).toHaveBeenNthCalledWith(1, {
+          layers: [],
+          views: [mapView, minimap, propExtra],
+          widgets: []
+        });
+        // Without JSX views, the views prop is used unchanged.
+        expect(deckgl.setProps).toHaveBeenNthCalledWith(2, {
+          layers: [],
+          views: propExtra,
+          widgets: []
+        });
+      });
+
+      it('sends null to a view-forwarding overlay after its last JSX view is removed', () => {
+        const {container, deckgl} = createViewsContainer(undefined, true, true);
+
+        replaceContainerChildren(container, [createMockInstance(new MapView({id: 'minimap'}))]);
+        replaceContainerChildren(container, []);
+
+        // null makes the overlay fall back to its own map view.
+        expect(deckgl.setProps).toHaveBeenLastCalledWith({layers: [], views: null, widgets: []});
       });
     });
 

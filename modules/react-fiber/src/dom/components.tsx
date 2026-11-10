@@ -102,6 +102,12 @@ export interface CreateDeckGLOptions<Props, Instance extends DeckGLRenderer> {
    * `null` for the old instance and then the new instance, which the app must attach.
    */
   recreateOverlayOnChange?: readonly (keyof Props & string)[];
+  /**
+   * Sends `<view>` children, merged with the `views` prop, to the overlay. Set it for an
+   * overlay that supports deck.gl views alongside its host map, such as `MapboxOverlay`
+   * and `MapLibreOverlay`. Without it the overlay receives only its `views` prop.
+   */
+  forwardViews?: boolean;
 }
 
 type ComponentProps<Props, Instance extends DeckGLRenderer> = DeckGLRootProps<Instance, Props>;
@@ -121,7 +127,8 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
     if (!detachedRoot.current) {
       detachedRoot.current = document.createElement('div');
       rootOptions.current = {
-        createExternalOverlay: config => overlayFactory?.(config as Props) as DeckGLRenderer
+        createExternalOverlay: config => overlayFactory?.(config as Props) as DeckGLRenderer,
+        forwardViews: Boolean(options?.forwardViews)
       };
     }
     return detachedRoot.current;

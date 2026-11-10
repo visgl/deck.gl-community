@@ -1,3 +1,4 @@
+import {OrthographicView} from '@deck.gl/core';
 import {BitmapLayer} from '@deck.gl/layers';
 import type {MapLibreOverlay} from '@deck.gl/maplibre';
 import {Map as MapLibreMap} from 'maplibre-gl';
@@ -214,6 +215,73 @@ webglTest(
       expect(() => map.removeControl(overlaidControl)).not.toThrow();
     } finally {
       await act(async () => reactRoot.unmount());
+      map.remove();
+      reactHost.remove();
+      container.remove();
+    }
+  },
+  45_000
+);
+
+webglTest(
+  'MapLibre v6 provider root renders a JSX view beside the map view',
+  async () => {
+    const container = document.createElement('div');
+    Object.assign(container.style, {height: '300px', width: '400px'});
+    Object.defineProperties(container, {
+      clientHeight: {value: 300},
+      clientWidth: {value: 400}
+    });
+    document.body.append(container);
+
+    const map = new MapLibreMap({
+      attributionControl: false,
+      center: [-122.45, 37.78],
+      container,
+      style: {layers: [{id: 'labels', type: 'background'}], sources: {}, version: 8},
+      zoom: 14
+    });
+    await waitForMapLoad(map);
+
+    const reactHost = document.createElement('div');
+    document.body.append(reactHost);
+    const reactRoot = createRoot(reactHost);
+    let overlay: MapLibreOverlay | null = null;
+    const inset = new OrthographicView({id: 'inset', x: '75%', width: '25%', height: '25%'});
+    const viewportIds = () =>
+      (overlay as unknown as {_deck?: {getViewports: () => {id: string}[]}})._deck
+        ?.getViewports()
+        .map(viewport => viewport.id);
+
+    try {
+      await act(async () => {
+        reactRoot.render(
+          <DeckGL
+            onDeckChange={deckgl => {
+              if (deckgl && deckgl !== overlay) {
+                overlay = deckgl;
+                map.addControl(deckgl);
+              }
+            }}
+          >
+            <view view={inset} />
+          </DeckGL>
+        );
+      });
+      map.triggerRepaint();
+
+      // The overlay adds its map view, `maplibre`, ahead of the JSX view.
+      await vi.waitFor(() => expect(viewportIds()).toEqual(['maplibre', 'inset']), {
+        timeout: 10_000
+      });
+
+      await act(async () => {
+        reactRoot.render(<DeckGL onDeckChange={() => undefined} />);
+      });
+      map.triggerRepaint();
+      await vi.waitFor(() => expect(viewportIds()).toEqual(['maplibre']), {timeout: 10_000});
+    } finally {
+      reactRoot.unmount();
       map.remove();
       reactHost.remove();
       container.remove();

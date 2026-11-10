@@ -72,7 +72,7 @@ This means that nesting is useful for React composition but does not create a pa
 </view>;
 ```
 
-Use deck.gl's normal view and layer configuration when an application needs view-specific rendering behavior. For an interleaved `MapboxOverlay` root, the host map owns views; the renderer does not send JSX views to that overlay.
+Use deck.gl's normal view and layer configuration when an application needs view-specific rendering behavior. On the Mapbox and MapLibre roots, the overlay keeps its map's view and renders JSX views beside it; see [Views beside the map](../developer-guide/using-with-maps.md#views-beside-the-map).
 
 Refs on these intrinsic elements resolve to their deck.gl instance, not an internal renderer wrapper. Use this low-level escape hatch sparingly; normal React data flow and deck.gl props are easier to keep in sync.
 
@@ -97,7 +97,7 @@ The `views` prop works like it does in `@deck.gl/react`. Without `<view>` childr
 </DeckGL>;
 ```
 
-Here deck.gl receives the prop's `main-map` view, then `minimap`. External-overlay roots do not merge views: they never send JSX views to the overlay, because the host map owns views, and they forward a `views` prop unchanged like any other overlay prop.
+Here deck.gl receives the prop's `main-map` view, then `minimap`. The Mapbox and MapLibre roots merge views the same way and send them to the overlay. A custom overlay root sends views only when it sets [`forwardViews`](./deckgl.md#custom-compatible-overlays); otherwise it forwards the `views` prop unchanged like any other overlay prop.
 
 ## Mixing JSX and direct widgets
 

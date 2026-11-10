@@ -163,6 +163,8 @@ export type CreateExternalOverlay = (props: DeckGLConfiguration) => DeckGLRender
 /** @internal Immutable reconciler-root capability configuration. */
 export interface RootOptions {
   createExternalOverlay?: CreateExternalOverlay;
+  /** Sends JSX views to the external overlay. See `CreateDeckGLOptions.forwardViews`. */
+  forwardViews?: boolean;
 }
 
 /**
