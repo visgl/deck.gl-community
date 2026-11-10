@@ -25,6 +25,9 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
 - **react-fiber:** new [`<widget>`](/docs/modules/react-fiber/api-reference/native-elements#widget)
   element adds a deck.gl widget from the React tree, merged with the `widgets` prop by id.
 
+- **react-fiber:** React DevTools shows the `<layer>`, `<view>` and `<widget>` elements inside
+  each `DeckGL` root, with their props.
+
 - **react-fiber:** errors thrown inside `DeckGL` reach the application's error boundaries.
   Before, React tore down the tree inside the root and only logged the error.
 
