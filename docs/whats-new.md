@@ -11,30 +11,9 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
   preserve visualization state, manage focus and background scrolling, and clean up on removal.
   See [Fullscreen controls](./modules/panels/api-reference/panel-components/full-screen-component.md).
 
-- **react-fiber:** map overlays have their own entry points. The default `DeckGL` root renders a
-  standalone `Deck`; import `@deck.gl-community/react-fiber/mapbox` or `/maplibre` for a
-  `MapboxOverlay` or `MapLibreOverlay`. See
-  [Using with maps](/docs/modules/react-fiber/developer-guide/using-with-maps). Custom overlays use
-  [`createDeckGL`](/docs/modules/react-fiber/api-reference/deckgl#custom-compatible-overlays), whose
-  `recreateOverlayOnChange` option replaces the overlay when a construction-only prop changes.
-
-- **react-fiber:** requires only `@deck.gl/core`, `react` and `react-dom` as peers. Internal
-  subpaths such as `/dom`, `/shared`, `/types` and `/reconciler/config` are no longer exported.
-  `debug` now reaches deck.gl, and warnings and traces use deck.gl's `log`.
-
-- **react-fiber:** the native `DeckGL` root behaves like `@deck.gl/react` where they differed. The
-  `layers` prop draws above JSX layers, the `views` prop merges with `<view>` children by id
-  (the prop wins) and a root with neither uses deck.gl's default view, and the standalone
-  wrapper is absolutely positioned at 100% size with ids
-  derived from `id` (`deckgl-wrapper` and `deckgl-overlay` by default). Roots accept a React 19
-  `ref` to their deck.gl instance, and `children` is optional. See
-  [`DeckGL`](/docs/modules/react-fiber/api-reference/deckgl#root-dom-and-sizing).
-
-- **react-fiber:** new [`<widget>`](/docs/modules/react-fiber/api-reference/native-elements#widget)
-  element adds a deck.gl widget from the React tree, merged with the `widgets` prop by id.
-
-- **react-fiber:** React DevTools shows the `<layer>`, `<view>` and `<widget>` elements inside
-  each `DeckGL` root, with their props.
+- **react-fiber:** the `DeckGL` root matches `@deck.gl/react`, a new `<widget>` element adds
+  deck.gl widgets from the React tree, and `/mapbox` and `/maplibre` roots attach to map overlays.
+  See the [migration guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react).
 
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
