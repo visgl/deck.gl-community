@@ -48,3 +48,11 @@ The renderer registers with [React DevTools](https://react.dev/learn/react-devel
 An error thrown while rendering inside `DeckGL` is rethrown from the `DeckGL` component. The nearest error boundary around `DeckGL` handles it, and the framework's development error overlay shows it. This includes errors the renderer raises itself, for example when `<layer>` receives something other than a deck.gl `Layer`.
 
 An error boundary placed inside `DeckGL` catches errors from its own children first. Its fallback can only render native elements or `null`.
+
+Errors that deck.gl raises at runtime take a different path. A layer whose data fails to load, an async prop that rejects, or a lost WebGL context goes to deck.gl's `onError` prop, and deck.gl keeps rendering the other layers. These errors never reach an error boundary. Pass `onError` to `DeckGL` to report them or to show them to users; by default deck.gl only logs them.
+
+```tsx
+<DeckGL onError={(error, layer) => reportError(error, {layer: layer?.id})}>{/* ... */}</DeckGL>
+```
+
+So an app that wants to catch every error needs both: an error boundary around `DeckGL` for errors from the React tree, and `onError` for errors from deck.gl. This matches `@deck.gl/react`, where `onError` also carries only deck.gl's errors.
