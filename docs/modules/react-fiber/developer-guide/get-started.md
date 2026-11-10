@@ -71,7 +71,7 @@ import {MapView} from '@deck.gl/core';
 </DeckGL>;
 ```
 
-The React tree is flattened before deck.gl receives it. Therefore, a `<view>` can contain React children for application composition, but it does not scope its child layers to that view. The standalone renderer supplies the flattened view list to `Deck`; provider overlays get views from their host map integration instead.
+The React tree is flattened before deck.gl receives it. Therefore, a `<view>` can contain React children for application composition, but it does not scope its child layers to that view. The renderer supplies the flattened view list to `Deck`, or to a Mapbox or MapLibre overlay, which renders it beside the map's own view.
 
 ## 6. Combine JSX and `layers` only when needed
 

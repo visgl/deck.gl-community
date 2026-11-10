@@ -1168,6 +1168,7 @@ __metadata:
     fast-check: "npm:^4.0.0"
     its-fine: "npm:^2.0.0"
     jsdom: "npm:^26.0.0"
+    mapbox-gl: "npm:^3.8.0"
     maplibre-gl: "npm:^6.13.0"
     react: "npm:^19.2.8"
     react-dom: "npm:^19.2.8"
@@ -11304,6 +11305,13 @@ __metadata:
     proc-log: "npm:^6.0.0"
     ssri: "npm:^13.0.0"
   checksum: 10c0/2c5805dee83efd1cd1d3f57505120ae98f4a328be72d82447e24b8f72b8e5475910d7dbc49d7da1c5bd96a62bf8ef6ffda88ebadfdfbec7c715cfde2459c9295
+  languageName: node
+  linkType: hard
+
+"mapbox-gl@npm:^3.8.0":
+  version: 3.34.2
+  resolution: "mapbox-gl@npm:3.34.2"
+  checksum: 10c0/c837d4355648f4ad1ef0d2cf44936e1e9f3db6e36764ef3d623c1151ed0ebbe94dbdef31b34e947d9d32de63b8d8d4d164cb664cd48bf5c71aefc66161caad59
   languageName: node
   linkType: hard
 

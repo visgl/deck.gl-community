@@ -28,7 +28,7 @@ Each provider entry point exposes its concrete overlay contract:
 | `/mapbox` | `MapboxDeckGLProps`; `onDeckChange` receives `MapboxOverlay \| null` |
 | `/maplibre` | `MapLibreDeckGLProps`; `onDeckChange` receives `MapLibreOverlay \| null` |
 
-Provider overlay props exclude map-owned configuration such as `canvas`, `parent`, `device`, `viewState`, `initialViewState`, and `controller`. The MapLibre provider also excludes `width`, `height`, and `gl`. Configure those options on the application-owned Mapbox or MapLibre map, then attach the instance from `onDeckChange` with `map.addControl` and remove the same control during cleanup. JSX `<view>` descriptors are not forwarded to external overlays because the host map owns views. See [Using with maps](../developer-guide/using-with-maps.md) for complete attachment and shared-context guidance.
+Provider overlay props exclude map-owned configuration such as `canvas`, `parent`, `device`, `viewState`, `initialViewState`, and `controller`. The MapLibre provider also excludes `width`, `height`, and `gl`. Configure those options on the application-owned Mapbox or MapLibre map, then attach the instance from `onDeckChange` with `map.addControl` and remove the same control during cleanup. JSX `<view>` descriptors, merged with the `views` prop, are sent to the overlay, which keeps one view in step with the map camera. See [Views beside the map](../developer-guide/using-with-maps.md#views-beside-the-map). See [Using with maps](../developer-guide/using-with-maps.md) for complete attachment and shared-context guidance.
 
 ## Props and lifecycle
 
@@ -81,6 +81,8 @@ const DeckGL = createDeckGL({
 The factory runs only when the root is initially configured. It is not a render prop and never reaches `setProps`. The result must implement deck.gl's `setProps` and `finalize` lifecycle. See [Using with custom overlays](../developer-guide/base-maps/using-with-custom-overlays.md) for the overlay requirements and host attachment.
 
 `recreateOverlayOnChange` lists props that the overlay reads only at construction or attach time. When one of them changes (compared with `Object.is`), the component finalizes the overlay and calls the factory again with the full props. `onDeckChange` receives `null` and then the new instance. The provider roots declare `recreateOverlayOnChange: ['interleaved']`.
+
+`forwardViews: true` sends `<view>` children, merged with the `views` prop, to the overlay. Set it for an overlay that renders deck.gl views beside its map, as the provider roots do. Without it, the overlay receives only its `views` prop.
 
 ```tsx
 const DeckGL = createDeckGL({

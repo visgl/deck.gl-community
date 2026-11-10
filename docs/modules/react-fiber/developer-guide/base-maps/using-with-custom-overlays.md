@@ -51,5 +51,6 @@ store the instance from `onDeckChange` in state, attach it once per instance in 
 the host map is ready, and detach it in the effect's cleanup. The Mapbox and MapLibre guides show
 this pattern with `map.addControl` and `map.removeControl`.
 
-The host map owns the camera and views. Do not pass `viewState`, `initialViewState`, `controller`,
-or JSX `<view>` descriptors to a custom overlay root.
+The host map owns the camera. Do not pass `viewState`, `initialViewState` or `controller` to a
+custom overlay root. JSX `<view>` descriptors reach the overlay only when the root sets
+`forwardViews: true`, which suits an overlay that renders deck.gl views beside its map.

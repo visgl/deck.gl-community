@@ -203,6 +203,23 @@ describe('DeckGL Component Tests', () => {
       );
     });
 
+    it.each([
+      {name: 'Mapbox', Root: MapboxDeckGL, forwardViews: true},
+      {name: 'MapLibre', Root: MapLibreDeckGL, forwardViews: true},
+      {
+        name: 'custom',
+        Root: createDeckGL({createExternalOverlay: () => ({finalize() {}, setProps() {}})}),
+        forwardViews: false
+      }
+    ])('$name overlay roots set forwardViews to $forwardViews', ({Root, forwardViews}) => {
+      render(<Root />);
+
+      expect(mockCreateRoot).toHaveBeenCalledWith(
+        expect.any(HTMLDivElement),
+        expect.objectContaining({forwardViews})
+      );
+    });
+
     it('recreates the overlay in a new detached root when a recreateOverlayOnChange prop changes', () => {
       const createExternalOverlay = vi.fn(
         (_props: {enabled?: boolean; pickingRadius?: number}) => ({

@@ -124,6 +124,7 @@ interface RootDescriptorProps {
   _passedViews?: ViewOrViews;
   _passedWidgets?: RootWidgets;
   isExternalOverlay?: boolean;
+  forwardViews?: boolean;
 }
 
 /**
@@ -190,11 +191,13 @@ function mergeWidgets(
  * As in `@deck.gl/react`, JSX layers come first and `layers` prop layers follow them, so
  * prop layers draw above JSX layers, and JSX views are merged with the `views` prop by id,
  * with the prop winning. JSX widgets are merged with the `widgets` prop the same way.
- * External overlays receive no views because their host map owns them.
+ * An external overlay receives views only when its root forwards them, as the Mapbox and
+ * MapLibre roots do; other overlays keep only their `views` prop.
  *
- * @param props - The root's passed descriptors and whether it is an external overlay
+ * @param props - The root's passed descriptors, and whether it is an external overlay that
+ *   forwards views
  * @param jsx - Layers, views and widgets from the committed JSX tree
- * @returns The `layers`, `widgets` and, for a standalone root, `views` to send to deck.gl
+ * @returns The `layers`, `widgets` and, unless the overlay keeps its own, `views` to send
  */
 export function combineRootDescriptors(
   props: RootDescriptorProps,
@@ -205,7 +208,7 @@ export function combineRootDescriptors(
     widgets: mergeWidgets(jsx.widgets, props._passedWidgets)
   };
 
-  if (!props.isExternalOverlay) {
+  if (!props.isExternalOverlay || props.forwardViews) {
     descriptors.views = mergeViews(jsx.views, props._passedViews);
   }
 

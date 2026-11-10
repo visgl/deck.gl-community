@@ -21,6 +21,9 @@ export interface State {
   /** Whether this root is backed by an externally owned overlay control. */
   isExternalOverlay: boolean;
 
+  /** Whether an external overlay root sends JSX views to its overlay. */
+  forwardViews: boolean;
+
   /**
    * Updates the deck.gl instance reference.
    *
@@ -75,7 +78,7 @@ export interface Store {
  * Each root owns its deck.gl instance and the layers supplied through its
  * component props.
  */
-export function createStore(isExternalOverlay = false): Store {
+export function createStore(isExternalOverlay = false, forwardViews = false): Store {
   let state: State = {
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
@@ -84,6 +87,8 @@ export function createStore(isExternalOverlay = false): Store {
     deckgl: null,
 
     isExternalOverlay,
+
+    forwardViews,
 
     setDeckGL: instance => {
       setState({deckgl: instance});

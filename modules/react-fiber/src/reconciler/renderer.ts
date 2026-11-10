@@ -224,7 +224,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
 
   // Create new root
   log.log(3, 'DeckGL root created')();
-  const store = createStore(isExternalOverlay);
+  const store = createStore(isExternalOverlay, Boolean(options.forwardViews));
   const containerInfo: Container = {store};
 
   /**

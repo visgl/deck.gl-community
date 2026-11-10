@@ -58,8 +58,29 @@ without the old one's internal state, such as the hovered object. `interleaved` 
 provider; select Mapbox or MapLibre through the import path.
 
 Provider roots render no host DOM node. You can place them inside a React Map GL `<Map>`, or beside
-a manual `new Map({container})` integration without adding a child to the map container. JSX
-`<view>` descriptors do not configure an external overlay because the host map owns views.
+a manual `new Map({container})` integration without adding a child to the map container.
+
+## Views beside the map
+
+The Mapbox and MapLibre roots send `<view>` children, merged with the `views` prop, to the overlay,
+which supports deck.gl's [multi-view usage](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#multi-view-usage).
+Only one view follows the map camera and receives map interaction: the view with id `mapbox` on
+the `/mapbox` root and `maplibre` on the `/maplibre` root. The overlay adds it first when the list
+has none. Give a `<view>` that id to set the map view's position in the list. Keep it the full size
+of the map, or its layers drift off the basemap.
+
+```tsx
+import {OrthographicView} from '@deck.gl/core';
+import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
+
+<DeckGL
+  layerFilter={({layer, viewport}) => (viewport.id === 'inset') === layer.id.startsWith('inset')}
+>
+  <view view={new OrthographicView({id: 'inset', x: '75%', width: '25%', height: '25%'})} />
+  <layer layer={pointsLayer} />
+  <layer layer={insetLayer} />
+</DeckGL>;
+```
 
 ## Attach the overlay to the host map
 

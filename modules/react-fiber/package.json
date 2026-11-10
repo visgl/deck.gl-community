@@ -95,6 +95,7 @@
     "@types/react-reconciler": "0.33.0",
     "fast-check": "^4.0.0",
     "jsdom": "^26.0.0",
+    "mapbox-gl": "^3.8.0",
     "maplibre-gl": "^6.13.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
