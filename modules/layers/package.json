@@ -64,6 +64,7 @@
     "@luma.gl/core": "~9.4.2",
     "@luma.gl/engine": "~9.4.2",
     "@luma.gl/webgpu": "~9.4.2",
-    "@probe.gl/test-utils": "^4.1.1"
+    "@probe.gl/test-utils": "^4.1.1",
+    "esbuild": "^0.28.1"
   }
 }
