@@ -400,7 +400,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   updateState({props, oldProps, changeFlags, context}: UpdateParameters<this>) {
-    const previousEventTarget = this.state?._editableLayerState?.eventTarget;
+    const previousEventTarget = this.state?._editableLayerState?.input.eventTarget;
     const hadActivePan = Boolean(this.state?._editableLayerState?.pointerDownMapCoords);
     super.updateState({oldProps, props, changeFlags, context});
 
@@ -408,7 +408,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
       getClickSequence?: () => unknown[];
     };
     if (
-      previousEventTarget !== this.state._editableLayerState.eventTarget &&
+      previousEventTarget !== this.state._editableLayerState.input.eventTarget &&
       !hadActivePan &&
       modeWithClickSequence.getClickSequence?.().length
     ) {
