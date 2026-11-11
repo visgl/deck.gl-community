@@ -15,6 +15,7 @@ import {
 } from '@deck.gl/core';
 import {Model} from '@luma.gl/engine';
 import {phongMaterial, type PhongMaterialProps} from '@luma.gl/shadertools';
+import {getSplatDeformationWind} from './splat-deformation';
 import {acquireSplatGeometry, type SplatSource} from './splat-source';
 import {getSplatTransform} from './splat-transform';
 import {
@@ -65,6 +66,12 @@ export type PreparedSplatProps<DataT> = {
   getDeformation?: Accessor<DataT, number[]>;
   /** Bend strength as a fraction of the owner's height. @default 0 */
   deformationStrength?: number;
+  /**
+   * Unit `[x, y]` vector the wind blows toward. Owners then bend that way by `deformationStrength` on
+   * average, with gusts of half as much again, instead of swaying to and fro along a fixed axis.
+   * @default null
+   */
+  deformationDirection?: readonly number[] | null;
   /** Seconds, or null for the shared deck.gl animation clock. @default null */
   deformationTime?: number | null;
   /** Pixel variance added to projected covariance, with determinant opacity compensation. @default 0.3 */
@@ -115,6 +122,7 @@ const defaultProps: DefaultProps<SplatLayerProps> = {
   getColor: {type: 'accessor', value: [255, 255, 255, 255]},
   getDeformation: {type: 'accessor', value: [1, 0, 0]},
   deformationStrength: 0,
+  deformationDirection: {type: 'array', value: null, optional: true, compare: true},
   deformationTime: null,
   kernelVariance: {type: 'number', value: 0.3, min: 0},
   alphaCutoff: {type: 'number', value: 1 / 255, min: 0, max: 1},
@@ -319,6 +327,7 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
           Math.sin(time * 3.2),
           Math.cos(time * 3.2)
         ],
+        wind: getSplatDeformationWind(this.props.deformationDirection),
         opticalDepthMode: this.props.source.opticalDepths ? 1 : 0,
         kernelVariance,
         alphaCutoff,

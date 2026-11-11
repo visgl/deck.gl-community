@@ -11,6 +11,10 @@ runs on WebGL2 and WebGPU.
 
 The demo above is the [Seasonal Farm example](/examples/layers/seasonal-farm).
 
+This integration branch includes an opt-in photoreal renderer. Set `quality: 'photoreal'`
+on WebGL2 to draw grown wood, individual leaves, and attached crops for oak, birch, cherry,
+banyan, mangrove, and citrus. Pine, palm, and WebGPU use the standard renderer.
+
 ## Usage
 
 ```ts
@@ -49,10 +53,13 @@ properties. Picking, `autoHighlight` and `highlightedObjectIndex` use the source
 | Property | Default | Description |
 | --- | --- | --- |
 | `getTree` | `d => d` | Returns the [`TreeSpec`](#treespec) for a row. |
+| `quality` | `'standard'` | Set to `'photoreal'` to try the WebGL2 renderer on supported species. |
 | `characteristics` | `{}` | Shared crown morphology for every tree. See [Characteristics](#characteristics). |
 | `sizeScale` | `1` | Multiplier for all tree and crop dimensions. |
-| `windStrength` | `0` | Wind bend as a fraction of tree height. `0.025` is a gentle breeze. |
+| `windStrength` | `0` | Wind bend as a fraction of tree height. `0.025` is a gentle breeze, and `1` a hurricane. |
+| `windDirection` | `null` | Compass bearing in degrees, clockwise from +y (north), that the wind blows toward. Gusts then travel across the grove. `null` sways trees in no particular direction. |
 | `windTime` | `null` | Wind clock in seconds. `null` follows deck.gl's animation timeline. |
+| `windGustTime` | `null` | The clock gust fronts run on, so that a host can time a gust. `null` runs them on `windTime`. See [Wind](#wind). |
 | `maxCanopySplats` | `'auto'` | Shared foliage splat budget. `'auto'` picks one for the device. |
 | `maxCanopyPixels` | `Infinity` | Pixel cap for foliage rendering. Lower values soften leaves. |
 | `foveationStrength` | `0` | `0`–`1`. Under a tight budget, favors crowns near the screen center. |
@@ -133,6 +140,95 @@ small.
 | `internodeLength` | `1` | `0.7`–`1.4` | Branch segment length. |
 | `leafSize` | `1` | `0.5`–`1.8` | Leaf size. |
 | `leafDensity` | `1` | `0.25`–`2` | Leaf count. |
+
+## Wind
+
+With a `windDirection`, gusts come in broad fronts that roll downwind across a grove at
+about 12 m for each second of the gust clock, with a quicker chop over them. Each tree bends,
+its crown combs over and its leaves flip pale as a front passes. Past a breeze, from a
+`windStrength` of `0.06` and in full by about `0.85`, a wind blows as a storm does. Lulls are
+longer and the crowns stay dark in them, while a front bows a crown to about twice its lull
+bend and silvers it: a leaf it holds over shows its pale, matte, grey-green underside, and near
+the camera faces the open sky with it, from whichever side it is seen. How pale a flip is comes
+from the layer's own wind, so a tree with less wind of its own than the layer's silvers as much
+when it flips, only less often. Leaves shed in the wind fly downwind from where their twigs were,
+at their true size. Near the camera each is drawn as its own outline over the last moment of its
+flight, a soft streak that blends, so that renders which add up several moments of a frame give
+it motion blur rather than a row of copies. Fewer of them fly within about 12 m of the camera,
+and none within about 1.6 m.
+
+With `wetness`, about a third of the leaves hold beads of water that mirror the sun, the first
+directional light, in a lobe so tight that only the few facing halfway between the sun and the
+camera sparkle at a time, over the leaves' own green. A leaf a few pixels long flashes as a whole;
+a far crown's leaf, which stands for several, flashes as one of them would; close up the beads are
+small domes on the blade, each with its own point of light. Only beads the sun reaches glint, so a
+blade seen against a low sun has none on the side facing the camera.
+
+The fronts run on `windGustTime`, or on `windTime` when it is `null`. Sway, flutter, falls and
+everything else stay on `windTime`. A story can run the gust clock faster or slower through a
+moment so that a front reaches a place on a beat, while the trees keep their own pace.
+
+`getTreeWindGust` reads the same gust on the CPU, from 0 to 1, so that grass, water, spray, a
+camera shake or a sound can move with the trees:
+
+```ts
+import {getTreeWindGust} from '@deck.gl-community/layers';
+
+const gust = getTreeWindGust({
+  position: [-18, 3.8], // metres from the layer's first tree
+  time: windGustTime,
+  direction: 15, // as windDirection
+  strength: 0.72, // as windStrength, or a tree's own TreeSpec.wind
+  phase: 0 // 0 for a point in the open
+});
+```
+
+The experimental `_treeWindGust` shader module gives a layer's own shaders the same gust as
+`float treeWind_getGust(vec2 metres, float time, vec2 direction, float force, float phase)`. Its
+`direction` is the unit vector the wind blows toward, `[sin(bearing), cos(bearing)]`.
+
+`position` is in metres from the layer's gust origin, which is the position of its first tree,
+along x and y. The GPU computes in 32-bit floats, so the two agree to about `1e-4` with clocks of
+a few hundred seconds.
+
+### Upgrading
+
+The storm look changed. A `windStrength` of `0.06` or more now gives deeper lulls, a front that
+bows a crown about twice as far as a lull does, crowns that comb further, and pale leaves that
+follow the fronts instead of flickering all the time. Below `0.06` trees sway as they did.
+
+At any strength, shed leaves now start from where the wind had their twigs, except a far tree's
+leaves about 3 px long or less, which start where they rest. They are drawn at their own size:
+never as a far tree's larger stand-in leaves, and never capped at a size on screen. One too small to see is shown for less of the time rather than drawn larger, and they
+fade out within about 1.6 m of the camera. Near the camera they are drawn in a pass of their own
+after the rest of the layer, which blends and writes depth for as much of each pixel as a leaf
+covers, so a layer drawn later that tests depth is behind a leaf in the air about as much as the
+leaf covers it.
+
+A tree that comes down tears out a wide, shallow plate of soil and roots, about 22 trunk radii
+across and 4 deep, and leans about its rim. A toppled or leaning tree therefore stands a little
+further over than it did. The face it turns up is pale grey wet sand with dark fibrous roots
+through it, over the dark mat they bind under the old ground, which shows round the rim and where
+the sand has fallen away. Its roots keep to the tree's own trunk, whatever the proportions of its
+crown: lateral ones end just past the rim, and short broken ones stand kinked out of the rim all
+round it. Only the finest level of detail draws those, so a far tree draws no more wood than it
+did. A camera inside a tree's bound, as under its skirt, now always draws that tree at full
+detail, with the finer blades for its nearest leaves. In a storm a long limb streams rather than curling round
+over its fork, and shoots that point into the wind from just below the fork bend less, where
+before two of them could bend apart and stretch the wood between them into a long straight line.
+
+The storm's and the rain's terms wait behind the layer's own wind and `wetness`, so a frame with
+no `windDirection`, a `windStrength` under `0.06` and no `wetness` does next to none of their work.
+
+Leaves large on screen, from about 32 px long, are darker and greener than the coarser blades have
+them, as a coarser blade stands for the sheen of many leaves, with a sharper waxy highlight in a
+broader bloom, which a low sun from the side catches. Their midrib no longer breaks into dashes.
+
+Blossoms (`kind: 'flower'`) are borne on the skin of the crown as it is, at the tips of the shoots,
+in clusters of five at their own depths in the outer leaves, and their petals are a brighter white.
+Within about 2 m of the camera, among the leaves it looks through, they hang on their own twigs.
+A tree blooms from a `growth` of `0.15`, whether or not the twigs its blossoms would hang from have
+grown, so a young tree in bloom shows as many as an old one.
 
 ## Shadows
 

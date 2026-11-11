@@ -33,7 +33,7 @@ import {getSplatHorizon, getSplatTangentFrame, offsetSplatCommonPosition} from '
 import type {SplatHierarchy} from './splat-hierarchy';
 import {getSplatRadius, getSplatCenter} from './splat-source';
 import {getSplatTransform, getSplatTransformScale} from './splat-transform';
-import {getSplatDeformationRadius} from './splat-deformation';
+import {getSplatDeformationRadius, getSplatDeformationWind} from './splat-deformation';
 import {budgetSplatSelections, getSplatLevelCounts, type SplatSelection} from './splat-budget';
 import {SplatRefinementTransition} from './splat-refinement-transition';
 import {retainSplatRows, getSplatChangedRanges, SplatRowSlots} from './splat-row-diff';
@@ -115,6 +115,12 @@ type _SplatLayerProps<DataT> = Omit<PreparedSplatProps<DataT>, 'data' | 'source'
   maxTotalSplats?: number;
   /** @internal Shared cap inherited from a composing layer. */
   _splatBudgetGroup?: SplatBudgetGroup;
+  /**
+   * @internal What an owner is, for a composing layer that animates its owners. By default an owner is
+   * its pose, which survives streamed row replacement, but an owner whose pose changes on every frame
+   * would then arrive anew on every frame, and so never leave its coarsest coverage.
+   */
+  _getOwnerKey?: ((object: DataT) => string | number) | null;
 };
 
 /** Properties for prepared assets and their original owner rows in map, globe and planar views. */
@@ -146,7 +152,8 @@ const defaultProps: DefaultProps<SplatLayerProps> = {
   getSource: {type: 'accessor', value: DEFAULT_GET_SOURCE},
   transparency: 'weighted',
   maxTotalSplats: Infinity,
-  _splatBudgetGroup: null
+  _splatBudgetGroup: null,
+  _getOwnerKey: null
 };
 
 /** Prepared Gaussian templates with shared instances, spatial visibility and screen-error refinement. */
@@ -176,6 +183,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     slots: SplatRowSlots<Owner<DataT>>[];
     coverage: {data: Owner<DataT>[]; ranges: {startRow: number; endRow: number}[]}[];
     awaitingInitialAllocation: boolean;
+    /** This update's triggers must reach every row, even if its rows also changed. */
+    triggersChanged: boolean;
   };
   initializeState() {
     this.state = {
@@ -193,7 +202,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       refinementRows: new WeakMap(),
       slots: [],
       coverage: [],
-      awaitingInitialAllocation: false
+      awaitingInitialAllocation: false,
+      triggersChanged: false
     };
   }
   get isLoaded(): boolean {
@@ -233,15 +243,19 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       'coordinateOrigin'
     ] as const;
     const triggers = changeFlags.updateTriggersChanged;
-    const geometryChanged = keys.some(
-      key =>
-        (typeof props[key] !== 'function' &&
-          (Array.isArray(props[key]) && Array.isArray(oldProps[key])
-            ? props[key].length !== oldProps[key].length ||
-              props[key].some((value, index) => value !== oldProps[key][index])
-            : props[key] !== oldProps[key])) ||
-        (triggers && (triggers.all || triggers[key]))
-    );
+    this.state.triggersChanged = Boolean(triggers);
+    const geometryChanged =
+      // Only whether there is a direction changes how far an owner can reach.
+      Boolean(props.deformationDirection) !== Boolean(oldProps.deformationDirection) ||
+      keys.some(
+        key =>
+          (typeof props[key] !== 'function' &&
+            (Array.isArray(props[key]) && Array.isArray(oldProps[key])
+              ? props[key].length !== oldProps[key].length ||
+                props[key].some((value, index) => value !== oldProps[key][index])
+              : props[key] !== oldProps[key])) ||
+          (triggers && (triggers.all || triggers[key]))
+      );
     const refinementChanged =
       props.pixelError !== oldProps.pixelError ||
       props.foveationStrength !== oldProps.foveationStrength ||
@@ -310,6 +324,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       );
       const get = (accessor, object, info) =>
         typeof accessor === 'function' ? accessor(object, info) : accessor;
+      const wind = getSplatDeformationWind(props.deformationDirection);
       const {iterable, objectInfo} = createIterable(input.data);
       for (const object of iterable as Iterable<DataT>) {
         objectInfo.index++;
@@ -346,7 +361,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           localCenter,
           maximumScale * sourceRadius,
           deformation[0],
-          strength
+          strength,
+          wind
         );
         // On the globe, owner metres point along the east-north-up frame at the anchor.
         const center = offsetSplatCommonPosition(
@@ -357,7 +373,9 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         );
         // Physical pose survives streamed wrapper/index replacement. Duplicate poses
         // remain separate owners; the template/hierarchy belongs to this layer.
-        const pose = [asset.id, ...position, ...transform, ...deformation].join(',');
+        const pose = props._getOwnerKey
+          ? `${asset.id},${props._getOwnerKey(object)}`
+          : [asset.id, ...position, ...transform, ...deformation].join(',');
         const occurrence = duplicates.get(pose) ?? 0;
         duplicates.set(pose, occurrence + 1);
         owners.push({
@@ -672,13 +690,19 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           )
         },
         _coverageRanges: coverage[level].ranges,
-        _dataDiff: (next, previous) => {
-          const ranges = getSplatChangedRanges(
-            next as Owner<DataT>[],
-            previous as Owner<DataT>[] | undefined
-          );
-          return ranges;
-        },
+        // deck.gl drops update triggers when a data diff has ranges, and then rows outside them would
+        // keep their old values.
+        ...(this.state.triggersChanged
+          ? null
+          : {
+              _dataDiff: (next, previous) => {
+                const ranges = getSplatChangedRanges(
+                  next as Owner<DataT>[],
+                  previous as Owner<DataT>[] | undefined
+                );
+                return ranges;
+              }
+            }),
         source: this.state.hierarchy[level].source,
         operation: 'draw',
         pickable: this.props.pickable,

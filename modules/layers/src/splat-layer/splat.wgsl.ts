@@ -53,7 +53,7 @@ struct Varyings {
  let wave = vec2<f32>(splat.wave.x * attributes.instanceDeformation.w + splat.wave.y * attributes.instanceDeformation.z,
    splat.wave.z * attributes.instanceCoverageWeight.z + splat.wave.w * attributes.instanceCoverageWeight.y);
  if (splat.strength != 0.0) {
-  let deformation = splatDeform(position, height, splat.strength * attributes.instanceDeformation.y, wave);
+  let deformation = splatDeform(position, height, splat.strength * attributes.instanceDeformation.y, wave, splat.wind);
   position = deformation.position;
   covariance = deformation.jacobian * covariance;
   normal = splatDeformNormal(deformation.jacobian, normal);

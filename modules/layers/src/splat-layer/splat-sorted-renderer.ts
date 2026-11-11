@@ -443,6 +443,7 @@ export class SplatSortedRenderer {
     const source = entry.layer.props.source;
     const uniforms = entry.model.shaderInputs.getUniformValues().splat!;
     const wave = uniforms.wave as number[];
+    const wind = uniforms.wind as number[];
     const strength = uniforms.strength as number;
     const projection = this.viewport.viewProjectionMatrix;
     const count = source.opacities.length;
@@ -462,10 +463,14 @@ export class SplatSortedRenderer {
           const f = 0.5 * u * u * (3 - u),
             g = Math.max((u - 0.3) / 0.7, 0) ** 2;
           const bend =
-            strength * flex * (wave[0] * cos + wave[1] * sin) * Math.max(height, 0.001) * f;
+            strength *
+            flex *
+            (wind[2] + wind[3] * (wave[0] * cos + wave[1] * sin)) *
+            Math.max(height, 0.001) *
+            f;
           const branch = 0.35 * strength * flex * (wave[2] * cosCrown + wave[3] * sinCrown) * g;
-          const dx = bend + branch * (0.65 * x + 0.3 * y),
-            dy = 0.45 * bend + branch * (-0.25 * x + 0.8 * y);
+          const dx = wind[0] * bend + branch * (0.65 * x + 0.3 * y),
+            dy = wind[1] * bend + branch * (-0.25 * x + 0.8 * y);
           x += dx;
           y += dy;
         }

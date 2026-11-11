@@ -31,7 +31,9 @@ export const DEFAULT_FARM_SETTINGS: FarmSettings = {
     branchLift: 1,
     internodeLength: 1,
     leafSize: 1,
-    leafDensity: 1
+    leafDensity: 1,
+    branchWander: 1,
+    twigDroop: 1
   },
   maxCanopySplats: 'auto',
   maxCanopyPixels: Infinity,

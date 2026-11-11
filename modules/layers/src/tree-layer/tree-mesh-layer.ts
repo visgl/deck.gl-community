@@ -10,7 +10,11 @@ import {
 } from '@deck.gl/core';
 import {SimpleMeshLayer, type SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
 import type {ShaderModule} from '@luma.gl/shadertools';
-import {SPLAT_DEFORMATION_GLSL, SPLAT_DEFORMATION_WGSL} from '../splat-layer/splat-deformation';
+import {
+  getSplatDeformationWind,
+  SPLAT_DEFORMATION_GLSL,
+  SPLAT_DEFORMATION_WGSL
+} from '../splat-layer/splat-deformation';
 import {SPLAT_GLOBE_GLSL, SPLAT_GLOBE_WGSL} from '../splat-layer/splat-globe';
 import {prepareShadowDraw} from '../splat-layer/splat-shadow';
 import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
@@ -28,6 +32,8 @@ type WindProps<DataT> = {
   branchCoverage: number;
   woodMorph: boolean;
   windStrength: number;
+  /** Unit `[x, y]` vector the wind blows toward, or null for a sway along a fixed axis. */
+  windDirection: readonly number[] | null;
   windTime: number | null;
   doubleSided: boolean;
 };
@@ -38,6 +44,7 @@ const UNIFORM_DECLARATION = [
   '  float woodMorph;',
   '  float branchCoverage;',
   '  vec4 wave;',
+  '  vec4 wind;',
   '} treeWind;'
 ].join(String.fromCharCode(10));
 const TREE_WIND = {
@@ -49,7 +56,8 @@ const TREE_WIND = {
   twoSided: f32,
   woodMorph: f32,
   branchCoverage: f32,
-  wave: vec4<f32>
+  wave: vec4<f32>,
+  wind: vec4<f32>
 };
 @group(0) @binding(auto) var<uniform> treeWind: treeWindUniforms;`,
   uniformTypes: {
@@ -57,7 +65,8 @@ const TREE_WIND = {
     twoSided: 'f32',
     woodMorph: 'f32',
     branchCoverage: 'f32',
-    wave: 'vec4<f32>'
+    wave: 'vec4<f32>',
+    wind: 'vec4<f32>'
   }
 } as const satisfies ShaderModule<{
   strength: number;
@@ -65,6 +74,7 @@ const TREE_WIND = {
   woodMorph: number;
   branchCoverage: number;
   wave: [number, number, number, number];
+  wind: readonly [number, number, number, number];
 }>;
 
 const GLSL_STEM = `
@@ -150,7 +160,7 @@ const GLSL_WIND = `
   if (treeWind.strength > 0.0) {
   float treeHeight = max(instanceTreeWind.x, 0.001);
   vec2 treeWave = vec2(treeWind.wave.x * instanceTreeWind.w + treeWind.wave.y * instanceTreeWind.z, treeWind.wave.z * instanceTreeCrownWind.y + treeWind.wave.w * instanceTreeCrownWind.x);
-  mat3 treeJacobian = splatDeform(pos, treeHeight, treeWind.strength * instanceTreeWind.y, treeWave);
+  mat3 treeJacobian = splatDeform(pos, treeHeight, treeWind.strength * instanceTreeWind.y, treeWave, treeWind.wind);
   treeNormal = splatDeformNormal(treeJacobian, treeNormal);
   }
 `;
@@ -160,7 +170,7 @@ const WGSL_WIND = `
   if (treeWind.strength > 0.0) {
   let treeHeight = max(attributes.instanceTreeWind.x, 0.001);
   let treeWave = vec2<f32>(treeWind.wave.x * attributes.instanceTreeWind.w + treeWind.wave.y * attributes.instanceTreeWind.z, treeWind.wave.z * attributes.instanceTreeCrownWind.y + treeWind.wave.w * attributes.instanceTreeCrownWind.x);
-  let treeDeformation = splatDeform(meshPosition, treeHeight, treeWind.strength * attributes.instanceTreeWind.y, treeWave);
+  let treeDeformation = splatDeform(meshPosition, treeHeight, treeWind.strength * attributes.instanceTreeWind.y, treeWave, treeWind.wind);
   meshPosition = treeDeformation.position;
   treeNormal = splatDeformNormal(treeDeformation.jacobian, treeNormal);
   }
@@ -200,6 +210,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
     getWind: {type: 'accessor', value: [1, 0, 1]},
     woodMorph: false,
     windStrength: 0,
+    windDirection: {type: 'array', value: null, optional: true, compare: true},
     windTime: null,
     doubleSided: false
   };
@@ -401,6 +412,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
           Math.sin(time * 3.2),
           Math.cos(time * 3.2)
         ],
+        wind: getSplatDeformationWind(this.props.windDirection),
         twoSided: this.props.doubleSided ? 1 : 0
       }
     });

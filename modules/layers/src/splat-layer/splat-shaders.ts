@@ -14,12 +14,13 @@ const DECLARATION = `uniform splatUniforms {
   float support;
   float opticalDepthMode;
   vec4 wave;
+  vec4 wind;
 } splat;`;
 export const splatUniforms = {
   name: 'splat',
   vs: DECLARATION,
   fs: DECLARATION,
-  source: `struct SplatUniforms { strength: f32, time: f32, mode: f32, kernelVariance: f32, alphaCutoff: f32, support: f32, opticalDepthMode: f32, wave: vec4<f32> };
+  source: `struct SplatUniforms { strength: f32, time: f32, mode: f32, kernelVariance: f32, alphaCutoff: f32, support: f32, opticalDepthMode: f32, wave: vec4<f32>, wind: vec4<f32> };
 @group(0) @binding(auto) var<uniform> splat: SplatUniforms;`,
   uniformTypes: {
     strength: 'f32',
@@ -29,7 +30,8 @@ export const splatUniforms = {
     alphaCutoff: 'f32',
     support: 'f32',
     opticalDepthMode: 'f32',
-    wave: 'vec4<f32>'
+    wave: 'vec4<f32>',
+    wind: 'vec4<f32>'
   }
 } as const satisfies ShaderModule;
 
@@ -121,7 +123,7 @@ void main() {
   vec2 wave = vec2(splat.wave.x * instanceDeformation.w + splat.wave.y * instanceDeformation.z,
     splat.wave.z * instanceCoverageWeight.z + splat.wave.w * instanceCoverageWeight.y);
   mat3 jacobian = mat3(1.0);
-  if (splat.strength != 0.0) jacobian = splatDeform(position, height, splat.strength * instanceDeformation.y, wave);
+  if (splat.strength != 0.0) jacobian = splatDeform(position, height, splat.strength * instanceDeformation.y, wave, splat.wind);
   covariance = jacobian * covariance;
   normal = splatDeformNormal(jacobian, normal);
   // Owner metres point east, north and up of the anchor, on deck.gl's globe as in planar views.

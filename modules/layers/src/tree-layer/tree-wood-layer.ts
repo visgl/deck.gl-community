@@ -78,6 +78,8 @@ export class TreeWoodLayer extends CompositeLayer<any> {
     spatialIndex: SplatSpatialNode<Owner> | null;
     projectionKey: string;
     projectedPositions: Map<string, SplatProjectedPosition>;
+    /** This update's triggers must reach every row, even if `near` or `far` also changed. */
+    triggersChanged: boolean;
   };
   initializeState() {
     this.state = {
@@ -88,7 +90,8 @@ export class TreeWoodLayer extends CompositeLayer<any> {
       owners: [],
       spatialIndex: null,
       projectionKey: '',
-      projectedPositions: new Map()
+      projectedPositions: new Map(),
+      triggersChanged: false
     };
   }
   shouldUpdateState({changeFlags}) {
@@ -98,6 +101,7 @@ export class TreeWoodLayer extends CompositeLayer<any> {
     const viewport = this.context.viewport;
     const projectionKey = getSplatProjectionKey(viewport);
     const triggers = changeFlags.updateTriggersChanged;
+    this.state.triggersChanged = Boolean(triggers);
     const accessorChanged = [
       'getPosition',
       'getScale',
@@ -276,7 +280,9 @@ export class TreeWoodLayer extends CompositeLayer<any> {
               // getSubLayerProps would replace this.props.updateTriggers with `all` alone.
               ...this.getSubLayerProps({id, updateTriggers: this.props.updateTriggers}),
               data,
-              _dataDiff: getSplatChangedRanges,
+              // deck.gl drops update triggers when a data diff has ranges, and then rows outside them
+              // would keep their old values.
+              ...(this.state.triggersChanged ? null : {_dataDiff: getSplatChangedRanges}),
               highlightedObjectIndex: getSplatHighlightRow(this, data),
               // Global coverage applies to every wood fragment. Dense near branch coverage is
               // independent so bole/root fades, picking and streamed replacement remain intact.

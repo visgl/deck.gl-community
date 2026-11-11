@@ -18,10 +18,17 @@ export type TreeCharacteristics = {
   branchLift?: number;
   /** Shoot step-length multiplier (0.7–1.4). @default 1 */
   internodeLength?: number;
-  /** Leaf Gaussian size multiplier (0.5–1.8). @default 1 */
+  /**
+   * Leaf size multiplier (0.5–1.8): of the Gaussians of `quality: 'standard'`, and of leaf length in
+   * `quality: 'photoreal'`, which keeps the count, so crowns of any size stay closed. @default 1
+   */
   leafSize?: number;
   /** Number of leaves per shared template (0.25–2). @default 1 */
   leafDensity?: number;
+  /** Sinuosity of limbs and shoots in photoreal quality: 0 is nearly straight (0–2). @default 1 */
+  branchWander?: number;
+  /** Droop of outer shoots and twigs in photoreal quality: 0 holds them level (0–2). @default 1 */
+  twigDroop?: number;
 };
 export type ResolvedTreeCharacteristics = Required<TreeCharacteristics>;
 const RANGES = {
@@ -32,7 +39,9 @@ const RANGES = {
   branchLift: [0, 3],
   internodeLength: [0.7, 1.4],
   leafSize: [0.5, 1.8],
-  leafDensity: [0.25, 2]
+  leafDensity: [0.25, 2],
+  branchWander: [0, 2],
+  twigDroop: [0, 2]
 } as const;
 /** Quantize slider inputs to 0.01, reject non-finite values, and keep bounded growth work. */
 export function resolveTreeCharacteristics(
