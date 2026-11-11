@@ -34,6 +34,10 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
   camera orbits when no layer is `pickable: '3d'`. Before, a camera lifted with viewState
   `position: [0, 0, z]`, as deck.gl's terrain controller sets it, drew, edited and selected
   metres from the cursor, more with pitch and towards the edges of the view.
+- `SplatLayer` draws captured scenes: Gaussian splat tables decoded by `@loaders.gl/splats`
+  (`SPZLoader`, `SPLATLoader`, `KSPLATLoader`) are accepted as `data` or as per-row sources and
+  convert once to prepared columns, with SH DC colors. `getSplatSourceFromGaussianSplatsTable`
+  is exported for direct conversion.
 
 - **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
   independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without

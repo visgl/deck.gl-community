@@ -61,6 +61,7 @@
     "@deck.gl/mesh-layers": "~9.4.1",
     "@deck.gl/test-utils": "~9.4.1",
     "@loaders.gl/core": "^4.5.1",
+    "@loaders.gl/splats": "^4.5.1",
     "@luma.gl/core": "~9.4.2",
     "@luma.gl/engine": "~9.4.2",
     "@luma.gl/webgpu": "~9.4.2",
