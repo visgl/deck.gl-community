@@ -28,10 +28,10 @@ describe('config-host-context', () => {
   });
 
   describe('getChildHostContext()', () => {
-    it('should set insideView=true for the view element', () => {
+    it.each(['deckView', 'view'])('should set insideView=true for the <%s> element', type => {
       const parentContext = createMockHostContext({insideView: false});
 
-      expect(getChildHostContext(parentContext, 'view').insideView).toBeTruthy();
+      expect(getChildHostContext(parentContext, type).insideView).toBeTruthy();
     });
 
     it('should preserve insideView=true in nested views', () => {

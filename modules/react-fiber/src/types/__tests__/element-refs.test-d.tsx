@@ -9,7 +9,7 @@ import {
   type WidgetPlacement
 } from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {createElement, createRef} from 'react';
+import {createRef} from 'react';
 import {describe, expect, it} from 'vitest';
 
 import '../jsx';
@@ -29,8 +29,7 @@ describe('native element refs', () => {
 
     const layer = <layer ref={layerRef} layer={new ScatterplotLayer({id: 'points'})} />;
     const widget = <widget ref={widgetRef} widget={new TestWidget({id: 'test'})} />;
-    // `createElement` because @types/react already declares an SVG `<view>` intrinsic element.
-    const view = createElement('view', {ref: viewRef, view: new MapView({id: 'main'})});
+    const view = <deckView ref={viewRef} view={new MapView({id: 'main'})} />;
     const effect = <effect ref={effectRef} effect={new LightingEffect()} />;
     // @ts-expect-error A layer ref does not accept a widget.
     const _wrongRef = <widget ref={layerRef} widget={new TestWidget({id: 'test'})} />;

@@ -103,7 +103,7 @@ export interface CreateDeckGLOptions<Props, Instance extends DeckGLRenderer> {
    */
   recreateOverlayOnChange?: readonly (keyof Props & string)[];
   /**
-   * Sends `<view>` children, merged with the `views` prop, to the overlay. Set it for an
+   * Sends `<deckView>` children, merged with the `views` prop, to the overlay. Set it for an
    * overlay that supports deck.gl views alongside its host map, such as `MapboxOverlay`
    * and `MapLibreOverlay`. Without it the overlay receives only its `views` prop.
    */
@@ -271,7 +271,7 @@ export function createDeckGL<Props, Instance extends DeckGLRenderer>(
  * The standalone Deck root exported from the package root and `/dom`.
  *
  * As in `@deck.gl/react`, the view state props are typed from the `views` prop. Without it,
- * they take one map view state. For views from `<view>` children or a widget, name their
+ * they take one map view state. For views from `<deckView>` children or a widget, name their
  * type: `<DeckGL<MapView[]> initialViewState={{left: ..., right: ...}}>`.
  */
 export function DeckGL<ViewsT extends View | View[] | null = null>(props: DeckGLProps<ViewsT>) {

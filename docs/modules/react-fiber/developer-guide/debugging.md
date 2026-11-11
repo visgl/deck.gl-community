@@ -41,7 +41,7 @@ Outside production builds, React Fiber warns `ScatterplotLayer needs a stable id
 
 ## React DevTools
 
-The renderer registers with [React DevTools](https://react.dev/learn/react-developer-tools). In the Components tab, the tree inside each `DeckGL` root shows every `<layer>`, `<view>`, `<widget>` and `<effect>` element, with its props and the components that render it. Use it to check which component produced a layer, and which props it had when it was rendered.
+The renderer registers with [React DevTools](https://react.dev/learn/react-developer-tools). In the Components tab, the tree inside each `DeckGL` root shows every `<layer>`, `<deckView>`, `<widget>` and `<effect>` element, with its props and the components that render it. Use it to check which component produced a layer, and which props it had when it was rendered.
 
 ## Errors
 

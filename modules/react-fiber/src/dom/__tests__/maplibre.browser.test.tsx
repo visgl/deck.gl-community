@@ -264,7 +264,7 @@ for (const interleaved of [false, true]) {
         await act(async () => {
           reactRoot.render(
             <DeckGL interleaved={interleaved} onDeckChange={onDeckChange}>
-              <view view={inset} />
+              <deckView view={inset} />
             </DeckGL>
           );
         });

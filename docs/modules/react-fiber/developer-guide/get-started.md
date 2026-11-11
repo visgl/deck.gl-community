@@ -1,6 +1,6 @@
 # Get started
 
-`@deck.gl-community/react-fiber` renders deck.gl in a React client tree. The native package exports `DeckGL`; it also adds the `<layer>`, `<view>`, `<widget>` and `<effect>` JSX elements that pass already constructed deck.gl descriptors to the renderer. See [Why layer instances](../README.md#why-layer-instances) for what this syntax buys over `@deck.gl/react` JSX layers.
+`@deck.gl-community/react-fiber` renders deck.gl in a React client tree. The native package exports `DeckGL`; it also adds the `<layer>`, `<deckView>`, `<widget>` and `<effect>` JSX elements that pass already constructed deck.gl descriptors to the renderer. See [Why layer instances](../README.md#why-layer-instances) for what this syntax buys over `@deck.gl/react` JSX layers.
 
 ## 1. Install the packages you use
 
@@ -60,18 +60,18 @@ Use ordinary React components to organize a map. A component may create its own 
 
 ## 5. Add views deliberately
 
-Pass a deck.gl `View` instance to `<view>`, also with an explicit ID:
+Pass a deck.gl `View` instance to `<deckView>`, also with an explicit ID:
 
 ```tsx
 import {MapView} from '@deck.gl/core';
 
 <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}} controller>
-  <view view={new MapView({id: 'main-map'})} />
+  <deckView view={new MapView({id: 'main-map'})} />
   <layer layer={/* a deck.gl Layer instance */} />
 </DeckGL>;
 ```
 
-The React tree is flattened before deck.gl receives it. Therefore, a `<view>` can contain React children for application composition, but it does not scope its child layers to that view. The renderer supplies the flattened view list to `Deck`, or to a Mapbox or MapLibre overlay, which renders it beside the map's own view.
+The React tree is flattened before deck.gl receives it. Therefore, a `<deckView>` can contain React children for application composition, but it does not scope its child layers to that view. The renderer supplies the flattened view list to `Deck`, or to a Mapbox or MapLibre overlay, which renders it beside the map's own view.
 
 ## 6. Combine JSX and `layers` only when needed
 
@@ -120,11 +120,11 @@ The notification receives `null` when its root is cleaned up. It is not a callba
 
 Provider selection is an import-path decision. Use `/mapbox` for `MapboxOverlay` or `/maplibre` for `MapLibreOverlay`; install the matching `@deck.gl` package and create/configure the host map in your application. Store the overlay from `onDeckChange` in state and attach it to the map in an effect, so it is attached once per instance and detached during cleanup. See [Attach the overlay to the host map](./using-with-maps.md#attach-the-overlay-to-the-host-map) for the lifecycle, and the [Mapbox](./base-maps/using-with-mapbox.md) and [MapLibre](./base-maps/using-with-maplibre.md) guides for complete examples.
 
-Deck callbacks such as `onClick` are deck.gl event handlers passed to the root, not React synthetic events on `<layer>` or `<view>`.
+Deck callbacks such as `onClick` are deck.gl event handlers passed to the root, not React synthetic events on `<layer>` or `<deckView>`.
 
 ## Next steps
 
-Read the [DeckGL API](../api-reference/deckgl.md) for standalone and interleaved ownership details, [Using with maps](./using-with-maps.md) for host-map lifecycle and provider guides, and [Native elements](../api-reference/native-elements.md) for the exact `<layer>` and `<view>` contract.
+Read the [DeckGL API](../api-reference/deckgl.md) for standalone and interleaved ownership details, [Using with maps](./using-with-maps.md) for host-map lifecycle and provider guides, and [Native elements](../api-reference/native-elements.md) for the exact `<layer>` and `<deckView>` contract.
 
 If you are migrating an existing `@deck.gl/react` application, see [Migrate from `@deck.gl/react`](./migrate-from-deckgl-react.md).
 

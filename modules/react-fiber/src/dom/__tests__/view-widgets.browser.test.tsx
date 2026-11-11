@@ -1,7 +1,7 @@
 import {type Deck, type Layer, MapView, type View} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {_SplitterWidget as SplitterWidget, ZoomWidget} from '@deck.gl/widgets';
-import {act, createElement, useMemo, useState} from 'react';
+import {act, useMemo, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {expect, test} from 'vitest';
 
@@ -125,7 +125,7 @@ webglTest('a SplitterWidget keeps the views it sets when the root renders again'
   }
 });
 
-webglTest('a SplitterWidget drives <view> children through onChange', async () => {
+webglTest('a SplitterWidget drives <deckView> children through onChange', async () => {
   const container = createContainer();
   const reactRoot = createRoot(container);
   let deck: Deck | null = null;
@@ -145,8 +145,9 @@ webglTest('a SplitterWidget drives <view> children through onChange', async () =
           deck = instance as Deck | null;
         }}
       >
-        {/* `createElement` because @types/react already declares an SVG `<view>` element. */}
-        {views.map(view => createElement('view', {key: view.id, view}))}
+        {views.map(view => (
+          <deckView key={view.id} view={view} />
+        ))}
         <layer layer={createLayer(1e5)} />
         <widget widget={splitter} />
       </DeckGL>
@@ -168,7 +169,7 @@ webglTest('a SplitterWidget drives <view> children through onChange', async () =
       {id: 'left', width: 280},
       {id: 'right', width: 120}
     ]);
-    // The views come from React state, through the <view> children.
+    // The views come from React state, through the <deckView> children.
     const widths = (deck?.props.views as View[]).map(view =>
       Number.parseFloat(String(view.props.width))
     );
@@ -195,8 +196,8 @@ webglTest('a widget with a viewId renders in its view', async () => {
             deck = instance as Deck | null;
           }}
         >
-          {createElement('view', {view: new MapView({id: 'left', width: '50%'})})}
-          {createElement('view', {view: new MapView({id: 'right', width: '50%', x: '50%'})})}
+          <deckView view={new MapView({id: 'left', width: '50%'})} />
+          <deckView view={new MapView({id: 'right', width: '50%', x: '50%'})} />
           <widget widget={new ZoomWidget({id: 'zoom-left', viewId: 'left'})} />
           <widget widget={new ZoomWidget({id: 'zoom-right', viewId: 'right'})} />
         </DeckGL>

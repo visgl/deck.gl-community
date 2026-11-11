@@ -52,5 +52,5 @@ the host map is ready, and detach it in the effect's cleanup. The Mapbox and Map
 this pattern with `map.addControl` and `map.removeControl`.
 
 The host map owns the camera. Do not pass `viewState`, `initialViewState` or `controller` to a
-custom overlay root. JSX `<view>` descriptors reach the overlay only when the root sets
+custom overlay root. JSX `<deckView>` descriptors reach the overlay only when the root sets
 `forwardViews: true`, which suits an overlay that renders deck.gl views beside its map.

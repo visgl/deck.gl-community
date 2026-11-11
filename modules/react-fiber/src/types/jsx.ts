@@ -4,7 +4,7 @@
 // oxlint-disable typescript/no-empty-interface
 // oxlint-disable typescript/no-namespace
 import type {Effect, Layer, View, Widget, WidgetProps} from '@deck.gl/core';
-import type {ReactNode, Ref} from 'react';
+import type {Key, ReactNode, Ref} from 'react';
 import type {} from 'react';
 import type {} from 'react/jsx-runtime';
 import type {} from 'react/jsx-dev-runtime';
@@ -23,14 +23,23 @@ export interface DeckGLElements {
     children?: ReactNode;
     /** Receives the `layer` instance. */
     ref?: Ref<Layer>;
+    /** React's key, for lists of elements. */
+    key?: Key;
   };
 
-  /** The deck.gl View instance that owns its child elements. */
-  view: {
+  /**
+   * The deck.gl View instance that owns its child elements.
+   *
+   * `@types/react` already declares an SVG `<view>`, so the deck.gl element is `<deckView>` in
+   * TSX. The renderer also accepts `<view>` at runtime, for JavaScript and `createElement`.
+   */
+  deckView: {
     view: View;
     children?: ReactNode;
     /** Receives the `view` instance. */
     ref?: Ref<View>;
+    /** React's key, for lists of elements. */
+    key?: Key;
   };
 
   /** The deck.gl Widget instance to add. Widgets have no children. */
@@ -38,6 +47,8 @@ export interface DeckGLElements {
     widget: AnyWidget;
     /** Receives the `widget` instance. */
     ref?: Ref<AnyWidget>;
+    /** React's key, for lists of elements. */
+    key?: Key;
   };
 
   /** The deck.gl effect to apply, such as a `LightingEffect`. Effects have no children. */
@@ -45,6 +56,8 @@ export interface DeckGLElements {
     effect: Effect;
     /** Receives the `effect` instance. */
     ref?: Ref<Effect>;
+    /** React's key, for lists of elements. */
+    key?: Key;
   };
 }
 

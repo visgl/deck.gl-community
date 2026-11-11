@@ -44,7 +44,7 @@ export interface State {
   /**
    * Views passed directly via the `views` prop (internal use)
    *
-   * Merged with JSX `<view>` children; `undefined` when the prop is absent.
+   * Merged with JSX `<deckView>` children; `undefined` when the prop is absent.
    *
    * @internal
    */

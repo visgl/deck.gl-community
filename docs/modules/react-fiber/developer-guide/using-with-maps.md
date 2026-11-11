@@ -62,11 +62,11 @@ a manual `new Map({container})` integration without adding a child to the map co
 
 ## Views beside the map
 
-The Mapbox and MapLibre roots send `<view>` children, merged with the `views` prop, to the overlay,
+The Mapbox and MapLibre roots send `<deckView>` children, merged with the `views` prop, to the overlay,
 which supports deck.gl's [multi-view usage](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#multi-view-usage).
 Only one view follows the map camera and receives map interaction: the view with id `mapbox` on
 the `/mapbox` root and `maplibre` on the `/maplibre` root. The overlay adds it first when the list
-has none. Give a `<view>` that id to set the map view's position in the list. Keep it the full size
+has none. Give a `<deckView>` that id to set the map view's position in the list. Keep it the full size
 of the map, or its layers drift off the basemap.
 
 ```tsx
@@ -76,7 +76,7 @@ import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
 <DeckGL
   layerFilter={({layer, viewport}) => (viewport.id === 'inset') === layer.id.startsWith('inset')}
 >
-  <view view={new OrthographicView({id: 'inset', x: '75%', width: '25%', height: '25%'})} />
+  <deckView view={new OrthographicView({id: 'inset', x: '75%', width: '25%', height: '25%'})} />
   <layer layer={pointsLayer} />
   <layer layer={insetLayer} />
 </DeckGL>;
@@ -114,7 +114,7 @@ time. See [Using with custom overlays](./base-maps/using-with-custom-overlays.md
 deck.gl's guides describe a third mode, reverse controlled, in which the `@deck.gl/react` `DeckGL`
 component is the root, a React Map GL `<Map>` is its child, and deck.gl owns the camera. Provider
 roots do not support this mode. `DeckGL` renders its children with the deck.gl reconciler, which
-accepts only `<layer>` and `<view>` elements, so it cannot render a `<Map>` child. An application
+accepts only `<layer>` and `<deckView>` elements, so it cannot render a `<Map>` child. An application
 that needs reverse-controlled rendering should keep using
 [`@deck.gl/react`](https://deck.gl/docs/api-reference/react/deckgl) for that map.
 

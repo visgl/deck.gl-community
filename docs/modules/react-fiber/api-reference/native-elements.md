@@ -2,7 +2,7 @@
 
 ![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
 
-The native renderer accepts four deck.gl JSX elements: `<layer>`, `<view>`, `<widget>` and `<effect>`. They are available after importing the root package:
+The native renderer accepts four deck.gl JSX elements: `<layer>`, `<deckView>`, `<widget>` and `<effect>`. They are available after importing the root package:
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';
@@ -33,15 +33,17 @@ Use a stable, unique `id` for every layer. deck.gl uses IDs to compare new descr
 
 The `layer` prop is intentionally an instance rather than a set of JSX props. Use the layer class from its deck.gl package for its full, typed property API. For example, import `ScatterplotLayer` from `@deck.gl/layers`, not from the native React Fiber package.
 
-## `<view>`
+## `<deckView>`
 
-`<view>` requires one prop named `view`. Its value must be a deck.gl `View` instance.
+`<deckView>` requires one prop named `view`. Its value must be a deck.gl `View` instance.
 
 ```tsx
 import {MapView} from '@deck.gl/core';
 
-<view view={new MapView({id: 'main-map'})} />;
+<deckView view={new MapView({id: 'main-map'})} />;
 ```
+
+The element is named `<deckView>` because `@types/react` already declares an SVG `<view>`, and TSX resolves `<view>` to that type. The renderer also accepts `<view>` at runtime, so JavaScript and `createElement('view', ...)` keep working; TypeScript code uses `<deckView>`. React Three Fiber does the same for names that clash with DOM elements, such as `<threeLine>`.
 
 Give every view an explicit ID. Outside production builds, the renderer warns when a view has no ID or uses deck.gl's default `unknown` ID.
 
@@ -58,9 +60,9 @@ import {CompassWidget, ZoomWidget} from '@deck.gl/widgets';
 </DeckGL>;
 ```
 
-deck.gl matches widgets by ID, as it does layers. Rendering a new widget instance with the same ID updates the mounted widget's props instead of adding another one, so creating the instance during render is fine. A widget has no children. Like `<layer>`, nesting a `<widget>` inside a `<view>` does not attach it to that view; set the widget's `viewId` instead.
+deck.gl matches widgets by ID, as it does layers. Rendering a new widget instance with the same ID updates the mounted widget's props instead of adding another one, so creating the instance during render is fine. A widget has no children. Like `<layer>`, nesting a `<widget>` inside a `<deckView>` does not attach it to that view; set the widget's `viewId` instead.
 
-`SplitterWidget` from `@deck.gl/widgets` sets deck.gl's views itself. Without `<view>` children or a `views` prop, the root leaves them alone, so the split survives re-renders. To keep the views in React state instead, pass `onChange` and render the views it reports:
+`SplitterWidget` from `@deck.gl/widgets` sets deck.gl's views itself. Without `<deckView>` children or a `views` prop, the root leaves them alone, so the split survives re-renders. To keep the views in React state instead, pass `onChange` and render the views it reports:
 
 ```tsx
 import {_SplitterWidget as SplitterWidget} from '@deck.gl/widgets';
@@ -74,7 +76,7 @@ function App() {
   return (
     <DeckGL<MapView[]> initialViewState={INITIAL_VIEW_STATE} controller>
       {views.map(view => (
-        <view key={view.id} view={view} />
+        <deckView key={view.id} view={view} />
       ))}
       <widget widget={splitter} />
     </DeckGL>
@@ -82,7 +84,7 @@ function App() {
 }
 ```
 
-In TypeScript, the view state props are typed from the `views` prop, as in `@deck.gl/react`. For views from `<view>` children or a widget, name their type to pass one view state per view: `<DeckGL<MapView[]> initialViewState={{left: LEFT_VIEW_STATE, right: RIGHT_VIEW_STATE}}>`.
+In TypeScript, the view state props are typed from the `views` prop, as in `@deck.gl/react`. For views from `<deckView>` children or a widget, name their type to pass one view state per view: `<DeckGL<MapView[]> initialViewState={{left: LEFT_VIEW_STATE, right: RIGHT_VIEW_STATE}}>`.
 
 ## `<effect>`
 
@@ -107,9 +109,9 @@ React components may return, nest, or conditionally render these elements. At co
 This means that nesting is useful for React composition but does not create a parent-child deck.gl relationship. In this example, the layer is still placed in the root's flat layer list:
 
 ```tsx
-<view view={new MapView({id: 'main-map'})}>
+<deckView view={new MapView({id: 'main-map'})}>
   <layer layer={new ScatterplotLayer({id: 'airports', data: airports})} />
-</view>;
+</deckView>;
 ```
 
 Use deck.gl's normal view and layer configuration when an application needs view-specific rendering behavior. On the Mapbox and MapLibre roots, the overlay keeps its map's view and renders JSX views beside it; see [Views beside the map](../developer-guide/using-with-maps.md#views-beside-the-map).
@@ -129,13 +131,13 @@ Each element has a matching `DeckGL` prop: `layers`, `views`, `widgets` and `eff
   views={[new MapView({id: 'main-map', controller: true})]}
 >
   <layer layer={new ScatterplotLayer({id: 'react-layer', data: []})} />
-  <view view={new MapView({id: 'main-map'})} />
-  <view view={new MapView({id: 'minimap', x: '75%', width: '25%', height: '25%'})} />
+  <deckView view={new MapView({id: 'main-map'})} />
+  <deckView view={new MapView({id: 'minimap', x: '75%', width: '25%', height: '25%'})} />
 </DeckGL>;
 ```
 
 Here deck.gl receives `react-layer` then `existing-layer`, and the prop's `main-map` view then `minimap`.
 
-Removing the last element of a kind leaves only the prop's entries; removing the last `<view>` with no `views` prop brings back deck.gl's default view. A root with neither leaves deck.gl's views alone, so a widget such as `SplitterWidget` can set them.
+Removing the last element of a kind leaves only the prop's entries; removing the last `<deckView>` with no `views` prop brings back deck.gl's default view. A root with neither leaves deck.gl's views alone, so a widget such as `SplitterWidget` can set them.
 
 The Mapbox and MapLibre roots merge views the same way; a custom overlay root does only with [`forwardViews`](./deckgl.md#custom-compatible-overlays). Widgets and effects are sent to every external-overlay root.

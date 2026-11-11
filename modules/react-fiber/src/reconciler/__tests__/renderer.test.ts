@@ -29,7 +29,7 @@ function createLayerComponent<PropsT extends {id?: string}>(
 
 function createViewComponent<PropsT extends {id?: string}>(ViewClass: new (props: PropsT) => View) {
   return function ViewComponent({children, ...props}: PropsT & {children?: React.ReactNode}) {
-    return React.createElement('view', {view: new ViewClass(props as PropsT)}, children);
+    return React.createElement('deckView', {view: new ViewClass(props as PropsT)}, children);
   };
 }
 
@@ -561,6 +561,34 @@ describe('renderer', () => {
       });
 
       expect(deck.views).toStrictEqual([propView]);
+    });
+
+    it('treats <deckView> and <view> the same, with layers nested in either', async () => {
+      const {root, deck} = createTestRoot();
+      const main = new MapView({id: 'main'});
+      const minimap = new MapView({id: 'minimap'});
+
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            React.Fragment,
+            null,
+            React.createElement(
+              'deckView',
+              {view: main},
+              React.createElement('layer', {layer: new ScatterplotLayer({data: [], id: 'a'})})
+            ),
+            React.createElement(
+              'view',
+              {view: minimap},
+              React.createElement('layer', {layer: new ScatterplotLayer({data: [], id: 'b'})})
+            )
+          )
+        );
+      });
+
+      expect(deck.views).toStrictEqual([main, minimap]);
+      expect(deck.getLayerIds()).toStrictEqual(['a', 'b']);
     });
 
     it('merges a reconfigured views prop with committed JSX views without a commit', async () => {

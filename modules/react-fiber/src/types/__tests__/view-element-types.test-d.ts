@@ -9,7 +9,7 @@ describe('View Element Type Tests', () => {
     const view = new MapView({id: 'main'});
 
     // Act - createElement should succeed with valid MapView
-    const element = createElement('view', {view});
+    const element = createElement('deckView', {view});
 
     // Assert - type test passes at compile time
     expect(element).toBeDefined();
@@ -20,7 +20,7 @@ describe('View Element Type Tests', () => {
     const view = new OrbitView({id: 'orbit'});
 
     // Act - createElement should succeed with valid OrbitView
-    const element = createElement('view', {view});
+    const element = createElement('deckView', {view});
 
     // Assert - type test passes at compile time
     expect(element).toBeDefined();
@@ -31,7 +31,7 @@ describe('View Element Type Tests', () => {
     const layer = new ScatterplotLayer({data: [], id: 'points'});
 
     // createElement with string tags doesn't enforce prop types strictly
-    const _element = createElement('view', {view: layer as never});
+    const _element = createElement('deckView', {view: layer as never});
 
     // Assert - type test passes at compile time
     expect(_element).toBeDefined();
@@ -61,7 +61,7 @@ describe('View Element Type Tests', () => {
 
   it('should view element reject missing view prop', () => {
     // createElement with string tags doesn't enforce prop types strictly
-    const _element = createElement('view', {} as never);
+    const _element = createElement('deckView', {} as never);
 
     // Assert - type test passes at compile time
     expect(_element).toBeDefined();
@@ -73,7 +73,7 @@ describe('View Element Type Tests', () => {
 
     // Act - createElement should succeed with children
     const element = createElement(
-      'view',
+      'deckView',
       {view},
       createElement('layer', {
         layer: new ScatterplotLayer({data: [], id: 'child'})
@@ -92,7 +92,7 @@ describe('View Element Type Tests', () => {
 
     // Act - createElement should succeed with multiple children
     const element = createElement(
-      'view',
+      'deckView',
       {view},
       createElement('layer', {layer: layer1}),
       createElement('layer', {layer: layer2})
@@ -104,8 +104,8 @@ describe('View Element Type Tests', () => {
 
   it('should view element reject null/undefined view', () => {
     // createElement with string tags doesn't enforce prop types strictly
-    const _element1 = createElement('view', {view: null as never});
-    const _element2 = createElement('view', {view: undefined as never});
+    const _element1 = createElement('deckView', {view: null as never});
+    const _element2 = createElement('deckView', {view: undefined as never});
 
     // Assert - type test passes at compile time
     expect(_element1).toBeDefined();
@@ -113,7 +113,7 @@ describe('View Element Type Tests', () => {
 
   it('should view element reject plain object', () => {
     // createElement with string tags doesn't enforce prop types strictly
-    const _element = createElement('view', {view: {id: 'not-a-view'} as never});
+    const _element = createElement('deckView', {view: {id: 'not-a-view'} as never});
 
     // Assert - type test passes at compile time
     expect(_element).toBeDefined();

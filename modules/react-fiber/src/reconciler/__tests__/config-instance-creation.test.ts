@@ -45,10 +45,10 @@ describe('config-instance-creation', () => {
       expect(instance.children).toStrictEqual([]);
     });
 
-    it('should create instance for <view> element', () => {
+    it.each(['deckView', 'view'])('should create instance for <%s> element', elementType => {
       // Arrange
       const view = new MapView({id: 'test-view'});
-      const type: Type = 'view';
+      const type: Type = elementType;
       const props: Props = {view};
       const hostContext = createMockHostContext();
 
@@ -104,6 +104,8 @@ describe('config-instance-creation', () => {
         ['layer', {layer: widget as never}, '<layer> needs a Layer, got TestWidget'],
         ['layer', {layer: {id: 'plain'} as never}, '<layer> needs a Layer, got Object'],
         ['view', {}, '<view> needs a View, got undefined'],
+        ['deckView', {}, '<deckView> needs a View, got undefined'],
+        ['deckView', {view: layer as never}, '<deckView> needs a View, got ScatterplotLayer'],
         ['view', {view: layer as never}, '<view> needs a View, got ScatterplotLayer'],
         ['widget', {}, '<widget> needs a Widget, got undefined'],
         ['widget', {widget: layer as never}, '<widget> needs a Widget, got ScatterplotLayer'],
