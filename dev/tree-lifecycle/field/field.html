@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>TreeLayer field benchmark</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: linear-gradient(#7da7d6, #cfe1ef 62%, #e9e3d3);
+      }
+      #app canvas {
+        display: block;
+      }
+    </style>
+    <script>
+      // Before anything else on the page, so that the first frame's long tasks are seen too.
+      window.fieldLongTasks = [];
+      try {
+        new PerformanceObserver(list => {
+          for (const entry of list.getEntries()) {
+            window.fieldLongTasks.push({start: entry.startTime, duration: entry.duration});
+          }
+        }).observe({type: 'longtask', buffered: true});
+      } catch (error) {
+        console.warn('No long task observer', error);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./field.ts"></script>
+  </body>
+</html>

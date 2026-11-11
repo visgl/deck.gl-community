@@ -1,0 +1,369 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {
+  LightingEffect,
+  OrbitViewport,
+  project,
+  shadow,
+  type EffectContext,
+  type PreRenderOptions,
+  type Viewport
+} from '@deck.gl/core';
+import type {Texture} from '@luma.gl/core';
+
+type Point = [number, number, number];
+type ShadowOptions = Parameters<typeof shadow.getUniforms>[0] & {historyWeight?: number};
+type ShadowUniforms = ReturnType<typeof shadow.getUniforms>;
+type ShadowMatrix = NonNullable<ShadowUniforms['viewProjectionMatrix0']>;
+
+const CLOSE_SHADOW_SPAN = 32;
+const LIGHT_BASIS = [0, 1, 2, 4, 5, 6, 8, 9, 10] as const;
+const SHADOW_DEPTH_LEVELS = 65535;
+const SHADOW_BLEND_MS = 160;
+
+export type FieldShadowDiagnostics = {
+  span: Point;
+  texelMetres: number;
+  snappedCenter: Point;
+  mapSize: [number, number];
+  historyWeight: number;
+};
+
+type LightWindow = {
+  light: ArrayLike<number>;
+  matrix: ShadowMatrix;
+  center: Point;
+  span: Point;
+};
+
+/** Keep one light-space scale while orbiting and through small zoom changes. */
+function getShadowSpan(distance: number, current: number): number {
+  const requested = distance * 4 + 16;
+  while (requested > current) current *= 2;
+  // Leave headroom between entering and exiting a band so a slight zoom reversal holds scale.
+  while (current > CLOSE_SHADOW_SPAN && requested < current * 0.45) current *= 0.5;
+  return current;
+}
+
+function dotLight(light: ArrayLike<number>, axis: number, point: Point): number {
+  return light[axis] * point[0] + light[axis + 4] * point[1] + light[axis + 8] * point[2];
+}
+
+function fitLightWindow(
+  light: ArrayLike<number>,
+  target: Point,
+  span: Point,
+  texelMetres: number
+): LightWindow {
+  const snap = (value: number, step: number) => Math.round(value / step) * step;
+  const center: Point = [
+    snap(dotLight(light, 0, target), texelMetres),
+    snap(dotLight(light, 1, target), texelMetres),
+    snap(dotLight(light, 2, target), span[2] / SHADOW_DEPTH_LEVELS)
+  ];
+  const scaleX = 2 / span[0];
+  const scaleY = 2 / span[1];
+  const scaleZ = -2 / span[2];
+  // deck.gl's Cartesian projection uses positions relative to a common origin. Keep this
+  // matrix linear and pass the translated origin separately through projectCenter.
+  return {
+    light,
+    center,
+    span,
+    matrix: [
+      light[0] * scaleX,
+      light[1] * scaleY,
+      light[2] * scaleZ,
+      0,
+      light[4] * scaleX,
+      light[5] * scaleY,
+      light[6] * scaleZ,
+      0,
+      light[8] * scaleX,
+      light[9] * scaleY,
+      light[10] * scaleZ,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  };
+}
+
+function getProjectCenter(fit: LightWindow, origin: Point): [number, number, number, number] {
+  const {light, center, span} = fit;
+  return [
+    ((dotLight(light, 0, origin) - center[0]) * 2) / span[0],
+    ((dotLight(light, 1, origin) - center[1]) * 2) / span[1],
+    ((center[2] - dotLight(light, 2, origin)) * 2) / span[2],
+    1
+  ];
+}
+
+const shadowBlendDeclaration = /* glsl */ `
+layout(std140) uniform fieldShadowBlendUniforms {
+  float weight;
+  vec2 depthRange;
+} fieldShadowBlend;
+`;
+const fieldShadowBlend = {
+  name: 'fieldShadowBlend',
+  vs: shadowBlendDeclaration,
+  fs: shadowBlendDeclaration,
+  uniformTypes: {weight: 'f32', depthRange: 'vec2<f32>'},
+  defaultUniforms: {weight: 0, depthRange: [1, 1]}
+} as const;
+
+/** Use the same light-space texels for casters and receivers. */
+export function createFieldShadowModule() {
+  let viewport: OrbitViewport | undefined;
+  let band = CLOSE_SHADOW_SPAN;
+  let width = 0;
+  let height = 0;
+  let texelMetres = 0;
+  let span: Point = [0, 0, 0];
+  let lights: LightWindow[] = [];
+  let diagnostics: FieldShadowDiagnostics | null = null;
+  let frameBand: number | undefined;
+  let history: LightWindow | undefined;
+  let historyStart = 0;
+  let historyWeight = 0;
+
+  return {
+    /** Request one copy of the previous map before the shadow pass replaces it. */
+    beginFrame(
+      nextViewport: Viewport | undefined,
+      ratio: number,
+      now: number,
+      hasMap: boolean
+    ): boolean {
+      frameBand = undefined;
+      if (!(nextViewport instanceof OrbitViewport)) {
+        history = undefined;
+        historyWeight = 0;
+        return false;
+      }
+      const sameSize =
+        width === Math.floor(nextViewport.width * ratio) &&
+        height === Math.floor(nextViewport.height * ratio);
+      const elapsed = (now - historyStart) / SHADOW_BLEND_MS;
+      if (!sameSize || !hasMap || elapsed >= 1) history = undefined;
+      const phase = Math.min(1, Math.max(0, elapsed));
+      historyWeight = history ? 1 - phase * phase * (3 - 2 * phase) : 0;
+      const [x, y, z] = nextViewport.target;
+      const eye = nextViewport.cameraPosition;
+      const requested = getShadowSpan(Math.hypot(eye[0] - x, eye[1] - y, eye[2] - z), band);
+      // Finish the current blend before accepting a reversal. Capturing midway would replace
+      // the displayed mix with only one of its maps.
+      frameBand = history ? band : requested;
+      if (history || band === requested || !sameSize || !hasMap || lights.length !== 1)
+        return false;
+      history = lights[0];
+      historyStart = now;
+      historyWeight = 1;
+      return true;
+    },
+    module: {
+      ...shadow,
+      dependencies: [...shadow.dependencies, fieldShadowBlend],
+      // The field's flat ground receives this map. Reject samples beyond its local footprint and
+      // compare each packed depth before interpolating visibility, so small shadows stay visible
+      // next to clear texels.
+      fs: shadow.fs
+        .replace(
+          /float shadow_getShadowWeight\(vec3 position, sampler2D shadowMap\) \{[\s\S]*?\n\}/,
+          /* glsl */ `float fieldShadowCompare(sampler2D shadowMap, ivec2 texel, vec3 position, float depthRange) {
+  float depth = dot(texelFetch(shadowMap, texel, 0), bitUnpackShift);
+  // Keep the ground's bias and soft depth response constant as the map's depth range changes.
+  return smoothstep(0.064, 0.64, (position.z - depth) * depthRange);
+}
+
+float shadow_getShadowWeight(vec3 position, sampler2D shadowMap, float depthRange) {
+  vec3 edge = min(position, vec3(1.0) - position);
+  if (min(min(edge.x, edge.y), edge.z) <= 0.0) return 0.0;
+  ivec2 size = textureSize(shadowMap, 0);
+  vec2 sampleAt = position.xy * vec2(size) - 0.5;
+  vec2 fraction = fract(sampleAt);
+  ivec2 corner = ivec2(floor(sampleAt));
+  ivec2 lo = clamp(corner, ivec2(0), size - 1);
+  ivec2 hi = clamp(corner + 1, ivec2(0), size - 1);
+  float a = fieldShadowCompare(shadowMap, lo, position, depthRange);
+  float b = fieldShadowCompare(shadowMap, ivec2(hi.x, lo.y), position, depthRange);
+  float c = fieldShadowCompare(shadowMap, ivec2(lo.x, hi.y), position, depthRange);
+  float d = fieldShadowCompare(shadowMap, hi, position, depthRange);
+  float border = smoothstep(0.0, 0.04, min(edge.x, edge.y));
+  return border * mix(mix(a, b, fraction.x), mix(c, d, fraction.x), fraction.y);
+}`
+        )
+        .replace(
+          /    float shadowAlpha = 0.0;[\s\S]*?    shadowAlpha \*= shadow.color.a \/ shadow.lightCount;/,
+          /* glsl */ `    float shadowAlpha = shadow_getShadowWeight(
+      shadow_vPosition[0], shadow_uShadowMap0, fieldShadowBlend.depthRange.x);
+    if (shadow.lightCount > 1.0) {
+      float previous = shadow_getShadowWeight(
+        shadow_vPosition[1], shadow_uShadowMap1, fieldShadowBlend.depthRange.y);
+      shadowAlpha = fieldShadowBlend.weight > 0.0
+        ? mix(shadowAlpha, previous, fieldShadowBlend.weight)
+        : (shadowAlpha + previous) / shadow.lightCount;
+    }
+    shadowAlpha *= shadow.color.a;`
+        ),
+      getUniforms(options: ShadowOptions): ShadowUniforms {
+        const {project: projection, shadowMatrices} = options;
+        const nextViewport = projection?.viewport;
+        if (
+          options.shadowEnabled === false ||
+          !(nextViewport instanceof OrbitViewport) ||
+          !shadowMatrices?.length
+        ) {
+          return shadow.getUniforms(options);
+        }
+        const {commonOrigin, viewportSize} = project.getUniforms(projection) as {
+          commonOrigin: Point;
+          viewportSize: [number, number];
+        };
+        // ShadowPass uses the viewport's device dimensions for its color and depth attachments.
+        const mapWidth = Math.max(1, Math.floor(viewportSize[0]));
+        const mapHeight = Math.max(1, Math.floor(viewportSize[1]));
+        const lightCount = Math.min(shadowMatrices.length, 2);
+        if (
+          viewport !== nextViewport ||
+          width !== mapWidth ||
+          height !== mapHeight ||
+          lights.length !== lightCount ||
+          (frameBand !== undefined && frameBand !== band)
+        ) {
+          viewport = nextViewport;
+          width = mapWidth;
+          height = mapHeight;
+          const [x, y, z] = viewport.target;
+          const eye = viewport.cameraPosition;
+          band = frameBand ?? getShadowSpan(Math.hypot(eye[0] - x, eye[1] - y, eye[2] - z), band);
+          texelMetres = band / Math.min(width, height);
+          span = [width * texelMetres, height * texelMetres, band * 2];
+          lights = [];
+        }
+        const previous = options.historyWeight && !options.drawToShadowMap ? history : undefined;
+        const result: ShadowUniforms = {
+          drawShadowMap: Boolean(options.drawToShadowMap),
+          useShadowMap: Boolean(options.shadowMaps?.length),
+          color: options.shadowColor ?? [0, 0, 0, 1],
+          lightId: options.shadowLightId ?? 0,
+          lightCount: previous ? 2 : lightCount,
+          shadow_uShadowMap0: options.shadowMaps?.[0] ?? options.dummyShadowMap!,
+          shadow_uShadowMap1: options.shadowMaps?.[1] ?? options.dummyShadowMap!
+        };
+        for (let index = 0; index < lightCount; index++) {
+          const light = shadowMatrices[index];
+          let fit = lights[index];
+          if (!fit || LIGHT_BASIS.some(axis => fit.light[axis] !== light[axis])) {
+            fit = fitLightWindow(light, nextViewport.target, span, texelMetres);
+            lights[index] = fit;
+            if (index === 0) {
+              diagnostics = {
+                span,
+                texelMetres,
+                snappedCenter: fit.center,
+                mapSize: [width, height],
+                historyWeight
+              };
+            }
+          }
+          const center = getProjectCenter(fit, commonOrigin);
+          if (index === 0) {
+            result.viewProjectionMatrix0 = fit.matrix;
+            result.projectCenter0 = center;
+          } else {
+            result.viewProjectionMatrix1 = fit.matrix;
+            result.projectCenter1 = center;
+          }
+        }
+        if (previous) {
+          result.viewProjectionMatrix1 = previous.matrix;
+          result.projectCenter1 = getProjectCenter(previous, commonOrigin);
+        }
+        return result;
+      }
+    },
+    get diagnostics() {
+      return diagnostics ? {...diagnostics, historyWeight} : null;
+    },
+    get historyWeight() {
+      return historyWeight;
+    },
+    get depthRange(): [number, number] {
+      const current = 2 * (frameBand ?? band);
+      return [current, history?.span[2] ?? current];
+    }
+  };
+}
+
+export class FieldLightingEffect extends LightingEffect {
+  private fieldShadow = createFieldShadowModule();
+  private shadowMap: Texture | undefined;
+  private historyMap: Texture | undefined;
+
+  get shadowDiagnostics(): FieldShadowDiagnostics | null {
+    return this.fieldShadow.diagnostics;
+  }
+
+  override setup(context: EffectContext): void {
+    super.setup(context);
+    if (Object.values(this.props).some(light => light.type === 'directional' && light.shadow)) {
+      context.deck._removeDefaultShaderModule(shadow);
+      context.deck._addDefaultShaderModule(this.fieldShadow.module);
+    }
+  }
+
+  override preRender(options: PreRenderOptions): void {
+    const {device} = this.context!;
+    const source = this.shadowMap;
+    const capture = this.fieldShadow.beginFrame(
+      options.viewports[0],
+      device.canvasContext?.cssToDeviceRatio() ?? 1,
+      performance.now(),
+      Boolean(source)
+    );
+    if (capture && source) {
+      if (this.historyMap?.width !== source.width || this.historyMap.height !== source.height) {
+        this.historyMap?.destroy();
+        this.historyMap = device.createTexture({
+          id: 'tree-shadow-history',
+          format: 'rgba8unorm',
+          width: source.width,
+          height: source.height,
+          sampler: {minFilter: 'linear', magFilter: 'linear'}
+        });
+      }
+      const encoder = device.createCommandEncoder();
+      encoder.copyTextureToTexture({sourceTexture: source, destinationTexture: this.historyMap});
+      device.submit(encoder.finish());
+    }
+    super.preRender(options);
+  }
+
+  override getShaderModuleProps(...args: Parameters<LightingEffect['getShaderModuleProps']>) {
+    const props = super.getShaderModuleProps(...args);
+    const original = props.shadow;
+    if (!original.shadowMaps || original.shadowMaps.length !== 1) return props;
+    this.shadowMap = original.shadowMaps[0];
+    const weight = this.fieldShadow.historyWeight;
+    if (this.historyMap && weight > 0) {
+      Object.assign(original, {
+        shadowMaps: [original.shadowMaps[0], this.historyMap],
+        historyWeight: weight
+      });
+    }
+    return {...props, fieldShadowBlend: {weight, depthRange: this.fieldShadow.depthRange}};
+  }
+
+  override cleanup(context: EffectContext): void {
+    this.historyMap?.destroy();
+    this.historyMap = undefined;
+    this.shadowMap = undefined;
+    super.cleanup(context);
+  }
+}

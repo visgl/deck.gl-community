@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tree field · deck.gl</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./playground.css" />
+  </head>
+  <body>
+    <main id="scene" aria-label="Interactive photorealistic tree field"></main>
+    <canvas id="diagnostics-overlay" aria-hidden="true" hidden></canvas>
+    <header class="masthead"><a href="./playground.html">deck.gl <span>/ tree field</span></a><span class="live"><i></i>LIVE</span></header>
+    <aside class="controls" id="controls" aria-label="Tree field controls">
+      <div class="controls-heading"><div><span class="eyebrow">Development playground</span><h1>Tree field</h1></div><button id="collapse" class="icon-button" aria-expanded="true" aria-controls="controls-body" title="Collapse controls">−</button></div>
+      <div id="controls-body">
+        <p class="intro">Move from the whole orchard to a single leaf. Select a tree, then change its life in real time.</p>
+        <nav id="presets" class="segmented" aria-label="Camera presets"><button data-view="overview" aria-pressed="true">Overview</button><button data-view="rows">Rows</button><button data-view="tree">Tree</button><button data-view="leaf">Leaf</button></nav>
+        <div class="selection"><span class="eyebrow">Editing</span><strong id="selection-label">Loading orchard…</strong><div class="scope"><label for="scope">Apply changes to</label><select id="scope"><option value="selected">Selected tree</option><option value="row">Selected row</option><option value="all">All trees</option></select></div><p id="scope-label" class="subtle">Click a tree to select it.</p></div>
+        <details class="field-setup diagnostics" id="render-diagnostics">
+          <summary>Render diagnostics</summary>
+          <div class="diagnostic-options">
+            <label><input type="checkbox" id="show-diagnostics" checked /> Show crown markers</label>
+            <label><input type="checkbox" id="show-planting" checked /> Show planted boundary</label>
+            <label><input type="checkbox" id="compare-shell-frustum" /> Bypass shell frustum culling</label>
+            <label><input type="checkbox" id="compare-compaction" /> Bypass near geometry compaction</label>
+          </div>
+          <div class="diagnostic-inspect"><label for="inspect-tree">Inspect tree #</label><input type="number" id="inspect-tree" min="1" step="1" placeholder="Selected tree" /></div>
+          <p class="subtle">Option-click a crown marker or bare ground to inspect the planted grid.</p>
+          <ul class="diagnostic-key" aria-label="Crown marker colors"><li data-tier="detail">Detail</li><li data-tier="fine">Fine shell</li><li data-tier="medium">Medium</li><li data-tier="coarse">Coarse</li><li data-tier="culled">Culled</li></ul>
+          <div id="diagnostic-result" class="diagnostic-result">Move the camera to inspect the frame.</div>
+          <button id="save-diagnostics" type="button">Save frame snapshot</button>
+        </details>
+        <div id="settings"></div>
+        <div class="actions"><button id="reset">Restore selected scope</button><button id="pause" aria-pressed="false">Pause wind</button></div>
+        <details class="field-setup"><summary>Field setup</summary><label for="tree-count">Trees in orchard</label><div class="field-count"><select id="tree-count"><option value="1000">1,000</option><option value="5000">5,000</option><option value="10000">10,000</option><option value="20000">20,000</option></select><button id="rebuild">Load field</button></div><p class="subtle">Rebuilds the orchard. Attribute sliders update the existing trees.</p></details>
+        <p class="renderer-note">Nearby crowns draw individual leaves and branches. Fruit stays visible as crowns simplify. Distant damage is approximate.</p>
+        <p class="footnote">Built with deck.gl · luma.gl · community panels</p>
+      </div>
+    </aside>
+    <div class="performance" aria-label="Live performance"><span class="eyebrow">Live field</span><div class="performance-primary"><strong id="tree-total">20,000</strong><span>trees</span><b id="fps">— fps</b></div><div class="performance-grid"><span>Frame <b id="frame-time">—</b></span><span title="One-time botanical template setup, included in startup. Not work repeated every frame.">Templates <b id="prepare-time">—</b></span><span>Visible <b id="visible-count">—</b></span><span>Near detail <b id="near-count">—</b></span></div><p id="render-status">Preparing tree templates…</p></div>
+    <div class="detail-status" aria-label="Current level of detail">LOD bias <strong id="detail-bias">0.00 · auto / 60 fps</strong></div>
+    <footer class="navigation-hint">Drag to orbit <span>·</span> Shift-drag to pan <span>·</span> Scroll to zoom <span>·</span> 1–4 views <span>·</span> F to focus</footer>
+    <div id="loading" class="loading"><span class="loader"></span><strong>Planting your orchard</strong><span>20,000 trees. One continuous field.</span></div>
+    <script type="module" src="./playground.ts"></script>
+  </body>
+</html>

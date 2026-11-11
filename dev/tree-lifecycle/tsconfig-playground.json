@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["playground.ts", "playground-settings.ts", "field/impl-field.ts"],
+  "exclude": ["node_modules"]
+}
