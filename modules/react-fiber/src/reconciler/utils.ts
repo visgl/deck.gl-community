@@ -1,5 +1,5 @@
 import {Layer, View, Widget} from '@deck.gl/core';
-import type {DeckProps, LayersList} from '@deck.gl/core';
+import type {DeckProps, Effect, LayersList} from '@deck.gl/core';
 
 import type {Instance, JsxDescriptors, ViewOrViews} from './types';
 
@@ -31,6 +31,22 @@ export function isView(instance: unknown): instance is View {
 /** Type guard to check if a node is a Widget instance. */
 export function isWidget(instance: unknown): instance is Widget {
   return instance instanceof Widget;
+}
+
+/**
+ * Type guard to check if a node is a deck.gl effect, such as a `LightingEffect` or
+ * `PostProcessEffect`. deck.gl's `Effect` is an interface, so this checks its shape.
+ */
+export function isEffect(instance: unknown): instance is Effect {
+  if (!instance || typeof instance !== 'object' || isLayer(instance)) {
+    return false;
+  }
+  const effect = instance as Partial<Effect>;
+  return (
+    typeof effect.id === 'string' &&
+    typeof effect.setup === 'function' &&
+    typeof effect.cleanup === 'function'
+  );
 }
 
 /** Type guard to check if a node is a Layer instance. */
@@ -82,13 +98,14 @@ export function flattenTree(arr: Instance[]): Instance['node'][] {
 }
 
 /**
- * Partitions a list of nodes into separate views, layers and widgets arrays.
+ * Partitions a list of nodes into separate views, layers, widgets and effects arrays.
  *
- * Uses the isView and isWidget type guards to separate View and Widget objects from Layer
- * objects, organizing them into the structure expected by deck.gl's setProps method.
+ * Uses the isView, isWidget and isEffect type guards to separate View, Widget and effect
+ * objects from Layer objects, organizing them into the structure expected by deck.gl's
+ * setProps method.
  *
- * @param list - Array of Layer, View and Widget nodes to partition
- * @returns Object with separate arrays for views, layers and widgets
+ * @param list - Array of Layer, View, Widget and effect nodes to partition
+ * @returns Object with separate arrays for views, layers, widgets and effects
  *
  * @example
  * ```typescript
@@ -106,12 +123,14 @@ export function organizeList(list: Instance['node'][]) {
         acc.views.push(curr);
       } else if (isWidget(curr)) {
         acc.widgets.push(curr);
+      } else if (isEffect(curr)) {
+        acc.effects.push(curr);
       } else {
         acc.layers.push(curr);
       }
       return acc;
     },
-    {layers: [], views: [], widgets: []}
+    {effects: [], layers: [], views: [], widgets: []}
   );
 }
 
@@ -120,6 +139,7 @@ type RootWidgets = DeckProps<ViewOrViews>['widgets'];
 
 /** The root props that are combined with committed JSX descriptors. */
 interface RootDescriptorProps {
+  _passedEffects?: Effect[];
   _passedLayers: LayersList;
   _passedViews?: ViewOrViews;
   _passedWidgets?: RootWidgets;
@@ -185,12 +205,37 @@ function mergeWidgets(
 }
 
 /**
+ * Merges JSX effects with the `effects` prop by id, the way widgets are merged.
+ *
+ * deck.gl's EffectManager matches effects by id. A prop effect replaces the JSX effect with
+ * the same id, and other prop effects follow the JSX effects. The result is never
+ * `undefined`, so removing the last JSX effect leaves only the prop effects.
+ */
+function mergeEffects(jsxEffects: Effect[], passedEffects: Effect[] | undefined): Effect[] {
+  if (jsxEffects.length === 0) {
+    return passedEffects ?? [];
+  }
+  if (!passedEffects) {
+    return jsxEffects;
+  }
+
+  const effectsById = new Map<string, Effect>();
+  for (const effect of [...jsxEffects, ...passedEffects]) {
+    if (effect) {
+      effectsById.set(effect.id, effect);
+    }
+  }
+  return [...effectsById.values()];
+}
+
+/**
  * Combines a root's `layers`, `views` and `widgets` props with the layers and views of its committed
  * JSX tree.
  *
  * As in `@deck.gl/react`, JSX layers come first and `layers` prop layers follow them, so
  * prop layers draw above JSX layers, and JSX views are merged with the `views` prop by id,
- * with the prop winning. JSX widgets are merged with the `widgets` prop the same way.
+ * with the prop winning. JSX widgets and effects are merged with the `widgets` and `effects`
+ * props the same way.
  * An external overlay receives views only when its root forwards them, as the Mapbox and
  * MapLibre roots do; other overlays keep only their `views` prop.
  *
@@ -200,17 +245,18 @@ function mergeWidgets(
  *
  * @param props - The root's passed descriptors, and whether it is an external overlay that
  *   forwards views
- * @param jsx - Layers, views and widgets from the committed JSX tree
+ * @param jsx - Layers, views, widgets and effects from the committed JSX tree
  * @param sentViews - Whether the previous update sent views
- * @returns The `layers` and `widgets` to send, and `views` when the root has any or just
- *   removed its last one
+ * @returns The `layers`, `widgets` and `effects` to send, and `views` when the root has any or
+ *   just removed its last one
  */
 export function combineRootDescriptors(
   props: RootDescriptorProps,
   jsx: JsxDescriptors,
   sentViews = false
-): Pick<DeckProps<ViewOrViews>, 'layers' | 'views' | 'widgets'> {
-  const descriptors: Pick<DeckProps<ViewOrViews>, 'layers' | 'views' | 'widgets'> = {
+): Pick<DeckProps<ViewOrViews>, 'effects' | 'layers' | 'views' | 'widgets'> {
+  const descriptors: Pick<DeckProps<ViewOrViews>, 'effects' | 'layers' | 'views' | 'widgets'> = {
+    effects: mergeEffects(jsx.effects, props._passedEffects),
     layers: [...jsx.layers, ...props._passedLayers],
     widgets: mergeWidgets(jsx.widgets, props._passedWidgets)
   };

@@ -1,4 +1,12 @@
-import {Deck, type Layer, log, MapView, type View} from '@deck.gl/core';
+import {
+  Deck,
+  type Layer,
+  LightingEffect,
+  log,
+  MapView,
+  PostProcessEffect,
+  type View
+} from '@deck.gl/core';
 import {PolygonLayer, ScatterplotLayer} from '@deck.gl/layers';
 import * as fc from 'fast-check';
 import React from 'react';
@@ -206,7 +214,7 @@ describe('renderer', () => {
 
       root.configure({layers});
 
-      expect(deck.setProps).toHaveBeenCalledWith({layers, widgets: []});
+      expect(deck.setProps).toHaveBeenCalledWith({layers, widgets: [], effects: []});
     });
 
     it('should forward replacement controlled view state and callback', () => {
@@ -223,6 +231,7 @@ describe('renderer', () => {
         layers: [],
         viewState: secondViewState,
         widgets: [],
+        effects: [],
         onViewStateChange: secondHandler
       });
     });
@@ -255,7 +264,12 @@ describe('renderer', () => {
       root.configure({views: [new MapView({id: 'custom'})]});
       root.configure({});
 
-      expect(overlay.setProps).toHaveBeenLastCalledWith({layers: [], views: null, widgets: []});
+      expect(overlay.setProps).toHaveBeenLastCalledWith({
+        layers: [],
+        views: null,
+        widgets: [],
+        effects: []
+      });
     });
 
     it('creates a bound external overlay once and forwards later props', () => {
@@ -272,7 +286,8 @@ describe('renderer', () => {
       expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({
         interleaved: true,
         layers: [],
-        widgets: []
+        widgets: [],
+        effects: []
       });
     });
 
@@ -312,7 +327,8 @@ describe('renderer', () => {
       expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({
         ...updateProps,
         layers: [],
-        widgets: []
+        widgets: [],
+        effects: []
       });
     });
 
@@ -643,6 +659,94 @@ describe('renderer', () => {
       });
 
       expect(deck.widgets).toStrictEqual([]);
+    });
+  });
+
+  describe('effects', () => {
+    function createPostProcessEffect(name: string) {
+      return new PostProcessEffect({name, fs: '', passes: []} as never, {} as never);
+    }
+
+    it('sends JSX effects to deck.gl in tree order, from any depth', async () => {
+      const {root, deck} = createTestRoot();
+      const lighting = new LightingEffect();
+      const blur = createPostProcessEffect('blur');
+      function PostProcessing() {
+        return React.createElement('effect', {effect: blur});
+      }
+
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            React.Fragment,
+            null,
+            React.createElement('effect', {effect: lighting}),
+            React.createElement(
+              'layer',
+              {layer: new ScatterplotLayer({data: [], id: 'points'})},
+              React.createElement(PostProcessing)
+            )
+          )
+        );
+      });
+
+      expect(deck.effects).toStrictEqual([lighting, blur]);
+      expect(deck.getLayerIds()).toStrictEqual(['points']);
+    });
+
+    it('merges the effects prop with JSX effects by id, the prop winning', async () => {
+      const {root, deck} = createTestRoot();
+      const jsxLighting = new LightingEffect();
+      const jsxBlur = createPostProcessEffect('blur');
+      const propLighting = new LightingEffect();
+      const propVignette = createPostProcessEffect('vignette');
+
+      root.configure({effects: [propLighting, propVignette]});
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            React.Fragment,
+            null,
+            React.createElement('effect', {effect: jsxLighting}),
+            React.createElement('effect', {effect: jsxBlur})
+          )
+        );
+      });
+
+      expect(deck.effects).toStrictEqual([propLighting, jsxBlur, propVignette]);
+    });
+
+    it('keeps committed JSX effects when only the effects prop changes', async () => {
+      const {root, deck} = createTestRoot();
+      const jsxEffect = new LightingEffect();
+
+      root.configure({});
+      await React.act(async () => {
+        root.render(React.createElement('effect', {effect: jsxEffect}));
+      });
+
+      const propEffect = createPostProcessEffect('blur');
+      root.configure({effects: [propEffect]});
+
+      expect(deck.effects).toStrictEqual([jsxEffect, propEffect]);
+    });
+
+    it('removes the last JSX effect, and replaces an undefined effects prop with []', async () => {
+      const {root, deck} = createTestRoot();
+
+      await React.act(async () => {
+        root.render(React.createElement('effect', {effect: new LightingEffect()}));
+      });
+      expect(deck.effects).toHaveLength(1);
+
+      await React.act(async () => {
+        root.render(null);
+      });
+      expect(deck.effects).toStrictEqual([]);
+
+      // deck.gl throws on `effects: undefined`, so the root always sends a list.
+      root.configure({effects: undefined});
+      expect(deck.setProps).toHaveBeenLastCalledWith(expect.objectContaining({effects: []}));
     });
   });
 

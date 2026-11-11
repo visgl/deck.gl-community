@@ -7,7 +7,7 @@ import {DeckGL} from '@deck.gl-community/react-fiber';
 import type {DeckGLProps, OnDeckChange} from '@deck.gl-community/react-fiber';
 ```
 
-The root import creates only a standalone `Deck`. It owns a canvas unless the caller supplies `canvas`, and sends JSX `<view>` descriptors to deck.gl, merged with the `views` prop as [Native elements](./native-elements.md#mixing-jsx-and-direct-views) describes. Its props are `DeckProps`, which has no `interleaved` option.
+The root import creates only a standalone `Deck`. It owns a canvas unless the caller supplies `canvas`, and sends JSX `<view>` descriptors to deck.gl, merged with the `views` prop as [Native elements](./native-elements.md#mixing-elements-and-props) describes. Its props are `DeckProps`, which has no `interleaved` option.
 
 ## Provider roots
 
@@ -48,11 +48,13 @@ On the standalone root, `canvas` accepts an `HTMLCanvasElement` or the id of a `
 
 Deck event properties such as `onClick` remain deck.gl callbacks, not React synthetic events on `<layer>` or `<view>`.
 
+Effects such as `LightingEffect` and `PostProcessEffect` can be [`<effect>`](./native-elements.md#effect) children or the `effects` prop, as in `@deck.gl/react`. The root merges the two by ID. deck.gl matches effects by ID, as it does widgets, so a new instance with the same ID updates the mounted effect's props, and creating effects during render is fine.
+
 An error thrown while rendering inside a root, including one the renderer raises for an invalid element, is rethrown from the `DeckGL` component. The nearest [error boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary) around `DeckGL` handles it, as it would for any other component, and the framework's development error overlay shows it. An error boundary inside `DeckGL` catches errors from its own children first; its fallback can only render native elements or `null`. Errors that deck.gl raises at runtime, such as a layer whose data fails to load, never reach an error boundary; deck.gl passes them to its `onError` prop, as with `@deck.gl/react`.
 
 `debug` is a deck.gl prop and is passed to `Deck` or the overlay unchanged. Warnings and traces go through deck.gl's `log`: root creation, unmounting and each commit log at level 3, and the props of every configure, including prop-only updates, at level 4. Enable them in the browser console with `deck.log.enable()` and `deck.log.level = 3`; see [Debugging](https://deck.gl/docs/developer-guide/debugging). The React Fiber [debugging guide](../developer-guide/debugging.md) explains how to read these logs alongside deck.gl's.
 
-The renderer registers with [React DevTools](https://react.dev/learn/react-developer-tools), so the Components tab shows the `<layer>`, `<view>` and `<widget>` elements inside each root, with their props and the components that render them.
+The renderer registers with [React DevTools](https://react.dev/learn/react-developer-tools), so the Components tab shows the `<layer>`, `<view>`, `<widget>` and `<effect>` elements inside each root, with their props and the components that render them.
 
 ## Root DOM and sizing
 

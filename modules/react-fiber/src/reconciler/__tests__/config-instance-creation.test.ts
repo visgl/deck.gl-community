@@ -1,4 +1,4 @@
-import {MapView} from '@deck.gl/core';
+import {LightingEffect, MapView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
@@ -77,6 +77,21 @@ describe('config-instance-creation', () => {
       expect(instance.children).toStrictEqual([]);
     });
 
+    it('should create instance for <effect> element', () => {
+      const effect = new LightingEffect();
+
+      const instance = createInstance(
+        'effect',
+        {effect},
+        {} as never,
+        createMockHostContext(),
+        {} as never
+      );
+
+      expect(instance.node).toBe(effect);
+      expect(instance.children).toStrictEqual([]);
+    });
+
     it('throws when an element is missing its descriptor or gets another kind', () => {
       const hostContext = createMockHostContext();
       const layer = new ScatterplotLayer({data: [], id: 'points'});
@@ -91,7 +106,20 @@ describe('config-instance-creation', () => {
         ['view', {}, '<view> needs a View, got undefined'],
         ['view', {view: layer as never}, '<view> needs a View, got ScatterplotLayer'],
         ['widget', {}, '<widget> needs a Widget, got undefined'],
-        ['widget', {widget: layer as never}, '<widget> needs a Widget, got ScatterplotLayer']
+        ['widget', {widget: layer as never}, '<widget> needs a Widget, got ScatterplotLayer'],
+        ['effect', {}, '<effect> needs a deck.gl effect, got undefined'],
+        [
+          'effect',
+          {effect: layer as never},
+          '<effect> needs a deck.gl effect, got ScatterplotLayer'
+        ],
+        ['effect', {effect: widget as never}, '<effect> needs a deck.gl effect, got TestWidget'],
+        ['effect', {effect: {id: 'plain'} as never}, '<effect> needs a deck.gl effect, got Object'],
+        [
+          'layer',
+          {layer: new LightingEffect() as never},
+          '<layer> needs a Layer, got LightingEffect'
+        ]
       ];
 
       // The check runs in every build, not only in development.

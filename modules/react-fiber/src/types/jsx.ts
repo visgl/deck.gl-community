@@ -3,7 +3,7 @@
 // oxlint-disable import/no-empty-named-blocks
 // oxlint-disable typescript/no-empty-interface
 // oxlint-disable typescript/no-namespace
-import type {Layer, View, Widget, WidgetProps} from '@deck.gl/core';
+import type {Effect, Layer, View, Widget, WidgetProps} from '@deck.gl/core';
 import type {ReactNode, Ref} from 'react';
 import type {} from 'react';
 import type {} from 'react/jsx-runtime';
@@ -38,6 +38,13 @@ export interface DeckGLElements {
     widget: AnyWidget;
     /** Receives the `widget` instance. */
     ref?: Ref<AnyWidget>;
+  };
+
+  /** The deck.gl effect to apply, such as a `LightingEffect`. Effects have no children. */
+  effect: {
+    effect: Effect;
+    /** Receives the `effect` instance. */
+    ref?: Ref<Effect>;
   };
 }
 
