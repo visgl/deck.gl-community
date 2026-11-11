@@ -26,6 +26,10 @@ export default defineConfig({
   test: {
     name: 'tree-lifecycle',
     environment: 'node',
-    include: ['test/**/*.spec.ts']
+    include:
+      process.env.TREE_STATE_PERF === '1'
+        ? ['test/tree-state-store.perf.ts']
+        : ['test/**/*.spec.ts'],
+    testTimeout: process.env.TREE_STATE_PERF === '1' ? 60000 : undefined
   }
 });

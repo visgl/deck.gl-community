@@ -85,3 +85,9 @@ Detail reach changes the live canopy and background crown thresholds. It checks 
 coverage, shadow window alignment, and the inspector's frame export.
 
 The M4 comparison uses p99 CPU time under 6 ms and p99 GPU time under 4 ms above the empty-scene floor.
+
+To measure the state store on a quiet machine, run the standalone timing and heap checks.
+
+```sh
+TREE_STATE_PERF=1 yarn vitest run --config dev/tree-lifecycle/vitest.config.ts
+```
