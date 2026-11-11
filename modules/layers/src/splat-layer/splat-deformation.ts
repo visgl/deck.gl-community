@@ -20,7 +20,7 @@ const SPLAT_SWAY: SplatDeformationWind = [1, 0.45, 0, 1];
  * A bend's square, as a fraction of height, below which a sway does not come down at all, which is up to
  * a strength of 0.5: a sway is too brief to read as a stretch.
  */
-const SPLAT_SWAY_RIGID_ARC = 0.3;
+export const SPLAT_SWAY_RIGID_ARC = 0.3;
 
 /**
  * The bend of wind blowing toward a unit vector: as far as `strength` says on average, and half as much

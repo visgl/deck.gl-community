@@ -7,6 +7,7 @@ import {Model, DynamicBuffer} from '@luma.gl/engine';
 import {getSplatGeometry} from './splat-source';
 import {getSplatTransform} from './splat-transform';
 import {getSplatCommonUnits, getSplatProjectionKey} from './splat-culling';
+import {SPLAT_SWAY_RIGID_ARC} from './splat-deformation';
 import {getSplatTangentFrame} from './splat-globe';
 import type {SplatPrimitiveLayer} from './splat-primitive-layer';
 
@@ -455,24 +456,28 @@ export class SplatSortedRenderer {
           py = source.positions[i * 3 + 1],
           pz = source.positions[i * 3 + 2];
         let x = m[0] * px + m[3] * py + m[6] * pz + m[9],
-          y = m[1] * px + m[4] * py + m[7] * pz + m[10];
-        const z = m[2] * px + m[5] * py + m[8] * pz + m[11];
+          y = m[1] * px + m[4] * py + m[7] * pz + m[10],
+          z = m[2] * px + m[5] * py + m[8] * pz + m[11];
         if (strength) {
-          const [height, flex, sin, cos, sinCrown, cosCrown] = owner.wind;
-          const u = Math.max(0, Math.min(1, z / Math.max(height, 0.001)));
+          const [bendHeight, flex, sin, cos, sinCrown, cosCrown] = owner.wind;
+          const height = Math.max(bendHeight, 0.001);
+          const u = Math.max(0, Math.min(1, z / height));
           const f = 0.5 * u * u * (3 - u),
             g = Math.max((u - 0.3) / 0.7, 0) ** 2;
-          const bend =
-            strength *
-            flex *
-            (wind[2] + wind[3] * (wave[0] * cos + wave[1] * sin)) *
-            Math.max(height, 0.001) *
-            f;
+          const bend = strength * flex * (wind[2] + wind[3] * (wave[0] * cos + wave[1] * sin));
+          const bendX = wind[0] * bend;
+          const bendY = wind[1] * bend;
           const branch = 0.35 * strength * flex * (wave[2] * cosCrown + wave[3] * sinCrown) * g;
-          const dx = wind[0] * bend + branch * (0.65 * x + 0.3 * y),
-            dy = wind[1] * bend + branch * (-0.25 * x + 0.8 * y);
+          const dx = bendX * height * f + branch * (0.65 * x + 0.3 * y),
+            dy = bendY * height * f + branch * (-0.25 * x + 0.8 * y);
           x += dx;
           y += dy;
+          // Sort the same center the vertex shader draws, including the lowering of bent crowns.
+          const arc = Math.max(
+            bendX * bendX + bendY * bendY - (wind[2] > 0 ? 0 : SPLAT_SWAY_RIGID_ARC),
+            0
+          );
+          z = Math.max(z - (2 / 3) * arc * height * u * u * u, Math.min(z, 0));
         }
         const a = owner.axes;
         const worldX = owner.common[0] + a[0] * x + a[3] * y + a[6] * z,
