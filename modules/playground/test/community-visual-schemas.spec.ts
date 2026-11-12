@@ -51,7 +51,8 @@ describe('community visual layer schemas', () => {
         bladesPerPatch: 1024,
         windDirection: 55,
         windStrength: 0.35,
-        windTime: null
+        windTime: null,
+        shadowEnabled: false
       }).success
     ).toBe(true);
     for (const props of [
@@ -62,7 +63,8 @@ describe('community visual layer schemas', () => {
       {getSeed: 16777216},
       {bladesPerPatch: 4097},
       {windStrength: 1.1},
-      {windTime: '0'}
+      {windTime: '0'},
+      {shadowEnabled: true}
     ]) {
       expect(parseLayer('GrassLayer', props).success).toBe(false);
     }

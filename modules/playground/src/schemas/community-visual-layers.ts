@@ -67,7 +67,8 @@ export const GrassLayerPropsSchema = BaseLayerPropsSchema.extend({
   bladesPerPatch: z.number().int().min(1).max(4096).optional(),
   windDirection: z.number().optional(),
   windStrength: fraction.optional(),
-  windTime: z.number().nullable().optional()
+  windTime: z.number().nullable().optional(),
+  shadowEnabled: z.literal(false).optional()
 });
 /** JSON configuration for GrassLayer. */
 export const GrassLayerSchema = defineLayer('GrassLayer', GrassLayerPropsSchema);
