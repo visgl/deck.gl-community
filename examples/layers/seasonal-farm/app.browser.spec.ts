@@ -4,6 +4,8 @@
 
 import {
   Deck,
+  DirectionalLight,
+  LightingEffect,
   MapController,
   type MapView,
   type MapViewState,
@@ -113,6 +115,13 @@ describe('Seasonal Farm integration', () => {
         cleanup = mount();
         await expect.poll(() => frames.mock.calls.length, {timeout: 5000}).toBeGreaterThan(0);
         expect(deck!.props.device).toBe(device);
+        const lighting = deck!.props.effects?.find(effect => effect instanceof LightingEffect);
+        expect(lighting?.shadowColor[3]).toBe(0.42);
+        expect(
+          Object.values(lighting?.props ?? {}).some(
+            light => light instanceof DirectionalLight && light.shadow
+          )
+        ).toBe(true);
         expect(deck!.props.controller).toMatchObject({type: MapController});
         await expect
           .poll(() => parent.querySelector('#settings-panel-input-season'), {timeout: 5000})
@@ -196,14 +205,16 @@ describe('Seasonal Farm integration', () => {
         expect(deck!.props.getTooltip!({x: 0, y: 0} as PickingInfo)).toBeNull();
         expect(viewport().zoom).toBe(view.zoom);
         const bounds = canvas.getBoundingClientRect();
-        canvas.dispatchEvent(
-          new WheelEvent('wheel', {
-            bubbles: true,
-            deltaY: -240,
-            clientX: bounds.left + bounds.width / 2,
-            clientY: bounds.top + bounds.height / 2
-          })
-        );
+        const wheel = (deltaY: number) =>
+          canvas.dispatchEvent(
+            new WheelEvent('wheel', {
+              bubbles: true,
+              deltaY,
+              clientX: bounds.left + bounds.width / 2,
+              clientY: bounds.top + bounds.height / 2
+            })
+          );
+        wheel(-240);
         await expect.poll(() => viewport().zoom, {timeout: 5000}).toBeGreaterThan(view.zoom + 0.5);
         instantCamera = true;
         canvas.dispatchEvent(
@@ -243,6 +254,14 @@ describe('Seasonal Farm integration', () => {
             .poll(() => frames.mock.results.at(-1)?.value[property], {timeout: 5000})
             .toBe(limit);
         }
+        // Exercise the zoom clamp through wheel input at the maximum pitch.
+        wheel(120);
+        await expect.poll(() => viewport().zoom, {timeout: 5000}).toBeLessThan(23);
+        for (let attempt = 0; attempt < 3; attempt++) {
+          wheel(-240);
+          await expect.poll(() => viewport().zoom, {timeout: 5000}).toBe(23);
+        }
+        expect(viewport().pitch).toBe(80);
         const navigated = {...savedView!};
         // Ignore the transient canvas size reported during a website device handoff.
         deck!.props.onResize!({width: 1, height: 1});

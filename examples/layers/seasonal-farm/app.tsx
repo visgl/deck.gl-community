@@ -3,7 +3,10 @@
 // Copyright (c) vis.gl contributors
 
 import {
+  AmbientLight,
   Deck,
+  DirectionalLight,
+  LightingEffect,
   MapView,
   MapController,
   WebMercatorViewport,
@@ -127,6 +130,16 @@ export function mountSeasonalFarmExample(
       }
     })
   });
+  const lighting = new LightingEffect({
+    ambient: new AmbientLight({color: [210, 224, 242], intensity: 1}),
+    sun: new DirectionalLight({
+      color: [255, 246, 225],
+      direction: [1, -0.5, -1.3],
+      intensity: 1.7,
+      _shadow: true
+    })
+  });
+  lighting.shadowColor = [0, 0, 0, 0.42];
   const deck = new Deck({
     parent: root,
     device: options.device,
@@ -135,6 +148,7 @@ export function mountSeasonalFarmExample(
       ...(options.showControlsWidget === false ? [] : [controls])
     ],
     views: new MapView({id: 'farm'}),
+    effects: [lighting],
     initialViewState: currentView,
     controller: {type: MapController, touchRotate: true},
     onViewStateChange(params) {
@@ -217,7 +231,9 @@ export function mountSeasonalFarmExample(
         getFillColor: season === 'winter' ? [234, 235, 222, 255] : [224, 231, 204, 255],
         getLineColor: [128, 145, 107, 255],
         getLineWidth: 1.5,
-        lineWidthUnits: 'pixels'
+        lineWidthUnits: 'pixels',
+        // The plot surfaces receive shadows on WebGL2. Keep them out of the caster pass.
+        _subLayerProps: {fill: {shadowEnabled: false}, stroke: {shadowEnabled: false}}
       }),
       new TreeLayer<FarmTree>({
         id: 'farm-trees',

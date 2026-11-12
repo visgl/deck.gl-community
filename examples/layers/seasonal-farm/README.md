@@ -13,6 +13,10 @@ The **TreeLayer** panel maps directly onto layer props:
 Drag to pan, scroll or pinch to zoom, and right-drag to tilt or rotate, up to zoom 23 and an 80°
 pitch. No basemap is required.
 
+Trees cast and receive directional shadows through deck.gl's `LightingEffect`. The farm sets
+the shadow opacity to 0.42. Plot surfaces receive these shadows on WebGL2. With deck.gl 9.4's
+WebGPU polygon renderer, shadows are visible on trees and crops.
+
 ## Run
 
 From the repository root:
