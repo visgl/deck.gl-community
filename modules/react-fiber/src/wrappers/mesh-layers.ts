@@ -7,16 +7,16 @@ import {
 } from '@deck.gl/mesh-layers';
 import type {ScenegraphLayerProps, SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
 
-import {type LayerProps, renderLayer} from './factories';
+import {type LayerProps, type NoInferProps, renderLayer} from './factories';
 
 export function ScenegraphLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<ScenegraphLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<ScenegraphLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckScenegraphLayer(props as LayerProps<typeof DeckScenegraphLayer>));
 }
 
 export function SimpleMeshLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<SimpleMeshLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<SimpleMeshLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckSimpleMeshLayer(props as LayerProps<typeof DeckSimpleMeshLayer>));
 }

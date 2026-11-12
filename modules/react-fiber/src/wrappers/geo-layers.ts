@@ -32,82 +32,82 @@ import type {
   WMSLayerProps
 } from '@deck.gl/geo-layers';
 
-import {type LayerProps, renderLayer} from './factories';
+import {type LayerProps, type NoInferProps, renderLayer} from './factories';
 
 export function A5Layer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<A5LayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<A5LayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckA5Layer(props as LayerProps<typeof DeckA5Layer>));
 }
 
 export function GeohashLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<GeohashLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<GeohashLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckGeohashLayer(props as LayerProps<typeof DeckGeohashLayer>));
 }
 
 export function GreatCircleLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<GreatCircleLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<GreatCircleLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckGreatCircleLayer(props as LayerProps<typeof DeckGreatCircleLayer>));
 }
 
 export function H3ClusterLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<H3ClusterLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<H3ClusterLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckH3ClusterLayer(props as LayerProps<typeof DeckH3ClusterLayer>));
 }
 
 export function H3HexagonLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<H3HexagonLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<H3HexagonLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckH3HexagonLayer(props as LayerProps<typeof DeckH3HexagonLayer>));
 }
 
 export function MVTLayer<FeaturePropertiesT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<MVTLayerProps<FeaturePropertiesT> & NoInfer<ExtraPropsT>>
+  props: Partial<MVTLayerProps<FeaturePropertiesT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckMVTLayer(props as LayerProps<typeof DeckMVTLayer>));
 }
 
 export function QuadkeyLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<QuadkeyLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<QuadkeyLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckQuadkeyLayer(props as LayerProps<typeof DeckQuadkeyLayer>));
 }
 
 export function S2Layer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<S2LayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<S2LayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckS2Layer(props as LayerProps<typeof DeckS2Layer>));
 }
 
 export function TerrainLayer<ExtraPropsT extends {} = {}>(
-  props: Partial<TerrainLayerProps & NoInfer<ExtraPropsT>>
+  props: Partial<TerrainLayerProps> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckTerrainLayer(props as LayerProps<typeof DeckTerrainLayer>));
 }
 
 export function Tile3DLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<Tile3DLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<Tile3DLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckTile3DLayer(props as LayerProps<typeof DeckTile3DLayer>));
 }
 
 export function TileLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<TileLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<TileLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckTileLayer(props as LayerProps<typeof DeckTileLayer>));
 }
 
 export function TripsLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<TripsLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<TripsLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckTripsLayer(props as LayerProps<typeof DeckTripsLayer>));
 }
 
 export function _WMSLayer<ExtraPropsT extends {} = {}>(
-  props: Partial<WMSLayerProps & NoInfer<ExtraPropsT>>
+  props: Partial<WMSLayerProps> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckWMSLayer(props as LayerProps<typeof DeckWMSLayer>));
 }

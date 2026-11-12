@@ -13,6 +13,14 @@ export type LayerProps<LayerClassT extends abstract new (...args: never[]) => La
   ConstructorParameters<LayerClassT>[0];
 
 /**
+ * Blocks inference of a type parameter, like TypeScript 5.4's built-in `NoInfer`, but works on
+ * TypeScript 5.3. Without it, TypeScript would infer `ExtraPropsT` from any unknown prop and
+ * accept it.
+ * @internal
+ */
+export type NoInferProps<T> = [T][T extends unknown ? 0 : never];
+
+/**
  * The four functions below are the only place the wrappers name the native elements.
  * @internal
  */

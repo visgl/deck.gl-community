@@ -16,34 +16,34 @@ import type {
   ScreenGridLayerProps
 } from '@deck.gl/aggregation-layers';
 
-import {type LayerProps, renderLayer} from './factories';
+import {type LayerProps, type NoInferProps, renderLayer} from './factories';
 
 export function ContourLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<ContourLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<ContourLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckContourLayer(props as LayerProps<typeof DeckContourLayer>));
 }
 
 export function GridLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<GridLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<GridLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckGridLayer(props as LayerProps<typeof DeckGridLayer>));
 }
 
 export function HeatmapLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<HeatmapLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<HeatmapLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckHeatmapLayer(props as LayerProps<typeof DeckHeatmapLayer>));
 }
 
 export function HexagonLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<HexagonLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<HexagonLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckHexagonLayer(props as LayerProps<typeof DeckHexagonLayer>));
 }
 
 export function ScreenGridLayer<DataT = any, ExtraPropsT extends {} = {}>(
-  props: Partial<ScreenGridLayerProps<DataT> & NoInfer<ExtraPropsT>>
+  props: Partial<ScreenGridLayerProps<DataT>> & NoInferProps<Partial<ExtraPropsT>>
 ): ReactElement {
   return renderLayer(new DeckScreenGridLayer(props as LayerProps<typeof DeckScreenGridLayer>));
 }

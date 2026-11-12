@@ -97,6 +97,8 @@ describe('built-in wrappers', () => {
       const deck = await render(
         <WidgetComponent id={exportName} {...REQUIRED_WIDGET_PROPS[exportName]} />
       );
+      // Checks the instance only: deck.gl's TimelineWidget overwrites the `id` prop with 'timeline'
+      // through a class field. The fix is in progress upstream in deck.gl.
       expect(deck.widgets[0]).toBeInstanceOf(deckWidgets[exportName as keyof typeof deckWidgets]);
     }
   });
