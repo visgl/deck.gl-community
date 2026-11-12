@@ -65,7 +65,8 @@ export const RainLayerPropsSchema = BaseLayerPropsSchema.extend({
   exposure: nonnegative.optional(),
   streakWidth: nonnegative.optional(),
   color: ColorSchema.optional(),
-  seed: nonnegative.int().max(0xffffffff).optional()
+  seed: nonnegative.int().max(0xffffffff).optional(),
+  shadowEnabled: z.literal(false).optional()
 });
 /** JSON configuration for RainLayer. */
 export const RainLayerSchema = defineLayer('RainLayer', RainLayerPropsSchema);

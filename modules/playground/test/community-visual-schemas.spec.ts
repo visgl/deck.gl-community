@@ -47,7 +47,8 @@ describe('community visual layer schemas', () => {
         exposure: 1 / 60,
         streakWidth: 1.5,
         color: [200, 220, 235, 128],
-        seed: 0xffffffff
+        seed: 0xffffffff,
+        shadowEnabled: false
       }).success
     ).toBe(true);
     for (const props of [
@@ -59,7 +60,8 @@ describe('community visual layer schemas', () => {
       {exposure: -1},
       {streakWidth: -1},
       {color: [200, 220]},
-      {seed: 0x100000000}
+      {seed: 0x100000000},
+      {shadowEnabled: true}
     ]) {
       expect(parseLayer('RainLayer', props).success).toBe(false);
     }
