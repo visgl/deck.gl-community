@@ -91,8 +91,11 @@ export function Map() {
 }
 ```
 
-Each layer needs a stable, unique `id`. The component builds a new layer on every render, and
-deck.gl uses the ID to match it with the previous one and update only what changed.
+deck.gl uses a layer's `id` to match the layer a component builds on each render with the
+previous one, and updates only what changed. A layer without an `id` gets one from its place in
+the React tree. Give layers in a changing list a `key` or an `id`, and give an `id` to any layer
+that other code refers to, such as in a `layerFilter`. The Native elements page of the docs
+describes the generated ids.
 
 ## Choose a root
 

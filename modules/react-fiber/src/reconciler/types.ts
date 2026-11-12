@@ -84,6 +84,12 @@ export interface Instance {
 
   /** Child instances in the reconciler tree */
   children: Instance[];
+
+  /**
+   * The element's position in the React tree, from which an element without an id gets one.
+   * See `element-ids.ts`.
+   */
+  path?: string[];
 }
 
 /**
