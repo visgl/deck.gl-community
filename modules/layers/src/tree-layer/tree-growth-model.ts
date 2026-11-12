@@ -1841,7 +1841,7 @@ function* colonizeCrown(
       insertEligible(tip[shoot]);
       cone[tip[shoot]] = TIP_CONE;
     }
-    let budWrite = 0;
+    let eligibleBudCount = 0;
     for (let index = 0; index < budCount; index++) {
       const node = budList[index];
       if (budState[node] !== BUD_AWAKE) continue;
@@ -1849,13 +1849,13 @@ function* colonizeCrown(
         budState[node] = BUD_SPENT;
         continue;
       }
-      budList[budWrite++] = node;
+      budList[eligibleBudCount++] = node;
       if (node !== tip[nodes.shoot[node]]) {
         insertEligible(node);
         cone[node] = BUD_CONE;
       }
     }
-    budCount = budWrite;
+    budCount = eligibleBudCount;
 
     // Each attractor pulls its nearest eligible node, or dies if one has reached it.
     let activeWrite = 0;
@@ -1974,8 +1974,8 @@ function* colonizeCrown(
       if (placed >= 0 && kinked) nodes.kink[node] = 1;
     }
 
-    // Awake buds with attractors nearby break into lateral shoots.
-    for (let index = 0; index < budCount; index++) {
+    // Buds that woke during this step need a new attraction assignment before branching.
+    for (let index = 0; index < eligibleBudCount; index++) {
       const node = budList[index];
       if (pull[node] === 0 || node === tip[nodes.shoot[node]]) continue;
       if (shootCount >= SHOOT_CAPACITY) break;
