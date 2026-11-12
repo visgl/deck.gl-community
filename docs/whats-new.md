@@ -4,6 +4,8 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- **layers:** [`GrassLayer`](./modules/layers/api-reference/grass-layer.md) renders procedural grass patches with wind on WebGL2 and WebGPU.
+
 Gallery pages, inline documentation examples, and all 37 standalone HTML examples now share an iPhone-compatible fullscreen button.
 
 - **panels:** `FullScreenComponent` and `FullScreenController` add native fullscreen with a

@@ -25,6 +25,8 @@ export {SkyboxLayer} from './skybox-layer/skybox-layer';
 export type {FlameTrailLayerProps} from './flame-trail-layer/flame-trail-layer';
 export {FlameTrailLayer} from './flame-trail-layer/flame-trail-layer';
 
+export {GrassLayer, type GrassLayerProps} from './grass-layer/grass-layer';
+
 export {VolumetricVideoLayer} from './volumetric-video-layer/volumetric-video-layer';
 export type {
   VolumetricVideoLayerProps,
