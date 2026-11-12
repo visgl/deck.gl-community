@@ -57,12 +57,13 @@ describe('Seasonal Farm integration', () => {
           device,
           initialViewState: savedView,
           onViewStateChange(params) {
-            // Clamp contracts should inspect the authored target independently of
-            // software-GPU animation cadence. Earlier inputs still exercise transitions.
-            savedView = instantCamera
+            // Run the wheel transition at its normal cadence. Apply later keyboard and limit
+            // checks immediately so the software GPU only draws the poses being asserted.
+            const nextView = instantCamera
               ? {...params.viewState, transitionDuration: 0}
               : params.viewState;
-            return savedView;
+            savedView = nextView;
+            return nextView;
           },
           onDeckInitialized(instance) {
             deck = instance;
@@ -142,18 +143,19 @@ describe('Seasonal Farm integration', () => {
         await expect.poll(() => trees().props.windStrength).toBe(0.05);
         setNumber('Size', 1.2);
         await expect.poll(() => trees().props.sizeScale).toBe(1.2);
-        Array.from(parent.querySelectorAll<HTMLButtonElement>('button'))
-          .find(button => button.textContent?.includes('Rendering'))!
-          .click();
+        const rendering = Array.from(
+          parent.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')
+        ).find(button => button.textContent?.includes('Rendering'));
+        expect(rendering).toBeDefined();
+        if (rendering?.getAttribute('aria-expanded') === 'false') rendering.click();
         await expect
-          .poll(() => parent.querySelector('#settings-panel-input-maxCanopySplats'))
+          .poll(() => parent.querySelector('#settings-panel-input-lodBias'))
           .not.toBeNull();
-        await selectOption('maxCanopySplats', '5,000');
-        await expect.poll(() => trees().props.maxCanopySplats).toBe(5_000);
-        await selectOption('maxCanopyPixels', '1 MP');
-        await expect.poll(() => trees().props.maxCanopyPixels).toBe(1_000_000);
-        setNumber('Foveation', 0.5);
-        await expect.poll(() => trees().props.foveationStrength).toBe(0.5);
+        setNumber('LOD bias', 1);
+        await expect.poll(() => trees().props.lodBias).toBe(1);
+        setNumber('LOD bias', -1);
+        await expect.poll(() => trees().props.lodBias).toBe(-1);
+        setNumber('LOD bias', 0);
         setNumber('Wind', 0);
         setNumber('Size', 1);
         parent.querySelector<HTMLInputElement>('#settings-panel-input-crops')!.click();
@@ -269,7 +271,9 @@ describe('Seasonal Farm integration', () => {
             })
             .toBe(true);
         }
-        expect(errors).toEqual([]);
+        expect(
+          errors.map(error => (error.cause as Error | undefined)?.stack ?? error.stack)
+        ).toEqual([]);
       } finally {
         cleanup?.();
         device?.destroy();
