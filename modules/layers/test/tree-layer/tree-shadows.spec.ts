@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {getShaderAssembler, picking, project32, shadow} from '@deck.gl/core';
-import {phongMaterial} from '@luma.gl/shadertools';
+import {type GLSLShaderAssembler, phongMaterial, type ShaderModule} from '@luma.gl/shadertools';
 import {describe, expect, it, vi} from 'vitest';
 import {SplatPrimitiveLayer} from '../../src/splat-layer/splat-primitive-layer';
 import {SPLAT_FRAGMENT, SPLAT_VERTEX, splatUniforms} from '../../src/splat-layer/splat-shaders';
-import {TreeLayer} from '../../src/tree-layer/tree-layer';
+import {type TreeSpec} from '../../src';
+import {TreePhotorealCropLayer} from '../../src/tree-layer/tree-photoreal-crop-layer';
+import {TreePhotorealLeafLayer} from '../../src/tree-layer/tree-photoreal-leaf-layer';
+import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-layer';
+import {mountTreeScene} from './tree-layer-test-utils';
 import {TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
 
 const GLSL_PLATFORM = {
@@ -17,43 +21,35 @@ const GLSL_PLATFORM = {
   features: new Set<string>()
 } as const;
 
-function assembleGLSL(vs: string, fs: string, modules: any[]) {
-  return getShaderAssembler('glsl').assembleGLSLShaderPair({
+function assembleGLSL(vs: string, fs: string, modules: ShaderModule[]) {
+  const assembler = getShaderAssembler('glsl') as GLSLShaderAssembler;
+  return assembler.assembleGLSLShaderPair({
     vs,
     fs,
     modules,
-    platformInfo: GLSL_PLATFORM as any
+    platformInfo: GLSL_PLATFORM
   });
 }
 
 describe('TreeLayer shadow casting', () => {
   it('casts from every wood, crop and canopy sublayer unless shadowEnabled is false', () => {
-    const data = [{species: 'oak', position: [0, 0, 0], height: 10, crownRadius: 4}];
-    for (const [extra, expected] of [
-      [{}, true],
-      [{shadowEnabled: false}, false]
-    ] as const) {
-      const layer = new TreeLayer({
-        id: 'trees',
-        data,
-        getTree: (row: any) => ({
-          ...row,
-          crop: {count: 4, droppedCount: 2, radius: 0.1, color: [200, 100, 30, 255]}
-        }),
-        ...extra
-      } as any);
-      layer.initializeState();
-      vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
-      layer.updateState({
-        props: layer.props,
-        oldProps: {},
-        changeFlags: {dataChanged: true, propsChanged: true}
-      } as any);
-      const children = layer.renderLayers() as any[];
-      const kinds = children.map(child => child.constructor.layerName);
-      expect(kinds).toEqual(expect.arrayContaining(['TreeWoodLayer', 'SplatLayer']));
-      expect(children.some(child => child.id.includes('crops'))).toBe(true);
-      for (const child of children) expect(child.props.shadowEnabled).toBe(expected);
+    const data: TreeSpec[] = [
+      {
+        species: 'citrus',
+        position: [0, 0, 0],
+        height: 10,
+        crownRadius: 4,
+        crop: {count: 4, droppedCount: 2, radius: 0.25, color: [200, 100, 30, 255]}
+      }
+    ];
+    const scene = mountTreeScene<TreeSpec>();
+    for (const shadowEnabled of [true, false]) {
+      scene.render({data, lodBias: -2, shadowEnabled});
+      const children = scene.children();
+      for (const Part of [TreePhotorealWoodLayer, TreePhotorealLeafLayer, TreePhotorealCropLayer]) {
+        expect(children.some(child => child instanceof Part && child.props.visible)).toBe(true);
+      }
+      for (const child of children) expect(child.props.shadowEnabled).toBe(shadowEnabled);
     }
   });
 });
@@ -94,7 +90,7 @@ describe('SplatPrimitiveLayer shadow pass', () => {
   });
 
   it('projects and alpha-tests Gaussians in light space with the shadow module', () => {
-    const modules = [project32, picking, phongMaterial, splatUniforms, shadow];
+    const modules = [project32, picking as ShaderModule, phongMaterial, splatUniforms, shadow];
     const {vs, fs} = assembleGLSL(SPLAT_VERTEX, SPLAT_FRAGMENT, modules);
     // The footprint uses the light's matrix and is expanded after deck's position filter.
     expect(vs).toMatch(

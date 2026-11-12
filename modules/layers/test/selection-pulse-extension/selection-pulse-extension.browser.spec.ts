@@ -37,7 +37,12 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import 'maplibre-gl';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {SelectionPulseExtension, TreeLayer, type TreeSpec} from '../../src';
+import {
+  SelectionPulseExtension,
+  type SelectionPulseExtensionProps,
+  TreeLayer,
+  type TreeSpec
+} from '../../src';
 import {requireWebGPUAdapter} from '../webgpu-test-utils';
 
 const maplibre = (globalThis as any).maplibregl;
@@ -620,20 +625,19 @@ describe('SelectionPulseExtension on TreeLayer', () => {
       {species: 'oak', position: [0.000025, 0, 0], height: 5, crownRadius: 1.5, selected: false}
     ];
     const getSelected = vi.fn((d: (typeof trees)[number]) => d.selected);
-    const getCanopyColor = vi.fn(() => [60, 170, 60, 255]);
-    const make = (props: Record<string, unknown>) => [
-      new TreeLayer<(typeof trees)[number]>({
+    type Row = (typeof trees)[number];
+    const getCanopyColor = vi.fn((): [number, number, number, number] => [60, 170, 60, 255]);
+    const make = (props: PulseProps) => [
+      new TreeLayer<Row, SelectionPulseExtensionProps<Row>>({
         id: 'trees',
         data: trees,
         getTree: d => d,
         windStrength: 0,
-        getCrop: () => ({count: 6, droppedCount: 4, radius: 0.1, color: [230, 120, 20, 255]}),
-        // Coarse crowns keep software adapters fast and the frame stable.
-        maxCanopySplats: 0,
+        getCrop: () => ({count: 6, droppedCount: 4, radius: 0.15, color: [230, 120, 20, 255]}),
         getCanopyColor,
         getSelected,
         ...props
-      } as any)
+      })
     ];
     const scene = mount(
       new MapView({id: 'map'}),
@@ -647,7 +651,8 @@ describe('SelectionPulseExtension on TreeLayer', () => {
     const trough = measure(result.trough, 'left');
     const peak = measure(result.peak, 'left');
     expect(trough.covered).toBeGreaterThan(300);
-    expect(peak.rgb / trough.rgb).toBeLessThan(0.75);
+    // The pulse blends the tint before lighting and tone mapping.
+    expect(peak.rgb / trough.rgb).toBeLessThan(0.85);
     expect(measure(result.trough, 'right').covered).toBeGreaterThan(300);
     expect(getHalf(result.peak, 'right')).toEqual(getHalf(result.trough, 'right'));
     expect(result.accessorCalls).toEqual({getSelected: 0, getCanopyColor: 0});
@@ -656,13 +661,12 @@ describe('SelectionPulseExtension on TreeLayer', () => {
     // Every primitive layer that holds the selected tree carries its weight.
     const primitives = scene.deck.layerManager!.getLayers().filter(layer => !layer.isComposite);
     const weighted = primitives.filter(layer => {
+      if (!layer.props.visible) return false;
       const attribute = layer.getAttributeManager()?.attributes.selectionWeights;
       const values = attribute?.value as Float32Array | undefined;
       return values && Array.from(values.subarray(0, attribute!.numInstances)).includes(1);
     });
-    expect(weighted.map(layer => layer.constructor.layerName)).toEqual(
-      expect.arrayContaining(['SplatPrimitiveLayer', 'TreeMeshLayer'])
-    );
+    expect(weighted.some(layer => /-canopy-|-photoreal-leaves-/.test(layer.id))).toBe(true);
     expect(weighted.some(layer => layer.id.includes('wood'))).toBe(true);
     expect(weighted.some(layer => layer.id.includes('crops'))).toBe(true);
   }, 90000);
@@ -740,17 +744,17 @@ describe('SelectionPulseExtension on WebGPU', () => {
       {species: 'oak', position: [-0.000025, 0, 0], height: 5, crownRadius: 1.5, selected: true},
       {species: 'oak', position: [0.000025, 0, 0], height: 5, crownRadius: 1.5, selected: false}
     ];
+    type Row = (typeof trees)[number];
     const make = (pulseTime: number) => [
-      new TreeLayer<(typeof trees)[number]>({
+      new TreeLayer<Row, SelectionPulseExtensionProps<Row>>({
         id: 'webgpu-trees',
         data: trees,
         getTree: d => d,
         windStrength: 0,
-        maxCanopySplats: 0,
         getCanopyColor: [60, 170, 60, 255],
         getSelected: d => d.selected,
         ...pulse(pulseTime)
-      } as any)
+      })
     ];
     let frames = 0;
     const deck = new TestDeck({
@@ -788,7 +792,7 @@ describe('SelectionPulseExtension on WebGPU', () => {
       expect(errors).toEqual([]);
       const before = measure(trough, 'left');
       expect(before.covered).toBeGreaterThan(300);
-      expect(measure(peak, 'left').rgb / before.rgb).toBeLessThan(0.75);
+      expect(measure(peak, 'left').rgb / before.rgb).toBeLessThan(0.85);
       expect(measure(trough, 'right').covered).toBeGreaterThan(300);
       expect(getHalf(peak, 'right')).toEqual(getHalf(trough, 'right'));
     } finally {

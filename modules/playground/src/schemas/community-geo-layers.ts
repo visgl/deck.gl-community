@@ -195,6 +195,7 @@ export const DataDrivenTile3DLayerPropsSchema = Tile3DLayerPropsSchema.extend({
     .optional()
 });
 
+const TreeFractionSchema = z.number().min(0).max(1);
 /** JSON props for procedural tree crops. */
 const TreeCropSchema = z
   .object({
@@ -202,9 +203,13 @@ const TreeCropSchema = z
     color: ColorSchema,
     count: z.number(),
     radius: z.number(),
-    droppedCount: z.number().optional()
+    droppedCount: z.number().optional(),
+    unripeColor: ColorSchema.optional(),
+    ripeness: TreeFractionSchema.optional(),
+    fallen: TreeFractionSchema.optional()
   })
   .strict();
+const TreeCropsSchema = z.union([TreeCropSchema, z.array(TreeCropSchema).max(2)]).nullable();
 const TreeCharacteristicsSchema = z
   .object({
     seed: z.number().optional(),
@@ -215,7 +220,9 @@ const TreeCharacteristicsSchema = z
     branchLift: z.number().optional(),
     internodeLength: z.number().optional(),
     leafSize: z.number().optional(),
-    leafDensity: z.number().optional()
+    leafDensity: z.number().optional(),
+    branchWander: z.number().optional(),
+    twigDroop: z.number().optional()
   })
   .strict();
 /** Authored traits consumed by TreeLayer's unified getTree accessor. */
@@ -232,8 +239,15 @@ export const TreeSpecSchema = z
     elevation: z.number().optional(),
     season: z.enum(['spring', 'summer', 'autumn', 'winter']).optional(),
     characteristics: TreeCharacteristicsSchema.optional(),
-    crop: TreeCropSchema.nullable().optional(),
-    wind: z.union([z.boolean(), z.number().min(0).max(0.2)]).optional(),
+    crop: TreeCropsSchema.optional(),
+    growth: TreeFractionSchema.optional(),
+    health: TreeFractionSchema.optional(),
+    foliage: TreeFractionSchema.optional(),
+    flush: TreeFractionSchema.optional(),
+    lean: Vector2Schema.optional(),
+    damage: TreeFractionSchema.optional(),
+    decay: TreeFractionSchema.optional(),
+    wind: z.union([z.boolean(), TreeFractionSchema]).optional(),
     trunkColor: ColorSchema.nullable().optional(),
     canopyColor: ColorSchema.nullable().optional(),
     branchLevels: z.number().optional()
@@ -256,15 +270,29 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
   getCanopyColor: createAccessorSchema(ColorSchema.nullable()).optional(),
   getSeason: createAccessorSchema(z.enum(['spring', 'summer', 'autumn', 'winter'])).optional(),
   getBranchLevels: NumberAccessorSchema.optional(),
-  getCrop: createAccessorSchema(TreeCropSchema.nullable()).optional(),
+  getCrop: createAccessorSchema(TreeCropsSchema).optional(),
+  getGrowth: createAccessorSchema(TreeFractionSchema).optional(),
+  getHealth: createAccessorSchema(TreeFractionSchema).optional(),
+  getFoliage: createAccessorSchema(TreeFractionSchema).optional(),
+  getFlush: createAccessorSchema(TreeFractionSchema).optional(),
+  getLean: createAccessorSchema(Vector2Schema).optional(),
+  getDamage: createAccessorSchema(TreeFractionSchema).optional(),
+  getDecay: createAccessorSchema(TreeFractionSchema).optional(),
   getCoverageWeight: NumberAccessorSchema.optional(),
   sizeScale: z.number().nonnegative().optional(),
   characteristics: TreeCharacteristicsSchema.optional(),
-  windStrength: z.number().min(0).max(0.2).optional(),
+  lodBias: z.number().optional(),
+  wetness: TreeFractionSchema.optional(),
+  frost: TreeFractionSchema.optional(),
+  fog: z
+    .strictObject({color: Vector3Schema, density: z.number().nonnegative()})
+    .nullable()
+    .optional(),
+  shadowEnabled: z.boolean().optional(),
+  windStrength: TreeFractionSchema.optional(),
+  windDirection: z.number().nullable().optional(),
   windTime: z.number().nullable().optional(),
-  foveationStrength: z.number().min(0).max(1).optional(),
-  maxCanopySplats: z.union([z.literal('auto'), z.number().nonnegative()]).optional(),
-  maxCanopyPixels: z.number().positive().optional()
+  windGustTime: z.number().nullable().optional()
 });
 
 /** Prepared Gaussian assets, including their hierarchies, remain host-owned constants. */

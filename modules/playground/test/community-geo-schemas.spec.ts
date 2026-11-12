@@ -183,11 +183,15 @@ test('tree accessors accept typed constants and serialized functions', () => {
     getHeight: 12,
     getTrunkColor: null,
     getCanopyColor: [30, 120, 40],
-    getCrop: {kind: 'lemon', color: [255, 220, 10], count: 4, radius: 0.1},
+    getCrop: [{kind: 'lemon', color: [255, 220, 10], count: 4, radius: 0.1, ripeness: 0.7}],
+    getGrowth: 0.8,
+    getLean: [20, 110],
     getCoverageWeight: 0.5
   };
   expect(schema.safeParse({...layer, ...constants}).success).toBe(true);
-  expect(schema.safeParse({...layer, maxCanopySplats: 'auto'}).success).toBe(true);
+  expect(
+    schema.safeParse({...layer, lodBias: -1, windStrength: 0.8, shadowEnabled: false}).success
+  ).toBe(true);
   for (const key of Object.keys(schema.shape).filter(
     name => name.startsWith('get') && name !== 'getPolygonOffset'
   )) {
@@ -200,11 +204,14 @@ test('tree accessors accept typed constants and serialized functions', () => {
     {getPosition: [1]},
     {getSeason: 'monsoon'},
     {getCrop: {kind: 'orange', color: [255, 0, 0], count: 4, radius: 0.1}},
-    {foveationStrength: 2},
+    {getGrowth: 1.5},
+    {quality: 'photoreal'},
+    {foveationStrength: 0.2},
     {characteristics: {leafColor: 1}},
-    {maxCanopyPixels: 0},
+    {maxCanopySplats: 'auto'},
+    {maxCanopyPixels: 10_000},
     {maxShadowSplats: 1},
-    {shadowEnabled: true}
+    {shadowEnabled: 'true'}
   ]) {
     expect(schema.safeParse({...layer, ...invalid}).success).toBe(false);
   }
@@ -219,8 +226,10 @@ test('supports unified authored traits without requiring renderer configuration'
       height: 5,
       crownRadius: 2,
       season: 'winter',
-      wind: true,
-      characteristics: {leafSize: 1.2}
+      wind: 0.5,
+      health: 0.75,
+      damage: 0.1,
+      characteristics: {leafSize: 1.2, twigDroop: 0.9}
     }
   };
   expect(CommunityGeoLayerSchemas.TreeLayer.safeParse(valid).success).toBe(true);

@@ -147,11 +147,9 @@ async function renderDenseCanopy(type: 'webgl' | 'webgpu'): Promise<CanopyMetric
               wind: false,
               canopyColor: [33, 112, 29, 255] as [number, number, number, number]
             })),
-            getTree: datum => datum,
+            getTree: datum => datum
             // One coarse cluster per visible crown forces TreeLayer's hierarchy representation,
             // whose sources carry opticalDepths rather than the authored leaf opacities.
-            maxCanopySplats: 4,
-            maxCanopyPixels: Infinity
           })
         ],
         onAfterRender: () => {
@@ -268,7 +266,6 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
                 radius: 0.05
               }
             }),
-            maxCanopyPixels: 64 * 64,
             windTime: 1.25,
             pickable: true
           })
@@ -297,11 +294,11 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
 }
 
 describe('TreeLayer graphics backend compatibility', () => {
-  it('renders connected mesh wood and Gaussian foliage on WebGL2', async () => {
+  it('renders connected wood and foliage on WebGL2', async () => {
     await renderTreeLayer('webgl');
   }, 40_000);
 
-  it('renders connected mesh wood and Gaussian foliage on WebGPU', async ({skip}) => {
+  it('renders connected wood and foliage on WebGPU', async ({skip}) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
     if (!gpu || !(await gpu.requestAdapter())) {
       if (inject('requireWebGPU')) throw new Error('A WebGPU adapter is required for this gate.');
@@ -318,7 +315,7 @@ describe('TreeLayer graphics backend compatibility', () => {
     ]);
   }, 60_000);
 
-  it('keeps a dense hierarchical canopy opaque on both WebGL2 and WebGPU', async ({skip}) => {
+  it('keeps a dense canopy opaque on both WebGL2 and WebGPU', async ({skip}) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
     if (!gpu || !(await gpu.requestAdapter())) {
       if (inject('requireWebGPU')) throw new Error('A WebGPU adapter is required for this gate.');

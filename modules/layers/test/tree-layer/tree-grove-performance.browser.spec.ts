@@ -5,9 +5,8 @@ import {Deck, Layer, MapView, WebMercatorViewport, type MapViewState} from '@dec
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {expect, it} from 'vitest';
 import {commands} from 'vitest/browser';
-import {SplatLayer, TreeLayer, type TreeSpec} from '../../src';
-import {SplatRuntime} from '../../src/splat-layer/splat-runtime';
-import {TreeWoodLayer} from '../../src/tree-layer/tree-wood-layer';
+import {TreeLayer, type TreeSpec} from '../../src';
+import {getTreeRenderTiers} from './tree-grove-test-utils';
 
 // Generated orchard block: ~17k citrus trees, rows 7 m apart and 4.5 m in-row.
 const ROWS = 140;
@@ -62,25 +61,25 @@ async function mountOrchard(data: TreeSpec[], viewState: MapViewState) {
         id: 'orchard-trees',
         data,
         getTree: tree => tree,
-        // The automatic budget of a hardware adapter; headless software adapters resolve lower.
-        maxCanopySplats: 20_000,
         windStrength: 0
       })
     ],
     onError: error => errors.push(error.message),
     onAfterRender: () => rendered++
   });
-  const canopies = () =>
-    (deck.layerManager?.getLayers() ?? []).filter(
-      (layer): layer is SplatLayer => layer instanceof SplatLayer
+  const tiers = () =>
+    getTreeRenderTiers(
+      deck['layerManager']
+        ?.getLayers()
+        .find((layer): layer is TreeLayer<TreeSpec> => layer instanceof TreeLayer)
     );
   await expect.poll(() => rendered, {timeout: 60_000}).toBeGreaterThan(0);
-  await expect.poll(() => canopies().length, {timeout: 60_000}).toBeGreaterThan(0);
+  await expect.poll(() => tiers().size, {timeout: 60_000}).toBeGreaterThan(0);
   deck['animationLoop'].stop();
   return {
     deck,
     errors,
-    canopies,
+    tiers,
     /** Apply a camera and draw one frame; deck.gl updates layers synchronously in setProps. */
     frame(next: MapViewState) {
       deck.setProps({viewState: next});
@@ -108,10 +107,8 @@ function instrument() {
     };
     restore.push(() => (target[method] = original));
   };
-  wrap('splat.updateState', SplatLayer.prototype, 'updateState');
-  wrap('splat.renderLayers', SplatLayer.prototype, 'renderLayers');
-  wrap('runtime.reconcile', SplatRuntime.prototype, 'reconcile');
-  wrap('wood.updateState', TreeWoodLayer.prototype, 'updateState');
+  wrap('tree.updateState', TreeLayer.prototype, 'updateState');
+  wrap('tree.renderLayers', TreeLayer.prototype, 'renderLayers');
   wrap('attributes', Layer.prototype, '_updateAttributes');
   return {timers, restore: () => restore.forEach(callback => callback())};
 }
@@ -129,15 +126,17 @@ async function measureOrbit(data: TreeSpec[], zoom: number, east: number, frameC
       const start = performance.now();
       orchard.frame({...viewState, bearing});
       const total = performance.now() - start;
-      const stats = orchard.canopies().map(layer => layer.splatStats);
+      const tiers = orchard.tiers();
       frames.push({
         total,
-        visible: stats.reduce((sum, stat) => sum + stat.visibleInstances, 0),
-        splats: stats.reduce((sum, stat) => sum + stat.renderedSplats, 0),
+        visible: tiers.size,
+        individual: [...tiers.values()].filter(tier => tier < 4).length,
+        clumps: [...tiers.values()].filter(tier => tier === 4).length,
+        hulls: [...tiers.values()].filter(tier => tier > 4).length,
         ...Object.fromEntries(timers)
       });
     };
-    // Settle the first allocation and its refinement fades.
+    // Settle the first camera selection and detail transitions.
     for (let i = 0; i < 30; i++) frame(0);
     frames.length = 0;
     // A slow orbit: every frame moves the camera, as a basemap drag does.
@@ -156,7 +155,7 @@ async function measureOrbit(data: TreeSpec[], zoom: number, east: number, frameC
 
 it('reports per-frame CPU while orbiting a large generated citrus block', async ({annotate}) => {
   const data = createOrchard(ROWS, TREES_PER_ROW);
-  // ~15k visible trees, beyond the canopy coverage floor, and a ~3k mid-zoom view that refines.
+  // Compare a broad orchard orbit with a tighter view.
   const wide = await measureOrbit(data, 15.5, 680, 30);
   const mid = await measureOrbit(data, 18.6, 0, 30);
   const body = JSON.stringify({wide, mid}, null, 2);
@@ -181,7 +180,7 @@ it('keeps every partially uploaded instance row equal to a full rebuild while or
     resized = 0;
   const previousCounts = new Map<string, number>();
   const check = () => {
-    for (const layer of orchard.deck.layerManager!.getLayers()) {
+    for (const layer of orchard.deck['layerManager']!.getLayers()) {
       const manager = layer.isComposite ? null : layer.getAttributeManager();
       if (!manager) continue;
       const count = layer.getNumInstances();
@@ -191,26 +190,29 @@ it('keeps every partially uploaded instance row equal to a full rebuild while or
         ([, attribute]) => attribute.value && !attribute.isConstant
       );
       const before = attributes.map(([, attribute]) =>
-        Array.from(attribute.value!.subarray(0, count * attribute.size))
+        attribute.value!.slice(0, count * attribute.size)
       );
       manager.invalidateAll();
       layer['_updateAttributes']();
       attributes.forEach(([, attribute], i) => {
         checked++;
-        const fresh = attribute.value!.subarray(0, count * attribute.size);
+        const fresh = attribute.value!;
         if (before[i].some((value, j) => value !== fresh[j] && !Number.isNaN(value))) stale++;
       });
     }
   };
   try {
     for (let i = 0; i < 20; i++) orchard.frame(viewState);
+    let previousTiers = orchard.tiers();
     for (let i = 1; i <= 40; i++) {
-      // Orbit, then zoom, so membership changes overlap with optical refinement fades.
+      // Orbit, then zoom, so membership and detail change in the same sequence.
       orchard.frame({...viewState, bearing: i, zoom: viewState.zoom + Math.max(0, i - 20) * 0.04});
       check();
-      refining += orchard
-        .canopies()
-        .reduce((sum, layer) => sum + layer.splatStats.refiningInstances, 0);
+      const tiers = orchard.tiers();
+      for (const [owner, tier] of tiers) {
+        if (previousTiers.has(owner) && previousTiers.get(owner) !== tier) refining++;
+      }
+      previousTiers = tiers;
     }
     expect(orchard.errors).toEqual([]);
     expect(checked).toBeGreaterThan(100);

@@ -1087,6 +1087,7 @@ __metadata:
     "@luma.gl/webgpu": "npm:~9.4.2"
     "@math.gl/core": "npm:^4.0.0"
     "@probe.gl/test-utils": "npm:^4.1.1"
+    esbuild: "npm:^0.28.1"
     mediabunny: "npm:^1.61.3"
   peerDependencies:
     "@deck.gl/core": ~9.4.1

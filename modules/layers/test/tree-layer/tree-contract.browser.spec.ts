@@ -59,8 +59,6 @@ it('renders tree parts and removes every part at zero coverage', async () => {
       windStrength: 0,
       getCoverageWeight: coverage,
       // Retain coarse crowns so software adapters focus on the tree parts and coverage.
-      maxCanopySplats: 0,
-      maxCanopyPixels: 256 * 256,
       pickable: true
     })
   ];
