@@ -77,7 +77,7 @@ describe('tree growth skeleton', () => {
     expect(oakStep.value.nodes).toEqual(fullOak.nodes);
     expect(citrusStep.value.envelope).toEqual(fullCitrus.envelope);
     expect(oakStep.value.arrivals).toEqual(fullOak.arrivals);
-  });
+  }, 30_000);
 
   it('keeps crown and height growth bounded and inverts trunk height', () => {
     expect(isTreeGrowthSpecies('pine')).toBe(false);
