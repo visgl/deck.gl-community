@@ -152,6 +152,8 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
     const detachedRoot = useRef<HTMLDivElement | null>(null);
     const rootOptions = useRef<RootOptions | undefined>(undefined);
     const resolvedCanvas = useRef<ResolvedCanvas | null>(null);
+    // The root and config last sent to `configure`, so a children-only commit skips it.
+    const configured = useRef<{root: ReconcilerRoot; config: DeckGLConfiguration} | null>(null);
 
     // Object-rest creates a new config object each render. Preserve the committed
     // config while its values are unchanged so a lifecycle callback replacement is non-reactive.
@@ -191,8 +193,13 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
         ? createRoot(rootElement, rootOptions.current)
         : createRoot(rootElement);
 
-      root.configure(rootConfig);
-      notifyDeckChange(root.store.getState().deckgl as Instance | null);
+      // Each `configure` calls deck.gl `setProps`. Only call it for a new root or a changed
+      // config; new children reach deck.gl through the render commit alone.
+      if (configured.current?.root !== root || configured.current.config !== config) {
+        configured.current = {config, root};
+        root.configure(rootConfig);
+        notifyDeckChange(root.store.getState().deckgl as Instance | null);
+      }
       root.render(
         <Bridge>
           <RootErrorBoundary onError={handleRootError}>{children}</RootErrorBoundary>

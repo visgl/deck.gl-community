@@ -437,20 +437,26 @@ describe('DeckGL Component Tests', () => {
       );
     });
 
-    it('should notify updates with the root-specific instance', () => {
+    it('should notify config updates with the root-specific instance', () => {
       const onDeckChange = vi.fn();
       const {rerender} = render(
-        <DeckGL onDeckChange={onDeckChange}>
+        <DeckGL onDeckChange={onDeckChange} pickingRadius={5}>
           <div>Initial</div>
         </DeckGL>
       );
 
       rerender(
-        <DeckGL onDeckChange={onDeckChange}>
+        <DeckGL onDeckChange={onDeckChange} pickingRadius={5}>
           <div>Updated</div>
         </DeckGL>
       );
+      expect(onDeckChange).toHaveBeenCalledOnce();
 
+      rerender(
+        <DeckGL onDeckChange={onDeckChange} pickingRadius={10}>
+          <div>Updated</div>
+        </DeckGL>
+      );
       expect(onDeckChange).toHaveBeenCalledTimes(2);
       expect(onDeckChange).toHaveBeenLastCalledWith(mockDeckGL);
     });
@@ -742,6 +748,46 @@ describe('DeckGL Component Tests', () => {
 
       expect(mockRender).toHaveBeenCalledTimes(2);
     });
+
+    it('renders new children without configuring deck.gl again', () => {
+      const {rerender} = render(
+        <DeckGL pickingRadius={5}>
+          <div>Initial</div>
+        </DeckGL>
+      );
+
+      rerender(
+        <DeckGL pickingRadius={5}>
+          <div>Updated</div>
+        </DeckGL>
+      );
+      rerender(
+        <DeckGL pickingRadius={5}>
+          <div>Updated again</div>
+        </DeckGL>
+      );
+
+      expect(mockRender).toHaveBeenCalledTimes(3);
+      expect(mockConfigure).toHaveBeenCalledOnce();
+    });
+
+    it('configures deck.gl again when a prop changes with the children', () => {
+      const {rerender} = render(
+        <DeckGL pickingRadius={5}>
+          <div>Initial</div>
+        </DeckGL>
+      );
+
+      rerender(
+        <DeckGL pickingRadius={10}>
+          <div>Updated</div>
+        </DeckGL>
+      );
+
+      expect(mockConfigure).toHaveBeenCalledTimes(2);
+      expect(mockConfigure).toHaveBeenLastCalledWith(expect.objectContaining({pickingRadius: 10}));
+      expect(mockRender).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('Cleanup behavior', () => {
@@ -929,7 +975,7 @@ describe('DeckGL Component Tests', () => {
   });
 
   describe('Config memoization', () => {
-    it('should call configure when children change', () => {
+    it('should not call configure when only children change', () => {
       const props = {initialViewState: {latitude: 0, longitude: 0, zoom: 1}};
       const {rerender} = render(
         <DeckGL {...props}>
@@ -943,7 +989,8 @@ describe('DeckGL Component Tests', () => {
         </DeckGL>
       );
 
-      expect(mockConfigure).toHaveBeenCalledTimes(2);
+      expect(mockConfigure).toHaveBeenCalledOnce();
+      expect(mockRender).toHaveBeenCalledTimes(2);
     });
 
     it('should call configure with updated props', () => {
