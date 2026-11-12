@@ -15,7 +15,9 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
   elements add deck.gl widgets and effects from the React tree, and `/mapbox` and `/maplibre` roots attach to map overlays.
   The elements are now `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`, and every root has them as
   `DeckGL.Layer`, `DeckGL.View`, `DeckGL.Widget` and `DeckGL.Effect`.
-  See the [migration guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react).
+  Every built-in deck.gl layer, view, widget and effect has a component, imported from a subpath named after its
+  module, such as `<ScatterplotLayer>` from `/layers`, and `createLayerComponent` wraps custom classes.
+  See the [upgrade guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react).
 
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 

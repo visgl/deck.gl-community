@@ -2,7 +2,7 @@
 
 ![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
 
-The native renderer accepts four deck.gl JSX elements: `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`. Every `DeckGL` root also has them as components, `DeckGL.Layer`, `DeckGL.View`, `DeckGL.Widget` and `DeckGL.Effect`, which render the same elements. Use either spelling:
+The native renderer accepts four deck.gl JSX elements: `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`. Each takes an instance you build. For deck.gl's own classes, the [components](./components.md) build the instance from props and render these elements for you; use the elements when you already have an instance, or for a class with no component. Every `DeckGL` root also has them as components, `DeckGL.Layer`, `DeckGL.View`, `DeckGL.Widget` and `DeckGL.Effect`, which render the same elements. Use either spelling:
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';

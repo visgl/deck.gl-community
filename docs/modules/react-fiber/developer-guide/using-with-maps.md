@@ -62,23 +62,24 @@ a manual `new Map({container})` integration without adding a child to the map co
 
 ## Views beside the map
 
-The Mapbox and MapLibre roots send `<deckView>` children, merged with the `views` prop, to the overlay,
+The Mapbox and MapLibre roots send JSX views, merged with the `views` prop, to the overlay,
 which supports deck.gl's [multi-view usage](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#multi-view-usage).
 Only one view follows the map camera and receives map interaction: the view with id `mapbox` on
 the `/mapbox` root and `maplibre` on the `/maplibre` root. The overlay adds it first when the list
-has none. Give a `<deckView>` that id to set the map view's position in the list. Keep it the full size
+has none. Give a JSX view that id to set the map view's position in the list. Keep it the full size
 of the map, or its layers drift off the basemap.
 
 ```tsx
-import {OrthographicView} from '@deck.gl/core';
+import {OrthographicView} from '@deck.gl-community/react-fiber/core';
+import {ScatterplotLayer} from '@deck.gl-community/react-fiber/layers';
 import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
 
 <DeckGL
   layerFilter={({layer, viewport}) => (viewport.id === 'inset') === layer.id.startsWith('inset')}
 >
-  <deckView view={new OrthographicView({id: 'inset', x: '75%', width: '25%', height: '25%'})} />
-  <deckLayer layer={pointsLayer} />
-  <deckLayer layer={insetLayer} />
+  <OrthographicView id="inset" x="75%" width="25%" height="25%" />
+  <ScatterplotLayer id="points" data={points} />
+  <ScatterplotLayer id="inset-points" data={points} />
 </DeckGL>;
 ```
 

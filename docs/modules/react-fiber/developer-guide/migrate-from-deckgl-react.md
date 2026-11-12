@@ -1,71 +1,82 @@
-# Migrate from `@deck.gl/react`
+# Upgrade guide
 
-React Fiber's `DeckGL` root takes the same deck.gl props as `@deck.gl/react`. Most of a migration
-is changing imports and rewriting JSX layers and views as `<deckLayer>` and `<deckView>` elements. This
-page lists each change. Apps that render HTML or function children inside `DeckGL` need the most
-work; see [Unsupported](#unsupported) first.
+This page lists the changes to make when you move to `@deck.gl-community/react-fiber` from
+[`@deck.gl/react`](#from-deckglreact) or from the earlier
+[`@deckgl-fiber-renderer/dom`](#from-deckgl-fiber-rendererdom) package. Start with
+[Write JSX](#write-jsx), which shows the syntax both upgrades end up with.
 
-The root is client-only. In an app that uses React Server Components, import it from a
-`'use client'` module, as described in [Get started](./get-started.md).
+## Requirements
 
-## Replace the root import
+- React 19 or later.
+- The deck.gl 9.4 package family.
+- TypeScript 5.3 or later, if you use TypeScript.
+- A client module: in an app that uses React Server Components, import `DeckGL` from a
+  `'use client'` module. See [Get started](./get-started.md).
+
+## Write JSX
+
+Import the root, and import a component for each deck.gl class from the subpath named after its
+deck.gl module. Install the deck.gl package behind each subpath you import.
+
+```tsx
+import {DeckGL} from '@deck.gl-community/react-fiber';
+import {MapView} from '@deck.gl-community/react-fiber/core';
+import {ScatterplotLayer} from '@deck.gl-community/react-fiber/layers';
+import {ZoomWidget} from '@deck.gl-community/react-fiber/widgets';
+
+<DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
+  <MapView id="main" />
+  <ScatterplotLayer id="points" data={data} getPosition={d => d.position} />
+  <ZoomWidget id="zoom" />
+</DeckGL>;
+```
+
+| Subpath | Components |
+| --- | --- |
+| `/core` | The views, `LightingEffect` and `PostProcessEffect` |
+| `/layers`, `/geo-layers`, `/aggregation-layers`, `/mesh-layers` | Every layer in that deck.gl module |
+| `/widgets` | Every widget in `@deck.gl/widgets` |
+
+Components can sit at any depth inside your own components, which can use hooks and context.
+Props are checked against the class, and layer components take its type parameters. For a custom
+class, make a component once with `createLayerComponent`, `createViewComponent`,
+`createWidgetComponent` or `createEffectComponent`, exported from the root. To render an instance
+you built yourself, use `<deckLayer layer={layer} />`, `<deckView>`, `<deckWidget>` or
+`<deckEffect>`. See [Components](../api-reference/components.md) and
+[Native elements](../api-reference/native-elements.md).
+
+## From `@deck.gl/react`
+
+### Change the imports
+
+The root is a named export. Import layers, views and widgets from the React Fiber subpaths
+instead of the deck.gl modules; the JSX stays the same.
 
 ```tsx
 // Before
 import DeckGL from '@deck.gl/react';
+import {MapView} from '@deck.gl/core';
+import {ScatterplotLayer} from '@deck.gl/layers';
+import {ZoomWidget} from '@deck.gl/react';
 
 // After
 import {DeckGL} from '@deck.gl-community/react-fiber';
+import {MapView} from '@deck.gl-community/react-fiber/core';
+import {ScatterplotLayer} from '@deck.gl-community/react-fiber/layers';
+import {ZoomWidget} from '@deck.gl-community/react-fiber/widgets';
 ```
 
-The root is a named export. It takes deck.gl props directly, including controlled `viewState`
-and `initialViewState`. It renders the same wrapper and canvas as `@deck.gl/react`, with ids
-derived from `id`, and orders the `layers` and `views` props against JSX layers and views the same
-way. See [Root DOM and sizing](../api-reference/deckgl.md#root-dom-and-sizing).
+The root takes the same deck.gl props, renders the same wrapper and canvas, and orders the
+`layers` and `views` props against JSX the same way. See
+[Root DOM and sizing](../api-reference/deckgl.md#root-dom-and-sizing).
 
-For a `MapboxOverlay` or `MapLibreOverlay`, import the matching root instead and attach the
-overlay to the map you create. See [Using with maps](./using-with-maps.md).
+For a `MapboxOverlay` or `MapLibreOverlay`, import `DeckGL` from `/mapbox` or `/maplibre` and
+attach the overlay to the map you create. See [Using with maps](./using-with-maps.md).
 
-```tsx
-import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
-```
+### Replace `DeckGLRef`
 
-## Rewrite JSX layers and views
-
-`@deck.gl/react` accepts layer classes as JSX children. React Fiber takes a layer instance on a
-`<deckLayer>` element and a view instance on a `<deckView>` element. See
-[Why layer instances](../README.md#why-layer-instances) for what this syntax buys.
-
-```tsx
-// Before
-<DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
-  <MapView id="main" />
-  <ScatterplotLayer id="points" data={data} getPosition={d => d.position} />
-</DeckGL>
-
-// After
-<DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
-  <deckView view={new MapView({id: 'main'})} />
-  <deckLayer layer={new ScatterplotLayer({id: 'points', data, getPosition: d => d.position})} />
-</DeckGL>
-```
-
-`<deckLayer>` elements can sit inside your own components at any depth.
-
-Nesting a `<deckLayer>` inside a `<deckView>` does not assign it to that view. The renderer flattens the
-tree into one `layers` list, and deck.gl draws every layer in every view, as it does for the
-`layers` prop. `@deck.gl/react` does not scope them either: it reads JSX layers only from the
-direct children of `DeckGL`. Use deck.gl's `layerFilter` for per-view layers:
-
-```tsx
-<DeckGL layerFilter={({layer, viewport}) => viewport.id !== 'minimap' || layer.id === 'points'}>
-```
-
-## Access the deck.gl instance
-
-The root's `ref` receives the `Deck` instance, or the overlay on a map root, instead of
-`@deck.gl/react`'s `DeckGLRef`. Picking calls stay the same; replace `deckRef.current.deck` with
-`deckRef.current`:
+The root's `ref` receives the `Deck` instance, or the overlay on a map root. Picking calls stay
+the same; replace `deckRef.current.deck` with `deckRef.current`:
 
 ```tsx
 // Before
@@ -75,107 +86,66 @@ deckRef.current?.pickObject({x, y});
 // After
 const deckRef = useRef<Deck>(null);
 deckRef.current?.pickObject({x, y});
-
-<DeckGL ref={deckRef}>{/* ... */}</DeckGL>;
 ```
 
-To re-render when the instance is created or torn down, store it in state with `onDeckChange`,
-which receives the instance and then `null` on teardown:
+To re-render when the instance is created or torn down, store it in state with `onDeckChange`.
+`DeckGLContext` has no equivalent; pass the instance through your own context or props.
 
-```tsx
-const [deck, setDeck] = useState<Deck | null>(null);
+### Remove unsupported children
 
-<DeckGL onDeckChange={setDeck}>{/* ... */}</DeckGL>;
-```
-
-`@deck.gl/react`'s `DeckGLContext` has no equivalent. Pass the instance through your own context
-or props instead.
-
-## Keep the old JSX syntax
-
-Native `<deckLayer>` elements are the recommended form. The `new` call shows where deck.gl builds the
-layer, matches the `layers` prop and deck.gl's examples, and works for any layer class without extra
-code. Wrapping layer classes as components keeps your existing JSX during a migration. The cost is
-one wrapper per layer class, plus JSX that looks like React components but follows deck.gl's layer
-lifecycle. Type checking is the same in both forms.
-
-To keep `<ScatterplotLayer id="points" ... />` in your code, copy this helper into your app:
-
-```tsx
-import type {Layer} from '@deck.gl/core';
-
-export function createLayerComponent<PropsT extends {id?: string}>(
-  LayerClass: new (props: PropsT) => Layer
-) {
-  return function LayerComponent(props: PropsT) {
-    return <deckLayer layer={new LayerClass(props)} />;
-  };
-}
-```
-
-Wrap each layer class you use once, at module level:
-
-```tsx
-import {
-  PolygonLayer as DeckPolygonLayer,
-  ScatterplotLayer as DeckScatterplotLayer
-} from '@deck.gl/layers';
-import {DeckGL} from '@deck.gl-community/react-fiber';
-import {createLayerComponent} from './create-layer-component';
-
-const ScatterplotLayer = createLayerComponent(DeckScatterplotLayer);
-const PolygonLayer = createLayerComponent(DeckPolygonLayer);
-
-type Point = {position: [number, number]};
-
-export function Map({points}: {points: Point[]}) {
-  return (
-    <DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
-      <PolygonLayer id="regions" data={[]} />
-      <ScatterplotLayer<Point> id="points" data={points} getPosition={d => d.position} />
-    </DeckGL>
-  );
-}
-```
-
-Aliasing the deck.gl imports keeps existing JSX unchanged. Wrapped components keep the layer's
-type parameters, so `<ScatterplotLayer<Point> ... />` checks accessors against `Point`. Wrapped and
-native layers can be mixed, so you can migrate one layer at a time.
-
-For views, pass `children` through:
-
-```tsx
-import {MapView as DeckMapView, type View} from '@deck.gl/core';
-import type {ReactNode} from 'react';
-
-export function createViewComponent<PropsT extends {id?: string}>(
-  ViewClass: new (props: PropsT) => View
-) {
-  return function ViewComponent({children, ...props}: PropsT & {children?: ReactNode}) {
-    return <deckView view={new ViewClass(props as PropsT)}>{children}</deckView>;
-  };
-}
-
-const MapView = createViewComponent(DeckMapView);
-
-<MapView id="main">
-  <ScatterplotLayer id="points" data={points} getPosition={d => d.position} />
-</MapView>;
-```
-
-As with `<deckView>`, nesting keeps the tree readable but does not limit the layer to that view.
-
-## Unsupported
-
-- **HTML and function children.** `DeckGL` children may only be
-  [native elements](../api-reference/native-elements.md) and components that render them. Render
-  HTML overlays as siblings of `DeckGL` in a positioned container. For per-view content, read
-  viewports from the instance with `deck.getViewports()`.
+- **HTML and function children.** `DeckGL` children may only be deck.gl components, native
+  elements, and components that render them. Render HTML overlays as siblings of `DeckGL` in a
+  positioned container. For per-view content, read viewports with `deck.getViewports()`.
 - **react-map-gl `<Map>` as a child.** Create the map yourself and use a map root. See
   [Reverse-controlled maps](./using-with-maps.md#reverse-controlled-maps).
-- **JSX widgets and `useWidget`.** Render each widget as a
-  [`<deckWidget>`](../api-reference/native-elements.md#deckwidget) element, or pass instances in the
-  `widgets` prop.
+- **`useWidget`.** Make a component for a custom widget with `createWidgetComponent`.
 - **A custom `Deck` class.** For a custom overlay, use
   [`createDeckGL`](../api-reference/deckgl.md#custom-compatible-overlays).
-- **React 18 and earlier.** React Fiber requires React 19.
+
+Nesting a layer inside a view does not assign it to that view, as in `@deck.gl/react`. Use
+deck.gl's `layerFilter` for per-view layers.
+
+## From `@deckgl-fiber-renderer/dom`
+
+### Change the package and root
+
+```tsx
+// Before
+import {Deckgl} from '@deckgl-fiber-renderer/dom';
+
+// After
+import {DeckGL} from '@deck.gl-community/react-fiber';
+```
+
+### Rename the elements, or switch to components
+
+`<layer>` and `<view>` are now `<deckLayer>` and `<deckView>`. Every root also has them as
+`DeckGL.Layer` and `DeckGL.View`. To drop the `new` calls, use the components instead:
+
+```tsx
+// Before
+<layer layer={new ScatterplotLayer({id: 'points', data})} />
+<view view={new MapView({id: 'main'})} />
+
+// After, with native elements
+<deckLayer layer={new ScatterplotLayer({id: 'points', data})} />
+<deckView view={new MapView({id: 'main'})} />
+
+// After, with components
+<ScatterplotLayer id="points" data={data} />
+<MapView id="main" />
+```
+
+Elements registered with `extend()`, such as `<scatterplotLayer>`, become components: import the
+built-in ones from a subpath, and make the others with `createLayerComponent`.
+
+### Replace `useDeckgl`
+
+`useDeckgl()` is gone. Receive the instance from the root's `ref` or `onDeckChange`.
+
+For a map, replace `<Deckgl interleaved>` inside react-map-gl, and its `useControl` bridge, with
+the `DeckGL` root from `/maplibre` or `/mapbox`. The root can stay inside `<Map>`. Receive the
+overlay it creates through `onDeckChange`, and add it to the map with `map.addControl` once the map
+has loaded. See [Attach the overlay to the host map](./using-with-maps.md#attach-the-overlay-to-the-host-map),
+and the [MapLibre](./base-maps/using-with-maplibre.md) and [Mapbox](./base-maps/using-with-mapbox.md)
+guides for the full pattern with React Map GL.
