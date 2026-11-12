@@ -23,8 +23,10 @@ export type ShellGrid = {
 
 /** 10 x 5 rings and two poles: 52 vertices and 100 triangles. */
 export const SHELL_GRID_FINE: ShellGrid = {azimuths: 10, elevations: [-62, -38, -14, 12, 42]};
-/** 6 x 3 and two poles: 20 vertices and 36 triangles, for the shadow pass and for trees a few dozen pixels across. */
+/** 6 x 3 and two poles: 20 vertices and 36 triangles, for trees a few dozen pixels across. */
 export const SHELL_GRID_COARSE: ShellGrid = {azimuths: 6, elevations: [-45, -8, 38]};
+/** 8 x 3 and two poles: a rounder caster silhouette without a change of mesh across color tiers. */
+export const SHELL_GRID_SHADOW: ShellGrid = {azimuths: 8, elevations: SHELL_GRID_COARSE.elevations};
 /** 5 and two poles: 7 vertices and 10 triangles, for trees a few pixels across. */
 export const SHELL_GRID_TINY: ShellGrid = {azimuths: 5, elevations: [-12]};
 

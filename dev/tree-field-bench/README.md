@@ -1,6 +1,8 @@
 # TreeLayer field benchmark
 
-Measure 20,000 deterministic trees through an overview, a close tree view, and a tilted dive. The scene uses the checked-out TreeLayer source, a light breeze, a fixed LOD bias of zero, and device pixel ratio 1. The default is a citrus field on WebGL2 with shadows. Pass `--field mixed` for multiple species or `--backend webgpu` to exercise WebGPU.
+Measure 20,000 deterministic trees through an overview, a close tree view, and a tilted dive. The scene uses the checked-out TreeLayer source, a light breeze, a fixed LOD bias of zero, and device pixel ratio 1. The default is a citrus field on WebGL2. Pass `--field mixed` for multiple species or `--backend webgpu` to exercise WebGPU.
+
+Both backends use a directional map that snaps to world-space texels and blends between map sizes. Ground shadows use the same strength throughout the field. Use `--paths macro` to inspect the 16 m shadow fit at a camera distance of 2 m. The JSON reports the fitted span and texel size.
 
 ```sh
 yarn

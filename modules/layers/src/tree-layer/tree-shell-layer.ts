@@ -256,7 +256,11 @@ export class TreeShellLayer<DataT> extends TreePhotorealPrimitiveLayer<DataT> {
   declare state: TreePhotorealPrimitiveLayer<DataT>['state'] & {hull?: Texture};
 
   protected createModel(): Model {
-    const mesh = getTreeShellMesh(this.props.template, this.props.lod);
+    const mesh = getTreeShellMesh(
+      this.props.template,
+      this.props.lod,
+      this.props._shadowPass === 'only'
+    );
     this.state.hull = this.context.device.createTexture({
       id: `${this.id}-hull`,
       width: mesh.width,
@@ -300,7 +304,12 @@ export class TreeShellLayer<DataT> extends TreePhotorealPrimitiveLayer<DataT> {
     const {template, lod} = this.props;
     return {
       shape: [template.forkZ, template.referenceHeight, 0, 0],
-      look: [getTreeShellMesh(template, lod).verticesPerHull, lod, this.state.shadowStrength, 0]
+      look: [
+        getTreeShellMesh(template, lod, this.props._shadowPass === 'only').verticesPerHull,
+        lod,
+        this.state.shadowStrength,
+        0
+      ]
     };
   }
 }

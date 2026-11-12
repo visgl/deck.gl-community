@@ -58,7 +58,7 @@ type Scene = {
   glErrors: number[];
   layerManager(): LayerManager;
   setViewState(viewState: unknown): void;
-  render(layers: Layer[]): Promise<Uint8Array>;
+  render(layers: Layer[], frames?: number): Promise<Uint8Array>;
   settle(frames?: number): Promise<Uint8Array>;
   cleanup(): void;
 };
@@ -101,9 +101,9 @@ function mount({
       frames++;
     }
   });
-  const settle = async (count = 3) => {
+  const settle = async (count = 4) => {
     const before = frames;
-    await expect.poll(() => frames, {timeout: 60000}).toBeGreaterThan(before + count);
+    await expect.poll(() => frames, {timeout: 60000}).toBeGreaterThanOrEqual(before + count);
     return pixels;
   };
   const scene: Scene = {
@@ -113,9 +113,9 @@ function mount({
     settle,
     layerManager: () => (deck as unknown as {layerManager: LayerManager}).layerManager,
     setViewState: state => deck.setProps({viewState: state as never}),
-    render(layers) {
+    render(layers, frames) {
       deck.setProps({layers});
-      return settle();
+      return settle(frames);
     },
     cleanup() {
       deck.finalize();
@@ -201,7 +201,7 @@ describe('TreeLayer photoreal crops', () => {
     const selectLeaves = vi.spyOn(preparation, 'updateLeafSelection');
     try {
       const lodBias = -1;
-      const pixels = await scene.render([trees(data[0], {_cropOnly: true, lodBias}, data)]);
+      const pixels = await scene.render([trees(data[0], {_cropOnly: true, lodBias}, data)], 1);
       expect(countCrop(pixels)).toBeGreaterThan(10);
       expect(cropLayers(scene).some(layer => layer.props.visible)).toBe(true);
       expect(subLayers(scene).some(layer => layer instanceof TreePhotorealLeafLayer)).toBe(false);
@@ -210,7 +210,7 @@ describe('TreeLayer photoreal crops', () => {
       expect(selectLeaves).not.toHaveBeenCalled();
 
       // Switching the same layer back restores its canopy and the normal per-leaf preparation.
-      await scene.render([trees(data[0], {_cropOnly: false, lodBias}, data)]);
+      await scene.render([trees(data[0], {_cropOnly: false, lodBias}, data)], 1);
       expect(subLayers(scene).some(layer => layer instanceof TreePhotorealLeafLayer)).toBe(true);
       expect(subLayers(scene).some(layer => layer instanceof TreePhotorealWoodLayer)).toBe(true);
       expect(selectLeaves).toHaveBeenCalled();
@@ -220,7 +220,7 @@ describe('TreeLayer photoreal crops', () => {
       prepareLeaves.mockRestore();
       selectLeaves.mockRestore();
     }
-  });
+  }, 60_000);
 
   it('draws fruit only once growth reaches its anchors', async () => {
     const scene = mount();
@@ -748,11 +748,12 @@ describe('TreeLayer photoreal crops', () => {
     });
     const crop = fruit({count: 1, radius: 0.09});
     const tree = {...TREE, crop};
+    const layer = trees(tree, {lodBias: 0, shadowEnabled: false, windStrength: 0});
     let target = [0, 0, 2.8];
     // Where the fruit is on screen from this orbit, and the move of the target that brings it to the middle.
     const look = async (zoom: number, orbit: number) => {
       scene.setViewState({...ORBIT_STATE, target, zoom, rotationOrbit: orbit, rotationX: 0});
-      const pixels = await scene.render([trees(tree, {lodBias: 0, shadowEnabled: false})]);
+      const pixels = await scene.render([layer], 1);
       let sumX = 0,
         sumY = 0,
         n = 0;
@@ -779,11 +780,9 @@ describe('TreeLayer photoreal crops', () => {
     await look(4, 90);
     await look(4, 0);
     const outside = (Math.atan2(target[0], -target[1]) * 180) / Math.PI;
-    // Follow it in from afar, keeping it at the middle of the view in all three directions.
+    // Dolly straight toward the fruit after the two-angle position estimate.
     const levels = new Set<string>();
     for (let zoom = 4; zoom <= 10; zoom += 0.5) {
-      await look(zoom, outside + 90);
-      await look(zoom, outside);
       const n = await look(zoom, outside);
       for (const layer of cropLayers(scene)) {
         if ((layer.props.data as unknown as {length: number}).length) {

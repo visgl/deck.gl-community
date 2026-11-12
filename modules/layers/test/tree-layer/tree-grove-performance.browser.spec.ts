@@ -179,6 +179,8 @@ it('keeps every partially uploaded instance row equal to a full rebuild while or
   const [longitude, latitude] = getLngLat(60, 0);
   const viewState = {longitude, latitude, zoom: 18.6, pitch: 50, bearing: 0};
   const orchard = await mountOrchard(createOrchard(24, 32), viewState, 640, 376);
+  // Preserve the viewport and draw path for the attribute comparison at lower framebuffer cost.
+  orchard.deck.setProps({useDevicePixels: 0.25});
   let stale = 0,
     checked = 0,
     refining = 0,

@@ -8,6 +8,7 @@ import {
   getShellStrip,
   SHELL_GRID_COARSE,
   SHELL_GRID_FINE,
+  SHELL_GRID_SHADOW,
   SHELL_GRID_TINY,
   SHELL_STAGES
 } from './tree-shell-fit';
@@ -25,17 +26,22 @@ const meshes = new WeakMap<TreeGrowthModel, Map<number, TreeShellMesh>>();
 const grids = [SHELL_GRID_FINE, SHELL_GRID_FINE, SHELL_GRID_COARSE, SHELL_GRID_TINY];
 
 /** The middle tier uses overlapping fits of crown regions. Further tiers fit the whole crown. */
-export function getTreeShellMesh(model: TreeGrowthModel, level: number): TreeShellMesh {
+export function getTreeShellMesh(
+  model: TreeGrowthModel,
+  level: number,
+  caster = false
+): TreeShellMesh {
   let cached = meshes.get(model);
   if (!cached) {
     cached = new Map();
     meshes.set(model, cached);
   }
-  const existing = cached.get(level);
+  const key = caster ? grids.length : level;
+  const existing = cached.get(key);
   if (existing) return existing;
-  const grid = grids[level];
+  const grid = caster ? SHELL_GRID_SHADOW : grids[level];
   const clumps = Array.from({length: 8}, (): number[] => []);
-  if (level === 0) {
+  if (level === 0 && !caster) {
     for (let leaf = 0; leaf < model.leafCount; leaf++) {
       const offset = leaf * TREE_LEAF_STRIDE;
       const [x, y, z] = model.leaves.subarray(offset, offset + 3);
@@ -73,6 +79,6 @@ export function getTreeShellMesh(model: TreeGrowthModel, level: number): TreeShe
     vertexCount: hulls.length * verticesPerHull,
     verticesPerHull
   };
-  cached.set(level, mesh);
+  cached.set(key, mesh);
   return mesh;
 }

@@ -51,7 +51,7 @@ type Scene = {
   /** deck.gl keeps it protected, and this suite reads the layers it renders. */
   layerManager(): LayerManager;
   setViewState(viewState: unknown): void;
-  render(layers: Layer[]): Promise<Uint8Array>;
+  render(layers: Layer[], frames?: number): Promise<Uint8Array>;
   /** Layers are in place; frames keep drawing. */
   settle(frames?: number): Promise<Uint8Array>;
   cleanup(): void;
@@ -95,9 +95,9 @@ function mount({
       frames++;
     }
   });
-  const settle = async (count = 3) => {
+  const settle = async (count = 4) => {
     const before = frames;
-    await expect.poll(() => frames, {timeout: 60000}).toBeGreaterThan(before + count);
+    await expect.poll(() => frames, {timeout: 60000}).toBeGreaterThanOrEqual(before + count);
     return pixels;
   };
   const scene: Scene = {
@@ -107,9 +107,9 @@ function mount({
     settle,
     layerManager: () => (deck as unknown as {layerManager: LayerManager}).layerManager,
     setViewState: state => deck.setProps({viewState: state as never}),
-    render(layers) {
+    render(layers, frames) {
       deck.setProps({layers});
-      return settle();
+      return settle(frames);
     },
     cleanup() {
       deck.finalize();
@@ -699,15 +699,26 @@ describe('TreeLayer photoreal rendering', () => {
       ]
     });
     scene.setViewState({...ORBIT_STATE, zoom: 8});
-    const props = {lodBias: -3, windTime: 12, windStrength: 0.03, windDirection: 80, wetness: 0.7};
-    const reference = await scene.render([
-      ground(),
-      trees({...props, _leafCulling: false, _woodCulling: false})
-    ]);
-    const selected = await scene.render([
-      ground(),
-      trees({...props, _leafCulling: true, _woodCulling: true})
-    ]);
+    const props = {lodBias: -3, windTime: 12, windDirection: 80, wetness: 0.7};
+    const receiver = ground();
+    // Static time and an unchanged camera let us compare the first frame after each update.
+    const render = (windStrength: number, culling: boolean) =>
+      scene.render(
+        [
+          receiver,
+          trees({
+            ...props,
+            windStrength,
+            _leafCulling: culling,
+            _woodCulling: culling
+          })
+        ],
+        1
+      );
+    const pick = () => scene.deck.pickObject({x: SIZE / 2, y: SIZE / 2, radius: 16});
+    const reference = await render(0.03, false);
+    const referencePick = pick();
+    const selected = await render(0.03, true);
     const listed = photorealLayers(scene).find(layer => layer.id.endsWith('-listed'))!;
     const group = [...treeLayer(scene).state.photoreal!.groups.values()][0];
     const woodStates = photorealLayers(scene)
@@ -729,22 +740,12 @@ describe('TreeLayer photoreal rendering', () => {
       difference += Math.abs(reference[offset] - selected[offset]);
     // A different opaque submission order may change a tie by one quantization step.
     expect(difference / reference.length).toBeLessThan(0.01);
-    const pick = () => scene.deck.pickObject({x: SIZE / 2, y: SIZE / 2, radius: 16});
     const compactPick = pick();
-    await scene.render([ground(), trees({...props, _leafCulling: false, _woodCulling: false})]);
-    const referencePick = pick();
     expect(compactPick?.object).toBe(referencePick?.object);
     expect(compactPick?.index).toBe(referencePick?.index);
     expect(compactPick?.object).toBe(CITRUS);
-    const storm = {...props, windStrength: 0.5};
-    const stormReference = await scene.render([
-      ground(),
-      trees({...storm, _leafCulling: false, _woodCulling: false})
-    ]);
-    const stormSelected = await scene.render([
-      ground(),
-      trees({...storm, _leafCulling: true, _woodCulling: true})
-    ]);
+    const stormReference = await render(0.5, false);
+    const stormSelected = await render(0.5, true);
     let stormDifference = 0;
     for (let offset = 0; offset < stormReference.length; offset++)
       stormDifference += Math.abs(stormReference[offset] - stormSelected[offset]);

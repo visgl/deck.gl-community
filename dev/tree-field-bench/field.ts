@@ -7,11 +7,9 @@ import {
   COORDINATE_SYSTEM,
   Deck,
   DirectionalLight,
-  LightingEffect,
   OrbitView,
   type OrbitViewState
 } from '@deck.gl/core';
-import {SolidPolygonLayer} from '@deck.gl/layers';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {
@@ -19,6 +17,8 @@ import {
   type TreeSpec,
   type TreeType
 } from '../../modules/layers/src/tree-layer/tree-layer';
+import {FieldLightingEffect} from './field-lighting';
+import {FieldGroundLayer} from './field-ground-layer';
 
 const params = new URLSearchParams(window.location.search);
 const backend = params.get('backend') === 'webgpu' ? 'webgpu' : 'webgl';
@@ -66,11 +66,20 @@ const tree: OrbitViewState = {
   rotationOrbit: 0
 };
 
-type Path = 'overview' | 'tree' | 'dive';
+const FOVY = 50;
+const macro: OrbitViewState = {
+  target: [0, -1.5, 1.6],
+  zoom: Math.log2(window.innerHeight / (4 * Math.tan((FOVY * Math.PI) / 360))),
+  rotationX: 42,
+  rotationOrbit: 0
+};
+
+type Path = 'overview' | 'tree' | 'dive' | 'macro';
 
 function getCamera(path: Path, phase: number): OrbitViewState {
   if (path === 'overview') return overview;
   if (path === 'tree') return tree;
+  if (path === 'macro') return macro;
   // Travel down and back on the same path, including both endpoints in the measured run.
   const t = (1 - Math.cos(phase * 2 * Math.PI)) / 2;
   return {
@@ -96,25 +105,39 @@ let lodCounts: Partial<Record<TreeType, number[]>> = {};
 const errors: string[] = [];
 const adapter = backend === 'webgpu' ? await navigator.gpu.requestAdapter() : null;
 const adapterInfo = adapter?.info;
-const deck = new Deck({
+const lights = {
+  ambient: new AmbientLight({color: [184, 209, 239], intensity: 1.2}),
+  sun: new DirectionalLight({
+    color: [255, 246, 221],
+    intensity: 2,
+    direction: [-1, -2, -3],
+    _shadow: true
+  })
+};
+const lighting = new FieldLightingEffect(lights);
+lighting.shadowColor = [0, 0, 0, 0.42];
+
+class FieldDeck extends Deck<OrbitView[]> {
+  get trees(): TreeLayer<TreeSpec> | undefined {
+    return this.layerManager?.getLayers().find(layer => layer.id === 'field') as
+      | TreeLayer<TreeSpec>
+      | undefined;
+  }
+
+  get backend() {
+    return this.layerManager?.context.device.type;
+  }
+}
+
+const deck = new FieldDeck({
   parent: document.querySelector<HTMLDivElement>('#scene')!,
   deviceProps: {type: backend, adapters: [webgl2Adapter, webgpuAdapter]},
   useDevicePixels: 1,
-  views: [new OrbitView({id: 'orchard', orbitAxis: 'Z'})],
+  views: [new OrbitView({id: 'orchard', orbitAxis: 'Z', fovy: FOVY})],
   viewState: {orchard: overview},
-  effects: [
-    new LightingEffect({
-      ambient: new AmbientLight({color: [184, 209, 239], intensity: 1.2}),
-      sun: new DirectionalLight({
-        color: [255, 246, 221],
-        intensity: 2,
-        direction: [-1, -2, -3],
-        _shadow: true
-      })
-    })
-  ],
+  effects: [lighting],
   layers: [
-    new SolidPolygonLayer({
+    new FieldGroundLayer<[number, number, number][]>({
       id: 'ground',
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       data: [
@@ -128,6 +151,7 @@ const deck = new Deck({
       getPolygon: polygon => polygon,
       getFillColor: [115, 108, 79],
       shadowEnabled: false,
+      pickable: false,
       material: false
     }),
     new TreeLayer<TreeSpec>({
@@ -150,9 +174,7 @@ const deck = new Deck({
     };
     if (sampleGpu) {
       measuredDraws++;
-      const tree = deck.layerManager?.getLayers().find(layer => layer.id === 'field') as
-        | TreeLayer<TreeSpec>
-        | undefined;
+      const tree = deck.trees;
       if (tree?.state.photoreal) {
         const totals: Partial<Record<TreeType, number[]>> = {};
         for (const group of tree.state.photoreal.groups.values()) {
@@ -230,7 +252,7 @@ async function measure(
   const canvas = deck.getCanvas()!;
   return {
     renderer,
-    backend: deck.layerManager?.context.device.type,
+    backend: deck.backend,
     hardwareGpu: gl
       ? !/swiftshader|llvmpipe|software rasterizer/i.test(renderer)
       : Boolean(adapterInfo && !adapterInfo.isFallbackAdapter),
@@ -238,6 +260,7 @@ async function measure(
     canvas: [canvas.width, canvas.height],
     trees: trees.length,
     lodBias: LOD_BIAS,
+    shadowFit: lighting.shadowDiagnostics,
     draws: measuredDraws,
     frameMs,
     gpuMs: gpuMs.splice(0),

@@ -30,8 +30,8 @@ const paths = values.paths.split(',');
 if (!['webgl', 'webgpu'].includes(values.backend) || !['citrus', 'mixed'].includes(values.field)) {
   throw new Error('Use --backend webgl|webgpu and --field citrus|mixed.');
 }
-if (paths.some(path => !['overview', 'tree', 'dive'].includes(path))) {
-  throw new Error('Paths must be a comma-separated list of overview, tree, and dive.');
+if (paths.some(path => !['overview', 'tree', 'dive', 'macro'].includes(path))) {
+  throw new Error('Paths must be a comma-separated list of overview, tree, dive, and macro.');
 }
 
 function summarize(samples) {

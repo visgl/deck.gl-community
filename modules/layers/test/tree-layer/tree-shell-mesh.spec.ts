@@ -29,6 +29,10 @@ describe('TreeLayer fitted crowns', () => {
       expect(mesh.indices.every(index => index < mesh.vertexCount)).toBe(true);
       expect(getTreeShellMesh(template, level)).toBe(mesh);
     }
+    const caster = getTreeShellMesh(template, 2, true);
+    expect(caster.indices.length / 3).toBe(48);
+    expect(caster.data.every(Number.isFinite)).toBe(true);
+    expect(getTreeShellMesh(template, 0, true)).toBe(caster);
     const stem = getTreeStemModel(template);
     expect(stem.wood.indices.length).toBeLessThan(template.wood.lodIndexCounts[3]);
     expect(stem.wood.indices.every(index => index < stem.wood.vertexCount)).toBe(true);
