@@ -4,6 +4,8 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- **layers:** [`FogExtension`](./modules/layers/api-reference/fog-extension.md) adds distance fog to WebGL2 layers.
+
 Gallery pages, inline documentation examples, and all 37 standalone HTML examples now share an iPhone-compatible fullscreen button.
 
 - **panels:** `FullScreenComponent` and `FullScreenController` add native fullscreen with a
