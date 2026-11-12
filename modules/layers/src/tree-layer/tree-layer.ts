@@ -2192,14 +2192,14 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           Math.floor(level + TREE_WOOD_LOD_SHIFT * hidden * hidden * (3 - 2 * hidden))
         );
         const stemPixels = data[base + MISC * 4] * row.middlePixelsPerMeter;
-        // The clumps cover the subpixel secondary branches. Keep the original wood for thin
-        // crowns and for thick trunks whose branch profiles can still be resolved.
+        // Dense shells hide small branches. Bare and thin crowns still need their coarse wood.
         const stemOnly =
-          row.shellLevel >= 1 || (row.shellLevel === 0 && foliage >= 0.75 && stemPixels <= 1.6);
+          (row.shellLevel >= 1 || (row.shellLevel === 0 && stemPixels <= 1.6)) &&
+          foliage * data[base + TREE_STATE_TEXEL.CANOPY * 4 + 3] >= 0.75;
         if (stemOnly) {
           stems.push(row);
           stemKeys.push(row.stateRow);
-        } else if (row.leafPixels > 0 || row.shellLevel === 0) {
+        } else if (row.leafPixels > 0 || row.shellLevel >= 0) {
           nextWood[woodLod].push(row);
           woodKeys[woodLod].push(row.stateRow);
         }
