@@ -24,6 +24,7 @@ import {
 } from '../../src/tree-layer/tree-photoreal-layout';
 import {TreePhotorealLeafLayer} from '../../src/tree-layer/tree-photoreal-leaf-layer';
 import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-layer';
+import {createTreeFrameReader} from './tree-browser-frame-reader';
 
 const SIZE = 256;
 
@@ -68,19 +69,20 @@ const scenes: Scene[] = [];
 function mount({
   effects,
   views = ORBIT_VIEW,
-  viewState = ORBIT_STATE
+  viewState = ORBIT_STATE,
+  staticFrames = false
 }: {
   effects?: LightingEffect[];
   views?: unknown;
   viewState?: unknown;
+  staticFrames?: boolean;
 } = {}): Scene {
   const parent = document.createElement('div');
   parent.style.cssText = `width:${SIZE}px;height:${SIZE}px`;
   document.body.append(parent);
-  let pixels = new Uint8Array(),
-    frames = 0;
   const errors: string[] = [];
   const glErrors: number[] = [];
+  const frameReader = createTreeFrameReader(SIZE, glErrors, staticFrames);
   const deck = new Deck({
     parent,
     width: SIZE,
@@ -93,19 +95,9 @@ function mount({
     effects: effects ?? [],
     layers: [],
     onError: error => errors.push(error.message),
-    onAfterRender({gl}) {
-      pixels = new Uint8Array(SIZE * SIZE * 4);
-      gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      const error = gl.getError();
-      if (error) glErrors.push(error);
-      frames++;
-    }
+    onAfterRender: frameReader.onAfterRender
   });
-  const settle = async (count = 4) => {
-    const before = frames;
-    await expect.poll(() => frames, {timeout: 60000}).toBeGreaterThanOrEqual(before + count);
-    return pixels;
-  };
+  const settle = (count?: number) => frameReader.settle(deck, count);
   const scene: Scene = {
     deck,
     errors,
@@ -710,6 +702,7 @@ describe('TreeLayer photoreal crops', () => {
     'flower'
   ] as const)('renders %s at every mesh level, and in the shadow pass', async kind => {
     const scene = mount({
+      staticFrames: true,
       effects: [
         new LightingEffect({
           ambient: new AmbientLight({intensity: 0.6}),
@@ -898,7 +891,7 @@ describe('TreeLayer photoreal crops', () => {
   }, 120000);
 
   it('takes fog, rain and rime, whatever level draws it', async () => {
-    const scene = mount();
+    const scene = mount({staticFrames: true});
     const tree = {...TREE, crop: fruit({count: 240, radius: 0.09})};
     const make = (props: Record<string, unknown>) =>
       trees(tree, {lodBias: 0, shadowEnabled: false, ...props});

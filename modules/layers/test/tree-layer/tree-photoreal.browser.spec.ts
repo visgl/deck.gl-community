@@ -23,6 +23,7 @@ import {SelectionPulseExtension, TreeLayer, type TreeSpec} from '../../src';
 import {TreePhotorealLeafLayer} from '../../src/tree-layer/tree-photoreal-leaf-layer';
 import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-layer';
 import {TreeShellLayer} from '../../src/tree-layer/tree-shell-layer';
+import {createTreeFrameReader} from './tree-browser-frame-reader';
 import {getTreeRenderTiers} from './tree-grove-test-utils';
 
 const SIZE = 256;
@@ -62,19 +63,20 @@ const scenes: Scene[] = [];
 function mount({
   effects,
   views = ORBIT_VIEW,
-  viewState = ORBIT_STATE
+  viewState = ORBIT_STATE,
+  staticFrames = false
 }: {
   effects?: LightingEffect[];
   views?: unknown;
   viewState?: unknown;
+  staticFrames?: boolean;
 } = {}): Scene {
   const parent = document.createElement('div');
   parent.style.cssText = `width:${SIZE}px;height:${SIZE}px`;
   document.body.append(parent);
-  let pixels = new Uint8Array(),
-    frames = 0;
   const errors: string[] = [];
   const glErrors: number[] = [];
+  const frameReader = createTreeFrameReader(SIZE, glErrors, staticFrames);
   const deck = new Deck({
     parent,
     width: SIZE,
@@ -87,19 +89,9 @@ function mount({
     effects: effects ?? [],
     layers: [],
     onError: error => errors.push(error.message),
-    onAfterRender({gl}) {
-      pixels = new Uint8Array(SIZE * SIZE * 4);
-      gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      const error = gl.getError();
-      if (error) glErrors.push(error);
-      frames++;
-    }
+    onAfterRender: frameReader.onAfterRender
   });
-  const settle = async (count = 4) => {
-    const before = frames;
-    await expect.poll(() => frames, {timeout: 60000}).toBeGreaterThanOrEqual(before + count);
-    return pixels;
-  };
+  const settle = (count?: number) => frameReader.settle(deck, count);
   const scene: Scene = {
     deck,
     errors,
@@ -409,7 +401,8 @@ describe('TreeLayer photoreal rendering', () => {
   it('keeps close shadow filtering stable when the same leaves move across the screen', async () => {
     const scene = mount({
       effects: [lighting(true, [1, 0.6, -1])],
-      viewState: {...ORBIT_STATE, zoom: 7.6, target: [0, -0.9, 3.4]}
+      viewState: {...ORBIT_STATE, zoom: 7.6, target: [0, -0.9, 3.4]},
+      staticFrames: true
     });
     const shift = new ShiftShadowReceivers({pixels: 0});
     const original = await scene.render([
@@ -691,6 +684,7 @@ describe('TreeLayer photoreal rendering', () => {
 
   it('compacts offscreen near leaves without changing macro pixels, shadows or picking', async () => {
     const scene = mount({
+      staticFrames: true,
       effects: [
         new LightingEffect({
           ambient: new AmbientLight(),
