@@ -57,6 +57,8 @@ The generated id is the class's default id, then, from the top of `DeckGL` down,
 
 deck.gl effects take no `id`: a `LightingEffect` has the ID `lighting-effect`, and a `PostProcessEffect` takes its ID from its shader module. That ID is the base, so two effects of one kind can render together.
 
+A widget or effect gets its id in place, and keeps it if you later pass the same instance in a `widgets` or `effects` prop.
+
 Views and widgets don't record whether their id was passed. One whose `id` equals its class's default, such as `<ZoomWidget id="zoom" />`, is treated as having no id.
 
 ### When you need an id

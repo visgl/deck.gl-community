@@ -1,4 +1,13 @@
-import {type Layer, log, MapView, type View} from '@deck.gl/core';
+import {
+  type Effect,
+  type Layer,
+  LightingEffect,
+  log,
+  MapView,
+  PostProcessEffect,
+  type View,
+  type Widget
+} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import * as fc from 'fast-check';
 import React from 'react';
@@ -6,6 +15,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {formatElementId, formatPathSegment} from '../element-ids';
 import {createTestRoot} from './test-renderer';
+import {TestWidget} from './test-widget';
 
 /** Keys that look like the format's own syntax, or like another key once escaped. */
 const AWKWARD_KEYS = [
@@ -323,6 +333,99 @@ describe('duplicate id warnings', () => {
       expect(warnings).toEqual([]);
     } finally {
       process.env.NODE_ENV = env;
+    }
+  });
+});
+
+describe('merging props with JSX elements that have generated ids', () => {
+  function createInvert() {
+    return new PostProcessEffect({fs: '', name: 'invert', passes: []} as never, {} as never);
+  }
+
+  /** Renders `jsx` with `effects` and `widgets` props in a new test root. */
+  async function renderWithProps(
+    jsx: React.ReactElement[],
+    props: {effects?: Effect[]; widgets?: Widget[]}
+  ) {
+    const test = createTestRoot();
+    test.root.configure(props);
+    await React.act(async () => {
+      test.root.render(React.createElement(React.Fragment, null, ...jsx));
+    });
+    return test;
+  }
+
+  it('keeps every effect from props, in either order, after one has left JSX', async () => {
+    // An effect rendered in JSX gets its id in place, and keeps it after it leaves JSX.
+    const reused = createInvert();
+    const lighting = new LightingEffect();
+    const first = await renderWithProps(
+      [
+        React.createElement('deckEffect', {effect: lighting}),
+        React.createElement('deckEffect', {effect: reused})
+      ],
+      {}
+    );
+    expect(reused.id).toBe('invert-pass/#1');
+    React.act(() => first.unmount());
+
+    for (const order of ['reused first', 'new first']) {
+      const fresh = createInvert();
+      const effects = order === 'reused first' ? [reused, fresh] : [fresh, reused];
+      const test = await renderWithProps([React.createElement('deckEffect', {effect: lighting})], {
+        effects
+      });
+      try {
+        expect(new Set(test.deck.effects)).toEqual(new Set([lighting, reused, fresh]));
+      } finally {
+        React.act(() => test.unmount());
+      }
+    }
+  });
+
+  it('keeps every widget from props, in either order, after one has left JSX', async () => {
+    const reused = new TestWidget({});
+    const first = await renderWithProps(
+      [
+        React.createElement('deckWidget', {widget: new TestWidget({id: 'legend'})}),
+        React.createElement('deckWidget', {widget: reused})
+      ],
+      {}
+    );
+    expect(reused.id).toBe('test-widget/#1');
+    React.act(() => first.unmount());
+
+    for (const order of ['reused first', 'new first']) {
+      const fresh = new TestWidget({});
+      const widgets = order === 'reused first' ? [reused, fresh] : [fresh, reused];
+      const legend = new TestWidget({id: 'legend'});
+      const test = await renderWithProps([React.createElement('deckWidget', {widget: legend})], {
+        widgets
+      });
+      try {
+        expect(new Set(test.deck.widgets)).toEqual(new Set([legend, reused, fresh]));
+      } finally {
+        React.act(() => test.unmount());
+      }
+    }
+  });
+
+  it('still lets a props entry replace a JSX element by its own id', async () => {
+    const jsxLighting = new LightingEffect();
+    const propLighting = new LightingEffect();
+    const test = await renderWithProps(
+      [
+        React.createElement('deckEffect', {effect: createInvert()}),
+        React.createElement('deckEffect', {effect: jsxLighting})
+      ],
+      {effects: [propLighting]}
+    );
+    try {
+      expect(jsxLighting.id).toBe('lighting-effect/#1');
+      expect(test.deck.effects).toContain(propLighting);
+      expect(test.deck.effects).not.toContain(jsxLighting);
+    } finally {
+      React.act(() => test.unmount());
     }
   });
 });

@@ -155,38 +155,45 @@ interface RootDescriptorProps {
  * then replaces the JSX entries that have its id, either the id the renderer gave them or their
  * own, so `effects={[new LightingEffect()]}` still replaces a JSX `LightingEffect` that has an id
  * from its position. Other prop entries follow the JSX entries.
+ *
+ * Only JSX entries are matched by their own id. A widget or effect keeps the id the renderer gave
+ * it after it leaves JSX, so a prop entry is matched by its current id alone: otherwise a reused
+ * instance passed in a prop could be replaced by another prop entry with its original id, and
+ * which one survived would depend on prop order. Prop entries replace each other only when their
+ * ids are equal, as before.
  */
 function mergeById<T extends {id: string}>(
   jsxEntries: readonly T[],
   passedEntries: readonly (T | null | undefined | false)[]
 ): T[] {
-  const merged: T[] = [];
+  const merged: {entry: T; fromJsx: boolean}[] = [];
   for (const entry of jsxEntries) {
-    const index = merged.findIndex(other => other.id === entry.id);
+    const index = merged.findIndex(other => other.entry.id === entry.id);
     if (index < 0) {
-      merged.push(entry);
+      merged.push({entry, fromJsx: true});
     } else {
-      merged[index] = entry;
+      merged[index] = {entry, fromJsx: true};
     }
   }
   for (const entry of passedEntries) {
     if (!entry) {
       continue;
     }
-    const matches = (other: T) => other.id === entry.id || getOwnId(other) === entry.id;
+    const matches = (other: {entry: T; fromJsx: boolean}) =>
+      other.entry.id === entry.id || (other.fromJsx && getOwnId(other.entry) === entry.id);
     const index = merged.findIndex(matches);
     if (index < 0) {
-      merged.push(entry);
+      merged.push({entry, fromJsx: false});
       continue;
     }
-    merged[index] = entry;
+    merged[index] = {entry, fromJsx: false};
     for (let later = merged.length - 1; later > index; later--) {
       if (matches(merged[later])) {
         merged.splice(later, 1);
       }
     }
   }
-  return merged;
+  return merged.map(({entry}) => entry);
 }
 
 /**

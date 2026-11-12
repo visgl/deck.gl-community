@@ -122,6 +122,10 @@ function getClass(descriptor: object): ClassWithDefaults {
  * it came with. Props entries are merged with JSX entries by either id; see `getOwnId`.
  */
 const ownIds = new WeakMap<object, string | undefined>();
+// A widget or effect keeps its given id after its element unmounts. Restoring the original id
+// then would rename an instance that deck.gl may still hold under the given id, or that a prop
+// already passes to it, and deck.gl would set it up again and then clean it up as the removed
+// one. So the merge with props matches prop entries by their current id only; see `mergeById`.
 
 function getOriginalId(descriptor: Widget | Effect): string | undefined {
   if (!ownIds.has(descriptor)) {
