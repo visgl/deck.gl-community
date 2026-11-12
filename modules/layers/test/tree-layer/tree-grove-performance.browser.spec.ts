@@ -42,16 +42,21 @@ function createOrchard(rows: number, treesPerRow: number): TreeSpec[] {
 }
 
 /** A deck driven one frame at a time, as an interleaved basemap drives its overlay. */
-async function mountOrchard(data: TreeSpec[], viewState: MapViewState) {
+async function mountOrchard(
+  data: TreeSpec[],
+  viewState: MapViewState,
+  width = STAGE_WIDTH,
+  height = STAGE_HEIGHT
+) {
   const parent = document.createElement('div');
-  parent.style.cssText = `width:${STAGE_WIDTH}px;height:${STAGE_HEIGHT}px`;
+  parent.style.cssText = `width:${width}px;height:${height}px`;
   document.body.append(parent);
   const errors: string[] = [];
   let rendered = 0;
   const deck = new Deck({
     parent,
-    width: STAGE_WIDTH,
-    height: STAGE_HEIGHT,
+    width,
+    height,
     useDevicePixels: false,
     deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
     views: new MapView({id: 'orchard'}),
@@ -172,12 +177,14 @@ it('reports per-frame CPU while orbiting a large generated citrus block', async 
 
 it('keeps every partially uploaded instance row equal to a full rebuild while orbiting', async () => {
   const [longitude, latitude] = getLngLat(60, 0);
-  const viewState = {longitude, latitude, zoom: 18.2, pitch: 50, bearing: 0};
-  const orchard = await mountOrchard(createOrchard(40, 50), viewState);
+  const viewState = {longitude, latitude, zoom: 18.6, pitch: 50, bearing: 0};
+  const orchard = await mountOrchard(createOrchard(24, 32), viewState, 640, 376);
   let stale = 0,
     checked = 0,
     refining = 0,
-    resized = 0;
+    resized = 0,
+    entered = 0,
+    departed = 0;
   const previousCounts = new Map<string, number>();
   const check = () => {
     for (const layer of orchard.deck['layerManager']!.getLayers()) {
@@ -202,22 +209,30 @@ it('keeps every partially uploaded instance row equal to a full rebuild while or
     }
   };
   try {
-    for (let i = 0; i < 20; i++) orchard.frame(viewState);
+    check();
     let previousTiers = orchard.tiers();
-    for (let i = 1; i <= 40; i++) {
-      // Orbit, then zoom, so membership and detail change in the same sequence.
-      orchard.frame({...viewState, bearing: i, zoom: viewState.zoom + Math.max(0, i - 20) * 0.04});
+    for (let i = 1; i <= 16; i++) {
+      // Orbit through the edge of the planting, then zoom while the orbit continues.
+      orchard.frame({
+        ...viewState,
+        bearing: i * 3,
+        zoom: viewState.zoom + Math.max(0, i - 8) * 0.1
+      });
       check();
       const tiers = orchard.tiers();
       for (const [owner, tier] of tiers) {
-        if (previousTiers.has(owner) && previousTiers.get(owner) !== tier) refining++;
+        if (!previousTiers.has(owner)) entered++;
+        else if (previousTiers.get(owner) !== tier) refining++;
       }
+      for (const owner of previousTiers.keys()) if (!tiers.has(owner)) departed++;
       previousTiers = tiers;
     }
     expect(orchard.errors).toEqual([]);
     expect(checked).toBeGreaterThan(100);
     expect(resized).toBeGreaterThan(0);
     expect(refining).toBeGreaterThan(0);
+    expect(entered).toBeGreaterThan(0);
+    expect(departed).toBeGreaterThan(0);
     expect(stale).toBe(0);
   } finally {
     orchard.finalize();

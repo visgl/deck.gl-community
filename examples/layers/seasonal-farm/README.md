@@ -8,7 +8,8 @@ The **TreeLayer** panel maps directly onto layer props:
 - **Trees**: season (`getSeason`), fruit and flowers (`getCrop`), wind (`windStrength`) and size
   (`sizeScale`).
 - **Crown**: every shared `characteristics` field, from seed and spread to leaf density.
-- **Rendering** adjusts `lodBias`, which controls how soon crowns use simpler detail.
+- **Rendering**: the shared splat budget (`maxCanopySplats`), canopy pixel cap
+  (`maxCanopyPixels`) and foveation strength.
 
 Drag to pan, scroll or pinch to zoom, and right-drag to tilt or rotate, up to zoom 23 and an 80°
 pitch. No basemap is required.

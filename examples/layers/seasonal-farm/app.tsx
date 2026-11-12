@@ -208,7 +208,16 @@ export function mountSeasonalFarmExample(
   }
 
   function createLayers() {
-    const {season, crops, windStrength, sizeScale, characteristics, lodBias} = settings;
+    const {
+      season,
+      crops,
+      windStrength,
+      sizeScale,
+      characteristics,
+      maxCanopySplats,
+      maxCanopyPixels,
+      foveationStrength
+    } = settings;
     return [
       new PolygonLayer<FarmPlot>({
         id: 'farm-plots',
@@ -236,7 +245,9 @@ export function mountSeasonalFarmExample(
         sizeScale,
         characteristics,
         windStrength,
-        lodBias,
+        maxCanopySplats,
+        maxCanopyPixels,
+        foveationStrength,
         parameters: {cullMode: 'none'},
         updateTriggers: {
           getCanopyRadius: season,
