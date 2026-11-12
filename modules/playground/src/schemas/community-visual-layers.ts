@@ -55,6 +55,23 @@ export const FlameTrailLayerPropsSchema = TripsLayerPropsSchema;
 /** JSON configuration for FlameTrailLayer. */
 export const FlameTrailLayerSchema = defineLayer('FlameTrailLayer', FlameTrailLayerPropsSchema);
 
+/** JSON props for procedural grass patches with sizes in meters. */
+export const GrassLayerPropsSchema = BaseLayerPropsSchema.extend({
+  getPosition: PositionAccessorSchema.optional(),
+  getSize: createAccessorSchema(z.tuple([nonnegative, nonnegative])).optional(),
+  getHeight: createAccessorSchema(nonnegative).optional(),
+  getBladeWidth: createAccessorSchema(nonnegative).optional(),
+  getColor: ColorAccessorSchema.optional(),
+  getDensity: createAccessorSchema(fraction).optional(),
+  getSeed: createAccessorSchema(z.number().int().min(0).max(16777215)).optional(),
+  bladesPerPatch: z.number().int().min(1).max(4096).optional(),
+  windDirection: z.number().optional(),
+  windStrength: fraction.optional(),
+  windTime: z.number().nullable().optional()
+});
+/** JSON configuration for GrassLayer. */
+export const GrassLayerSchema = defineLayer('GrassLayer', GrassLayerPropsSchema);
+
 /** JSON props for a time volume; File/Blob sources and callbacks use host references. */
 export const VolumetricVideoLayerPropsSchema = BaseLayerPropsSchema.extend({
   video: z.string().nullable().optional(),
@@ -641,6 +658,7 @@ export const MarkerLayerSchema = defineLayer('MarkerLayer', MarkerLayerPropsSche
 /** All public visual, information, timeline and graph layer constructors. */
 export const CommunityVisualLayerSchemas = {
   FlameTrailLayer: FlameTrailLayerSchema,
+  GrassLayer: GrassLayerSchema,
   VolumetricVideoLayer: VolumetricVideoLayerSchema,
   PathOutlineLayer: PathOutlineLayerSchema,
   PathMarkerLayer: PathMarkerLayerSchema,
