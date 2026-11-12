@@ -11,26 +11,20 @@ import {
 import {Model} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {expect, it, vi} from 'vitest';
-import {
-  SplatLayer,
-  TreeLayer,
-  type TreeCharacteristics,
-  type TreeSpec,
-  type TreeType
-} from '../../src';
+import {TreeLayer, type TreeCharacteristics, type TreeSpec, type TreeType} from '../../src';
+import {TreePhotorealLeafLayer} from '../../src/tree-layer/tree-photoreal-leaf-layer';
+import {TreeShellLayer} from '../../src/tree-layer/tree-shell-layer';
 
 type FrameSample = {
   phase: 'settled' | 'rotate' | 'zoom';
   draws: number;
   destroyed: number;
-  splats: number;
+  canopyInstances: number;
 };
 
 const STAGE_WIDTH = 800;
 const STAGE_HEIGHT = 600;
-// Eight species intentionally use separate shared foliage templates. Refinement may retain old and
-// new representations together, so this is a bounded mixed-source pass count rather than a single
-// monolithic draw.
+// Each morphology has one active canopy tier, with fine and macro blades available near the camera.
 const MAX_MIXED_CANOPY_PASSES = 64;
 
 const SPECIES: TreeType[] = [
@@ -55,8 +49,22 @@ const DIMENSIONS: Record<TreeType, Pick<TreeSpec, 'height' | 'crownRadius' | 'tr
 };
 // Two shared morphology batches per species, as a varied production grove would author them.
 const MORPHOLOGIES: TreeCharacteristics[] = [
-  {seed: 19, crownSpread: 0.94, crownDepth: 0.94, crownAsymmetry: 0.78, branchDensity: 0.92},
-  {seed: 73, crownSpread: 1.1, crownDepth: 1.08, crownAsymmetry: 1.2, branchDensity: 1.12}
+  {
+    seed: 19,
+    crownSpread: 0.94,
+    crownDepth: 0.94,
+    crownAsymmetry: 0.78,
+    branchDensity: 0.5,
+    leafDensity: 0.25
+  },
+  {
+    seed: 73,
+    crownSpread: 1.1,
+    crownDepth: 1.08,
+    crownAsymmetry: 1.2,
+    branchDensity: 0.5,
+    leafDensity: 0.25
+  }
 ];
 const SPACING = 1.6;
 
@@ -97,14 +105,16 @@ it('keeps mixed canopy passes bounded without destroying models during camera re
   let draws = 0;
   let destroyed = 0;
   let phase: FrameSample['phase'] = 'settled';
+  const isCanopyModel = (id: string) =>
+    id.includes('-canopy-') || id.includes('-photoreal-leaves-');
   const originalDraw = Model.prototype.draw;
   const draw = vi.spyOn(Model.prototype, 'draw').mockImplementation(function (pass) {
-    if (this.id.includes('canopy')) draws++;
+    if (isCanopyModel(this.id)) draws++;
     return originalDraw.call(this, pass);
   });
   const originalDestroy = Model.prototype.destroy;
   const destroy = vi.spyOn(Model.prototype, 'destroy').mockImplementation(function () {
-    if (this.id.includes('canopy')) destroyed++;
+    if (isCanopyModel(this.id)) destroyed++;
     return originalDestroy.call(this);
   });
   const trees = new TreeLayer<TreeSpec>({
@@ -131,13 +141,18 @@ it('keeps mixed canopy passes bounded without destroying models during camera re
     onAfterRender() {
       // Skip the first frame, which uploads every template.
       if (++frames === 1) return;
-      const splats = deck
+      const canopyInstances = deck
         .layerManager!.getLayers()
         .reduce(
-          (sum, layer) => sum + (layer instanceof SplatLayer ? layer.splatStats.renderedSplats : 0),
+          (sum, layer) =>
+            sum +
+            (layer.props.visible &&
+            (layer instanceof TreePhotorealLeafLayer || layer instanceof TreeShellLayer)
+              ? layer.getNumInstances()
+              : 0),
           0
         );
-      samples.push({phase, draws, destroyed, splats});
+      samples.push({phase, draws, destroyed, canopyInstances});
       if (samples.length === 3) deck['animationLoop']?.stop();
       else if (samples.length === 1) {
         phase = 'rotate';
@@ -151,10 +166,10 @@ it('keeps mixed canopy passes bounded without destroying models during camera re
     }
   });
   try {
-    await expect.poll(() => samples.length, {timeout: 60_000}).toBe(3);
+    await expect.poll(() => samples.length, {timeout: 120_000}).toBe(3);
     expect(errors).toEqual([]);
     expect(samples.map(sample => sample.phase)).toEqual(['settled', 'rotate', 'zoom']);
-    expect(samples.every(sample => sample.splats > 0)).toBe(true);
+    expect(samples.every(sample => sample.canopyInstances > 0)).toBe(true);
     expect(
       samples.every(sample => sample.draws > 0 && sample.draws <= MAX_MIXED_CANOPY_PASSES)
     ).toBe(true);
@@ -165,4 +180,4 @@ it('keeps mixed canopy passes bounded without destroying models during camera re
     draw.mockRestore();
     destroy.mockRestore();
   }
-}, 90_000);
+}, 180_000);

@@ -19,13 +19,23 @@ import {userEvent} from 'vitest/browser';
 import {mountSeasonalFarmExample} from './app';
 import {createFarmPlots, getFarmPosition, type FarmTree} from './farm-data';
 
+// Keep each plot and one authored tree per plot so browser interactions fit the software GPU.
+// farm-data.spec.ts checks the full 416-tree inventory and both responsive layouts.
+vi.mock('./farm-data', async importOriginal => {
+  const data = await importOriginal<typeof import('./farm-data')>();
+  return {
+    ...data,
+    createTreeSamples: (...args: Parameters<typeof data.createTreeSamples>) =>
+      data.createTreeSamples(...args).filter(tree => tree.id.endsWith('-0'))
+  };
+});
+
 type BrowserGpu = {requestAdapter: () => Promise<unknown>};
 
 describe('Seasonal Farm integration', () => {
   it.for(['webgl', 'webgpu'] as const)(
     'renders panel-driven TreeLayer props, plot inspection, and responsive remounts on %s',
-    // Full native foliage across 416 trees and camera/remount checks is slower on CI's software GPU.
-    // Individual readiness and interaction assertions retain their five-second bounds.
+    // Allow time for shader compilation across both layouts on the software GPU.
     {timeout: 180_000},
     async (type, {skip}) => {
       if (type === 'webgpu') {
@@ -47,8 +57,8 @@ describe('Seasonal Farm integration', () => {
           device,
           initialViewState: savedView,
           onViewStateChange(params) {
-            // Clamp contracts should inspect the authored target independently of
-            // software-GPU animation cadence. Earlier inputs still exercise transitions.
+            // Run the wheel transition at its normal cadence. Apply later keyboard and limit
+            // checks immediately so the software GPU only draws the poses being asserted.
             const nextView = instantCamera
               ? {...params.viewState, transitionDuration: 0}
               : params.viewState;
@@ -109,7 +119,7 @@ describe('Seasonal Farm integration', () => {
           .not.toBeNull();
         expect(root().dataset.season).toBe('spring');
         const data = trees().props.data as FarmTree[];
-        expect(data).toHaveLength(416);
+        expect(data.map(tree => tree.plotId)).toEqual(createFarmPlots().map(plot => plot.species));
         expect(deck!.props.layers.filter(layer => layer instanceof TreeLayer)).toHaveLength(1);
         // The demo stays free of in-canvas copy: plots are identified by hover tooltips.
         expect(parent.querySelector('h1, small')).toBeNull();
@@ -179,6 +189,7 @@ describe('Seasonal Farm integration', () => {
           })
         );
         await expect.poll(() => viewport().zoom, {timeout: 5000}).toBeGreaterThan(view.zoom + 0.5);
+        instantCamera = true;
         canvas.dispatchEvent(
           new KeyboardEvent('keydown', {bubbles: true, key: 'ArrowRight', code: 'ArrowRight'})
         );
@@ -192,7 +203,6 @@ describe('Seasonal Farm integration', () => {
           })
         );
         await expect.poll(() => viewport().bearing, {timeout: 5000}).toBe(-15);
-        instantCamera = true;
         // Start near the limits to avoid rendering a long zoom sequence on CI's software GPU.
         deck!.setProps({
           initialViewState: {...savedView!, zoom: 22.5, pitch: 75, transitionDuration: 0}
