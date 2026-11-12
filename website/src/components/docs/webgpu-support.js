@@ -14,6 +14,7 @@ const SUPPORTED_DOC_IDS = new Set([
   'modules/layers/api-reference/dependency-arrow-layer',
   'modules/layers/api-reference/path-marker-layer',
   'modules/layers/api-reference/path-outline-layer',
+  'modules/layers/api-reference/sky-layer',
   'modules/layers/api-reference/skybox-layer',
   'modules/layers/api-reference/splat-layer',
   'modules/layers/api-reference/tree-layer',
