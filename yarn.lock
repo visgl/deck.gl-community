@@ -1150,11 +1150,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/react-fiber@workspace:modules/react-fiber"
   dependencies:
+    "@deck.gl/aggregation-layers": "npm:~9.4.1"
     "@deck.gl/core": "npm:~9.4.1"
     "@deck.gl/extensions": "npm:~9.4.1"
+    "@deck.gl/geo-layers": "npm:~9.4.1"
     "@deck.gl/layers": "npm:~9.4.1"
     "@deck.gl/mapbox": "npm:~9.4.1"
     "@deck.gl/maplibre": "npm:~9.4.1"
+    "@deck.gl/mesh-layers": "npm:~9.4.1"
     "@deck.gl/widgets": "npm:~9.4.1"
     "@loaders.gl/core": "npm:^4.5.1"
     "@luma.gl/core": "npm:~9.4.2"
@@ -1166,6 +1169,7 @@ __metadata:
     "@types/react-dom": "npm:^19.2.5"
     "@types/react-reconciler": "npm:0.33.0"
     client-only: "npm:^0.0.1"
+    esbuild: "npm:^0.28.1"
     fast-check: "npm:^4.0.0"
     its-fine: "npm:^2.0.0"
     jsdom: "npm:^26.0.0"
@@ -1177,15 +1181,30 @@ __metadata:
     typescript: "npm:6.0.3"
     vitest: "npm:^4.0.18"
   peerDependencies:
+    "@deck.gl/aggregation-layers": ~9.4.1
     "@deck.gl/core": ~9.4.1
+    "@deck.gl/geo-layers": ~9.4.1
+    "@deck.gl/layers": ~9.4.1
     "@deck.gl/mapbox": ~9.4.1
     "@deck.gl/maplibre": ~9.4.1
+    "@deck.gl/mesh-layers": ~9.4.1
+    "@deck.gl/widgets": ~9.4.1
     react: ">=19.0.0"
     react-dom: ">=19.0.0"
   peerDependenciesMeta:
+    "@deck.gl/aggregation-layers":
+      optional: true
+    "@deck.gl/geo-layers":
+      optional: true
+    "@deck.gl/layers":
+      optional: true
     "@deck.gl/mapbox":
       optional: true
     "@deck.gl/maplibre":
+      optional: true
+    "@deck.gl/mesh-layers":
+      optional: true
+    "@deck.gl/widgets":
       optional: true
   languageName: unknown
   linkType: soft

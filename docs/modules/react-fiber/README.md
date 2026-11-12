@@ -83,7 +83,7 @@ Without `canvas`, a standalone root renders an unstyled wrapper and canvas. Give
 
 - [Get started](./developer-guide/get-started.md) explains the native root, client boundaries, layers, views, and instance access.
 - [Using with maps](./developer-guide/using-with-maps.md) explains provider roots and links the [Mapbox](./developer-guide/base-maps/using-with-mapbox.md) and [MapLibre](./developer-guide/base-maps/using-with-maplibre.md) guides.
-- [Migrate from `@deck.gl/react`](./developer-guide/migrate-from-deckgl-react.md) lists each change, with a recipe for keeping the old JSX layer syntax.
+- [Migrate from `@deck.gl/react`](./developer-guide/migrate-from-deckgl-react.md) lists each change, including the components for built-in deck.gl classes.
 - [Debugging](./developer-guide/debugging.md) explains how to trace a problem through the renderer, with logs, React DevTools and error boundaries.
 - [DeckGL API](./api-reference/deckgl.md) documents root ownership and lifecycle behavior.
 - [Native elements](./api-reference/native-elements.md) documents `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`.
