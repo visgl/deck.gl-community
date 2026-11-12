@@ -2,13 +2,19 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Deck, FirstPersonView} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, Deck, FirstPersonView, type DeckProps} from '@deck.gl/core';
 import {SolidPolygonLayer} from '@deck.gl/layers';
 import {SkyLayer} from '@deck.gl-community/layers';
 
 type Position = [number, number, number];
+type MountOptions = Pick<
+  DeckProps<FirstPersonView>,
+  'device' | 'initialViewState' | 'widgets' | 'onViewStateChange'
+> & {
+  onDeckInitialized?: (deck: Deck<FirstPersonView>) => void;
+};
 
-export function mountSkyExample(container: HTMLElement): () => void {
+export function mountSkyExample(container: HTMLElement, options: MountOptions = {}): () => void {
   const root = document.createElement('div');
   root.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden';
   container.appendChild(root);
@@ -66,13 +72,17 @@ export function mountSkyExample(container: HTMLElement): () => void {
     ];
   };
 
-  const deck = new Deck({
+  const deck = new Deck<FirstPersonView>({
     parent: root,
+    device: options.device,
     views: new FirstPersonView({fovy: 66}),
-    initialViewState: {position: [0, 0, 1.7], bearing: 0, pitch: -9},
+    initialViewState: options.initialViewState ?? {position: [0, 0, 1.7], bearing: 0, pitch: -9},
     controller: true,
-    layers: getLayers()
+    layers: getLayers(),
+    widgets: options.widgets,
+    onViewStateChange: options.onViewStateChange
   });
+  options.onDeckInitialized?.(deck);
   controls.addEventListener('input', () => deck.setProps({layers: getLayers()}));
   root.appendChild(controls);
 
