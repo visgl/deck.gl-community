@@ -259,7 +259,7 @@ export class TreePhotorealCropLayer<DataT = unknown> extends TreePhotorealPrimit
 
   getShaders() {
     if (this.context.device.type === 'webgpu') {
-      return super.getShaders(getTreeCropWgslShaders(this.getKind(), this.usesWebGpuDot()));
+      return super.getShaders(getTreeCropWgslShaders(this.getKind(), this.getMesh()));
     }
     return super.getShaders({
       ...getTreeCropShaders(this.getKind(), this.getMesh()),
@@ -356,7 +356,10 @@ export class TreePhotorealCropLayer<DataT = unknown> extends TreePhotorealPrimit
           ? [finePixels / pixelScale, macroPixels / pixelScale]
           : [0, finePixels / pixelScale];
     const drawn = shedding ? indexCount : bodyIndexCount;
-    if (!this.usesWebGpuDot()) {
+    if (this.usesWebGpuDot()) {
+      // Distant crops use a second quad for contact only while the bucket contains fallen fruit.
+      model.setVertexCount(shedding && kind !== 'flower' ? 12 : 6);
+    } else {
       model.setDrawOffsets({firstVertex: 0, firstIndex: shadowPass ? indexCount : 0});
       model.setIndexCount(shadowPass ? shadowIndexCount : drawn);
     }

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {TREE_CROP_PART, type CropKind} from './tree-crop';
+import {TREE_CROP_PART, type CropKind, type TreeCropMeshLevel} from './tree-crop';
 import {TREE_CROP_RANK_LEVELS, TREE_STATE_TEXEL} from './tree-photoreal-layout';
 import {TREE_CROP_BLOOM_FROM} from './tree-photoreal-shaders';
 import {treePhotorealRenderWgsl} from './tree-photoreal-render-wgsl';
 import {getTreeWgslTextures} from './tree-photoreal-wgsl';
 
 /** Native crop meshes and analytic distant discs use the same ranked anchor records. */
-export function getTreeCropWgslShaders(kind: CropKind, dot: boolean) {
+export function getTreeCropWgslShaders(kind: CropKind, mesh: TreeCropMeshLevel) {
   const bindings = getTreeWgslTextures([
     'treeState',
     'treeLimbs',
@@ -17,6 +17,8 @@ export function getTreeCropWgslShaders(kind: CropKind, dot: boolean) {
     'treeCropRanks'
   ]);
   const flower = kind === 'flower';
+  const dot = mesh === 3 || (mesh === 2 && flower);
+  const billboard = mesh === 2 && !flower;
   return {
     modules: [treePhotorealRenderWgsl],
     shaderLayout: bindings.shaderLayout,
@@ -44,6 +46,7 @@ struct CropVaryings {
   @location(3) local: vec3<f32>,
   @location(4) @interpolate(flat) pickingColor: vec3<f32>,
   @location(5) @interpolate(flat) seed: f32,
+  @location(6) @interpolate(flat) contact: f32,
 };
 
 fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
@@ -134,7 +137,8 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
   if (!treeIsShadowPass() && (projection.clipPosition.w <= 1e-6 || splatBehindGlobe(projection.commonPosition.xyz))) { return output; }
   let pixelsPerMetre = treePixelsPerMetre(projection.clipPosition.w);
   let pixels = crop.y * pixelsPerMetre;
-  if (pixels < treePhotoreal.clock.y || pixels >= treePhotoreal.clock.z) { return output; }
+  // The fine crop mesh also casts for fruits large enough to use the macro color mesh.
+  if (!treeIsShadowPass() && (pixels < treePhotoreal.clock.y || pixels >= treePhotoreal.clock.z)) { return output; }
 
   let tint = mix(pow(unripe.rgb, vec3<f32>(2.2)), pow(ripe.rgb, vec3<f32>(2.2)), crop.z);
   output.color = mix(tint, vec3<f32>(0.085, 0.047, 0.025), smoothstep(0.03, 0.5, life.decay));
@@ -147,7 +151,33 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
     vec2<f32>(-1, -1), vec2<f32>(1, -1), vec2<f32>(1, 1),
     vec2<f32>(-1, -1), vec2<f32>(1, 1), vec2<f32>(-1, 1)
   );
-  let corner = corners[input.vertexIndex];
+  let corner = corners[input.vertexIndex % 6u];
+  `
+      : ''
+  }
+  ${
+    !flower
+      ? `
+  if (${dot ? 'input.vertexIndex >= 6u' : `u32(input.cropPart.x + 0.5) == ${TREE_CROP_PART.CONTACT}u`}) {
+    if (treeIsShadowPass() || picking.isActive > 0.5) { return output; }
+    let ball = max(treePhotoreal.shape.z * radius, 0.001);
+    let contact = 1.0 - smoothstep(0.0, 3.0 * ball + 0.02, center.z - restZ);
+    if (contact <= 0.0) { return output; }
+    let groundLocal = ${dot ? 'corner' : 'input.cropPosition.xy'};
+    let ground = treeProject(vec3<f32>(center.xy + groundLocal * ball * 1.4, TREE_GROUND + 0.0015), place);
+    output.position = ground.clipPosition;
+    output.commonPosition = ground.commonPosition.xyz;
+    output.local = vec3<f32>(groundLocal, 0.0);
+    output.contact = contact;
+    return output;
+  }
+  `
+      : ''
+  }
+  ${
+    dot || billboard
+      ? `
+  ${billboard ? 'let corner = input.cropPosition.xy;' : ''}
   let clip = projection.clipPosition;
   let pixelRadius = max(0.65, radius * pixelsPerMetre) * project.devicePixelRatio;
   output.position = vec4<f32>(clip.xy + corner * pixelRadius * 2.0 / project.viewportSize * clip.w, clip.zw);
@@ -157,9 +187,8 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
   `
       : `
   let part = u32(input.cropPart.x + 0.5);
-  if (part == ${TREE_CROP_PART.CONTACT}u) { return output; }
   var normal = input.cropNormal;
-  var local = input.cropPosition;
+  let local = input.cropPosition;
   let turning = treeRotation(vec3<f32>(0, 0, 1), seed * TREE_TWO_PI);
   let shape = vec3<f32>(1.0 + (hashD - 0.5) * 0.05, 1.0 - (hashD - 0.5) * 0.05, 0.925 + 0.105 * hashC);
   var point = center + turning * (local * shape) * radius;
@@ -170,6 +199,34 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
     output.color = vec3<f32>(0.12, 0.20, 0.035);
   } else {
     normal = turning * normal;
+    ${
+      flower
+        ? `
+    if (part == ${TREE_CROP_PART.PETAL}u) {
+      // Each mesh petal stores its ordinal in Z. Place it around the blossom and curl its blade.
+      let petal = floor(local.z + 0.5);
+      let wobble = fract(seed * 11.3 + petal * 0.37);
+      let azimuth = (petal + (wobble - 0.5) * 0.28) * TREE_TWO_PI / 5.0;
+      let radial = vec3<f32>(cos(azimuth), sin(azimuth), 0.0);
+      let tangent = vec3<f32>(-radial.y, radial.x, 0.0);
+      let up = vec3<f32>(0.0, 0.0, 1.0);
+      let open = smoothstep(0.2, 1.0, grown);
+      let start = mix(0.14, 0.62 + 0.14 * wobble, open);
+      let bend = mix(-0.34, 1.75 + 0.42 * hashC, open);
+      let curvature = select(bend, 0.001, abs(bend) < 0.001);
+      let theta = start + curvature * local.x;
+      let reach = (cos(start) - cos(theta)) / curvature;
+      let height = (sin(theta) - sin(start)) / curvature;
+      let inward = -radial * cos(theta) + up * sin(theta);
+      let cup = 0.5 + 0.5 * open;
+      let blade = radial * (0.15 * mix(0.6, 1.0, open) + 0.92 * reach) +
+        tangent * local.y + up * (0.02 + 0.92 * height) - inward * local.y * local.y * cup;
+      point = center + turning * blade * radius;
+      normal = turning * normalize(inward + tangent * local.y * cup * 2.0);
+    }
+    `
+        : ''
+    }
     if (part == ${TREE_CROP_PART.CALYX}u || part == ${TREE_CROP_PART.RECEPTACLE}u) {
       output.color = vec3<f32>(0.14, 0.22, 0.04);
     }
@@ -188,12 +245,19 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
 @fragment fn fragmentMain(input: CropVaryings) -> @location(0) vec4<f32> {
   if (treeIsShadowPass()) { return treeShadowDepth(input.position.z); }
   let footprint = length(fwidth(input.local));
+  if (input.contact > 0.0) {
+    let falloff = max(1.0 - dot(input.local.xy, input.local.xy), 0.0);
+    if (falloff <= 0.0) { discard; }
+    let fog = exp(-treePhotoreal.weather.z * length(project.cameraPosition - input.commonPosition) /
+      max(project_size_float(1.0), 1e-9));
+    return vec4<f32>(0.0, 0.0, 0.0, layer.opacity * input.contact * 0.62 * falloff * falloff * fog);
+  }
   var normal = normalize(input.normal);
   ${
-    dot
+    dot || billboard
       ? `
   let r2 = dot(input.local.xy, input.local.xy);
-  if (r2 > 1.0) { discard; }
+  ${dot ? 'if (r2 > 1.0) { discard; }' : ''}
   let right = normalize(cross(normal, vec3<f32>(0.0, 0.0, 1.0) + vec3<f32>(0.0001, 0.0, 0.0)));
   let up = cross(right, normal);
   normal = normalize(right * input.local.x + up * input.local.y + normal * sqrt(max(1.0 - r2, 0.0)));

@@ -17,6 +17,11 @@ import {Model} from '@luma.gl/engine';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {expect, it} from 'vitest';
 import {requireWebGPUAdapter} from '../webgpu-test-utils';
+import {getTreeGrowthModel} from '../../src/tree-layer/tree-growth-model';
+import {
+  TreePhotorealCropLayer,
+  type TreeCropData
+} from '../../src/tree-layer/tree-photoreal-crop-layer';
 import {
   getTreeRingRadius,
   TREE_STATE_ROWS_PER_LINE,
@@ -486,3 +491,218 @@ it('casts and receives directional shadows on the highest-detail WebGPU tree', a
     parent.remove();
   }
 }, 90_000);
+
+it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', async ({skip}) => {
+  await requireWebGPUAdapter(skip);
+  const size = 256;
+  const parent = document.createElement('div');
+  document.body.append(parent);
+  const errors: string[] = [];
+  const device = await luma.createDevice({
+    type: 'webgpu',
+    adapters: [webgpuAdapter],
+    onError: error => errors.push(error.message),
+    createCanvasContext: {container: parent, width: size, height: size, useDevicePixels: false}
+  });
+  const handle = (device as Device & {handle: GPUDevice}).handle;
+  const recordError = (event: GPUUncapturedErrorEvent) => errors.push(event.error.message);
+  handle.addEventListener('uncapturederror', recordError);
+  const color = device.createTexture({
+    width: size,
+    height: size,
+    format: 'rgba8unorm',
+    usage: Texture.RENDER_ATTACHMENT | Texture.COPY_SRC
+  });
+  const framebuffer = device.createFramebuffer({
+    width: size,
+    height: size,
+    colorAttachments: [color],
+    depthStencilAttachment: 'depth24plus'
+  });
+  const readback = device.createBuffer({
+    byteLength: size * size * 4,
+    usage: Buffer.COPY_DST | Buffer.MAP_READ
+  });
+  // One known attachment keeps the pixel tests independent of the species' authored anchor order.
+  const template = {
+    ...getTreeGrowthModel('citrus'),
+    cropAnchors: new Float32Array([0, 0, 0.5, 0.1, 0, 0, 0.23, 0]),
+    cropAnchorCount: 1
+  };
+  const store = new TreeStateStore(1);
+  const state = device.createTexture({
+    format: 'rgba32float',
+    width: TREE_STATE_TEXTURE_WIDTH,
+    height: store.lineCount,
+    data: store.data,
+    mipLevels: 1
+  });
+  const light = new LightingEffect({
+    sun: new DirectionalLight({direction: [-1, -2, -3], intensity: 2.4, _shadow: true})
+  });
+  const view = new OrbitView({orbitAxis: 'Z', fovy: 40, near: 0.05, far: 8});
+  const initialViewState = {target: [0, 0, 1] as [number, number, number], zoom: 7};
+  let frames = 0;
+  const deck = new Deck({
+    _framebuffer: framebuffer,
+    _animate: true,
+    device,
+    parent,
+    width: size,
+    height: size,
+    useDevicePixels: false,
+    views: view,
+    initialViewState,
+    effects: [light],
+    onAfterRender: () => frames++,
+    onError: error => errors.push(error.message)
+  });
+  const shadowRead = new Model(device, {
+    id: 'crop-shadow-readback',
+    shaderLayout: {
+      attributes: [],
+      bindings: [
+        {name: 'cropShadowMap', type: 'texture', viewDimension: '2d', group: 0, location: 0}
+      ]
+    },
+    source: /* wgsl */ `
+@group(0) @binding(0) var cropShadowMap: texture_2d<f32>;
+
+@vertex fn vertexMain(@builtin(vertex_index) vertex: u32) -> @builtin(position) vec4<f32> {
+  let p = array<vec2<f32>, 3>(vec2<f32>(-1,-1), vec2<f32>(3,-1), vec2<f32>(-1,3));
+  return vec4<f32>(p[vertex], 0.0, 1.0);
+}
+
+@fragment fn fragmentMain(@builtin(position) pixel: vec4<f32>) -> @location(0) vec4<f32> {
+  return textureLoad(cropShadowMap, vec2<i32>(pixel.xy), 0);
+}
+`,
+    vertexCount: 3,
+    topology: 'triangle-list'
+  });
+  const readPixels = async () => {
+    device.submit();
+    const encoder = device.createCommandEncoder();
+    encoder.copyTextureToBuffer({
+      sourceTexture: color,
+      destinationBuffer: readback,
+      bytesPerRow: size * 4,
+      width: size,
+      height: size
+    });
+    device.submit(encoder.finish());
+    return new Uint8Array(await readback.readAsync());
+  };
+  const capture = async (
+    kind: 'fruit' | 'flower',
+    lod: number,
+    zoom: number,
+    rotationX: number,
+    dropped = false
+  ) => {
+    const target: [number, number, number] = [0, 0, dropped ? 0 : 1];
+    const radius = kind === 'flower' || lod === 1 ? 0.33 : 0.16;
+    store.setRow(
+      0,
+      {
+        position: [0, 0, 0],
+        growth: 1,
+        height: 2.4,
+        trunkHeight: 0.6,
+        crownX: 1,
+        crownY: 1,
+        crops: [{count: dropped ? 0 : 1, radius, color: [248, 136, 44], dropped: dropped ? 1 : 0}]
+      },
+      {now: 0, clock: 0}
+    );
+    state.writeData(store.data);
+    const data: TreeCropData = {
+      length: 1,
+      attributes: {instanceCropRef: {value: new Float32Array([0, 0, dropped ? 2 : 0]), size: 3}},
+      *[Symbol.iterator]() {
+        yield undefined;
+      }
+    };
+    const layer = new TreePhotorealCropLayer({
+      id: `crop-${kind}-${lod}`,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      template,
+      data,
+      stateTexture: state,
+      kind,
+      lod,
+      shedding: dropped,
+      parameters: {cullMode: kind === 'flower' ? 'none' : 'back'},
+      material: {unlit: true}
+    } as never);
+    const start = frames;
+    deck.setProps({layers: [layer], _animate: true, viewState: {target, zoom, rotationX}});
+    await expect.poll(() => frames, {timeout: 15_000}).toBeGreaterThan(start + 6);
+    deck.setProps({_animate: false});
+    expect(errors.slice(0, 4)).toEqual([]);
+    return {layer, pixels: await readPixels()};
+  };
+  const bounds = (pixels: Uint8Array) => {
+    let left = size;
+    let right = -1;
+    let bottom = size;
+    let top = -1;
+    let count = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i + 3] < 240) continue;
+      const x = (i / 4) % size;
+      const y = Math.floor(i / (4 * size));
+      left = Math.min(left, x);
+      right = Math.max(right, x);
+      bottom = Math.min(bottom, y);
+      top = Math.max(top, y);
+      count++;
+    }
+    return {width: right - left + 1, height: top - bottom + 1, count};
+  };
+  try {
+    for (const lod of [0, 1]) {
+      const petals = bounds((await capture('flower', lod, lod === 0 ? 8 : 6, 84)).pixels);
+      expect.soft(petals.count, `flower mesh ${lod} pixels`).toBeGreaterThan(50);
+      expect.soft(petals.height / petals.width, `flower mesh ${lod} aspect`).toBeGreaterThan(0.6);
+      expect.soft(petals.height / petals.width, `flower mesh ${lod} aspect`).toBeLessThan(1.6);
+    }
+
+    const tilted = bounds((await capture('fruit', 2, 5.6, -8)).pixels);
+    expect.soft(tilted.count, 'tilted fruit pixels').toBeGreaterThan(80);
+    expect.soft(tilted.height / tilted.width, 'tilted fruit aspect').toBeGreaterThan(0.8);
+
+    for (const lod of [2, 3]) {
+      const ground = await capture('fruit', lod, lod === 2 ? 5.6 : 4.6, 65, true);
+      const contact = ground.pixels.filter(
+        (value, i) => i % 4 === 3 && value > 2 && value < 230 && ground.pixels[i - 3] < 2
+      );
+      expect.soft(contact.length, `fallen fruit level ${lod} contact`).toBeGreaterThan(8);
+    }
+
+    // This crop is larger than the fine color band's upper bound. Only its caster can draw here.
+    const close = await capture('fruit', 1, 8, 12);
+    expect(bounds(close.pixels).count).toBe(0);
+    const shadowMap = light.getShaderModuleProps(close.layer, {}).shadow.shadowMaps?.[0];
+    expect(shadowMap).toBeTruthy();
+    shadowRead.setBindings({cropShadowMap: shadowMap!});
+    const pass = device.beginRenderPass({framebuffer, clearColor: [1, 1, 1, 1]});
+    expect(shadowRead.draw(pass)).toBe(true);
+    pass.end();
+    const shadowPixels = await readPixels();
+    expect(shadowPixels.filter((value, i) => i % 4 === 0 && value < 250).length).toBeGreaterThan(
+      100
+    );
+    expect(errors.slice(0, 4)).toEqual([]);
+  } finally {
+    deck.finalize();
+    handle.removeEventListener('uncapturederror', recordError);
+    shadowRead.destroy();
+    state.destroy();
+    readback.destroy();
+    framebuffer.destroy();
+    color.destroy();
+    device.destroy();
+    parent.remove();
+  }
+}, 60_000);
