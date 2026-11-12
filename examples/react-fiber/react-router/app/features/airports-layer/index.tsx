@@ -56,5 +56,5 @@ export function AirportsLayer({data}: AirportsLayerProps) {
     [data, selected, hovered, setSelected, setHovered]
   );
 
-  return <layer layer={layer} />;
+  return <deckLayer layer={layer} />;
 }

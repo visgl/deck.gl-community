@@ -139,41 +139,42 @@ function warnIfDefaultId(descriptor: Layer | View): void {
 /**
  * Creates the supported native deck.gl elements.
  *
- * The reconciler accepts only pre-instantiated descriptors through `<layer>`,
- * `<view>`, `<widget>` and `<effect>`, each of its own kind, so JavaScript callers receive the same
- * runtime contract as TypeScript callers. A wrong or missing descriptor throws in every build.
+ * The reconciler accepts only pre-instantiated descriptors through `<deckLayer>`,
+ * `<deckView>`, `<deckWidget>` and `<deckEffect>`, each of its own kind, so JavaScript
+ * callers receive the same runtime contract as TypeScript callers. A wrong or missing
+ * descriptor throws in every build.
  */
 function createDeckGLObject(type: Type, props: Props): Instance {
-  if (type === 'view') {
+  if (type === 'deckView') {
     const view = props.view;
     if (!isView(view)) {
-      throw new Error(`<view> needs a View, got ${describeValue(view)}`);
+      throw new Error(`<deckView> needs a View, got ${describeValue(view)}`);
     }
     warnIfDefaultId(view);
     return {children: [], node: view};
   }
 
-  if (type === 'layer') {
+  if (type === 'deckLayer') {
     const layer = props.layer;
     if (!isLayer(layer)) {
-      throw new Error(`<layer> needs a Layer, got ${describeValue(layer)}`);
+      throw new Error(`<deckLayer> needs a Layer, got ${describeValue(layer)}`);
     }
     warnIfDefaultId(layer);
     return {children: [], node: layer};
   }
 
-  if (type === 'widget') {
+  if (type === 'deckWidget') {
     const widget = props.widget;
     if (!isWidget(widget)) {
-      throw new Error(`<widget> needs a Widget, got ${describeValue(widget)}`);
+      throw new Error(`<deckWidget> needs a Widget, got ${describeValue(widget)}`);
     }
     return {children: [], node: widget};
   }
 
-  if (type === 'effect') {
+  if (type === 'deckEffect') {
     const effect = props.effect;
     if (!isEffect(effect)) {
-      throw new Error(`<effect> needs a deck.gl effect, got ${describeValue(effect)}`);
+      throw new Error(`<deckEffect> needs a deck.gl effect, got ${describeValue(effect)}`);
     }
     return {children: [], node: effect};
   }
@@ -204,7 +205,7 @@ function createDeckGLObject(type: Type, props: Props): Instance {
  * We don't need `commitMount` because Deck.gl layers don't have initialization side effects
  * that depend on being in the tree. They're just data descriptors.
  *
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param props - Initial props for the instance
  * @param rootContainerInfo - Root container with its root store
  * @param hostContext - Context from parent (tracks View nesting, provides store access)
@@ -214,11 +215,11 @@ function createDeckGLObject(type: Type, props: Props): Instance {
  * @example
  * ```tsx
  * // React calls this when rendering:
- * <layer layer={new ScatterplotLayer({ id: "points", data: [...] })} />
+ * <deckLayer layer={new ScatterplotLayer({ id: "points", data: [...] })} />
  *
  * // Results in:
  * const instance = createInstance(
- *   "layer",
+ *   "deckLayer",
  *   { layer: ScatterplotLayer {...} },
  *   rootContainer,
  *   hostContext,
@@ -266,10 +267,10 @@ export function createInstance(
  * @example
  * ```typescript
  * // ❌ This will throw an error in Deck.gl renderer:
- * // <layer>Some text</layer>
+ * // <deckLayer>Some text</deckLayer>
  *
  * // ✅ Instead, use TextLayer for labels:
- * // <layer layer={new TextLayer({ id: 'labels', data: [...] })} />
+ * // <deckLayer layer={new TextLayer({ id: 'labels', data: [...] })} />
  * ```
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberCompleteWork.js Text Node Creation}
@@ -316,14 +317,14 @@ export function createTextInstance() {
  * @example
  * ```tsx
  * // Component updates from:
- * <layer layer={new ScatterplotLayer({ id: "p", getRadius: 5 })} />
+ * <deckLayer layer={new ScatterplotLayer({ id: "p", getRadius: 5 })} />
  * // To:
- * <layer layer={new ScatterplotLayer({ id: "p", getRadius: 10 })} />
+ * <deckLayer layer={new ScatterplotLayer({ id: "p", getRadius: 10 })} />
  *
  * // React calls:
  * const cloned = cloneInstance(
  *   oldInstance,
- *   "layer",
+ *   "deckLayer",
  *   { layer: ScatterplotLayer {getRadius: 5} },
  *   { layer: ScatterplotLayer {getRadius: 10} },
  *   true, // children unchanged
@@ -383,7 +384,7 @@ export function cloneInstance(
  * diffing handles visibility updates automatically when `unhideInstance` is called.
  *
  * @param instance - The instance to hide while Suspense is active
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param props - Current props for the instance
  * @returns Instance structure with same node and children (Deck.gl handles visibility internally)
  *
@@ -584,7 +585,7 @@ export function finalizeContainerChildren(): void {
  *
  * **Hybrid Layers:**
  * Supports "mix mode" where layers come from both:
- * - JSX children: `<layer layer={...} />`
+ * - JSX children: `<deckLayer layer={...} />`
  * - Direct prop: `<DeckGL layers={[...]} />`
  *
  * As in `@deck.gl/react`, JSX layers come first and the `_passedLayers` from the store
@@ -972,7 +973,7 @@ export function getRootHostContext(rootContainer: Container): HostContext {
  * Similar to how DOM tracks whether you're inside SVG vs HTML context, we track
  * whether we're inside a View element.
  *
- * The native `<view>` element marks its descendants as being inside a view.
+ * The native `<deckView>` element marks its descendants as being inside a view.
  *
  * @param parentHostContext - Context from parent element
  * @param type - Type of element being created
@@ -980,15 +981,15 @@ export function getRootHostContext(rootContainer: Container): HostContext {
  *
  * @example
  * ```tsx
- * <view view={new MapView({id: 'main'})}> // insideView: true
- *   <layer layer={new ScatterplotLayer({id: 'points'})} />
- * </view>
+ * <deckView view={new MapView({id: 'main'})}> // insideView: true
+ *   <deckLayer layer={new ScatterplotLayer({id: 'points'})} />
+ * </deckView>
  * ```
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/README.md#getchildhostcontext React Reconciler Docs}
  */
 export function getChildHostContext(parentHostContext: HostContext, type: Type): HostContext {
-  const isViewInstance = type === 'view';
+  const isViewInstance = type === 'deckView';
 
   // Avoids redundant allocations in nested view hierarchies
   if (isViewInstance && !parentHostContext.insideView) {
@@ -1014,7 +1015,7 @@ export function getChildHostContext(parentHostContext: HostContext, type: Type):
  * const layerRef = useRef<ScatterplotLayer>(null);
  *
  * // After render, layerRef.current contains the actual ScatterplotLayer
- * <layer ref={layerRef} layer={new ScatterplotLayer({ id: "points" })} />
+ * <deckLayer ref={layerRef} layer={new ScatterplotLayer({ id: "points" })} />
  *
  * // Access Deck.gl layer properties and methods
  * useEffect(() => {
@@ -1250,7 +1251,7 @@ export function resolveUpdatePriority(): EventPriority {
  * (e.g., tile layers loading tiles, data layers loading resources). The layer creation
  * itself is synchronous - layers are descriptor objects that don't block.
  *
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param props - Props for the instance
  * @returns `false` - Deck.gl layers never block commits
  *
@@ -1307,7 +1308,7 @@ export function startSuspendingCommit(): SuspendedState {
  *
  * @param state - Suspended state object from startSuspendingCommit
  * @param instance - The instance being suspended
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param props - Props for the instance
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-noop-renderer/src/createReactNoop.js#L367 React Noop Renderer implementation}
@@ -1366,7 +1367,7 @@ export function waitForCommitToBeReady(
  * props reference URLs or Promises, the layer descriptor is created synchronously
  * and deck.gl manages loading behind the scenes.
  *
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param oldProps - Previous props
  * @param newProps - New props
  * @returns `false` - Updates never suspend
@@ -1393,7 +1394,7 @@ export function maySuspendCommitOnUpdate(type: Type, oldProps: Props, newProps: 
  * Returns `false` because deck.gl layer creation is always synchronous. Layers are
  * lightweight descriptor objects that don't block rendering even with async data.
  *
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param props - Props for the instance
  * @returns `false` - Never suspends in sync renders
  *
@@ -1420,7 +1421,7 @@ export function maySuspendCommitInSyncRender(type: Type, props: Props): boolean 
  * descriptors that can be committed immediately. Async loading (if any) happens
  * after the layer is created, managed by deck.gl internally.
  *
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param props - Props for the instance
  * @returns `true` - Layers are always ready
  *

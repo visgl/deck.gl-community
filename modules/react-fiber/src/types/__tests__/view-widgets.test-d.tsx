@@ -26,8 +26,8 @@ describe('view-layout widgets and multi-view props', () => {
           right: {latitude: 0, longitude: 0, zoom: 2}
         }}
       >
-        <widget ref={splitterRef} widget={splitter} />
-        <widget widget={new ZoomWidget({id: 'zoom', viewId: 'left'})} />
+        <deckWidget ref={splitterRef} widget={splitter} />
+        <deckWidget widget={new ZoomWidget({id: 'zoom', viewId: 'left'})} />
       </DeckGL>
     );
 

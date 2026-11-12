@@ -22,13 +22,13 @@ views while deck.gl keeps its descriptor objects and ID-based diffing.
 
 ## Why layer instances
 
-`<layer>` takes the same layer instance as deck.gl's `layers` prop, and React Fiber passes it to
+`<deckLayer>` takes the same layer instance as deck.gl's `layers` prop, and React Fiber passes it to
 deck.gl unchanged. Compared with the JSX layers of `@deck.gl/react`:
 
-| | `@deck.gl/react` JSX layers | React Fiber `<layer>` |
+| | `@deck.gl/react` JSX layers | React Fiber `<deckLayer>` |
 | --- | --- | --- |
 | Where layers go | Direct children of `DeckGL` only | Any depth, inside your own components |
-| Hooks and context | Only in the component that renders `DeckGL` | In every component that renders a `<layer>`. Contexts from outside `DeckGL` reach them. |
+| Hooks and context | Only in the component that renders `DeckGL` | In every component that renders a `<deckLayer>`. Contexts from outside `DeckGL` reach them. |
 | TypeScript | Layer classes are not valid JSX components, so their props are not checked | Props are checked against the layer class, and `new ScatterplotLayer<Point>({...})` types the accessors |
 | API | A JSX form to learn next to the deck.gl constructor | The deck.gl constructor, as used by the `layers` prop and every deck.gl example |
 
@@ -68,7 +68,7 @@ The package requires React 19 or later and uses the deck.gl 9.4 package family. 
 `react` and `react-dom` are the only required peers. `@deck.gl/mapbox` and `@deck.gl/maplibre` are
 optional peers; install the one you import. A standalone import does not load either provider.
 Keep installed deck.gl packages compatible with 9.4. TypeScript declarations are included, and a
-native root import adds the JSX declarations for `<layer>`, `<view>`, `<widget>` and `<effect>`.
+native root import adds the JSX declarations for `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`.
 
 ## Quick start
 
@@ -95,7 +95,7 @@ export function Map() {
   return (
     <div style={{height: 500, position: 'relative'}}>
       <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}} controller>
-        <layer
+        <deckLayer
           layer={
             new ScatterplotLayer({
               id: 'points',
@@ -140,7 +140,7 @@ root finalizes the current overlay, which removes it from the map, and creates a
 
 ## Use layers and views
 
-`DeckGL` collects `<layer>` and `<view>` descriptors from the committed React tree, flattens the
+`DeckGL` collects `<deckLayer>` and `<deckView>` descriptors from the committed React tree, flattens the
 tree in depth-first order, and passes separate `layers` and `views` arrays to standalone `Deck`.
 The tree shape is for React composition, not for assigning layers to views. A layer nested inside
 a view still belongs to the root's flat layer list:
@@ -149,9 +149,9 @@ a view still belongs to the root's flat layer list:
 import {MapView} from '@deck.gl/core';
 
 <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}} controller>
-  <view view={new MapView({id: 'main-map'})}>
-    <layer layer={new ScatterplotLayer({id: 'points', data: points})} />
-  </view>
+  <deckView view={new MapView({id: 'main-map'})}>
+    <deckLayer layer={new ScatterplotLayer({id: 'points', data: points})} />
+  </deckView>
 </DeckGL>;
 ```
 
@@ -171,7 +171,7 @@ other map options to the Mapbox or MapLibre map creator.
 
 Use `onDeckChange` to receive the overlay, store it in state, and attach it to the map once per
 instance in an effect. Detach it during cleanup, then tear down the host map. Provider roots render
-no host DOM node. `<view>` children render beside the map's own view, which the overlay keeps in
+no host DOM node. `<deckView>` children render beside the map's own view, which the overlay keeps in
 step with the map camera.
 
 [Using with maps](../../docs/modules/react-fiber/developer-guide/using-with-maps.md) describes the
@@ -180,7 +180,7 @@ and [MapLibre](../../docs/modules/react-fiber/developer-guide/base-maps/using-wi
 guides have complete examples and provider-specific options.
 
 Deck callbacks such as `onClick` remain deck.gl callbacks. They are not React synthetic events on
-`<layer>` or `<view>`.
+`<deckLayer>` or `<deckView>`.
 
 ## Access the root instance
 
@@ -215,7 +215,7 @@ notifications.
 
 ## Migration from deck.gl React
 
-Rewrite JSX layers as `<layer>` elements, or copy the
+Rewrite JSX layers as `<deckLayer>` elements, or copy the
 10-line `createLayerComponent` helper from the
 [migration guide](../../docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react.md#keep-the-old-jsx-syntax)
 to keep `<ScatterplotLayer id="points" ... />` syntax in your app.
@@ -271,7 +271,7 @@ yarn lint
 - [Get started](../../docs/modules/react-fiber/developer-guide/get-started.md) covers client boundaries, layers, views, mixed layer sources, provider installation, and instance access.
 - [DeckGL API](../../docs/modules/react-fiber/api-reference/deckgl.md) defines standalone and provider-root props, ownership, lifecycle notifications, and custom compatible overlays.
 - [Using with maps](../../docs/modules/react-fiber/developer-guide/using-with-maps.md) explains host-map ownership and the overlay lifecycle, and links one guide per provider with worker setup and shared-context rendering.
-- [Native elements](../../docs/modules/react-fiber/api-reference/native-elements.md) defines the `<layer>`, `<view>`, `<widget>` and `<effect>` contract.
+- [Native elements](../../docs/modules/react-fiber/api-reference/native-elements.md) defines the `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>` contract.
 - [Migrate from `@deck.gl/react`](../../docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react.md) lists each change and the `createLayerComponent` recipe.
 - [Debugging](../../docs/modules/react-fiber/developer-guide/debugging.md) explains how to trace a problem through the renderer.
 - Maintained applications show native MapLibre integration with [Vite](../../examples/react-fiber/vite), [Next.js](../../examples/react-fiber/nextjs), [React Router](../../examples/react-fiber/react-router), and [TanStack Start](../../examples/react-fiber/tanstack-start).

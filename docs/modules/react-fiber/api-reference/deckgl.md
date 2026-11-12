@@ -7,7 +7,7 @@ import {DeckGL} from '@deck.gl-community/react-fiber';
 import type {DeckGLProps, OnDeckChange} from '@deck.gl-community/react-fiber';
 ```
 
-The root import creates only a standalone `Deck`. It owns a canvas unless the caller supplies `canvas`, and sends JSX `<view>` descriptors to deck.gl, merged with the `views` prop as [Native elements](./native-elements.md#mixing-elements-and-props) describes. Its props are `DeckProps`, which has no `interleaved` option.
+The root import creates only a standalone `Deck`. It owns a canvas unless the caller supplies `canvas`, and sends JSX `<deckView>` descriptors to deck.gl, merged with the `views` prop as [Native elements](./native-elements.md#mixing-elements-and-props) describes. Its props are `DeckProps`, which has no `interleaved` option.
 
 ## Provider roots
 
@@ -28,7 +28,7 @@ Each provider entry point exposes its concrete overlay contract:
 | `/mapbox` | `MapboxDeckGLProps`; `onDeckChange` receives `MapboxOverlay \| null` |
 | `/maplibre` | `MapLibreDeckGLProps`; `onDeckChange` receives `MapLibreOverlay \| null` |
 
-Provider overlay props exclude map-owned configuration such as `canvas`, `parent`, `device`, `viewState`, `initialViewState`, and `controller`. The MapLibre provider also excludes `width`, `height`, and `gl`. Configure those options on the application-owned Mapbox or MapLibre map, then attach the instance from `onDeckChange` with `map.addControl` and remove the same control during cleanup. JSX `<view>` descriptors, merged with the `views` prop, are sent to the overlay, which keeps one view in step with the map camera. See [Views beside the map](../developer-guide/using-with-maps.md#views-beside-the-map). See [Using with maps](../developer-guide/using-with-maps.md) for complete attachment and shared-context guidance.
+Provider overlay props exclude map-owned configuration such as `canvas`, `parent`, `device`, `viewState`, `initialViewState`, and `controller`. The MapLibre provider also excludes `width`, `height`, and `gl`. Configure those options on the application-owned Mapbox or MapLibre map, then attach the instance from `onDeckChange` with `map.addControl` and remove the same control during cleanup. JSX `<deckView>` descriptors, merged with the `views` prop, are sent to the overlay, which keeps one view in step with the map camera. See [Views beside the map](../developer-guide/using-with-maps.md#views-beside-the-map). See [Using with maps](../developer-guide/using-with-maps.md) for complete attachment and shared-context guidance.
 
 ## Props and lifecycle
 
@@ -46,15 +46,15 @@ const deckRef = useRef<Deck>(null);
 
 On the standalone root, `canvas` accepts an `HTMLCanvasElement` or the id of a `<canvas>` element. An id is resolved with `document.getElementById` on the client after mount, so the canvas may be rendered in the same commit as `DeckGL`. An id that does not name a mounted `<canvas>` throws. Without `parent`, deck.gl uses the canvas's parent element. The root binds to the element found at mount; to bind a replacement element that reuses the id, pass that element as `canvas` or remount with a different React `key`.
 
-Deck event properties such as `onClick` remain deck.gl callbacks, not React synthetic events on `<layer>` or `<view>`.
+Deck event properties such as `onClick` remain deck.gl callbacks, not React synthetic events on `<deckLayer>` or `<deckView>`.
 
-Effects such as `LightingEffect` and `PostProcessEffect` can be [`<effect>`](./native-elements.md#effect) children or the `effects` prop, as in `@deck.gl/react`. The root merges the two by ID. deck.gl matches effects by ID, as it does widgets, so a new instance with the same ID updates the mounted effect's props, and creating effects during render is fine.
+Effects such as `LightingEffect` and `PostProcessEffect` can be [`<deckEffect>`](./native-elements.md#deckeffect) children or the `effects` prop, as in `@deck.gl/react`. The root merges the two by ID. deck.gl matches effects by ID, as it does widgets, so a new instance with the same ID updates the mounted effect's props, and creating effects during render is fine.
 
 An error thrown while rendering inside a root, including one the renderer raises for an invalid element, is rethrown from the `DeckGL` component. The nearest [error boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary) around `DeckGL` handles it, as it would for any other component, and the framework's development error overlay shows it. An error boundary inside `DeckGL` catches errors from its own children first; its fallback can only render native elements or `null`. Errors that deck.gl raises at runtime, such as a layer whose data fails to load, never reach an error boundary; deck.gl passes them to its `onError` prop, as with `@deck.gl/react`.
 
 `debug` is a deck.gl prop and is passed to `Deck` or the overlay unchanged. Warnings and traces go through deck.gl's `log`: root creation, unmounting and each commit log at level 3, and the props of every configure, including prop-only updates, at level 4. Enable them in the browser console with `deck.log.enable()` and `deck.log.level = 3`; see [Debugging](https://deck.gl/docs/developer-guide/debugging). The React Fiber [debugging guide](../developer-guide/debugging.md) explains how to read these logs alongside deck.gl's.
 
-The renderer registers with [React DevTools](https://react.dev/learn/react-developer-tools), so the Components tab shows the `<layer>`, `<view>`, `<widget>` and `<effect>` elements inside each root, with their props and the components that render them.
+The renderer registers with [React DevTools](https://react.dev/learn/react-developer-tools), so the Components tab shows the `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>` elements inside each root, with their props and the components that render them.
 
 ## Root DOM and sizing
 
@@ -84,7 +84,7 @@ The factory runs only when the root is initially configured. It is not a render 
 
 `recreateOverlayOnChange` lists props that the overlay reads only at construction or attach time. When one of them changes (compared with `Object.is`), the component finalizes the overlay and calls the factory again with the full props. `onDeckChange` receives `null` and then the new instance. The provider roots declare `recreateOverlayOnChange: ['interleaved']`.
 
-`forwardViews: true` sends `<view>` children, merged with the `views` prop, to the overlay. Set it for an overlay that renders deck.gl views beside its map, as the provider roots do. Without it, the overlay receives only its `views` prop.
+`forwardViews: true` sends `<deckView>` children, merged with the `views` prop, to the overlay. Set it for an overlay that renders deck.gl views beside its map, as the provider roots do. Without it, the overlay receives only its `views` prop.
 
 ```tsx
 const DeckGL = createDeckGL({

@@ -59,5 +59,5 @@ export function AirportsLayerClient({data}: AirportsLayerClientProps) {
     [data, selected, hovered, setSelected, setHovered]
   );
 
-  return <layer layer={layer} />;
+  return <deckLayer layer={layer} />;
 }

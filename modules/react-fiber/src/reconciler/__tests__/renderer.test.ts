@@ -23,13 +23,13 @@ function createLayerComponent<PropsT extends {id?: string}>(
   LayerClass: new (props: PropsT) => Layer
 ) {
   return function LayerComponent(props: PropsT) {
-    return React.createElement('layer', {layer: new LayerClass(props)});
+    return React.createElement('deckLayer', {layer: new LayerClass(props)});
   };
 }
 
 function createViewComponent<PropsT extends {id?: string}>(ViewClass: new (props: PropsT) => View) {
   return function ViewComponent({children, ...props}: PropsT & {children?: React.ReactNode}) {
-    return React.createElement('view', {view: new ViewClass(props as PropsT)}, children);
+    return React.createElement('deckView', {view: new ViewClass(props as PropsT)}, children);
   };
 }
 
@@ -407,8 +407,8 @@ describe('renderer', () => {
       const secondLayer = new ScatterplotLayer({data: [], id: 'second-layer'});
 
       await React.act(async () => {
-        first.root.render(React.createElement('layer', {layer: firstLayer}));
-        second.root.render(React.createElement('layer', {layer: secondLayer}));
+        first.root.render(React.createElement('deckLayer', {layer: firstLayer}));
+        second.root.render(React.createElement('deckLayer', {layer: secondLayer}));
         await Promise.all([first.flush(), second.flush()]);
       });
 
@@ -420,7 +420,7 @@ describe('renderer', () => {
 
       const updatedFirstLayer = new ScatterplotLayer({data: [], id: 'updated-first-layer'});
       await React.act(async () => {
-        first.root.render(React.createElement('layer', {layer: updatedFirstLayer}));
+        first.root.render(React.createElement('deckLayer', {layer: updatedFirstLayer}));
         await first.flush();
       });
 
@@ -442,8 +442,8 @@ describe('renderer', () => {
           React.createElement(
             React.Fragment,
             null,
-            React.createElement('layer', {layer: secondLayer}),
-            React.createElement('layer', {layer: additionalSecondLayer})
+            React.createElement('deckLayer', {layer: secondLayer}),
+            React.createElement('deckLayer', {layer: additionalSecondLayer})
           )
         );
         await second.flush();
@@ -465,7 +465,7 @@ describe('renderer', () => {
           React.createElement(
             React.Fragment,
             null,
-            React.createElement('layer', {layer: nativePoints}),
+            React.createElement('deckLayer', {layer: nativePoints}),
             React.createElement(JsxPolygonLayer, {data: [], id: 'jsx-polygons'})
           )
         );
@@ -511,7 +511,7 @@ describe('renderer', () => {
       const jsx = new ScatterplotLayer({data: [], id: 'jsx'});
 
       root.configure({layers: [passed]});
-      await renderLayers(root, React.createElement('layer', {layer: jsx}));
+      await renderLayers(root, React.createElement('deckLayer', {layer: jsx}));
 
       expect(deck.getLayerIds()).toStrictEqual(['jsx', 'passed']);
     });
@@ -520,7 +520,7 @@ describe('renderer', () => {
       const {root, deck} = createTestRoot();
       const jsx = new ScatterplotLayer({data: [], id: 'jsx'});
       // A stable element: rendering it again does not commit a new JSX tree.
-      const children = React.createElement('layer', {layer: jsx});
+      const children = React.createElement('deckLayer', {layer: jsx});
 
       root.configure({layers: [new ScatterplotLayer({data: [], id: 'first'})]});
       await renderLayers(root, children);
@@ -535,7 +535,7 @@ describe('renderer', () => {
 
     it('keeps JSX layers when the layers prop is removed', async () => {
       const {root, deck} = createTestRoot();
-      const children = React.createElement('layer', {
+      const children = React.createElement('deckLayer', {
         layer: new ScatterplotLayer({data: [], id: 'jsx'})
       });
 
@@ -556,7 +556,7 @@ describe('renderer', () => {
       root.configure({views: [propView]});
       await React.act(async () => {
         root.render(
-          React.createElement('layer', {layer: new ScatterplotLayer({data: [], id: 'jsx'})})
+          React.createElement('deckLayer', {layer: new ScatterplotLayer({data: [], id: 'jsx'})})
         );
       });
 
@@ -566,7 +566,7 @@ describe('renderer', () => {
     it('merges a reconfigured views prop with committed JSX views without a commit', async () => {
       const {root, deck} = createTestRoot();
       const jsxView = new MapView({id: 'jsx'});
-      const children = React.createElement('view', {view: jsxView});
+      const children = React.createElement('deckView', {view: jsxView});
 
       root.configure({});
       await React.act(async () => {
@@ -587,7 +587,7 @@ describe('renderer', () => {
       const first = new TestWidget({id: 'first'});
       const second = new TestWidget({id: 'second'});
       function Controls() {
-        return React.createElement('widget', {widget: second});
+        return React.createElement('deckWidget', {widget: second});
       }
 
       await React.act(async () => {
@@ -595,9 +595,9 @@ describe('renderer', () => {
           React.createElement(
             React.Fragment,
             null,
-            React.createElement('widget', {widget: first}),
+            React.createElement('deckWidget', {widget: first}),
             React.createElement(
-              'layer',
+              'deckLayer',
               {layer: new ScatterplotLayer({data: [], id: 'points'})},
               React.createElement(Controls)
             )
@@ -622,8 +622,8 @@ describe('renderer', () => {
           React.createElement(
             React.Fragment,
             null,
-            React.createElement('widget', {widget: jsxZoom}),
-            React.createElement('widget', {widget: jsxCompass})
+            React.createElement('deckWidget', {widget: jsxZoom}),
+            React.createElement('deckWidget', {widget: jsxCompass})
           )
         );
       });
@@ -637,7 +637,7 @@ describe('renderer', () => {
 
       root.configure({});
       await React.act(async () => {
-        root.render(React.createElement('widget', {widget: jsxWidget}));
+        root.render(React.createElement('deckWidget', {widget: jsxWidget}));
       });
 
       const propWidget = new TestWidget({id: 'prop'});
@@ -650,7 +650,7 @@ describe('renderer', () => {
       const {root, deck} = createTestRoot();
 
       await React.act(async () => {
-        root.render(React.createElement('widget', {widget: new TestWidget({id: 'zoom'})}));
+        root.render(React.createElement('deckWidget', {widget: new TestWidget({id: 'zoom'})}));
       });
       expect(deck.widgets).toHaveLength(1);
 
@@ -672,7 +672,7 @@ describe('renderer', () => {
       const lighting = new LightingEffect();
       const blur = createPostProcessEffect('blur');
       function PostProcessing() {
-        return React.createElement('effect', {effect: blur});
+        return React.createElement('deckEffect', {effect: blur});
       }
 
       await React.act(async () => {
@@ -680,9 +680,9 @@ describe('renderer', () => {
           React.createElement(
             React.Fragment,
             null,
-            React.createElement('effect', {effect: lighting}),
+            React.createElement('deckEffect', {effect: lighting}),
             React.createElement(
-              'layer',
+              'deckLayer',
               {layer: new ScatterplotLayer({data: [], id: 'points'})},
               React.createElement(PostProcessing)
             )
@@ -707,8 +707,8 @@ describe('renderer', () => {
           React.createElement(
             React.Fragment,
             null,
-            React.createElement('effect', {effect: jsxLighting}),
-            React.createElement('effect', {effect: jsxBlur})
+            React.createElement('deckEffect', {effect: jsxLighting}),
+            React.createElement('deckEffect', {effect: jsxBlur})
           )
         );
       });
@@ -722,7 +722,7 @@ describe('renderer', () => {
 
       root.configure({});
       await React.act(async () => {
-        root.render(React.createElement('effect', {effect: jsxEffect}));
+        root.render(React.createElement('deckEffect', {effect: jsxEffect}));
       });
 
       const propEffect = createPostProcessEffect('blur');
@@ -735,7 +735,7 @@ describe('renderer', () => {
       const {root, deck} = createTestRoot();
 
       await React.act(async () => {
-        root.render(React.createElement('effect', {effect: new LightingEffect()}));
+        root.render(React.createElement('deckEffect', {effect: new LightingEffect()}));
       });
       expect(deck.effects).toHaveLength(1);
 

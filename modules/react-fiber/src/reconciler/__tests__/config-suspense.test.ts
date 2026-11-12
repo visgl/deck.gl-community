@@ -37,8 +37,8 @@ describe('config-suspense', () => {
   describe('maySuspendCommit()', () => {
     it('should always return false', () => {
       // Act & Assert
-      expect(maySuspendCommit('layer', {})).toBeFalsy();
-      expect(maySuspendCommit('view', {})).toBeFalsy();
+      expect(maySuspendCommit('deckLayer', {})).toBeFalsy();
+      expect(maySuspendCommit('deckView', {})).toBeFalsy();
     });
   });
 
@@ -55,7 +55,7 @@ describe('config-suspense', () => {
   describe('suspendInstance()', () => {
     it('should be a no-op', () => {
       // Act & Assert
-      expect(() => suspendInstance('layer', {})).not.toThrow();
+      expect(() => suspendInstance('deckLayer', {})).not.toThrow();
     });
   });
 
@@ -86,24 +86,24 @@ describe('config-suspense', () => {
   describe('maySuspendCommitOnUpdate()', () => {
     it('should always return false', () => {
       // Act & Assert
-      expect(maySuspendCommitOnUpdate('layer', {}, {})).toBeFalsy();
-      expect(maySuspendCommitOnUpdate('view', {a: 1}, {a: 2})).toBeFalsy();
+      expect(maySuspendCommitOnUpdate('deckLayer', {}, {})).toBeFalsy();
+      expect(maySuspendCommitOnUpdate('deckView', {a: 1}, {a: 2})).toBeFalsy();
     });
   });
 
   describe('maySuspendCommitInSyncRender()', () => {
     it('should always return false', () => {
       // Act & Assert
-      expect(maySuspendCommitInSyncRender('layer', {})).toBeFalsy();
-      expect(maySuspendCommitInSyncRender('view', {})).toBeFalsy();
+      expect(maySuspendCommitInSyncRender('deckLayer', {})).toBeFalsy();
+      expect(maySuspendCommitInSyncRender('deckView', {})).toBeFalsy();
     });
   });
 
   describe('preloadInstance()', () => {
     it('should always return true', () => {
       // Act & Assert
-      expect(preloadInstance('layer', {})).toBeTruthy();
-      expect(preloadInstance('view', {})).toBeTruthy();
+      expect(preloadInstance('deckLayer', {})).toBeTruthy();
+      expect(preloadInstance('deckView', {})).toBeTruthy();
     });
   });
 
