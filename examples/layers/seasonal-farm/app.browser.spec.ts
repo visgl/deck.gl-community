@@ -143,6 +143,22 @@ describe('Seasonal Farm integration', () => {
         await expect.poll(() => trees().props.windStrength).toBe(0.05);
         setNumber('Size', 1.2);
         await expect.poll(() => trees().props.sizeScale).toBe(1.2);
+        const crown = Array.from(
+          parent.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')
+        ).find(button => button.textContent?.includes('Crown'));
+        expect(crown).toBeDefined();
+        if (crown?.getAttribute('aria-expanded') === 'false') crown.click();
+        await expect
+          .poll(() => parent.querySelector('input[aria-label="Branch wander numeric value"]'))
+          .not.toBeNull();
+        setNumber('Branch wander', 1.3);
+        setNumber('Twig droop', 0.7);
+        await expect
+          .poll(() => trees().props.characteristics)
+          .toMatchObject({
+            branchWander: 1.3,
+            twigDroop: 0.7
+          });
         const rendering = Array.from(
           parent.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')
         ).find(button => button.textContent?.includes('Rendering'));

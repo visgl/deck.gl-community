@@ -99,6 +99,8 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
         crownSetting('crownAsymmetry', 'Asymmetry', 0, 2),
         crownSetting('branchDensity', 'Branches', 0.5, 1.5),
         crownSetting('branchLift', 'Branch lift', 0, 3, 0.1),
+        crownSetting('branchWander', 'Branch wander', 0, 2),
+        crownSetting('twigDroop', 'Twig droop', 0, 2),
         crownSetting('internodeLength', 'Internode', 0.7, 1.4),
         crownSetting('leafSize', 'Leaf size', 0.5, 1.8),
         crownSetting('leafDensity', 'Leaf density', 0.25, 2)
