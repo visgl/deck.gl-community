@@ -51,6 +51,8 @@ function getViewports(deck: Deck | null): {id: string; width: number}[] {
 
 /** Drags the splitter handle to a fraction of the container width. */
 async function dragSplitter(container: HTMLElement, split: number): Promise<void> {
+  // deck.gl renders widget DOM on a redraw, which can come after the views it set are in place.
+  await waitFor(() => container.querySelector('.deck-widget-splitter-handle') !== null);
   const handle = container.querySelector('.deck-widget-splitter-handle');
   if (!handle) {
     throw new Error('Expected a splitter handle');

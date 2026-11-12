@@ -7,7 +7,7 @@ import * as deckMeshLayers from '@deck.gl/mesh-layers';
 import * as deckWidgets from '@deck.gl/widgets';
 import type {ShaderPass} from '@luma.gl/shadertools';
 import {act, type ComponentType} from 'react';
-import {describe, expect, it} from 'vitest';
+import {afterEach, describe, expect, it} from 'vitest';
 
 import {createTestRoot} from '../../reconciler/__tests__/test-renderer';
 import * as aggregationLayers from '../aggregation-layers';
@@ -43,8 +43,22 @@ const REQUIRED_WIDGET_PROPS: Record<string, object> = {
   }
 };
 
+let unmountLast: (() => void) | undefined;
+
+function unmountLastRoot() {
+  if (unmountLast) {
+    act(() => unmountLast?.());
+    unmountLast = undefined;
+  }
+}
+
+afterEach(unmountLastRoot);
+
+/** Renders `element` in a new test root and returns its mock deck. It first unmounts the previous root, so one root is mounted at a time. */
 async function render(element: React.ReactNode) {
+  unmountLastRoot();
   const test = createTestRoot();
+  unmountLast = test.unmount;
   await act(async () => {
     test.root.render(element);
     await test.flush();
