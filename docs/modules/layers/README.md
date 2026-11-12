@@ -39,6 +39,7 @@ Release date: 2023
 - [`SelectionPulseExtension`](./api-reference/selection-pulse-extension.md): GPU pulse for selected objects
 
 - [`FlameTrailLayer`](./api-reference/flame-trail-layer.md) (WebGL2 and WebGPU)
+- [`RainLayer`](./api-reference/rain-layer.md) (WebGL2 and WebGPU)
 - [`VolumetricVideoLayer`](./api-reference/volumetric-video-layer.md) (WebGL2 and WebGPU)
 - [`getVolumetricVideoHistoryBytes`](./api-reference/volumetric-video-layer.md#gpu-and-decoding)
 - `DependencyArrowLayer`
