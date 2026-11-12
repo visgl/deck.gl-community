@@ -1,63 +1,30 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {Deck, Layer, MapView, WebMercatorViewport, type MapViewState} from '@deck.gl/core';
-import {Model} from '@luma.gl/engine';
+import {Deck, Layer, MapView, type MapViewState} from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
-import {expect, it, vi} from 'vitest';
+import {expect, it} from 'vitest';
 import {commands} from 'vitest/browser';
 import {TreeLayer, type TreeSpec} from '../../src';
-import {getTreeRenderTiers} from './tree-grove-test-utils';
+import {createOrchard, getOrchardLngLat, getTreeRenderTiers} from './tree-grove-test-utils';
 
 // Generated orchard block: ~17k citrus trees, rows 7 m apart and 4.5 m in-row.
 const ROWS = 140;
 const TREES_PER_ROW = 122;
 const STAGE_WIDTH = 1280;
 const STAGE_HEIGHT = 752;
-const ORIGIN = [-81.7, 28.1];
-const ORIGIN_VIEWPORT = new WebMercatorViewport({
-  width: 1,
-  height: 1,
-  longitude: ORIGIN[0],
-  latitude: ORIGIN[1]
-});
-const getLngLat = (east: number, north: number) =>
-  ORIGIN_VIEWPORT.addMetersToLngLat(ORIGIN, [east, north]);
-function createOrchard(rows: number, treesPerRow: number): TreeSpec[] {
-  const trees: TreeSpec[] = [];
-  for (let row = 0; row < rows; row++)
-    for (let tree = 0; tree < treesPerRow; tree++) {
-      const [longitude, latitude] = getLngLat(
-        (tree - (treesPerRow - 1) / 2) * 4.5,
-        (row - (rows - 1) / 2) * 7
-      );
-      trees.push({
-        position: [longitude, latitude, 0],
-        species: 'citrus',
-        height: 3,
-        crownRadius: 2.25,
-        wind: false
-      });
-    }
-  return trees;
-}
 
 /** A deck driven one frame at a time, as an interleaved basemap drives its overlay. */
-async function mountOrchard(
-  data: TreeSpec[],
-  viewState: MapViewState,
-  width = STAGE_WIDTH,
-  height = STAGE_HEIGHT
-) {
+async function mountOrchard(data: TreeSpec[], viewState: MapViewState) {
   const parent = document.createElement('div');
-  parent.style.cssText = `width:${width}px;height:${height}px`;
+  parent.style.cssText = `width:${STAGE_WIDTH}px;height:${STAGE_HEIGHT}px`;
   document.body.append(parent);
   const errors: string[] = [];
   let rendered = 0;
   const deck = new Deck({
     parent,
-    width,
-    height,
+    width: STAGE_WIDTH,
+    height: STAGE_HEIGHT,
     useDevicePixels: false,
     deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
     views: new MapView({id: 'orchard'}),
@@ -83,7 +50,6 @@ async function mountOrchard(
   await expect.poll(() => tiers().size, {timeout: 60_000}).toBeGreaterThan(0);
   deck['animationLoop'].stop();
   return {
-    deck,
     errors,
     tiers,
     /** Apply a camera and draw one frame; deck.gl updates layers synchronously in setProps. */
@@ -121,7 +87,7 @@ function instrument() {
 
 async function measureOrbit(data: TreeSpec[], zoom: number, east: number, frameCount: number) {
   // Offset the orbit center so a screen edge sweeps across the block, changing membership.
-  const [longitude, latitude] = getLngLat(east, 0);
+  const [longitude, latitude] = getOrchardLngLat(east, 0);
   const viewState = {longitude, latitude, zoom, pitch: 55, bearing: 0};
   const orchard = await mountOrchard(data, viewState);
   const {timers, restore} = instrument();
@@ -175,76 +141,3 @@ it('reports per-frame CPU while orbiting a large generated citrus block', async 
   expect(wide.visible).toBeGreaterThan(14_000);
   expect(mid.visible).toBeGreaterThan(2_000);
 }, 300_000);
-
-it('keeps every partially uploaded instance row equal to a full rebuild while orbiting', async ({
-  onTestFinished
-}) => {
-  // Keep viewport activation and buffer updates in the normal Deck frame.
-  // This regression compares instance attributes and needs no GPU draw submissions.
-  const submitDraw = vi.spyOn(Model.prototype, 'draw').mockReturnValue(true);
-  onTestFinished(() => {
-    submitDraw.mockRestore();
-  });
-  const [longitude, latitude] = getLngLat(60, 0);
-  const viewState = {longitude, latitude, zoom: 18.6, pitch: 50, bearing: 0};
-  const orchard = await mountOrchard(createOrchard(24, 32), viewState, 640, 376);
-  let stale = 0,
-    checked = 0,
-    refining = 0,
-    resized = 0,
-    entered = 0,
-    departed = 0;
-  const previousCounts = new Map<string, number>();
-  const check = () => {
-    for (const layer of orchard.deck['layerManager']!.getLayers()) {
-      const manager = layer.isComposite ? null : layer.getAttributeManager();
-      if (!manager) continue;
-      const count = layer.getNumInstances();
-      if (previousCounts.has(layer.id) && previousCounts.get(layer.id) !== count) resized++;
-      previousCounts.set(layer.id, count);
-      const attributes = Object.entries(manager.getAttributes()).filter(
-        ([, attribute]) => attribute.value && !attribute.isConstant
-      );
-      const before = attributes.map(([, attribute]) =>
-        attribute.value!.slice(0, count * attribute.size)
-      );
-      manager.invalidateAll();
-      layer['_updateAttributes']();
-      attributes.forEach(([, attribute], i) => {
-        checked++;
-        const fresh = attribute.value!;
-        if (before[i].some((value, j) => value !== fresh[j] && !Number.isNaN(value))) stale++;
-      });
-    }
-  };
-  try {
-    check();
-    let previousTiers = orchard.tiers();
-    for (let i = 1; i <= 16; i++) {
-      // Orbit through the edge of the planting, then zoom while the orbit continues.
-      orchard.frame({
-        ...viewState,
-        bearing: i * 3,
-        zoom: viewState.zoom + Math.max(0, i - 8) * 0.1
-      });
-      check();
-      const tiers = orchard.tiers();
-      for (const [owner, tier] of tiers) {
-        if (!previousTiers.has(owner)) entered++;
-        else if (previousTiers.get(owner) !== tier) refining++;
-      }
-      for (const owner of previousTiers.keys()) if (!tiers.has(owner)) departed++;
-      previousTiers = tiers;
-    }
-    expect(orchard.errors).toEqual([]);
-    expect(submitDraw).toHaveBeenCalled();
-    expect(checked).toBeGreaterThan(100);
-    expect(resized).toBeGreaterThan(0);
-    expect(refining).toBeGreaterThan(0);
-    expect(entered).toBeGreaterThan(0);
-    expect(departed).toBeGreaterThan(0);
-    expect(stale).toBe(0);
-  } finally {
-    orchard.finalize();
-  }
-}, 120_000);

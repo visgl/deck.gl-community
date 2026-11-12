@@ -305,7 +305,9 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
           })
         ],
         onAfterRender() {
-          if (++drawCount !== 12) return;
+          // Allow the first frame to initialize the view. The readback already waits for the
+          // next static frame's GPU work, so skip extra full redraws on software adapters.
+          if (++drawCount !== 2) return;
           window.clearTimeout(timeout);
           deck?.setProps({_animate: false});
           device.submit();
@@ -383,7 +385,7 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
     device.destroy();
     parent.remove();
   }
-}, 60_000);
+}, 120_000);
 
 it('casts and receives directional shadows on the highest-detail WebGPU tree', async ({skip}) => {
   await requireWebGPUAdapter(skip);

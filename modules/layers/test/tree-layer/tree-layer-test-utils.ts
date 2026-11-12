@@ -25,8 +25,9 @@ afterEach(() => {
 });
 
 /** Run layer updates with deck.gl's source rows and a clock controlled by the test. */
-export function mountTreeScene<DataT>() {
-  const viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 19, pitch: 30});
+export function mountTreeScene<DataT>(
+  viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 19, pitch: 30})
+) {
   const timeline = new Timeline();
   timeline.setTime(1000);
   const manager = new LayerManager(device, {
@@ -50,6 +51,14 @@ export function mountTreeScene<DataT>() {
       manager.setLayers([new TreeLayer<DataT>({...props, id: 'trees'})]);
       assertNoErrors();
       return layer();
+    },
+    setViewport(next: WebMercatorViewport) {
+      viewport = next;
+      manager.activateViewport(next);
+      // A Deck draw normally gives each layer its viewport before the next layer update.
+      for (const layer of manager.getLayers()) layer.activateViewport(next);
+      manager.updateLayers();
+      assertNoErrors();
     },
     tick(time: number) {
       timeline.setTime(time);
