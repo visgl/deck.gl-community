@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "paths": {
+      "@deck.gl-community/layers": ["../../modules/layers/src/index.ts"]
+    },
+    "plugins": []
+  },
+  "include": ["lab.ts", "stage", "story", "layers"],
+  "exclude": ["node_modules"]
+}

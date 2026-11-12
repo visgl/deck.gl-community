@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Thirty Years</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+        color: #d4d8d0;
+        font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+      #stage {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #frame {
+        position: relative;
+        flex: none;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      #frame canvas {
+        display: block;
+      }
+      /* The overlay's canvas, turned off by the debug panel. */
+      #frame canvas[hidden] {
+        display: none;
+      }
+      /*
+       * The debug panel's widgets, which stage/debug-panel.ts mounts here. The bar keeps one height,
+       * so the frame above it never changes size as the playhead moves.
+       */
+      #controls {
+        --widget-margin: 6px;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        padding: 0 10px 6px;
+        background: #0f110f;
+      }
+      /* Room above the track for the label of the current time, which stands on it. */
+      #timeline {
+        position: relative;
+        height: 56px;
+      }
+      #timeline > .deck-widget-timeline {
+        position: absolute;
+        inset: auto 0 0;
+        height: 40px;
+        margin: 0;
+      }
+      /* One row, which scrolls sideways in a narrow window rather than wrapping. */
+      #toolbar {
+        --widget-margin: 2px;
+        --panel-gap: 4px;
+        --panel-padding: 4px 8px;
+        --panel-round-radius: 14px;
+        position: relative;
+        height: 48px;
+        overflow: auto hidden;
+        scrollbar-width: thin;
+      }
+      #toolbar .deck-widget-toolbar > div {
+        flex-wrap: nowrap !important;
+      }
+      #toolbar .deck-widget-toolbar > div > * {
+        flex: none;
+      }
+      /*
+       * The badges, by the title each keeps, at widths that hold their longest text, so none moves
+       * as the beat's name or a number changes length.
+       */
+      #toolbar [data-toolbar-item-kind='badge'] {
+        font-variant-numeric: tabular-nums;
+        overflow: hidden;
+      }
+      #toolbar [data-toolbar-item-kind='badge'][title='Beat'] {
+        width: 13ch;
+      }
+      #toolbar [data-toolbar-item-kind='badge'][title='Cycle second'] {
+        width: 7ch;
+      }
+      #toolbar [data-toolbar-item-kind='badge'][title='Seam second'] {
+        width: 17ch;
+      }
+      #toolbar [data-toolbar-item-kind='badge'][title='Year'] {
+        width: 9ch;
+      }
+      /*
+       * Under the timeline's track the beats, and over it the A-B range, the rind's cover either
+       * side of the swap at both ends, the swap itself and the file's first frame.
+       */
+      .stage-marks {
+        position: absolute;
+        pointer-events: none;
+      }
+      .stage-marks i {
+        position: absolute;
+        top: 100%;
+        width: 1px;
+        height: 5px;
+        background: #6a706a;
+      }
+      .stage-marks i.stage-seam,
+      .stage-marks i.stage-file {
+        top: -3px;
+        height: calc(100% + 11px);
+        width: 2px;
+        margin-left: -1px;
+      }
+      .stage-marks i.stage-seam {
+        background: rgb(255 120 90 / 90%);
+      }
+      .stage-marks i.stage-file {
+        background: rgb(120 200 255 / 90%);
+      }
+      .stage-marks s {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        background: rgb(255 120 90 / 22%);
+      }
+      .stage-marks b {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        border-radius: 4px;
+        background: rgb(224 160 64 / 28%);
+        box-shadow: inset 0 0 0 1px rgb(224 160 64 / 80%);
+      }
+      /* The seam strip, over the top of the picture. Never in a capture. */
+      .stage-seam {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 6px;
+        background: rgb(8 10 8 / 82%);
+        white-space: pre-wrap;
+        font-size: 11px;
+      }
+      .stage-seam-row {
+        display: flex;
+        gap: 4px;
+      }
+      .stage-seam figure {
+        flex: 1 1 0;
+        min-width: 0;
+        margin: 0;
+      }
+      .stage-seam canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .stage-seam figcaption {
+        text-align: center;
+      }
+      .stage-seam p {
+        margin: 4px 0;
+      }
+      .stage-seam button {
+        font: inherit;
+        color: inherit;
+        background: rgb(255 255 255 / 12%);
+        border: 0;
+        border-radius: 10px;
+        padding: 2px 10px;
+        cursor: pointer;
+      }
+      /* The gust plot, along the bottom of the picture. Never in a capture. */
+      .stage-gust {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 112px;
+        pointer-events: none;
+      }
+      .stage-seam[hidden],
+      #frame canvas.stage-gust[hidden] {
+        display: none;
+      }
+      /* The portrait safe area, over the picture. Never in a capture. */
+      .stage-guides {
+        position: absolute;
+        pointer-events: none;
+        border: 1px dashed rgb(255 214 120 / 90%);
+        box-shadow: 0 0 0 100vmax rgb(0 0 0 / 22%);
+      }
+      #problems {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        max-height: 40%;
+        overflow: auto;
+        padding: 6px 10px;
+        white-space: pre-wrap;
+        color: #ffd6d0;
+        background: rgb(90 16 10 / 90%);
+        z-index: 3000;
+      }
+      #problems:empty,
+      .capture #controls,
+      .capture #problems {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage"><div id="frame"></div></div>
+    <div id="controls">
+      <div id="timeline"></div>
+      <div id="toolbar"></div>
+    </div>
+    <div id="problems"></div>
+    <script type="module" src="./stage/stage.ts"></script>
+  </body>
+</html>
