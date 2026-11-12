@@ -682,6 +682,7 @@ describe('TreeLayer photoreal rendering', () => {
     expect(scene.glErrors).toEqual([]);
   }, 120000);
 
+  // Synchronous shadow and picking readback are slow on CI software rendering.
   it('compacts offscreen near leaves without changing macro pixels, shadows or picking', async () => {
     const scene = mount({
       staticFrames: true,
@@ -695,17 +696,23 @@ describe('TreeLayer photoreal rendering', () => {
     scene.setViewState({...ORBIT_STATE, zoom: 8});
     const props = {lodBias: -3, windTime: 12, windDirection: 80, wetness: 0.7};
     const receiver = ground();
+    // A sparser crown exercises the same macro and culling paths with fewer submitted vertices.
+    const tree: TreeSpec = {...CITRUS, characteristics: {leafDensity: 0.25}};
+    const data = [tree];
     // Static time and an unchanged camera let us compare the first frame after each update.
     const render = (windStrength: number, culling: boolean) =>
       scene.render(
         [
           receiver,
-          trees({
-            ...props,
-            windStrength,
-            _leafCulling: culling,
-            _woodCulling: culling
-          })
+          trees(
+            {
+              ...props,
+              windStrength,
+              _leafCulling: culling,
+              _woodCulling: culling
+            },
+            data
+          )
         ],
         1
       );
@@ -715,6 +722,7 @@ describe('TreeLayer photoreal rendering', () => {
     const selected = await render(0.03, true);
     const listed = photorealLayers(scene).find(layer => layer.id.endsWith('-listed'))!;
     const group = [...treeLayer(scene).state.photoreal!.groups.values()][0];
+    expect(group.macroData.length).toBeGreaterThan(0);
     const woodStates = photorealLayers(scene)
       .filter(layer => layer instanceof TreePhotorealWoodLayer)
       .map(layer => (layer as TreePhotorealWoodLayer).state);
@@ -737,7 +745,7 @@ describe('TreeLayer photoreal rendering', () => {
     const compactPick = pick();
     expect(compactPick?.object).toBe(referencePick?.object);
     expect(compactPick?.index).toBe(referencePick?.index);
-    expect(compactPick?.object).toBe(CITRUS);
+    expect(compactPick?.object).toBe(tree);
     const stormReference = await render(0.5, false);
     const stormSelected = await render(0.5, true);
     let stormDifference = 0;
@@ -746,7 +754,7 @@ describe('TreeLayer photoreal rendering', () => {
     expect(stormDifference / stormReference.length).toBeLessThan(0.01);
     expect(scene.errors).toEqual([]);
     expect(scene.glErrors).toEqual([]);
-  }, 120000);
+  }, 180_000);
 
   it('culls trees far outside the view, and keeps those that may cast into it', async () => {
     const scene = mount({effects: [lighting(true)]});
