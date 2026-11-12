@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer, createIterable, COORDINATE_SYSTEM} from '@deck.gl/core';
+import {_deepEqual, CompositeLayer, createIterable, COORDINATE_SYSTEM} from '@deck.gl/core';
 import type {
   Color,
   Accessor,
@@ -873,6 +873,8 @@ type TreeState<DataT> = {
   cropKinds: (CropKind | null)[];
   /** Latest values read from tree accessors. */
   sources: TreeSource<DataT>[];
+  /** Source data changes even when the derived instance arrays keep their identities. */
+  sourceDataRevision: number;
   /** RGBA32F copy of `store.data`, read by the photoreal layers. */
   stateTexture: Texture | null;
   /** Tweens are running or loss rates are draining: update again next frame. */
@@ -1221,6 +1223,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       store: null,
       cropKinds: [],
       sources: [],
+      sourceDataRevision: 0,
       stateTexture: null,
       ticking: false,
       photoreal: null
@@ -1240,7 +1243,13 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   }
 
   updateState({props, oldProps, changeFlags}) {
+    const dataChanged = Boolean(changeFlags.dataChanged);
+    if (dataChanged) this.state.sourceDataRevision++;
     const triggers = changeFlags.updateTriggersChanged;
+    const placementChanged =
+      props.coordinateSystem !== oldProps.coordinateSystem ||
+      !_deepEqual(props.coordinateOrigin, oldProps.coordinateOrigin, 1) ||
+      !_deepEqual(props.modelMatrix, oldProps.modelMatrix, 1);
     const accessorChanged = (key: string) =>
       (typeof props[key] !== 'function' && props[key] !== oldProps[key]) ||
       triggers === true ||
@@ -1248,7 +1257,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       triggers?.[key];
     this.updateWithStore(
       props,
-      Boolean(changeFlags.dataChanged) ||
+      dataChanged ||
         GEOMETRY_PROPS.some(accessorChanged) ||
         STORE_ONLY_PROPS.some(accessorChanged) ||
         !this.state.store ||
@@ -1259,7 +1268,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         props._stableLeafShadows !== oldProps._stableLeafShadows ||
         props._cropOnly !== oldProps._cropOnly ||
         props.windStrength !== oldProps.windStrength ||
-        props.shadowEnabled !== oldProps.shadowEnabled
+        props.shadowEnabled !== oldProps.shadowEnabled,
+      placementChanged
     );
   }
 
@@ -1426,7 +1436,12 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     return sources;
   }
 
-  private updateWithStore(props, accessorsChanged: boolean, viewChanged: boolean): void {
+  private updateWithStore(
+    props,
+    accessorsChanged: boolean,
+    viewChanged: boolean,
+    placementChanged: boolean
+  ): void {
     const timeline = this.context?.timeline;
     const now = timeline ? timeline.getTime() : 0;
     const clock = typeof props.windTime === 'number' ? props.windTime : now / 1000;
@@ -1452,8 +1467,11 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
 
     const {photoreal} = this.state;
     const {changed, active} = store.tick(now, clock);
-    if (photoreal && (viewChanged || accessorsChanged || regrouped || firstRead || changed)) {
-      this.updatePhotorealDetail(props, photoreal, store, now, clock);
+    if (
+      photoreal &&
+      (viewChanged || placementChanged || accessorsChanged || regrouped || firstRead || changed)
+    ) {
+      this.updatePhotorealDetail(props, photoreal, store, now, clock, placementChanged);
     }
     this.uploadStateTexture(store);
     // A tween's last tick can still change a bucket, and nothing says to render it once it stops.
@@ -1800,7 +1818,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     photoreal: PhotorealState<DataT>,
     store: TreeStateStore,
     now: number,
-    clock: number
+    clock: number,
+    placementChanged: boolean
   ): void {
     const viewport = this.context?.viewport;
     if (!viewport) return;
@@ -1849,6 +1868,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         const y = data[base + 1] + data[base + ANCHOR_LOW * 4 + 1];
         const z = data[base + 2] + data[base + ANCHOR_LOW * 4 + 2];
         const projectionChanged =
+          placementChanged ||
           row.anchorX !== x ||
           row.anchorY !== y ||
           row.anchorZ !== z ||
@@ -1873,7 +1893,18 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         const foliage = data[base + LIFE * 4 + 2];
         const unit = Math.max(row.units[0], row.units[1], row.units[2]);
         if (!row.bounds || shapeChanged || projectionChanged || row.bounds.wind !== layerWind) {
-          const liveHeight = height * getTreeHeightFraction(growth);
+          const heightFraction = getTreeHeightFraction(growth);
+          const trunkHeight = data[base + SIZE * 4 + 3];
+          const {forkZ} = group.model;
+          // Early wood grows in template space. A higher fork stretches its young stem before the
+          // tree reaches full height, so include the same piecewise height mapping as the shader.
+          let liveHeight = height * heightFraction;
+          if (heightFraction < 1 && trunkHeight > height * forkZ) {
+            liveHeight =
+              heightFraction < forkZ
+                ? (heightFraction / forkZ) * trunkHeight
+                : trunkHeight + ((heightFraction - forkZ) / (1 - forkZ)) * (height - trunkHeight);
+          }
           const crown = Math.max(crownX, crownY) * getTreeCrownFraction(growth);
           // Upright trees are tight around the crown; others need room for what they threw on the ground.
           const upright = lean === 0 && damage === 0 && foliage === 1;
@@ -3007,6 +3038,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const shared = {
       stateTexture,
       _stateData: this.state.store?.data ?? null,
+      _sourceDataRevision: this.props.extensions.length ? this.state.sourceDataRevision : 0,
       _woodCulling: (this.props as unknown as {_woodCulling?: boolean})._woodCulling !== false,
       windStrength,
       windDirection: this.state.windVector,

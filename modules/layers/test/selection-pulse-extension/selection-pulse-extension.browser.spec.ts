@@ -670,6 +670,50 @@ describe('SelectionPulseExtension on TreeLayer', () => {
     expect(weighted.some(layer => layer.id.includes('wood'))).toBe(true);
     expect(weighted.some(layer => layer.id.includes('crops'))).toBe(true);
   }, 90000);
+
+  it('refreshes selection when source rows change but sublayer membership stays the same', async () => {
+    type Row = TreeSpec & {selected: boolean};
+    const initial: Row[] = [
+      {species: 'oak', position: [-0.000025, 0, 0], height: 5, crownRadius: 1.5, selected: true},
+      {species: 'oak', position: [0.000025, 0, 0], height: 5, crownRadius: 1.5, selected: false}
+    ];
+    const getSelected = vi.fn((row: Row) => row.selected);
+    const fixedPulse = pulse(500);
+    const make = (data: Row[], pulseTime: number) => [
+      new TreeLayer<Row, SelectionPulseExtensionProps<Row>>({
+        id: 'replace-selection',
+        data,
+        getTree: row => row,
+        windStrength: 0,
+        getSelected,
+        ...fixedPulse,
+        pulseTime
+      })
+    ];
+    const scene = mount(
+      new MapView({id: 'map'}),
+      {longitude: 0, latitude: 0, zoom: 20, pitch: 30, bearing: 0},
+      make(initial, 0)
+    );
+    const unpulsed = await scene.render();
+    const first = await scene.render(make(initial, 500));
+    expect(measure(first, 'left').rgb).toBeLessThan(measure(unpulsed, 'left').rgb * 0.85);
+    expect(getHalf(first, 'right')).toEqual(getHalf(unpulsed, 'right'));
+
+    const members = () =>
+      scene.deck['layerManager']!.getLayers().filter(
+        layer => !layer.isComposite && layer.props.visible
+      );
+    const stableData = new Map(members().map(layer => [layer.id, layer.props.data]));
+    getSelected.mockClear();
+    const next = initial.map(row => ({...row, selected: !row.selected}));
+    const swapped = await scene.render(make(next, 500));
+    expect(members().every(layer => layer.props.data === stableData.get(layer.id))).toBe(true);
+    expect(getSelected).toHaveBeenCalled();
+    expect(getHalf(swapped, 'left')).toEqual(getHalf(unpulsed, 'left'));
+    expect(measure(swapped, 'right').rgb).toBeLessThan(measure(unpulsed, 'right').rgb * 0.85);
+    expect(scene.errors).toEqual([]);
+  }, 90000);
 });
 
 class TestDeck extends Deck {

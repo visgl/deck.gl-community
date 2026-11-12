@@ -776,6 +776,65 @@ describe('TreeLayer photoreal rendering', () => {
     expect(scene.errors).toEqual([]);
   }, 120000);
 
+  it.each([
+    'coordinateOrigin',
+    'modelMatrix'
+  ] as const)('redraws a grove moved into the same view by %s', async placement => {
+    const scene =
+      placement === 'coordinateOrigin'
+        ? mount({
+            views: new MapView(),
+            viewState: {longitude: 0, latitude: 0, zoom: 19, pitch: 20}
+          })
+        : mount();
+    const data = [CITRUS];
+    const move = (x: number) =>
+      placement === 'coordinateOrigin'
+        ? {coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS, coordinateOrigin: [x / 400, 0, 0]}
+        : {modelMatrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1]};
+    expect(countPixels(await scene.render([trees(move(400), data)]))).toBe(0);
+    expect(countPixels(await scene.render([trees(move(0), data)]))).toBeGreaterThan(100);
+    expect(countPixels(await scene.render([trees(move(400), data)]))).toBe(0);
+    expect(scene.errors).toEqual([]);
+    expect(scene.glErrors).toEqual([]);
+  }, 120000);
+
+  it('redraws a grove when its offset coordinate system changes', async () => {
+    const scene = mount({
+      views: new MapView(),
+      viewState: {longitude: 0, latitude: 0, zoom: 19, pitch: 20}
+    });
+    const data: TreeSpec[] = [{...CITRUS, position: [3, 0, 0]}];
+    const make = (
+      coordinateSystem:
+        | typeof COORDINATE_SYSTEM.METER_OFFSETS
+        | typeof COORDINATE_SYSTEM.LNGLAT_OFFSETS
+    ) => trees({coordinateSystem}, data);
+    expect(countPixels(await scene.render([make(COORDINATE_SYSTEM.LNGLAT_OFFSETS)]))).toBe(0);
+    expect(
+      countPixels(await scene.render([make(COORDINATE_SYSTEM.METER_OFFSETS)]))
+    ).toBeGreaterThan(100);
+    expect(scene.errors).toEqual([]);
+  }, 120000);
+
+  it('keeps a growing stem in view when its authored trunk height stretches it', async () => {
+    const scene = mount({
+      viewState: {...ORBIT_STATE, target: [0, 0, 6.8], rotationOrbit: 0, rotationX: 0}
+    });
+    const seedling: TreeSpec = {
+      ...CITRUS,
+      height: 12,
+      crownRadius: 0.3,
+      growth: 0.048,
+      trunkHeightFraction: 1
+    };
+    expect(
+      countPixels(await scene.render([trees({shadowEnabled: false}, [seedling])]))
+    ).toBeGreaterThan(10);
+    expect(scene.errors).toEqual([]);
+    expect(scene.glErrors).toEqual([]);
+  }, 120000);
+
   it('tweens growth through the transitions prop on a stepped timeline', async () => {
     const scene = mount();
     await scene.render([]);

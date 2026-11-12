@@ -7,6 +7,7 @@ import {
   Layer,
   type Accessor,
   type DefaultProps,
+  type LayerExtension,
   type LayerProps,
   type UpdateParameters
 } from '@deck.gl/core';
@@ -286,6 +287,8 @@ export type TreePhotorealLayerProps<DataT = unknown> = LayerProps & {
   stateTexture: Texture | null;
   /** @internal CPU copy of state rows for conservative geometry submission bounds. */
   _stateData?: Float32Array | null;
+  /** @internal Revision of the parent data seen by extension accessors. */
+  _sourceDataRevision?: number;
   /** Row of a tree in `stateTexture`. */
   getTreeRow?: Accessor<DataT, number>;
   windStrength?: number;
@@ -316,6 +319,7 @@ const defaultProps: DefaultProps<TreePhotorealLayerProps> = {
   lod: 0,
   stateTexture: {type: 'object', value: null, compare: false, ignore: true},
   _stateData: {type: 'object', value: null, compare: false, ignore: true, optional: true},
+  _sourceDataRevision: 0,
   getTreeRow: {type: 'accessor', value: (row: any) => row.stateRow},
   windStrength: 0,
   windDirection: {type: 'array', value: null, optional: true, compare: true},
@@ -373,6 +377,25 @@ export abstract class TreePhotorealPrimitiveLayer<DataT = unknown> extends Layer
   updateState(params: UpdateParameters<this>): void {
     super.updateState(params);
     const {props, oldProps, changeFlags} = params;
+    if (props._sourceDataRevision !== oldProps._sourceDataRevision) {
+      // Source objects can change inside retained rows and binary instance lists. Only extension
+      // accessors need to read those objects again. Keep the geometry attributes resident.
+      const attributes = this.getAttributeManager()!;
+      for (const extension of props.extensions) {
+        const {defaultProps: definitions} = extension.constructor as typeof LayerExtension;
+        for (const [accessor, definition] of Object.entries(definitions)) {
+          if (
+            definition &&
+            typeof definition === 'object' &&
+            'type' in definition &&
+            definition.type === 'accessor' &&
+            typeof props[accessor] === 'function'
+          ) {
+            attributes.invalidate(accessor);
+          }
+        }
+      }
+    }
     const templateChanged = props.template !== oldProps.template;
     if (templateChanged || changeFlags.extensionsChanged || !this.state.model) {
       this.state.model?.destroy();
