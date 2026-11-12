@@ -161,6 +161,7 @@ webglTest('a SplitterWidget drives <view> children through onChange', async () =
           .map(({id}) => id)
           .join() === 'left,right'
     );
+    await waitFor(() => Boolean(container.querySelector('.deck-widget-splitter-handle')));
 
     await dragSplitter(container, 0.7);
     await waitFor(() => getViewports(deck)[0]?.width === 280);

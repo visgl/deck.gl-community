@@ -2,10 +2,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, OrbitViewport, project} from '@deck.gl/core';
+import {
+  AmbientLight,
+  COORDINATE_SYSTEM,
+  DirectionalLight,
+  OrbitViewport,
+  project,
+  type EffectContext
+} from '@deck.gl/core';
+import type {ShaderModule} from '@luma.gl/shadertools';
 import {Matrix4} from '@math.gl/core';
 import {describe, expect, it} from 'vitest';
-import {createFieldShadowModule} from '../field-lighting';
+import {createFieldShadowModule, FieldLightingEffect} from '../field-lighting';
 
 const WIDTH = 1163;
 const HEIGHT = 654;
@@ -177,4 +185,50 @@ describe('playground light-space shadow window', () => {
       expect(recovered.projectCenter0?.every(Number.isFinite)).toBe(true);
     }
   });
+
+  it('does not blend from a shadow attachment overwritten by an invalid pose', () => {
+    const field = createFieldShadowModule();
+    const close = view(2);
+    const invalid = view(1e-10);
+    const wide = view(6);
+    field.beginFrame(close, 1, 1000, false);
+    field.module.getUniforms(shaderOptions(close, true));
+    expect(field.diagnostics?.span[1]).toBe(16);
+
+    expect(field.beginFrame(invalid, 1, 1040, true)).toBe(false);
+    expect(field.module.getUniforms(shaderOptions(invalid, true)).drawShadowMap).toBe(false);
+    expect(field.diagnostics).toBeNull();
+
+    expect(field.beginFrame(wide, 1, 1080, true)).toBe(false);
+    expect(field.module.getUniforms(shaderOptions(wide, true)).drawShadowMap).toBe(true);
+    expect(field.diagnostics?.span[1]).toBe(64);
+    expect(field.historyWeight).toBe(0);
+  });
+});
+
+it('registers the fitted module only while a shadow light is active', () => {
+  const modules = new Set<ShaderModule>();
+  const context = {
+    deck: {
+      _addDefaultShaderModule: (module: ShaderModule) => modules.add(module),
+      _removeDefaultShaderModule: (module: ShaderModule) => modules.delete(module)
+    },
+    device: {
+      createTexture: () => ({destroy() {}}),
+      createFramebuffer: () => ({destroy() {}})
+    }
+  } as unknown as EffectContext;
+  const ambient = new AmbientLight();
+  const sun = new DirectionalLight({_shadow: true});
+  const effect = new FieldLightingEffect({ambient});
+  effect.setup(context);
+  expect(modules.size).toBe(0);
+  effect.setProps({ambient, sun});
+  expect(modules.size).toBe(1);
+  expect([...modules][0].dependencies?.some(module => module.name === 'fieldShadowBlend')).toBe(
+    true
+  );
+  effect.setProps({ambient});
+  expect(modules.size).toBe(0);
+  effect.cleanup(context);
 });

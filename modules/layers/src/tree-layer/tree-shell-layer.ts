@@ -34,13 +34,17 @@ in float hullVertex;
 in float instanceTreeRow;
 uniform sampler2D treeHull;
 out vec3 vLocal;
+out vec4 vTint;
+#ifndef TREE_SHELL_SHADOW_ONLY
 out vec3 vNormal;
 out vec3 vPosition;
-out vec4 vTint;
 out vec3 vLife;
 out float vFog;
+#endif
 ${TREE_PHOTOREAL_VERTEX_CHUNK}
+#ifndef TREE_SHELL_SHADOW_ONLY
 ${getTreeShadowVertex(true)}
+#endif
 const float stages[${STAGE_COUNT}] = float[](${GLSL_STAGES});
 
 void main() {
@@ -61,37 +65,41 @@ void main() {
   vec4 info = mix(texelFetch(treeHull, ivec2(0, y), 0), texelFetch(treeHull, ivec2(0, y + 1), 0), t);
   if (info.x <= 0.0) return;
   vec4 samplePoint = mix(texelFetch(treeHull, ivec2(x, y), 0), texelFetch(treeHull, ivec2(x, y + 1), 0), t);
-  vec4 sampleNormal = mix(texelFetch(treeHull, ivec2(x + 1, y), 0), texelFetch(treeHull, ivec2(x + 1, y + 1), 0), t);
   treeLoadPlace(row);
   vec3 local = treeToMetres(samplePoint.xyz);
+  vec3 posed = local;
+  posed.z -= max(local.z, 0.0) * smoothstep(0.15, 1.0, tree.damage) * 0.22;
+  vec3 point = treeLeanPoint(treeTurnYaw(posed));
+  treeWindLoad();
+  vec4 commonPosition = treeProject(treeDecayPoint(treeWindPoint(point)));
+  vLocal = local;
+  float alive = (1.0 - smoothstep(samplePoint.w - 0.05, samplePoint.w + 0.15, tree.damage)) * (1.0 - 0.33 * tree.damage);
+  vec4 tint = treeStateTexel(row, ${CANOPY});
+  float coverage = tint.a * tree.coverage * tree.foliage * alive *
+    smoothstep(0.0, 0.16, info.x) * (1.0 - smoothstep(0.0, 0.5, tree.decay));
+#ifdef TREE_SHELL_SHADOW_ONLY
+  vTint.a = coverage;
+#else
+  vec4 sampleNormal = mix(texelFetch(treeHull, ivec2(x + 1, y), 0), texelFetch(treeHull, ivec2(x + 1, y + 1), 0), t);
   float height = samplePoint.z < treePhotoreal.shape.x
     ? tree.size.w / treePhotoreal.shape.x
     : (tree.size.z - tree.size.w) / (1.0 - treePhotoreal.shape.x);
   vec3 normal = normalize(sampleNormal.xyz / max(vec3(tree.size.xy, height), vec3(0.01)));
-  vec3 posed = local;
-  posed.z -= max(local.z, 0.0) * smoothstep(0.15, 1.0, tree.damage) * 0.22;
-  vec3 point = treeLeanPoint(treeTurnYaw(posed));
   normal = treeLeanTurn(treeTurnYaw(normal));
-  treeWindLoad();
   normal = treeWindTurn(normal, point.z);
-  point = treeDecayPoint(treeWindPoint(point));
-  vec4 commonPosition = treeProject(point);
   vPosition = commonPosition.xyz;
   vFog = treeFogVisibility(commonPosition.xyz);
   vNormal = treeToCommonDirection(normal);
-  vLocal = local;
-  float alive = (1.0 - smoothstep(samplePoint.w - 0.05, samplePoint.w + 0.15, tree.damage)) * (1.0 - 0.33 * tree.damage);
-  vec4 tint = treeStateTexel(row, ${CANOPY});
   geometry.normal = vNormal;
   geometry.uv = vec2(0.0);
   geometry.pickingColor = picking_getPickingColorFromInstanceID();
   vec4 filtered = vec4(pow(tint.rgb, vec3(2.2)), 1.0);
   DECKGL_FILTER_COLOR(filtered, geometry);
-  vTint = vec4(filtered.rgb, tint.a * tree.coverage * tree.foliage * alive *
-    smoothstep(0.0, 0.16, info.x) * (1.0 - smoothstep(0.0, 0.5, tree.decay)));
+  vTint = vec4(filtered.rgb, coverage);
   vLife = vec3(tree.health, tree.flush, sampleNormal.w);
 #ifdef MODULE_SHADOW
   if (!shadow.drawShadowMap) treeShadowWrite(commonPosition, tree.seed, 0.10);
+#endif
 #endif
   DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
 }
@@ -102,18 +110,37 @@ precision highp float;
 precision highp int;
 precision highp sampler2D;
 in vec3 vLocal;
+in vec4 vTint;
+#ifndef TREE_SHELL_SHADOW_ONLY
 in vec3 vNormal;
 in vec3 vPosition;
-in vec4 vTint;
 in vec3 vLife;
 in float vFog;
+#endif
 out vec4 fragColor;
 ${TREE_PHOTOREAL_FRAGMENT_CHUNK}
+#ifndef TREE_SHELL_SHADOW_ONLY
 ${getTreeShadowFragment(true, 4)}
+#endif
 
 void main() {
-  float grain = treeNoise(vLocal * 6.0);
   float pores = treeHash(floor(vLocal * 22.0) + 0.5);
+#ifdef TREE_SHELL_SHADOW_ONLY
+  // The smooth noise cannot move the threshold outside these bounds. Keep a
+  // small rounding margin before testing the unchanged cutoff in between.
+  float coverage = vTint.a;
+  if (pores >= coverage * 1.33001) discard;
+  if (pores >= coverage * 0.71999) {
+    float grain = treeNoise(vLocal * 6.0);
+    if (pores >= coverage * mix(0.72, 1.33, grain)) discard;
+  }
+#ifdef MODULE_SHADOW
+  fragColor = shadow_filterShadowColor(vec4(0.0));
+#else
+  fragColor = vec4(0.0);
+#endif
+#else
+  float grain = treeNoise(vLocal * 6.0);
   if (pores >= vTint.a * mix(0.72, 1.33, grain)) discard;
   geometry.uv = vec2(0.0);
   if (picking.isActive > 0.5) {
@@ -155,6 +182,7 @@ void main() {
   }
   fragColor = vec4(treeFilmic(treeFogged(lit, vFog)), layer.opacity);
   DECKGL_FILTER_COLOR(fragColor, geometry);
+#endif
 }
 `;
 
@@ -255,6 +283,19 @@ export class TreeShellLayer<DataT> extends TreePhotorealPrimitiveLayer<DataT> {
 
   declare state: TreePhotorealPrimitiveLayer<DataT>['state'] & {hull?: Texture};
 
+  private get usesWebglShadowShader(): boolean {
+    // Extensions can read or modify the vertex outputs, even in a shadow pass.
+    return (
+      this.context.device.type === 'webgl' &&
+      this.props._shadowPass === 'only' &&
+      this.props.extensions.length === 0
+    );
+  }
+
+  protected readsShadowMaps(): boolean {
+    return !this.usesWebglShadowShader && super.readsShadowMaps();
+  }
+
   protected createModel(): Model {
     const mesh = getTreeShellMesh(
       this.props.template,
@@ -273,7 +314,12 @@ export class TreeShellLayer<DataT> extends TreePhotorealPrimitiveLayer<DataT> {
     const shaders =
       this.context.device.type === 'webgpu'
         ? getShellWgslShaders()
-        : {vs: vertex, fs: fragment, modules: [project32, picking, phongMaterial, treePhotoreal]};
+        : {
+            vs: vertex,
+            fs: fragment,
+            defines: this.usesWebglShadowShader ? {TREE_SHELL_SHADOW_ONLY: 1} : {},
+            modules: [project32, picking, phongMaterial, treePhotoreal]
+          };
     return new Model(this.context.device, {
       ...this.getShaders(shaders),
       id: this.id,

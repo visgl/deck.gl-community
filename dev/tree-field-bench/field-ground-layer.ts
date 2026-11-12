@@ -8,6 +8,8 @@ import type {ShaderModule} from '@luma.gl/shadertools';
 import {getTreeShadowWgsl} from '../../modules/layers/src/tree-layer/tree-photoreal-shadow-wgsl';
 
 const modules = new WeakMap<ShaderModule, ShaderModule>();
+const isFieldShadow = (module: ShaderModule) =>
+  module.name === 'shadow' && module.dependencies?.some(dep => dep.name === 'fieldShadowBlend');
 
 /** A flat field receiver. Stock SolidPolygonLayer already receives shadows on WebGL. */
 export class FieldGroundLayer<DataT> extends SolidPolygonLayer<DataT, {shadowEnabled?: boolean}> {
@@ -18,22 +20,25 @@ export class FieldGroundLayer<DataT> extends SolidPolygonLayer<DataT, {shadowEna
     if (
       this.context.device.type !== 'webgpu' ||
       type !== 'top' ||
-      !shaders.modules.some((module: ShaderModule) => module.name === 'shadow')
+      !shaders.modules.some(isFieldShadow)
     )
       return shaders;
     return {
       ...shaders,
       modules: shaders.modules.map((module: ShaderModule) => {
-        if (module.name !== 'shadow') return module;
+        if (!isFieldShadow(module)) return module;
         let receiver = modules.get(module);
         if (!receiver) {
           const wgsl = getTreeShadowWgsl(module);
           receiver = {
             ...wgsl,
-            source: wgsl.source!.replaceAll(
-              'treePhotoreal.shadowHistoryWeight',
-              'fieldShadowBlend.weight'
-            )
+            source: wgsl
+              .source!.replaceAll('treePhotoreal.shadowHistoryWeight', 'fieldShadowBlend.weight')
+              // Fade the edge of each fitted map, as the WebGL ground receiver does.
+              .replace(
+                'return mix(mix(a, b, weight.x), mix(c, d, weight.x), weight.y);',
+                'let border = smoothstep(0.0, 0.04, 0.5 * (1.0 - max(abs(ndc.x), abs(ndc.y)))); return border * mix(mix(a, b, weight.x), mix(c, d, weight.x), weight.y);'
+              )
           };
           modules.set(module, receiver);
         }

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {Deck, Layer, MapView, WebMercatorViewport, type MapViewState} from '@deck.gl/core';
+import {Model} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/webgl';
-import {expect, it} from 'vitest';
+import {expect, it, vi} from 'vitest';
 import {commands} from 'vitest/browser';
 import {TreeLayer, type TreeSpec} from '../../src';
 import {getTreeRenderTiers} from './tree-grove-test-utils';
@@ -175,12 +176,18 @@ it('reports per-frame CPU while orbiting a large generated citrus block', async 
   expect(mid.visible).toBeGreaterThan(2_000);
 }, 300_000);
 
-it('keeps every partially uploaded instance row equal to a full rebuild while orbiting', async () => {
+it('keeps every partially uploaded instance row equal to a full rebuild while orbiting', async ({
+  onTestFinished
+}) => {
+  // Keep viewport activation and buffer updates in the normal Deck frame.
+  // This regression compares instance attributes and needs no GPU draw submissions.
+  const submitDraw = vi.spyOn(Model.prototype, 'draw').mockReturnValue(true);
+  onTestFinished(() => {
+    submitDraw.mockRestore();
+  });
   const [longitude, latitude] = getLngLat(60, 0);
   const viewState = {longitude, latitude, zoom: 18.6, pitch: 50, bearing: 0};
   const orchard = await mountOrchard(createOrchard(24, 32), viewState, 640, 376);
-  // Preserve the viewport and draw path for the attribute comparison at lower framebuffer cost.
-  orchard.deck.setProps({useDevicePixels: 0.25});
   let stale = 0,
     checked = 0,
     refining = 0,
@@ -230,6 +237,7 @@ it('keeps every partially uploaded instance row equal to a full rebuild while or
       previousTiers = tiers;
     }
     expect(orchard.errors).toEqual([]);
+    expect(submitDraw).toHaveBeenCalled();
     expect(checked).toBeGreaterThan(100);
     expect(resized).toBeGreaterThan(0);
     expect(refining).toBeGreaterThan(0);

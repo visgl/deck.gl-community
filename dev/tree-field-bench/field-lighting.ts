@@ -164,6 +164,16 @@ export function createFieldShadowModule() {
   let historyStart = 0;
   let historyWeight = 0;
 
+  function invalidateFit(): void {
+    // The pass can reuse or clear its texture after an invalid view. Its contents no longer
+    // match the last valid transform, so the next frame must not capture it for a blend.
+    viewport = undefined;
+    lights = [];
+    diagnostics = null;
+    history = undefined;
+    historyWeight = 0;
+  }
+
   return {
     /** Request one copy of the previous map before the shadow pass replaces it. */
     beginFrame(
@@ -174,8 +184,7 @@ export function createFieldShadowModule() {
     ): boolean {
       frameBand = undefined;
       if (!(nextViewport instanceof OrbitViewport)) {
-        history = undefined;
-        historyWeight = 0;
+        invalidateFit();
         return false;
       }
       const distance = getFitDistance(
@@ -184,8 +193,7 @@ export function createFieldShadowModule() {
         nextViewport.height * ratio
       );
       if (distance === null) {
-        history = undefined;
-        historyWeight = 0;
+        invalidateFit();
         return false;
       }
       const sameSize =
@@ -275,6 +283,7 @@ float shadow_getShadowWeight(vec3 position, sampler2D shadowMap, float depthRang
           !commonOrigin.every(Number.isFinite) ||
           shadowMatrices.some(matrix => !LIGHT_BASIS.every(index => Number.isFinite(matrix[index])))
         ) {
+          invalidateFit();
           return shadow.getUniforms({...options, shadowEnabled: false});
         }
         const lightCount = Math.min(shadowMatrices.length, 2);
@@ -357,6 +366,12 @@ export class FieldLightingEffect extends LightingEffect {
 
   get shadowDiagnostics(): FieldShadowDiagnostics | null {
     return this.fieldShadow.diagnostics;
+  }
+
+  override setProps(props: Parameters<LightingEffect['setProps']>[0]): void {
+    // LightingEffect can call setup while applying the lights, before storing its props.
+    this.props = props;
+    super.setProps(props);
   }
 
   override setup(context: EffectContext): void {
