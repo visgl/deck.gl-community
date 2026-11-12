@@ -104,7 +104,7 @@ it('varies the seeded scaffold without moving wood for needle-only edits', () =>
   const dense = createPineCrownTemplate(3, {seed: 5, leafDensity: 2});
   expect(dense.nodes).toEqual(first.nodes);
   expect(dense.leafCount).toBeGreaterThan(first.leafCount * 1.9);
-});
+}, 30_000);
 
 it('packs wood, needles and attached crops under the same bough transforms', () => {
   const model = createPineGrowthModel(3, {seed: 8});

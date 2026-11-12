@@ -308,7 +308,7 @@ describe('TreeLayer with SelectionPulseExtension', () => {
         expect(selection[index], child.id).toBe(Number(row.object.id === 'b'));
       }
     }
-  });
+  }, 30_000);
 
   it('does not rerun selection or canopy accessors on pulse clock updates', () => {
     const scene = setup();

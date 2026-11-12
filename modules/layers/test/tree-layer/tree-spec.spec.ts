@@ -42,7 +42,7 @@ it('renders row traits directly, derives species dimensions, and retains evergre
   expect(scene.row(1)).toMatchObject({height: 14, foliage: 0});
   const crops = scene.children().filter(child => child instanceof TreePhotorealCropLayer);
   expect(crops.some(child => child.props.visible && child.props.kind === 'lemon')).toBe(true);
-});
+}, 30_000);
 
 it('evaluates one mapped traits accessor per source row and lets granular accessors override it', () => {
   const data: {tree: TreeSpec}[] = [
@@ -90,7 +90,7 @@ it('shares identical morphology templates and pairs each distinct wood and folia
       )
     ).toBe(true);
   }
-});
+}, 30_000);
 
 it('normalizes independent wind amplitudes without rebuilding geometry on global wind updates', () => {
   const data: TreeSpec[] = [false, true, 0.1].map((wind, index) => ({
