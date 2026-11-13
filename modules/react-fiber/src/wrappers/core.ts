@@ -1,5 +1,6 @@
 // The views and effects that @deck.gl/core exports, as components that take their props.
 import {
+  _CustomProjectionView as DeckCustomProjectionView,
   FirstPersonView as DeckFirstPersonView,
   _GlobeView as DeckGlobeView,
   LightingEffect as DeckLightingEffect,
@@ -9,6 +10,7 @@ import {
   PostProcessEffect as DeckPostProcessEffect
 } from '@deck.gl/core';
 import type {
+  CustomProjectionViewProps,
   FirstPersonViewProps,
   GlobeViewProps,
   LightingEffectProps,
@@ -19,6 +21,14 @@ import type {
 import type {ReactElement, ReactNode} from 'react';
 
 import {renderEffect, renderView} from './factories';
+
+/** An experimental planar view in the CRS given by `crs`. */
+export function _CustomProjectionView({
+  children,
+  ...props
+}: CustomProjectionViewProps & {children?: ReactNode}): ReactElement {
+  return renderView(new DeckCustomProjectionView(props), children);
+}
 
 export function FirstPersonView({
   children,

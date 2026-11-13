@@ -37,15 +37,14 @@
   },
   "dependencies": {
     "@geoarrow/geoarrow-js": "^0.3.0",
-    "@math.gl/core": "^4.0.0",
-    "@math.gl/polygon": "^4.0.0",
+    "@math.gl/core": "5.0.0-beta.8",
     "apache-arrow": ">=15",
     "threads": "^1.7.0"
   },
   "peerDependencies": {
-    "@deck.gl/aggregation-layers": "~9.4.1",
-    "@deck.gl/core": "~9.4.1",
-    "@deck.gl/geo-layers": "~9.4.1",
-    "@deck.gl/layers": "~9.4.1"
+    "@deck.gl/aggregation-layers": "10.0.0-alpha.1",
+    "@deck.gl/core": "10.0.0-alpha.1",
+    "@deck.gl/geo-layers": "10.0.0-alpha.1",
+    "@deck.gl/layers": "10.0.0-alpha.1"
   }
 }

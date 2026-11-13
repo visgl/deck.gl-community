@@ -36,8 +36,8 @@
     "src"
   ],
   "dependencies": {
-    "@math.gl/core": "^4.0.0",
-    "@math.gl/web-mercator": ">=4.0.1",
+    "@math.gl/core": "5.0.0-beta.8",
+    "@math.gl/web-mercator": "5.0.0-beta.8",
     "@turf/along": "^7.2.0",
     "@turf/area": "^7.2.0",
     "@turf/bbox": "^7.2.0",
@@ -77,15 +77,17 @@
     "preact": "^10.17.0"
   },
   "peerDependencies": {
-    "@deck.gl/core": "~9.4.1",
-    "@deck.gl/extensions": "~9.4.1",
-    "@deck.gl/geo-layers": "~9.4.1",
-    "@deck.gl/layers": "~9.4.1",
-    "@deck.gl/mesh-layers": "~9.4.1",
-    "@luma.gl/constants": "~9.4.2",
-    "@luma.gl/core": "~9.4.2",
-    "@luma.gl/engine": "~9.4.2",
+    "@deck.gl/core": "10.0.0-alpha.1",
+    "@deck.gl/extensions": "10.0.0-alpha.1",
+    "@deck.gl/geo-layers": "10.0.0-alpha.1",
+    "@deck.gl/layers": "10.0.0-alpha.1",
+    "@deck.gl/mesh-layers": "10.0.0-alpha.1",
+    "@luma.gl/core": "10.0.0-alpha.14",
+    "@luma.gl/engine": "10.0.0-alpha.14",
     "h3-js": "^4.2.1"
   },
-  "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
+  "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35",
+  "devDependencies": {
+    "@math.gl/geospatial": "5.0.0-beta.8"
+  }
 }

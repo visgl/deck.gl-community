@@ -68,7 +68,7 @@ Install React 19 or later, the package, and the deck.gl packages that your appli
 npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers
 ```
 
-The package is built against the deck.gl 9.4 package family. Every deck.gl package except `@deck.gl/core` is an optional peer: install `@deck.gl/mapbox` or `@deck.gl/maplibre` for its root, and the layer or widget package behind each component subpath you import. The plain root imports none of them.
+The package is built against the deck.gl 10 prerelease packages, `10.0.0-alpha.1`. Every deck.gl package except `@deck.gl/core` is an optional peer: install `@deck.gl/mapbox` or `@deck.gl/maplibre` for its root, and the layer or widget package behind each component subpath you import. The plain root imports none of them.
 
 TypeScript users need TypeScript 5.3 or later.
 

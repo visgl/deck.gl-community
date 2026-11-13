@@ -7,7 +7,7 @@ you end up with.
 ## Requirements
 
 - React 19 or later.
-- The deck.gl 9.4 package family.
+- The deck.gl 10 prerelease packages, `10.0.0-alpha.1`.
 - TypeScript 5.3 or later, if you use TypeScript.
 - A client module: in an app that uses React Server Components, import `DeckGL` from a
   `'use client'` module. See [Get started](./get-started.md).

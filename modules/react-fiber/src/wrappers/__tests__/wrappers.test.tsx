@@ -5,7 +5,7 @@ import * as deckGeoLayers from '@deck.gl/geo-layers';
 import * as deckLayers from '@deck.gl/layers';
 import * as deckMeshLayers from '@deck.gl/mesh-layers';
 import * as deckWidgets from '@deck.gl/widgets';
-import type {ShaderPass} from '@luma.gl/shadertools';
+import type {ShaderPass} from '@luma.gl/shaders';
 import {act, type ComponentType} from 'react';
 import {afterEach, describe, expect, it} from 'vitest';
 

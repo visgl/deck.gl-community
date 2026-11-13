@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Tile3D} from '@loaders.gl/tiles';
+import {Tile3D} from '@loaders.gl/tiles-3d';
 import {FiltersByAttribute} from '../data-driven-tile-3d-layer';
-import {AttributeStorageInfo, I3SAttributeLoader} from '@loaders.gl/i3s';
+import {AttributeStorageInfo, I3SAttributeLoader} from '@loaders.gl/tiles-3d/i3s';
 import {load} from '@loaders.gl/core';
-import {TypedArray} from '@loaders.gl/schema';
+import {TypedArray} from '@loaders.gl/core/schema';
 
 type I3STileAttributes = Record<string, string[] | TypedArray | null>;
 
@@ -158,7 +158,7 @@ async function loadFeatureAttributeData(
     attributeType
   });
 
-  return objectIdAttributeData;
+  return objectIdAttributeData as I3STileAttributes;
 }
 
 function getUrlWithToken(url: string, token: string | null = null): string {

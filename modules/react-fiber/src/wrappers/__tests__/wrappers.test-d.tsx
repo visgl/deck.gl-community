@@ -1,7 +1,7 @@
 import {AmbientLight, OrthographicView as DeckOrthographicView} from '@deck.gl/core';
 import {DataFilterExtension, type DataFilterExtensionProps} from '@deck.gl/extensions';
 import {ScatterplotLayer as DeckScatterplotLayer} from '@deck.gl/layers';
-import type {ShaderPass} from '@luma.gl/shadertools';
+import type {ShaderPass} from '@luma.gl/shaders';
 import {describe, expect, it} from 'vitest';
 
 import '../../types/jsx';

@@ -7,7 +7,7 @@ subpath matches a deck.gl module, and each component has the deck.gl class's nam
 
 | Import | Components | Install |
 | --- | --- | --- |
-| `@deck.gl-community/react-fiber/core` | `MapView`, `OrbitView`, `OrthographicView`, `FirstPersonView`, `_GlobeView`, `LightingEffect`, `PostProcessEffect` | `@deck.gl/core` |
+| `@deck.gl-community/react-fiber/core` | `MapView`, `OrbitView`, `OrthographicView`, `FirstPersonView`, `_GlobeView`, `_CustomProjectionView`, `LightingEffect`, `PostProcessEffect` | `@deck.gl/core` |
 | `@deck.gl-community/react-fiber/layers` | Every layer in `@deck.gl/layers` | `@deck.gl/layers` |
 | `@deck.gl-community/react-fiber/geo-layers` | Every layer in `@deck.gl/geo-layers`, including `_WMSLayer` | `@deck.gl/geo-layers` |
 | `@deck.gl-community/react-fiber/aggregation-layers` | Every layer in `@deck.gl/aggregation-layers` | `@deck.gl/aggregation-layers` |

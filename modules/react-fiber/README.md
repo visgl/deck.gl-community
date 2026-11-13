@@ -49,11 +49,11 @@ For example:
 yarn add @deck.gl/maplibre maplibre-gl
 ```
 
-The package requires React 19 or later and uses the deck.gl 9.4 package family. `@deck.gl/core`,
+The package requires React 19 or later and uses the deck.gl 10 prerelease packages, `10.0.0-alpha.1`. `@deck.gl/core`,
 `react` and `react-dom` are the only required peers. The other deck.gl packages are optional
 peers: install `@deck.gl/mapbox` or `@deck.gl/maplibre` for its root, and a layer or widget
 package for its component subpath, such as `@deck.gl/layers` for `/layers`. The root import loads
-none of them. Keep installed deck.gl packages compatible with 9.4.
+none of them. Install the same deck.gl version for every deck.gl package.
 
 TypeScript declarations are included and need TypeScript 5.3 or later. A root import adds the JSX
 declarations for `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`.

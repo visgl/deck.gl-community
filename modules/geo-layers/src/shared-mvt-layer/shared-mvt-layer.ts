@@ -3,7 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import {
-  COORDINATE_SYSTEM,
   type GetPickingInfoParams,
   type UpdateParameters,
   type Layer,
@@ -14,7 +13,7 @@ import {ClipExtension} from '@deck.gl/extensions';
 import {Matrix4} from '@math.gl/core';
 import {worldToLngLat} from '@math.gl/web-mercator';
 import {load} from '@loaders.gl/core';
-import {MVTWorkerLoader} from '@loaders.gl/mvt';
+import {MVTLoader} from '@loaders.gl/tiles/mvt';
 import {SharedTile2DLayer, type SharedTile2DLayerProps} from '../shared-tile-2d-layer/index';
 import type {SharedTile2DHeader, TileLoadProps} from '../tileset/index';
 import {getURLFromTemplate} from '../shared-tile-2d-layer/url-template';
@@ -88,7 +87,7 @@ export class SharedMVTLayer extends SharedTile2DLayer<
   static defaultProps: typeof SharedTile2DLayer.defaultProps = {
     ...GeoJsonLayer.defaultProps,
     ...SharedTile2DLayer.defaultProps,
-    loaders: [MVTWorkerLoader],
+    loaders: [MVTLoader],
     // External cache owners can load tiles before any consumer is initialized.
     fetch: (url, {layer, loadOptions, signal}) =>
       load(url, layer.props.loaders, {
@@ -156,7 +155,7 @@ export class SharedMVTLayer extends SharedTile2DLayer<
       // Deck 9.4.1 scales Cartesian z in meters at the viewport latitude at every zoom.
       modelMatrix: geographic ? new Matrix4() : new Matrix4().scale([scale, -scale, 1]),
       coordinateOrigin: geographic ? [0, 0, 0] : [scale * x, WORLD_SIZE - scale * y, 0],
-      coordinateSystem: geographic ? COORDINATE_SYSTEM.LNGLAT : COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: geographic ? 'lnglat' : 'cartesian',
       extensions: geographic ? props.extensions : [...(props.extensions || []), new ClipExtension()]
     });
   }
@@ -214,7 +213,7 @@ export class SharedMVTLayer extends SharedTile2DLayer<
   getPickingInfo(params: GetPickingInfoParams) {
     const info = super.getPickingInfo(params);
     const coordinateSystem = (params.sourceLayer?.props as any)?.coordinateSystem;
-    if (info.object && coordinateSystem === COORDINATE_SYSTEM.CARTESIAN) {
+    if (info.object && coordinateSystem === 'cartesian') {
       info.object = getMVTDataInWGS84([info.object], info.sourceTile.index)[0];
     }
     return info;

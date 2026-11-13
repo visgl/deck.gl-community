@@ -65,7 +65,7 @@ const BROWSER_RESOLVE_CONFIG = {
     'react',
     'react-dom',
     ...(DECK_GL_SOURCE
-      ? ['@luma.gl/core', '@luma.gl/engine', '@luma.gl/webgl', '@luma.gl/webgpu', '@luma.gl/shadertools']
+      ? ['@luma.gl/core', '@luma.gl/engine', '@luma.gl/core/webgl', '@luma.gl/core/webgpu', '@luma.gl/shaders']
       : [])
   ]
 };
@@ -75,7 +75,7 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
   exclude: ['maplibre-gl'],
   include: [
     '@deck.gl/mesh-layers',
-    '@loaders.gl/arrow',
+    '@loaders.gl/tables',
     'apache-arrow',
     'react',
     'react-dom',
@@ -85,7 +85,7 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     'preact/hooks',
     'preact/compat',
     'preact/test-utils',
-    '@probe.gl/stats',
+    'probe.gl/stats',
     'preact/jsx-dev-runtime',
     'boxicons',
     'zod',
@@ -103,7 +103,7 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     'd3-color',
     'd3-ease',
     '@maplibre/maplibre-gl-style-spec',
-    '@loaders.gl/mvt'
+    '@loaders.gl/tiles/mvt'
   ]
 };
 

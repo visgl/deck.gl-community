@@ -1,5 +1,4 @@
 /* eslint-disable no-template-curly-in-string */
-import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import {
   ArcLayer,
   BitmapLayer,
@@ -161,11 +160,11 @@ export const PathLayerDemo = makeLayerDemo({
 export const PointCloudLayerDemo = makeLayerDemo({
   Layer: PointCloudLayer,
   getTooltip: `({object}) => object && object.position.join(', ')`,
-  imports: {COORDINATE_SYSTEM},
+  imports: {},
   props: `{
     data: '${DATA_URI}/pointcloud.json',
     pickable: false,
-    coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+    coordinateSystem: 'meter-offsets',
     coordinateOrigin: [-122.4, 37.74],
     pointSize: 2,
     getPosition: d => d.position,

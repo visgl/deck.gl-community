@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer, COORDINATE_SYSTEM, type PickingInfo, type Layer} from '@deck.gl/core';
+import {CompositeLayer, type PickingInfo, type Layer} from '@deck.gl/core';
 import {SolidPolygonLayer, LineLayer, TextLayer} from '@deck.gl/layers';
 import type {CompositeLayerProps} from '@deck.gl/core';
 import type {LineLayerProps, SolidPolygonLayerProps, TextLayerProps} from '@deck.gl/layers';
@@ -593,7 +593,7 @@ export class TimelineLayer extends CompositeLayer<TimelineLayerProps> {
           getAlignmentBaseline: 'center',
           fontFamily: 'Arial, sans-serif',
           fontWeight: 'bold',
-          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+          coordinateSystem: 'cartesian'
         })
       );
     }
@@ -679,7 +679,7 @@ export class TimelineLayer extends CompositeLayer<TimelineLayerProps> {
           getTextAnchor: 'middle',
           getAlignmentBaseline: 'center',
           fontFamily: 'Arial, sans-serif',
-          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+          coordinateSystem: 'cartesian'
         })
       );
     }
@@ -698,7 +698,7 @@ export class TimelineLayer extends CompositeLayer<TimelineLayerProps> {
       getTargetPosition: (d: SeparatorLineData) => d.targetPosition,
       getColor: [180, 180, 180, 128],
       getWidth: 1,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+      coordinateSystem: 'cartesian'
     });
   }
 

@@ -18,7 +18,7 @@ import {
 } from '@deck.gl/core';
 import {GeoJsonLayer} from '@deck.gl/layers';
 import {Matrix4} from '@math.gl/core';
-import type {TileSource} from '@loaders.gl/loader-utils';
+import type {TileSource} from '@loaders.gl/core/loader-utils';
 
 import {
   SharedTileset2D,
@@ -453,6 +453,12 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     const loadedViews = new Set<unknown>();
 
     this._pruneRemovedViewports();
+    // A render pass can skip a viewport until its tile sublayers exist.
+    for (const viewport of (this.state.tileset && this.context?.deck?.getViewports()) || []) {
+      if (this._usesViewport(viewport)) {
+        this._knownViewports.set(viewport.id || 'default', viewport);
+      }
+    }
     for (const [viewportKey, viewport] of this._knownViewports) {
       this._prunePlaceholderViewportView(viewportKey);
       const tilesetView = this._getOrCreateTilesetView(viewportKey);
@@ -677,10 +683,26 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     if (!viewports.length) {
       return [];
     }
-    const viewportIds = new Set(viewports.map(viewport => viewport.id));
+    const viewportIds = new Set(
+      viewports.filter(viewport => this._usesViewport(viewport)).map(viewport => viewport.id)
+    );
     // Views live in `state`, which a new layer instance inherits; known viewports do not.
     const keys = new Set([...this._knownViewports.keys(), ...this.state.tilesetViews.keys()]);
     return Array.from(keys).filter(viewportKey => !viewportIds.has(viewportKey));
+  }
+
+  private _usesViewport(viewport: Viewport): boolean {
+    const filter = this.context?.deck?.props?.layerFilter;
+    const context = {layer: this.root, viewport};
+    if (!filter || filter({...context, isPicking: false, renderPass: 'screen'})) {
+      return true;
+    }
+    return (
+      Boolean(this.props.pickable) &&
+      ['picking:query', 'picking:hover', 'picking:query:z', 'picking:hover:z'].some(renderPass =>
+        filter({...context, isPicking: true, renderPass})
+      )
+    );
   }
 
   /** Drops the bootstrap placeholder viewport after a real viewport is known. */

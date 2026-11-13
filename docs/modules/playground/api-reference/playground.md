@@ -398,7 +398,7 @@ Rows remain opaque to configuration conversion. Imports take inline content; the
 or executable-configuration tool. One import runs at a time per registration. Invalid imports, cancellation,
 or a source replacement during decoding leave the existing source intact.
 
-Arrow decoding uses `@loaders.gl/arrow` in a dedicated worker with a five-second timeout and no
+Arrow decoding uses `@loaders.gl/tables` in a dedicated worker with a five-second timeout and no
 main-thread fallback. Scalar columns, scalar dictionaries, lists, and structs become JSON rows;
 64-bit integers become exact decimal strings, and dates and second/millisecond timestamps become
 UTC epoch milliseconds. Binary, decimal, map, union, time, duration, and sub-millisecond timestamp

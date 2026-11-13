@@ -6,6 +6,33 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
+### deck.gl v10 prerelease
+
+Update the ecosystem dependencies together:
+
+| Library | Version |
+| --- | --- |
+| deck.gl | `10.0.0-alpha.1` |
+| luma.gl | `10.0.0-alpha.14` |
+| loaders.gl | `5.0.0-beta.8` |
+| math.gl | `5.0.0-beta.8` |
+| probe.gl | `5.0.0` |
+
+Replace `COORDINATE_SYSTEM` constants with string values: `default`, `cartesian`,
+`lnglat`, `lnglat-offsets`, and `meter-offsets`. Geographic coordinates now apply
+`coordinateOrigin` before projection, including `lnglat` positions.
+
+Import device adapters from `@luma.gl/core/webgl` and `@luma.gl/core/webgpu`,
+shader utilities from `@luma.gl/shaders`, and instrumentation from `probe.gl/log`
+or `probe.gl/stats`. Shader-module injections move to shader plugins.
+
+Loaders.gl consolidates format packages into `tables`, `tiles`, `tiles-3d`,
+`scene`, `images`, `raster`, `pointclouds`, `geospatial`, and `ogc`. Import MVT
+loaders from `@loaders.gl/tiles/mvt`, I3S utilities from `@loaders.gl/tiles-3d/i3s`,
+and loader utilities from `@loaders.gl/core/loader-utils`. Respect package exports
+when configuring bundler aliases. DOT loading for `ClassicGraph` must explicitly
+set `loadOptions: {dot: {shape: 'plain-graph-data'}}`.
+
 ### React Fiber
 
 Import components for deck.gl's layers, views, widgets and effects from the React Fiber subpaths,

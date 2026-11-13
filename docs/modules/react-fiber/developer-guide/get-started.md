@@ -10,7 +10,7 @@ Install React, the renderer, and the deck.gl packages used by the application:
 npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers
 ```
 
-The renderer requires React 19 or later, and TypeScript 5.3 or later for its types. It is built for the deck.gl 9.4 package family. Each component subpath needs its deck.gl package, such as `@deck.gl/layers` for `/layers`. The standalone root imports no provider package. Add the matching deck.gl provider and host-map SDK only when using a provider root:
+The renderer requires React 19 or later, and TypeScript 5.3 or later for its types. It is built for the deck.gl 10 prerelease packages, `10.0.0-alpha.1`. Each component subpath needs its deck.gl package, such as `@deck.gl/layers` for `/layers`. The standalone root imports no provider package. Add the matching deck.gl provider and host-map SDK only when using a provider root:
 
 ```bash
 # Mapbox provider root

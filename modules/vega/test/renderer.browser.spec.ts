@@ -36,7 +36,7 @@ it.each([
       }
     ]
   };
-  expect(base.deck.VERSION).toMatch(/^9\.4\./);
+  expect(base.deck.VERSION).toMatch(/^10\.0\.0-alpha\./);
   Object.assign(spec.marks[0].encode.update, {depth: {value: 24}, z: {value: 3}});
   const errors: Error[] = [];
   const view = new ViewGl(parse(spec), {
