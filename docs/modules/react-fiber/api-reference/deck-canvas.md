@@ -38,8 +38,8 @@ function Panels({londonLayers, tokyoLayers}) {
 }
 ```
 
-The `deck` must be initialized in multi-canvas mode (`_canvases: []`), available in
-deck.gl 9.4. `DeckCanvas` never creates or finalizes it. Do not attach a Deck owned
+The `deck` must be initialized in multi-canvas mode (`_canvases: []`). `DeckCanvas`
+never creates or finalizes it. Do not attach a Deck owned
 by `DeckGL` or a Mapbox overlay.
 
 ## Props
@@ -74,7 +74,7 @@ are global. Direct `deck.setProps({layers: globalLayers})` updates the baseline
 while keeping mounted contributions attached.
 
 This adapts the [DeckCanvas RFC](https://github.com/visgl/deck.gl/issues/10392) to
-the published `_canvases` API. Because deck.gl 9.4 has no `setPropsSource`, the
+the published `_canvases` API. Because deck.gl has no `setPropsSource` yet, the
 registry temporarily wraps this Deck instance's `setProps` method and restores
 it when the last panel unmounts. Call `deck.setProps` through the instance while
 panels are mounted; previously captured references bypass the registry. Do not

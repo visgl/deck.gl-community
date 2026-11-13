@@ -1,6 +1,6 @@
 # DeckGL
 
-![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+![From v10.0](https://img.shields.io/badge/from-v10.0-green.svg?style=flat-square)
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';

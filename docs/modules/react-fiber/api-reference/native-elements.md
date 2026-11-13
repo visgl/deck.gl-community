@@ -1,6 +1,6 @@
 # Native elements
 
-![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+![From v10.0](https://img.shields.io/badge/from-v10.0-green.svg?style=flat-square)
 
 The native renderer accepts four deck.gl JSX elements: `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`. Each takes an instance you build. For deck.gl's own classes, the [components](./components.md) build the instance from props and render these elements for you; use the elements when you already have an instance, or for a class with no component. The elements are available after importing the root package:
 
