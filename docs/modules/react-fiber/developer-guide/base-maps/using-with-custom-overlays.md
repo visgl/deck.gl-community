@@ -45,12 +45,66 @@ them in `recreateOverlayOnChange` so that a change finalizes the overlay and cal
 
 ## Attach to the host
 
-The root does not attach the overlay; the application does, with the host's own API. Follow the
-lifecycle in [Attach the overlay to the host map](../using-with-maps.md#attach-the-overlay-to-the-host-map):
-store the instance from `onDeckChange` in state, attach it once per instance in an effect after
-the host map is ready, and detach it in the effect's cleanup. The Mapbox and MapLibre guides show
-this pattern with `map.addControl` and `map.removeControl`.
+Give the factory an `attach` function, and the root accepts a `map` prop. `attach(map, overlay)`
+attaches the overlay with the host's own API and returns a function that detaches it. The root
+calls it for each overlay it creates while `map` is set, and calls the returned function before it
+replaces or finalizes the overlay, when `map` changes or becomes `null`, and on unmount. A Strict
+Mode replay can call the pair twice, so both steps must be safe to repeat. `map` never reaches the
+overlay.
+
+```tsx
+const DeckGL = createDeckGL({
+  createExternalOverlay: props => new MyCompatibleOverlay(props),
+  attach: (map, overlay) => {
+    overlay.addTo(map);
+    return () => overlay.remove();
+  }
+});
+
+<DeckGL map={hostMap}>{/* Layer components */}</DeckGL>;
+```
+
+The Mapbox and MapLibre roots use `attach` to call `map.addControl` and `map.removeControl`. An
+overlay that a host attaches with `setMap`, such as `GoogleMapsOverlay`, would use
+`(map, overlay) => { overlay.setMap(map); return () => overlay.setMap(null); }`.
+
+Without `attach`, the application attaches the instance it receives through `onDeckChange`, as in
+[Attach the overlay to the host map](../using-with-maps.md#attach-the-overlay-to-the-host-map).
 
 The host map owns the camera. Do not pass `viewState`, `initialViewState` or `controller` to a
 custom overlay root. JSX `<deckView>` descriptors reach the overlay only when the root sets
 `forwardViews: true`, which suits an overlay that renders deck.gl views beside its map.
+
+## Recipe: ArcGIS
+
+> This recipe is untested and may change.
+
+`@deck.gl/arcgis` does not provide a `setProps` and `finalize` overlay. Its
+[`DeckLayer`](https://deck.gl/docs/api-reference/arcgis/deck-layer) is an ArcGIS layer for a 2D
+`MapView`, whose deck.gl props are set through `layer.deck`. A small adapter lets `createDeckGL`
+drive it, and `attach` adds the layer to the ArcGIS map:
+
+```tsx
+import {DeckLayer} from '@deck.gl/arcgis';
+import type ArcGISMap from '@arcgis/core/Map';
+import {createDeckGL} from '@deck.gl-community/react-fiber';
+
+const ArcGISDeckGL = createDeckGL({
+  createExternalOverlay: props => {
+    const layer = new DeckLayer({});
+    layer.deck.set(props);
+    return {layer, setProps: next => layer.deck.set(next), finalize: () => layer.destroy()};
+  },
+  attach: (map: ArcGISMap, overlay) => {
+    map.add(overlay.layer);
+    return () => map.remove(overlay.layer);
+  }
+});
+
+<ArcGISDeckGL map={view.map}>{/* Layer components */}</ArcGISDeckGL>;
+```
+
+`DeckLayer` forwards only the deck.gl props it lists, such as `layers`, `layerFilter` and the
+picking callbacks. The ArcGIS view owns the camera. For a 3D `SceneView`, deck.gl's `DeckRenderer`
+is an external renderer rather than a layer; wire it the same way, with `attach` adding and removing
+the renderer through ArcGIS's external renderer API.
