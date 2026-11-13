@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/react-fiber",
-  "version": "9.4.10",
+  "version": "10.0.0-alpha.1",
   "private": true,
   "description": "A React Fiber renderer for deck.gl",
   "license": "MIT",

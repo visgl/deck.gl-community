@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/panels",
-  "version": "9.4.10",
+  "version": "10.0.0-alpha.1",
   "description": "Deck-independent panel composition and standalone UI",
   "license": "MIT",
   "repository": {
