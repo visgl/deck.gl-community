@@ -4,12 +4,9 @@ import {
   type TreeLayerProps,
   type TreeLean,
   type TreeSpec,
-  type TreeSpringSettings,
-  type TreeTransitionKey,
   type TreeTransitions,
   type TreeTransitionSettings,
-  type CropConfig,
-  type TreeFog
+  type CropConfig
 } from '@deck.gl-community/layers';
 const data = [{position: [0, 0] as [number, number], height: 12}];
 const props: TreeLayerProps<(typeof data)[number]> = {
@@ -44,11 +41,6 @@ const traits: TreeSpec[] = [
   }
 ];
 new TreeLayer({data: traits});
-const fog: TreeFog = {color: [205, 216, 226], density: 0.01};
-new TreeLayer({data: traits, wetness: 0.5, frost: 0.25, fog});
-new TreeLayer({data: traits, fog: null});
-// @ts-expect-error Fog has a color and a density.
-new TreeLayer({data: traits, fog: 0.01});
 new TreeLayer({
   data,
   getTree: tree => ({position: tree.position, species: 'oak', height: tree.height, wind: false})
@@ -62,11 +54,8 @@ const lean: TreeLean = [12, 80];
 const blossom: CropConfig = {kind: 'flower', color: [255, 252, 240], count: 90, radius: 0.018};
 const fruit: CropConfig = {
   color: [244, 140, 24, 255],
-  unripeColor: [86, 128, 44, 255],
-  ripeness: 0.6,
   count: 40,
   droppedCount: 3,
-  fallen: 0.2,
   radius: 0.04
 };
 const living: TreeSpec[] = [
@@ -81,24 +70,19 @@ const living: TreeSpec[] = [
     damage: 0.1,
     decay: 0,
     wind: 0.8,
-    crop: [blossom, fruit]
+    crop: blossom
   },
   {position: [8, 0, 0], species: 'pine', crop: fruit},
   {position: [16, 0, 0], species: 'palm', crop: null}
 ];
-const spring: TreeSpringSettings = {type: 'spring', stiffness: 0.02, damping: 0.25};
 const interpolation: TreeInterpolationSettings = {
   duration: 800,
-  easing: t => t * t,
-  enter: to => to,
-  onStart: () => {},
-  onEnd: (row, key: TreeTransitionKey) => void [row, key],
-  onInterrupt: (row: number) => void row
+  easing: t => t * t
 };
 const transitions: TreeTransitions = {
   getTree: 600,
   getGrowth: interpolation,
-  getLean: spring,
+  getLean: 1000,
   getDamage: false,
   getCrop: null,
   getCanopyColor: {duration: 300} satisfies TreeTransitionSettings
@@ -124,7 +108,7 @@ new TreeLayer({
   getLean: (): TreeLean => [0, 0],
   getDamage: () => 0,
   getDecay: 0,
-  getCrop: () => [blossom, fruit]
+  getCrop: () => fruit
 });
 // @ts-expect-error TreeLayer has one renderer.
 new TreeLayer({data, quality: 'photoreal'});
@@ -134,8 +118,9 @@ void invalidLean;
 // @ts-expect-error `transitions` is keyed by accessor name.
 const invalidTransitions: TreeTransitions = {getHeightt: 100};
 void invalidTransitions;
-// @ts-expect-error A spring is the only other type of transition.
-const invalidSpring: TreeSpringSettings = {type: 'bounce'};
-void invalidSpring;
+// @ts-expect-error TreeLayer transitions accept interpolation settings.
+new TreeLayer({data, transitions: {getGrowth: {type: 'spring'}}});
+// @ts-expect-error Only one crop can be authored per tree.
+new TreeLayer({data, getCrop: () => [blossom, fruit]});
 // @ts-expect-error `windDirection` is a compass bearing in degrees.
 new TreeLayer({data, windDirection: 'north'});

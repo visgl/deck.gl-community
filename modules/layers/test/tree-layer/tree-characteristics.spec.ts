@@ -3,11 +3,6 @@
 // Copyright (c) vis.gl contributors
 import {describe, expect, it} from 'vitest';
 import {type TreeSpec} from '../../src';
-import {getTreeBotany, sampleTreeFruit} from '../../src/tree-layer/tree-botany';
-import {getTreeSplatSource} from '../../src/tree-layer/tree-splats';
-import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
-import {getTreeCropMesh, type CropKind} from '../../src/tree-layer/tree-crop';
-import {createTreeRng} from '../../src/tree-layer/tree-geometry';
 import {
   resolveTreeCharacteristics,
   getTreeCharacteristicsKey,
@@ -19,6 +14,20 @@ import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-l
 import {mountTreeScene} from './tree-layer-test-utils';
 
 describe('Shared tree characteristics', () => {
+  it('batches palms by their seed and ignores broadleaf morphology', () => {
+    const scene = mountTreeScene<TreeSpec>();
+    const layer = scene.render({
+      data: [
+        {position: [0, 0], species: 'palm', characteristics: {seed: 5, branchWander: 0}},
+        {position: [0.00001, 0], species: 'palm', characteristics: {seed: 5, branchWander: 2}},
+        {position: [0.00002, 0], species: 'palm', characteristics: {seed: 6}}
+      ]
+    });
+    const groups = [...layer.state.photoreal!.groups.values()];
+    expect(groups.map(group => group.rows.length)).toEqual([2, 1]);
+    expect(groups[0].model).not.toBe(groups[1].model);
+  });
+
   it('bounds malformed inputs and quantizes equivalent slider states to the same template', () => {
     const traits = resolveTreeCharacteristics({
       seed: NaN,
@@ -35,7 +44,6 @@ describe('Shared tree characteristics', () => {
     expect(getTreeCharacteristicsKey({leafSize: 1.001})).toBe(
       getTreeCharacteristicsKey({leafSize: 1})
     );
-    expect(getTreeSplatSource('citrus', 3, {leafSize: 1.001})).toBe(getTreeSplatSource('citrus'));
     const cache = new TreeTemplateCache<number>(3);
     cache.set('a', 1);
     cache.set('b', 2);
@@ -45,35 +53,6 @@ describe('Shared tree characteristics', () => {
     expect(cache.size).toBe(3);
     expect(cache.get('b')).toBeUndefined();
     expect(cache.get('a')).toBe(1);
-  });
-  it('changes branching, leaf count and leaf size while keeping complete crop bounds in the same shoots', () => {
-    const traits = {seed: 19, crownSpread: 1.3, branchLift: 0.5, leafDensity: 0.5, leafSize: 1.4};
-    const botany = getTreeBotany('citrus', traits);
-    const source = getTreeSplatSource('citrus', 3, traits);
-    expect(botany).not.toBe(getTreeBotany('citrus'));
-    expect(getTreeWoodMesh('citrus', 3, false, traits)).not.toBe(getTreeWoodMesh('citrus'));
-    expect(source.positions.length / 3).toBe(3072);
-    expect(Math.max(...source.scales)).toBeGreaterThan(
-      Math.max(...getTreeSplatSource('citrus').scales)
-    );
-    const scale: [number, number, number] = [4, 3, 4],
-      rng = createTreeRng(42),
-      radius = 0.052;
-    for (let i = 0; i < 200; i++) {
-      const point = sampleTreeFruit('citrus', 3, rng, scale, radius, traits)!;
-      expect(point).not.toBeNull();
-      expect(
-        botany.clusters.some(cluster => {
-          const norm = Math.hypot(
-            ...point.map((value, axis) => (value - cluster.center[axis]) / cluster.radius[axis])
-          );
-          const margin = Math.max(
-            ...scale.map((value, axis) => radius / value / cluster.radius[axis])
-          );
-          return norm + margin <= 0.700001;
-        })
-      ).toBe(true);
-    }
   });
   it('rejects non-finite crop sizes and counts without generating unbounded instances', () => {
     const scene = mountTreeScene<TreeSpec>();
@@ -129,28 +108,4 @@ describe('Shared tree characteristics', () => {
       data[0]
     );
   });
-});
-
-describe('Species crop meshes', () => {
-  for (const kind of [
-    'fruit',
-    'lemon',
-    'cone',
-    'acorn',
-    'catkin',
-    'flower',
-    'propagule'
-  ] as CropKind[]) {
-    it(`${kind} fits the enclosing sphere used for foliage containment`, () => {
-      const mesh = getTreeCropMesh(kind),
-        positions = mesh.attributes.POSITION.value;
-      expect(getTreeCropMesh(kind)).toBe(mesh);
-      let maxRadius = 0;
-      for (let i = 0; i < positions.length; i += 3)
-        maxRadius = Math.max(maxRadius, Math.hypot(...positions.subarray(i, i + 3)));
-      expect(maxRadius).toBeLessThanOrEqual(1.000001);
-      expect(mesh.attributes.NORMAL.value.every(Number.isFinite)).toBe(true);
-      expect(mesh.indices.value.every(index => index < positions.length / 3)).toBe(true);
-    });
-  }
 });

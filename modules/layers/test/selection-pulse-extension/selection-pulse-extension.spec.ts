@@ -15,7 +15,6 @@ import {
   SPLAT_WGSL
 } from '../../src/splat-layer/splat.wgsl';
 import {SplatPrimitiveLayer} from '../../src/splat-layer/splat-primitive-layer';
-import {TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
 import {TreePhotorealCropLayer} from '../../src/tree-layer/tree-photoreal-crop-layer';
 import {TreePhotorealLeafLayer} from '../../src/tree-layer/tree-photoreal-leaf-layer';
 import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-layer';
@@ -218,22 +217,12 @@ describe('SelectionPulseExtension on deck.gl layers', () => {
 });
 
 describe('SelectionPulseExtension WebGPU support', () => {
-  it('marks the splat and tree mesh WGSL vertex colors with the filter anchor', () => {
+  it('marks splat WGSL vertex colors with the filter anchor', () => {
     for (const source of [SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL, SPLAT_TRANSMISSION_WGSL])
       expect(source.split(WGSL_FILTER_COLOR_ANCHOR)).toHaveLength(2);
-    const mesh = Object.create(TreeMeshLayer.prototype);
-    Object.assign(mesh, {
-      context: {device: {type: 'webgpu'}, defaultShaderModules: []},
-      props: {extensions: []}
-    });
-    const {source} = mesh.getShaders();
-    expect(source.split(WGSL_FILTER_COLOR_ANCHOR)).toHaveLength(2);
-    expect(source).toMatch(
-      /var vertexColor = varyings\.color;[\s\S]*varyings\.color = vertexColor;/
-    );
   });
 
-  it('reads weights by instance index in the splat and tree mesh layers on both backends', () => {
+  it('reads weights by instance index in the splat and tree wood layers on both backends', () => {
     const extension = new SelectionPulseExtension();
     const make = (Type: any, type: string) => {
       const layer = Object.create(Type.prototype);
@@ -246,7 +235,7 @@ describe('SelectionPulseExtension WebGPU support', () => {
         getAttributeManager: () => ({add: () => {}})
       });
     };
-    for (const Type of [SplatPrimitiveLayer, TreeMeshLayer]) {
+    for (const Type of [SplatPrimitiveLayer, TreePhotorealWoodLayer]) {
       const webgl = extension.getShaders.call(make(Type, 'webgl'), extension);
       expect(webgl.defines).toEqual({SELECTION_PULSE_INSTANCES: 1});
       expect(webgl.inject['vs:DECKGL_FILTER_COLOR']).toContain('selectionPulse_filterColor');

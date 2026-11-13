@@ -518,7 +518,7 @@ const PROFILES: Record<TreeGrowthSpecies, TreeGrowthProfile> = {
 
 const CACHE = new TreeTemplateCache<TreeGrowthModel>(12);
 
-/** Whether `type` has a growth model. Pine and palm do not; they stay on the standard pipeline. */
+/** Whether the broadleaf generator handles this species. */
 export function isTreeGrowthSpecies(type: string): type is TreeGrowthSpecies {
   return Object.prototype.hasOwnProperty.call(PROFILES, type);
 }

@@ -248,9 +248,7 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
   if (input.contact > 0.0) {
     let falloff = max(1.0 - dot(input.local.xy, input.local.xy), 0.0);
     if (falloff <= 0.0) { discard; }
-    let fog = exp(-treePhotoreal.weather.z * length(project.cameraPosition - input.commonPosition) /
-      max(project_size_float(1.0), 1e-9));
-    return vec4<f32>(0.0, 0.0, 0.0, layer.opacity * input.contact * 0.62 * falloff * falloff * fog);
+    return vec4<f32>(0.0, 0.0, 0.0, layer.opacity * input.contact * 0.62 * falloff * falloff);
   }
   var normal = normalize(input.normal);
   ${
@@ -267,7 +265,7 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
   let pore = treeHash(floor(input.local * 40.0 + vec3<f32>(input.seed * 6.0)));
   let detail = 1.0 - smoothstep(0.008, 0.04, footprint);
   let color = input.color * (1.0 + (pore - 0.5) * detail * 0.16);
-  return treeOutput(treeShadeMaterial(color, normal, input.commonPosition, 0.36, 0.86, ${flower ? '0.24' : '0.0'}),
+  return treeOutput(treeShadeMaterial(color, normal, input.commonPosition, 0.86, ${flower ? '0.24' : '0.0'}),
     layer.opacity, input.pickingColor);
 }
 `

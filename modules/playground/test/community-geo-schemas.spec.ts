@@ -183,7 +183,7 @@ test('tree accessors accept typed constants and serialized functions', () => {
     getHeight: 12,
     getTrunkColor: null,
     getCanopyColor: [30, 120, 40],
-    getCrop: [{kind: 'lemon', color: [255, 220, 10], count: 4, radius: 0.1, ripeness: 0.7}],
+    getCrop: {kind: 'lemon', color: [255, 220, 10], count: 4, radius: 0.1},
     getGrowth: 0.8,
     getLean: [20, 110],
     getCoverageWeight: 0.5
@@ -201,6 +201,8 @@ test('tree accessors accept typed constants and serialized functions', () => {
   }
   for (const invalid of [
     {getTreeType: 'maple'},
+    {getCrop: [constants.getCrop]},
+    {getCrop: {...constants.getCrop, ripeness: 0.7}},
     {getPosition: [1]},
     {getSeason: 'monsoon'},
     {getCrop: {kind: 'orange', color: [255, 0, 0], count: 4, radius: 0.1}},

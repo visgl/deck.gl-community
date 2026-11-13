@@ -45,16 +45,10 @@ export type {
   TreeCharacteristics,
   TreeInterpolationSettings,
   TreeLean,
-  TreeSpringSettings,
-  TreeTransitionCallback,
-  TreeTransitionEnter,
   TreeTransitionKey,
   TreeTransitions,
   TreeTransitionSettings
 } from './tree-layer/tree-layer';
-export type {TreeFog} from './tree-layer/tree-photoreal-primitive-layer';
-export {getTreeWindGust, _treeWindGust} from './tree-layer/tree-wind';
-export type {TreeWindGustOptions} from './tree-layer/tree-wind';
 
 export {SelectionPulseExtension} from './selection-pulse-extension/selection-pulse-extension';
 export type {SelectionPulseExtensionProps} from './selection-pulse-extension/selection-pulse-extension';

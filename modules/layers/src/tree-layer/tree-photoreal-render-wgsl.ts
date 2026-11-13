@@ -138,7 +138,7 @@ fn treeWindBend(place: TreePlace, life: TreeLife) -> vec2<f32> {
   let direction = treePhotoreal.wind.yz;
   let across = vec2<f32>(-direction.y, direction.x);
   let world = ((place.anchor.xy - treePhotoreal.world.xy) + place.anchorLow.xy) * treePhotoreal.world.zw;
-  let gust = treeWindGust(vec2<f32>(dot(world, direction), dot(world, across)), treePhotoreal.gust.x, strong, place.windPhase);
+  let gust = treeWindGust(vec2<f32>(dot(world, direction), dot(world, across)), time, strong, place.windPhase);
   let rock = 0.3 * strong * gust * sin(time * (3.0 + 0.16 * place.windPhase) + place.windPhase);
   return direction * bend * (mix(0.6 + 0.75 * gust, 0.62 + 0.72 * gust, strong) + rock) +
     across * bend * 0.12 * sin(1.3 * time + place.windPhase);
@@ -246,29 +246,18 @@ fn treeHash(point: vec3<f32>) -> f32 {
   return fract((p.x + p.y) * p.z);
 }
 
-fn treeFogged(color: vec3<f32>, position: vec3<f32>) -> vec3<f32> {
-  let fog = exp(-treePhotoreal.weather.z * length(project.cameraPosition - position) /
-    max(project_size_float(1.0), 1e-9));
-  return mix(treePhotoreal.fog.rgb, color, fog);
-}
-
 fn treeShadeMaterial(
   color: vec3<f32>,
   normal: vec3<f32>,
   position: vec3<f32>,
-  porosity: f32,
   openness: f32,
   transmission: f32
 ) -> vec3<f32> {
-  if (phongMaterial.unlit != 0u || lighting.enabled == 0) { return treeFogged(color, position); }
+  if (phongMaterial.unlit != 0u || lighting.enabled == 0) { return color; }
   let up = select(vec3<f32>(0.0, 0.0, 1.0), normalize(position), treePhotoreal.clock.w > 0.5);
   let sky = 0.5 + 0.5 * dot(normal, up);
-  let wet = treePhotoreal.weather.x;
-  let frost = treePhotoreal.weather.y;
-  let rime = 0.66 * frost * smoothstep(-0.25, 0.65, dot(normal, up)) * smoothstep(0.08, 0.55, openness);
-  let albedo = mix(color * (1.0 - 0.58 * wet * porosity), vec3<f32>(0.36, 0.4, 0.46), rime);
   let ambient = treeLightColor(lighting.ambientColor);
-  var lit = albedo * phongMaterial.ambient * ambient * openness *
+  var lit = color * phongMaterial.ambient * ambient * openness *
     mix(vec3<f32>(0.44, 0.38, 0.28), vec3<f32>(0.94, 1.0, 1.1), sky * sky);
   let view = normalize(project.cameraPosition - position);
   for (var i = 0; i < lighting.directionalLightCount; i++) {
@@ -276,17 +265,17 @@ fn treeShadeMaterial(
     let toLight = -normalize(light.direction);
     let cosine = dot(normal, toLight);
     let diffuse = max(cosine, 0.0) + max(-cosine, 0.0) * transmission;
-    let shine = pow(max(dot(normal, normalize(toLight + view)), 0.0), max(phongMaterial.shininess, 1.0) * (1.0 + wet * 3.0));
-    let specular = shine * (0.08 + wet * 0.2) * (1.0 - rime) * floatColors_normalize(phongMaterial.specularColor);
-    lit += (albedo * phongMaterial.diffuse * diffuse * openness + specular) * treeLightColor(light.color) * treeShadowDirect(i, position, normal);
+    let shine = pow(max(dot(normal, normalize(toLight + view)), 0.0), max(phongMaterial.shininess, 1.0));
+    let specular = shine * 0.08 * floatColors_normalize(phongMaterial.specularColor);
+    lit += (color * phongMaterial.diffuse * diffuse * openness + specular) * treeLightColor(light.color) * treeShadowDirect(i, position, normal);
   }
   for (var i = 0; i < lighting.pointLightCount; i++) {
     let light = lighting_getPointLight(i);
     let ray = light.position - position;
-    lit += albedo * phongMaterial.diffuse * max(dot(normalize(ray), normal), 0.0) *
+    lit += color * phongMaterial.diffuse * max(dot(normalize(ray), normal), 0.0) *
       treeLightColor(light.color) / getPointLightAttenuation(light, length(ray));
   }
-  return treeFogged(lit, position);
+  return lit;
 }
 
 fn treeOutput(color: vec3<f32>, alpha: f32, pickColor: vec3<f32>) -> vec4<f32> {

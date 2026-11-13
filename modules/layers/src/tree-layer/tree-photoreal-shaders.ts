@@ -37,11 +37,9 @@ const DECLARATION = `uniform treePhotorealUniforms {
   vec4 barkA;
   vec4 barkB;
   vec4 barkC;
-  vec4 weather;
-  vec4 fog;
   vec4 leafBlades;
   vec4 woodLevel;
-  vec4 gust;
+  vec3 leafPaleness;
   float shadowHistoryWeight;
 } treePhotoreal;`;
 
@@ -63,10 +61,6 @@ export type TreePhotorealUniforms = {
   barkB: [number, number, number, number];
   /** Young shoot color (linear RGB), and specular. */
   barkC: [number, number, number, number];
-  /** Wetness, frost, fog density per metre, and fixed leaf caster share (0 for adaptive). */
-  weather: [number, number, number, number];
-  /** What fog turns a surface into, as linear light ahead of the filmic curve, and 1 if there is fog. */
-  fog: [number, number, number, number];
   /**
    * On-screen length, in pixels, a leaf takes the fine blade at (0 if none does) and the macro blade at, pixels
    * on screen of a metre, a metre from the camera, and the template's mean leaf length.
@@ -78,12 +72,8 @@ export type TreePhotorealUniforms = {
    * across, crown radii, 0 for none, and one unused.
    */
   woodLevel: [number, number, number, number];
-  /**
-   * The clock in seconds that gust fronts and their chop run on: `windGustTime`, or the layer clock when that is
-   * null. Then per channel how much of a leaf's flip shows as its paler side, as `getTreeLeafPaleness` has it: 0.85,
-   * and more in a storm, which holds blades over. Past 0.85 in the last, a storm's terms come in.
-   */
-  gust: [number, number, number, number];
+  /** Leaf underside brightness by channel. A strong wind holds blades over. */
+  leafPaleness: [number, number, number];
   /** Weight of a cached shadow map during a projection transition. */
   shadowHistoryWeight: number;
 };
@@ -105,30 +95,12 @@ export const treePhotoreal = {
     barkA: 'vec4<f32>',
     barkB: 'vec4<f32>',
     barkC: 'vec4<f32>',
-    weather: 'vec4<f32>',
-    fog: 'vec4<f32>',
     leafBlades: 'vec4<f32>',
     woodLevel: 'vec4<f32>',
-    gust: 'vec4<f32>',
+    leafPaleness: 'vec3<f32>',
     shadowHistoryWeight: 'f32'
   }
 } as const satisfies ShaderModule<TreePhotorealUniforms>;
-
-/**
- * Linear light that the filmic curve of the photoreal shaders turns into this sRGB color (each 0-255), so
- * that a surface lost in fog shows exactly the fog color asked for.
- */
-export function getTreeFogLight(color: ArrayLike<number>): [number, number, number] {
-  const channel = (value: number): number => {
-    // The inverse of Narkowicz's fit: y (2.43 x^2 + 0.59 x + 0.14) = 2.51 x^2 + 0.03 x, for linear display y.
-    const y = Math.min(0.999, Math.pow(Math.max(0, Math.min(1, value / 255)), 2.2));
-    const a = 2.51 - 2.43 * y;
-    const b = 0.03 - 0.59 * y;
-    const c = -0.14 * y;
-    return (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a);
-  };
-  return [channel(color[0]), channel(color[1]), channel(color[2])];
-}
 
 /**
  * A full crown hides its finest wood, so wood takes a coarser level than its leaves, by this much of a level with all
@@ -664,8 +636,6 @@ const float TREE_WIND_BEND_LIMIT = 0.3;
 
 ${TREE_WIND_GUST_GLSL}
 // Once per vertex: the tree's bend for this frame, faded as a tree tips over, and how its crown takes the wind.
-// Gust fronts and their chop run on the gust clock, treePhotoreal.gust.x, which a host may lock to its story, and
-// everything else on the layer clock.
 void treeWindLoad() {
   float force = treePhotoreal.wind.x * tree.windFlex;
   float strength = force * max(tree.leanCos, 0.0);
@@ -714,7 +684,7 @@ void treeWindLoad() {
   if (directed) {
     // Gusts travel downwind across a grove, in broad, slowly wandering fronts, and a tree rocks in them, at the
     // slow period of something that heavy.
-    float gust = treeWind_getGustAt(along, side, treePhotoreal.gust.x, strong, tree.windPhase);
+    float gust = treeWind_getGustAt(along, side, time, strong, tree.windPhase);
     tree.windGust = min(gust, 1.0);
     float rock = strong > 0.0 ? 0.3 * strong * gust * sin(time * (3.0 + 0.16 * tree.windPhase) + tree.windPhase) : 0.0;
     // A storm holds a tree over, and its gusts come on top of that: a front bows a crown to about twice what it
@@ -902,7 +872,7 @@ vec3 treeLimbSway(int outerLimb, int innerLimb, vec3 point) {
       rotation = cross(offset, push) * 0.5 * curving * mix(1.0, 0.06, sqrt(stiff)) * weight;
       // A limb bends only so far before it streams, as the far end of a long one in a storm would otherwise curl
       // round over its pivot and down to the ground. Short of a storm none bends so far.
-      if (treePhotoreal.gust.w > 0.85) {
+      if (treePhotoreal.leafPaleness.z > 0.85) {
         rotation *= inversesqrt(1.0 + dot(rotation, rotation) * ${floatLiteral(1 / (TREE_LIMB_SWAY_MOST * TREE_LIMB_SWAY_MOST))});
       }
       shorter = 1.0 - dot(rotation, rotation) / 6.0;
@@ -1074,14 +1044,6 @@ vec4 treeCrownLight(vec3 point, float shell) {
   light.y = sky * mix(1.0, mix(0.4, 1.0, smoothstep(0.1, 0.75, known)), thick);
   return light;
 }
-
-// How much of a surface at this common-space point gets through the fog to the camera. Pass it on to
-// treeFogged in the fragment stage.
-float treeFogVisibility(vec3 commonPosition) {
-  float density = treePhotoreal.weather.z;
-  if (density <= 0.0) return 1.0;
-  return exp(-density * length(project.cameraPosition - commonPosition) / max(project_size(1.0), 1e-9));
-}
 `;
 
 /**
@@ -1140,43 +1102,6 @@ vec3 treeCrownBounce(vec4 crown) {
     light += treeLightColor(lighting_getDirectionalLight(0).color) * (0.3 + 0.7 * through);
   }
   return light * vec3(0.05, 0.14, 0.018) * crown.w;
-}
-
-// Wetness, 0-1. Water in its pores darkens a surface: porosity is 1 for bark and about 0.3 for a leaf.
-vec3 treeWetAlbedo(vec3 albedo, float porosity) {
-  return albedo * (1.0 - 0.58 * treePhotoreal.weather.x * porosity);
-}
-
-// A film of water tightens a highlight.
-float treeWetShininess(float shininess) {
-  return shininess * (1.0 + 3.0 * treePhotoreal.weather.x);
-}
-
-// A film of water mirrors the sky. Add it to a surface's color, with how much sky the surface sees.
-vec3 treeWetFilm(vec3 normal, vec3 view, vec3 up, float openSky) {
-  float wetness = treePhotoreal.weather.x;
-  if (wetness <= 0.0) return vec3(0.0);
-  float fresnel = 0.02 + 0.6 * pow(1.0 - max(dot(normal, view), 0.0), 4.0);
-  return treeSkyColor(reflect(-view, normal), up) * fresnel * wetness * openSky;
-}
-
-// How much rime lies on a surface, 0-1: on what faces up and sees the sky, as frost forms where a surface
-// loses its heat to a clear night. Grain is any noise of the surface, 0-1, that breaks up its edge.
-float treeFrostCover(vec3 normal, vec3 up, float openSky, float grain) {
-  float frost = treePhotoreal.weather.y;
-  if (frost <= 0.0) return 0.0;
-  float settled = smoothstep(-0.25, 0.65, dot(normal, up)) * smoothstep(0.08, 0.55, openSky);
-  return 0.66 * smoothstep(0.0, 0.5, frost * settled * 1.3 - grain * mix(0.7, 0.2, frost));
-}
-
-// Rime is pale and matte. Take the gloss down with the same cover.
-vec3 treeFrostAlbedo(vec3 albedo, float cover) {
-  return mix(albedo, vec3(0.36, 0.4, 0.46), cover);
-}
-
-// Fog, in linear light, the last thing before the filmic curve. Visibility is treeFogVisibility's.
-vec3 treeFogged(vec3 color, float visibility) {
-  return mix(treePhotoreal.fog.rgb, color, visibility);
 }
 
 float treeHash(vec3 p) {
@@ -1496,7 +1421,6 @@ out vec4 vTint;
 out vec4 vFate;
 // What treeCrownLight gives.
 out vec4 vCrown;
-out float vFog;
 
 ${TREE_PHOTOREAL_VERTEX_CHUNK}
 ${getTreeShadowVertex(lod === 0)}
@@ -1675,7 +1599,6 @@ ${
     vCrown = vec4(through, through, through, full);
 #endif
   }
-  vFog = treeFogVisibility(commonPosition.xyz);
 
   // Extensions filter the color the part is made of, and light shades the result.
   vec4 filtered = vec4(vTint.rgb, 1.0);
@@ -1703,7 +1626,6 @@ in vec4 vWood;
 in vec4 vTint;
 in vec4 vFate;
 in vec4 vCrown;
-in float vFog;
 
 out vec4 fragColor;
 
@@ -2225,8 +2147,7 @@ ${
 
   if (isSoil) {
     float underside = clamp(vFate.w * 2.0, -1.0, 1.0);
-    // Wet sand darkens far less than bark, which soaks the water up: it keeps most of what treeWetAlbedo takes.
-    base = treeSoil(vRest.xyz, restX, restY, underside, around) / (1.0 - 0.42 * treePhotoreal.weather.x);
+    base = treeSoil(vRest.xyz, restX, restY, underside, around);
     // A torn plate's triangles have flat faces. A little of them keeps its large shape, and the soil hides the rest.
     vec3 face = normalize(cross(positionX, positionY));
     if (dot(face, gView) < 0.0) face = -face;
@@ -2362,16 +2283,9 @@ ${
     }
   }
 
-  // Water fills the bark, and frost lies on what faces up and sees the sky.
   float openSky = vCrown.y;
-  base = treeWetAlbedo(base, 1.0);
-  // Rime stands on the bark and leaves its fissures dark.
-  float frostGrain = treePhotoreal.weather.y > 0.0 && pixel < 0.05 ? treeNoise(onWood * vec3(170.0, 170.0, 60.0)) : 0.5;
-  float frost = treeFrostCover(normal, up, openSky, max(frostGrain, 1.0 - height));
-  base = treeFrostAlbedo(base, frost);
-
   gNormal = normal;
-  gShininess = treeWetShininess(max(material.shininess, 1.0));
+  gShininess = max(material.shininess, 1.0);
 #ifndef MODULE_SHADOW
   {
     float occlusion = vWood.x;
@@ -2406,15 +2320,12 @@ ${
   vec3 ambient = treeHemisphere(normal, up) * openSky + treeCrownBounce(vCrown) * (1.0 - openSky) * 0.62 +
     sunBounce * vec3(0.17, 0.14, 0.1) * below * below;
   // Dry bark has hardly a sheen, and that only on what stands proud of it.
-  float wet = treePhotoreal.weather.x;
-  float gloss = mix(0.3, 1.0, wet) * mix(0.5, 1.0, height) * (1.0 - frost);
+  float gloss = 0.3 * mix(0.5, 1.0, height);
   vec3 color = base * (ambient * occlusion * material.ambient + gDiffuse * material.diffuse) +
-    gSpecular * floatColors_normalize(material.specularColor) * treePhotoreal.barkC.a * gloss * (1.0 + 7.0 * wet) +
-    // Water soaks into bark, so its film is thin, and only on what stands proud.
-    treeWetFilm(normal, gView, up, openSky) * (1.0 - frost) * mix(0.12, 0.4, height);
+    gSpecular * floatColors_normalize(material.specularColor) * treePhotoreal.barkC.a * gloss;
   if (material.unlit || lighting.enabled == 0) color = base;
 
-  fragColor = vec4(treeFilmic(treeFogged(color, vFog)), layer.opacity);
+  fragColor = vec4(treeFilmic(color), layer.opacity);
 #ifndef TREE_WOOD_OPAQUE
   DECKGL_FILTER_COLOR(fragColor, geometry);
 #endif
@@ -2442,24 +2353,6 @@ export function getBladeSurface(species: TreeAppearanceSpecies) {
 const TREE_LEAF_SKY_THROUGH = 0.3;
 /** Material specular colors are for a broad Phong lobe, and this highlight is normalized. */
 const TREE_LEAF_SPECULAR_SCALE = 1.5;
-/**
- * What the beads of water on a wet blade give back of the sun at the peak of their glint, in a lobe as tight as the
- * 256th power of how near a bead faces halfway between the sun and the eye, and how far a bead's slope strays from
- * the blade's, which spreads the glints over a crown.
- */
-const TREE_LEAF_WET_GLINT = 3.0;
-const TREE_LEAF_WET_BEAD_SLOPE = 0.35;
-/** The share of leaves that hold a bead at a slope of their own, which may catch the sun. */
-const TREE_LEAF_WET_BEADED = 0.35;
-/**
- * Close up, the cells of the grid that beads sit in, per blade length, how wide a bead is in a cell, and the share of
- * cells that hold one.
- */
-const TREE_LEAF_WET_BEAD_CELLS = 26;
-const TREE_LEAF_WET_BEAD_RADIUS = 0.2;
-const TREE_LEAF_WET_BEAD_SHARE = 0.5;
-/** How much a far crown's leaf, which stands for others, flashes, as a share of what one leaf would. */
-const TREE_LEAF_WET_FAR = 0.25;
 /**
  * The finer blades' gloss: how bright the tight highlight of the sun is and its broad bloom, and the bloom's exponent
  * of the material's shininess, whose 32nd power is the highlight's. Wax close up is a mirror, and in a low sun a
@@ -2516,19 +2409,6 @@ const TREE_LEAF_HIDDEN_FAR = -0.42;
 const TREE_LEAF_HIDDEN_SHARE = 1 / 9;
 /** And as many of them as this where a leaf is long enough on screen to read as one. */
 const TREE_LEAF_HIDDEN_SHARE_NEAR = 1 / 3;
-/** Of the leaves a tree shows, the shadow pass draws this share: light sees them at a map's texels. */
-export const TREE_LEAF_SHADOW_SHARE = 1 / 16;
-/** Fixed caster share for a bounded local shadow map. Below the adaptive maximum of 1/4. */
-export const TREE_LEAF_STABLE_SHADOW_SHARE = 1 / 8;
-/** But never so few that a far crown casts nothing. */
-export const TREE_LEAF_SHADOW_MINIMUM = 200;
-/**
- * The share of a near tree's leaves that cast, as leaves get long on screen: it reaches 1 at this many pixels, with
- * as many as this at most, as each vertex of every near tree works out whether it is one of them.
- */
-export const TREE_LEAF_SHADOW_FULL_PIXELS = 64;
-export const TREE_LEAF_SHADOW_MOST = 1 / 4;
-
 /**
  * A leaf in the air is drawn along where it went over this many seconds of the layer clock. A render that adds up
  * eight moments of a 1/60 s shutter, half a frame at 30 fps, then has them overlap into one blur.
@@ -2603,7 +2483,7 @@ float treeLeafWave(float t, float side, float seed) {
  * Light on a leaf, in linear space. The coarse blade calls this in its vertex stage, with a few pixels to its
  * name and millions of vertices. The fine and macro blades call it in the fragment stage.
  */
-function getTreeLeafShading(blade: TreeLeafBlade, air = false, listed = false): string {
+function getTreeLeafShading(blade: TreeLeafBlade, air = false): string {
   return /* glsl */ `
 // The normal that light sees, eased toward the crown's with distance, the surface's own, and the view.
 vec3 gNormal;
@@ -2651,95 +2531,9 @@ ${
   gGlow += color * through * (0.55 + 1.15 * toward) * visibility;
 }
 
-// What a bead of water on a wet blade gives back of the sun, directional light 0, of which visibility reaches the
-// blade. A bead is a little dome, and mirrors the sun only from the point on it that faces halfway between the sun
-// and the eye: bead is the normal there, as far as the caller knows it, and glints how much of what it draws holds
-// such a point. So tight a lobe that only a few face the sun at a time, and sparkle, over the blade's green. Only on
-// the side the sun reaches: looking into a low sun through a blade, halfway between them is no way at all.
-vec3 treeLeafGlint(vec3 bead, vec3 view, float visibility, float glints) {
-  if (lighting.directionalLightCount <= 0 || glints * visibility <= 0.0) return vec3(0.0);
-  DirectionalLight sun = lighting_getDirectionalLight(0);
-  vec3 light = normalize(-sun.direction);
-  if (dot(bead, light) <= 0.0) return vec3(0.0);
-  vec3 halfway = light + view;
-  float facing = max(dot(bead, halfway) * inversesqrt(max(dot(halfway, halfway), 1e-6)), 0.0);
-  // To the power of 256.
-  facing *= facing;
-  facing *= facing;
-  facing *= facing;
-  facing *= facing;
-  facing *= facing;
-  facing *= facing;
-  facing *= facing;
-  facing *= facing;
-  return treeLightColor(sun.color) * (${floatLiteral(TREE_LEAF_WET_GLINT)} * treePhotoreal.weather.x * glints * visibility * facing);
-}
-
-${
-  blade === 'far' || blade === 'coarse'
-    ? /* glsl */ `
-// Rain beads on a blade, and a few leaves hold a bead at a slope that catches the sun. A leaf this few pixels long
-// shows it as a fleck: all of it flashes, over its green, as it turns through that slope.${
-        blade === 'far'
-          ? " A far crown's leaf stands for others,\n// and flashes about as one of them would."
-          : ''
-      }
-vec3 treeLeafBeadGlint(vec3 normal, vec3 view, vec4 crown, float bias) {
-  vec3 leaf = vec3(${listed ? 'instanceLeafRef.y' : `float(gl_VertexID / ${air ? TREE_LEAF_AIR_CORNERS : getTreeLeafCorners(blade)})`}, 0.0, 0.0);
-  if (treeHash(leaf + 3.1) >= ${floatLiteral(TREE_LEAF_WET_BEADED)}) return vec3(0.0);
-  vec3 tilt = vec3(treeHash(leaf + 7.3), treeHash(leaf + 11.9), treeHash(leaf + 17.7)) * 2.0 - 1.0;
-  return treeLeafGlint(
-    normalize(normal + ${floatLiteral(TREE_LEAF_WET_BEAD_SLOPE)} * tilt),
-    view,
-    treeDirectionalVisibility(0, bias) * treeCrownSun(crown, 0),
-    ${blade === 'far' ? floatLiteral(TREE_LEAF_WET_FAR) : '1.0'}
-  );
-}
-`
-    : /* glsl */ `
-// Beads of water on a wet blade. Some leaves hold beads at a slope that catches the sun, as the coarser blades' do.
-// Large enough on screen, the beads are domes in some cells of a grid on the blade, and each mirrors the sun from the
-// point on it that faces it, which is all that shows of a bead. Smaller, the leaf flashes as a whole.
-vec3 treeLeafBeadGlint(vec3 normal, vec3 view, vec4 crown, float bias) {
-  // Blade lengths a pixel is wide, read while all of a quad's pixels are here.
-  float footprint = fwidth(vBlade.x);
-  float seed = vInfo.x;
-  if (fract(seed * 59.17) >= ${floatLiteral(TREE_LEAF_WET_BEADED)}) return vec3(0.0);
-  vec3 tilt = vec3(fract(seed * 17.31), fract(seed * 31.71), fract(seed * 43.37)) * 2.0 - 1.0;
-  vec3 bead = normal + ${floatLiteral(TREE_LEAF_WET_BEAD_SLOPE)} * tilt;
-  float cells = ${floatLiteral(TREE_LEAF_WET_BEAD_CELLS)};
-  // Pixels across a cell of the grid: from about two, its beads show as beads.
-  float domes = smoothstep(2.0, 4.0, 1.0 / max(footprint * cells, 1e-6));
-  float glints = 1.0 - domes;
-  if (domes > 0.0) {
-    vec2 p = vBlade.xy * cells;
-    vec2 cell = floor(p);
-    vec2 offset = vec2(treeHash(vec3(cell, seed * 97.0)), treeHash(vec3(cell + 19.0, seed * 61.0))) - 0.5;
-    vec2 off = (p - cell - 0.5 - 0.3 * offset) / ${floatLiteral(TREE_LEAF_WET_BEAD_RADIUS)};
-    float reach = dot(off, off);
-    if (reach < 1.0 && treeHash(vec3(cell + 37.0, seed * 23.0)) < ${floatLiteral(TREE_LEAF_WET_BEAD_SHARE)}) {
-      vec3 axisX = normalize(vAxisX);
-      vec3 axisY = cross(normalize(vAxisZ), axisX);
-      bead += (axisX * off.x + axisY * off.y) * 1.6 / sqrt(1.0 - 0.9 * reach);
-      // A bead's rim, a pixel soft.
-      float rim = min(2.0 * footprint * cells / ${floatLiteral(TREE_LEAF_WET_BEAD_RADIUS)}, 0.9);
-      glints += domes * (1.0 - smoothstep(1.0 - rim, 1.0, reach)) * ${floatLiteral(1 / TREE_LEAF_WET_BEAD_SHARE)};
-    }
-  }
-  return treeLeafGlint(normalize(bead), view, treeDirectionalVisibility(0, bias) * treeCrownSun(crown, 0), glints);
-}
-`
-}
-// What rain on a blade adds to its light, with normal toward the eye and gloss how glossy it is: a film of water that
-// mirrors the sky, and beads that glint in the sun. All behind the rain's own early-out, so a dry leaf pays nothing.
-vec3 treeLeafWet(vec3 normal, vec3 view, vec3 up, vec4 crown, float gloss, float bias) {
-  if (treePhotoreal.weather.x <= 0.0) return vec3(0.0);
-  return treeWetFilm(normal, view, up, crown.y) * gloss + treeLeafBeadGlint(normal, view, crown, bias);
-}
-
 // The color of a leaf. Top is what its upper side is made of, in linear space. Look is its normal's blend toward
-// the crown's and its gloss, crown is what treeCrownLight gave it, wax how waxy its surface is here, grain any
-// noise that breaks up rime, and veins how its veins change what comes through it.
+// the crown's and its gloss, crown is what treeCrownLight gave it, wax how glossy the surface is,
+// and veins how its veins change what comes through it.
 vec3 treeLeafShade(
   vec3 top,
   vec3 bladeNormal,
@@ -2749,7 +2543,6 @@ vec3 treeLeafShade(
   vec2 look,
   vec4 crown,
   float wax,
-  float grain,
   float veins,
   bool upper,
   float bias
@@ -2765,7 +2558,7 @@ vec3 treeLeafShade(
   if (dot(gNormal, gNormal) < 0.01) gNormal = facingNormal;
   gSurface = facingNormal;
   gWax = wax * look.y * (upper ? 1.0 : 0.12);
-  gShininess = treeWetShininess(max(material.shininess, 2.0));
+  gShininess = max(material.shininess, 2.0);
 
   // The underside is paler, matte and less green.
   float pigment = dot(top, vec3(0.3, 0.55, 0.15));
@@ -2773,15 +2566,6 @@ vec3 treeLeafShade(
   vec3 albedo = upper ? top : under;
   // What gets through the blade: yellow-green, from the same pigments.
   vec3 glowColor = pow(max(top, vec3(0.002)), vec3(0.75)) * vec3(0.95, 1.2, 0.34) * veins;
-
-  // Weather: rain darkens a leaf and strengthens its sheen, and rime lies on what faces the open sky.
-  float wetness = treePhotoreal.weather.x;
-  albedo = treeWetAlbedo(albedo, 0.3);
-  gWax *= 1.0 + 0.8 * wetness;
-  float rime = upper ? treeFrostCover(facingNormal, up, crown.y, grain) : 0.0;
-  albedo = treeFrostAlbedo(albedo, rime);
-  gWax *= 1.0 - rime;
-  glowColor *= 1.0 - 0.8 * rime;
 
   for (int i = 0; i < lighting.directionalLightCount; i++) {
     DirectionalLight light = lighting_getDirectionalLight(i);
@@ -2809,8 +2593,7 @@ vec3 treeLeafShade(
   vec3 sheen = treeSkyColor(reflect(-view, facingNormal), up) * fresnel * crown.y * gWax;
   vec3 specular = gSpecular * floatColors_normalize(material.specularColor) * ${floatLiteral(TREE_LEAF_SPECULAR_SCALE)};
   vec3 color = albedo * (sky * material.ambient + gDiffuse * material.diffuse) +
-    glowColor * (gGlow * material.diffuse + skyThrough * material.ambient) + specular + sheen +
-    treeLeafWet(facingNormal, view, up, crown, look.y, bias);
+    glowColor * (gGlow * material.diffuse + skyThrough * material.ambient) + specular + sheen;
   if (material.unlit || lighting.enabled == 0) color = albedo;
   return color;
 }
@@ -2901,7 +2684,7 @@ uniform sampler2D treeLeaves;
 
 ${
   air
-    ? /* glsl */ `// Light on the leaf, in linear space, through the fog.
+    ? /* glsl */ `// Light on the leaf, in linear space.
 out vec3 vColor;
 // Where this corner is on screen from the leaf as it is now, in pixels.
 out vec2 vAirPixel;
@@ -2914,14 +2697,14 @@ flat out vec4 vAirMotion;
 // The arcs' radius, and how far it went on screen, in pixels.
 flat out vec2 vAirShape;`
     : coarse
-      ? /* glsl */ `// Light on this corner, in linear space, through the fog.
+      ? /* glsl */ `// Light on this corner, in linear space.
 out vec3 vColor;`
       : /* glsl */ `out vec3 vPosition;
 out vec3 vCamera;
 out vec3 vOutward;
 out vec3 vTop;
-// Seed, how dead, shadow bias in metres, and how much gets through the fog.
-out vec4 vInfo;
+// Seed, how dead, and shadow bias in metres.
+out vec3 vInfo;
 // How much of the sun and the sky the crown lets through: treeCrownLight.
 out vec4 vCrown;
 // Leaf normal blend and specular scale, continuous across levels of detail.
@@ -2944,7 +2727,7 @@ vec2 treeLeafLit = vec2(1.0);
 float treeDirectionalVisibility(int index, float biasMetres) {
   return index == 0 ? treeLeafLit.x : index == 1 ? treeLeafLit.y : 1.0;
 }
-${getTreeLeafShading(blade, air, listed)}`
+${getTreeLeafShading(blade, air)}`
     : TREE_LEAF_MARGIN
 }
 ${getTreeLeafVertexBlade(blade, species)}
@@ -3023,35 +2806,6 @@ ${
   vec4 detail = treeStateTexel(row, ${DETAIL});
   float leafDetail = detail.x;
   float count = treePhotoreal.shape.z * leafDetail;
-#ifdef MODULE_SHADOW
-  if (shadow.drawShadowMap) {
-    float fixedShare = treePhotoreal.weather.w;
-    if (fixedShare > 0.0) {
-      // For a tree already at LOD 0, the light sees the same leaf prefix and sizes throughout
-      // this tier. The main camera still chooses the visible blades independently.
-      leafDetail = 1.0;
-      detail.x = 1.0;
-      count = treePhotoreal.shape.z * fixedShare;
-    } else {
-      float share = ${floatLiteral(TREE_LEAF_SHADOW_SHARE)};
-${
-  blade === 'coarse' && !air
-    ? /* glsl */ `      // Adaptive maps draw more casters as a tree's leaves get larger on screen.
-      if (leafDetail > 0.75 && treePhotoreal.leafBlades.z > 0.0) {
-        geometry.worldPosition = treeStateTexel(row, ${ANCHOR}).xyz;
-        vec3 reach = project.cameraPosition -
-          project_position(geometry.worldPosition, treeStateTexel(row, ${ANCHOR_LOW}).xyz);
-        float pixels = treePhotoreal.leafBlades.w * treeStateTexel(row, ${MISC}).w * treePhotoreal.leafBlades.z * project_size(1.0);
-        float nearShare = clamp(pixels * pixels / max(dot(reach, reach) * ${floatLiteral(TREE_LEAF_SHADOW_FULL_PIXELS * TREE_LEAF_SHADOW_FULL_PIXELS)}, 1e-12), share, ${floatLiteral(TREE_LEAF_SHADOW_MOST)});
-        share = mix(share, nearShare, smoothstep(0.75, 1.0, leafDetail));
-      }`
-    : ''
-}
-      count *= share;
-    }
-  }
-#endif
-  count = max(count, treePhotoreal.shape.w);
   float index = float(leaf);
   if (index >= count) return;
 
@@ -3591,7 +3345,7 @@ ${
   // What a flip shows is far paler than any upper side, and paler still where a storm holds it over: its underside,
   // matte and lit by the open sky it faces, which in a storm is far brighter than the light among the leaves. How much
   // of that shows is the layer's, by its wind, so that a leaf carries nothing of it here from its wind.
-  top = mix(top, vec3(dot(top, vec3(0.3, 0.55, 0.15))) * vec3(1.9, 2.1, 1.1) + vec3(0.02, 0.026, 0.012), flip * treePhotoreal.gust.yzw);
+  top = mix(top, vec3(dot(top, vec3(0.3, 0.55, 0.15))) * vec3(1.9, 2.1, 1.1) + vec3(0.02, 0.026, 0.012), flip * treePhotoreal.leafPaleness);
   top = mix(top, vec3(0.115, 0.066, 0.026) * mix(0.75, 1.25, hashC), brown);
   // On the ground a leaf dries, each at its own pace, and the longer it has lain the more it takes the color of what
   // it is sinking into.
@@ -3613,7 +3367,6 @@ ${
     crown = mix(crown, away, flight);
     crown.xyz *= mix(1.0, mix(0.45, 1.0, smoothstep(-0.01, 0.03, point.z)), lying);
   }
-  float fog = treeFogVisibility(commonPosition.xyz);
 
   // Extensions filter the color the leaf is made of, and light shades the result.
   vec4 filtered = vec4(top, 1.0);
@@ -3631,22 +3384,18 @@ ${
   geometry.normal = bladeNormal;
   vec3 view = normalize(project.cameraPosition - commonPosition.xyz);
   vec3 outwardCommon = normalize(treeToCommonDirection(outward));
-  vColor = treeFogged(
-    treeLeafShade(
-      top,
-      bladeNormal,
-      commonPosition.xyz,
-      view,
-      outwardCommon,
-      look,
-      crown,
-      1.0 - 0.8 * dead,
-      0.35 + 0.3 * fract(seed * 7.31),
-      1.0,
-      dot(bladeNormal, view) >= 0.0,
-      shadowBias
-    ),
-    fog
+  vColor = treeLeafShade(
+    top,
+    bladeNormal,
+    commonPosition.xyz,
+    view,
+    outwardCommon,
+    look,
+    crown,
+    1.0 - 0.8 * dead,
+    1.0,
+    dot(bladeNormal, view) >= 0.0,
+    shadowBias
   );`
     : /* glsl */ `
 #ifdef MODULE_SHADOW
@@ -3663,14 +3412,14 @@ ${
   geometry.normal = vAxisZ;
   vLook = look;
   vCrown = crown;
-  vInfo = vec4(seed, dead, shadowBias, fog);
+  vInfo = vec3(seed, dead, shadowBias);
   // Close up, a leaf is the dark green its glossy top is. From further, what a coarser blade stands for is paler, as
   // it has the sheen and the bright light of many leaves in it, and a leaf goes to that as it gets smaller.
   vTop = top * mix(vec3(1.0), ${'vec3(' + TREE_LEAF_NEAR_TOP.map(floatLiteral).join(', ') + ')'}, nearness);
   // A storm holds the blade over, and what shows is its paler underside, as top has it already: matte, and facing
   // the open sky, which in a storm is far brighter than the light among the leaves. Its frame turns that way. Only
   // the layer's storm does this, so a breeze runs none of it.
-  if (treePhotoreal.gust.w > 0.85) {
+  if (treePhotoreal.leafPaleness.z > 0.85) {
     if (abaxial > 0.0) {
       vec3 up = treePhotoreal.clock.w > 0.5 ? normalize(commonPosition.xyz) : vec3(0.0, 0.0, 1.0);
       float side = dot(vAxisZ, project.cameraPosition - commonPosition.xyz) >= 0.0 ? 1.0 : -1.0;
@@ -3805,7 +3554,7 @@ in vec3 vPosition;
 in vec3 vCamera;
 in vec3 vOutward;
 in vec3 vTop;
-in vec4 vInfo;
+in vec3 vInfo;
 in vec4 vCrown;
 in vec2 vLook;
 in vec3 vBlade;
@@ -3892,12 +3641,6 @@ void main(void) {
   float wave = treeLeafWave(t, side, seed) * smoothstep(0.1, 0.18, t);
   slopeAcross += ${floatLiteral(2 * surface.ruffle)} * wave * place / max(halfWidth, 0.01);
   vec3 smoothNormal = normalize(axisZ - axisX * slopeAlong - axisY * slopeAcross);
-  // Rime starts at the margin, and grows in, in fine crystals.
-  float grain = 0.0;
-  if (treePhotoreal.weather.y > 0.0) {
-    grain = treeNoise(vec3(t * 37.0, y * 90.0, seed * 31.0)) * 0.6 +
-      treeNoise(vec3(t * 150.0, y * 300.0, seed * 7.0)) * 0.4 - 0.25 * place * place;
-  }
   if (midrib > 0.0) {
     // Slopes over a pixel and a half: the midrib's keel narrows to well under a pixel toward the tip, and a slope read
     // closer than that would flip it from side to side from pixel to pixel.
@@ -3940,12 +3683,11 @@ void main(void) {
     vLook,
     vCrown,
     wax,
-    grain,
     throughVeins,
     gl_FrontFacing,
     vInfo.z
   );
-  fragColor = vec4(treeFilmic(treeFogged(color, vInfo.w)), layer.opacity);
+  fragColor = vec4(treeFilmic(color), layer.opacity);
   DECKGL_FILTER_COLOR(fragColor, geometry);
 }
 `;
@@ -4062,9 +3804,9 @@ out vec4 vRipe;
 out vec4 vUnripe;
 // How much it is among leaves (on the ground, how dark a patch is), part, along the part, shadow bias in metres.
 out vec4 vInfo;
-// How far it has come to rest on the ground, how far fallen has passed its threshold, what fog leaves of it, and
+// How far it has come to rest on the ground, how far fallen has passed its threshold, and
 // where a leaf crosses a dot.
-out vec4 vRest;
+out vec3 vRest;
 // How much of the sun and the sky the crown lets through: treeCrownLight.
 out vec4 vCrown;
 // Out of the crown from it, in common space.
@@ -4526,26 +4268,9 @@ vec3 treeCropLitShade(vec3 normal, float wrap) {
   return color;
 }
 
-// Weather on a whole crop seen as a dot: rain darkens what it is made of, and rime lies over the half of it
-// that faces the sky.
-vec3 treeCropLitWeather(vec3 albedo, float porosity, float openSky) {
-  albedo *= 1.0 - 0.58 * treePhotoreal.weather.x * porosity;
-  float frost = treePhotoreal.weather.y;
-  if (frost <= 0.0) return albedo;
-  float cover = 0.33 * smoothstep(0.0, 0.5, frost * 1.3 * smoothstep(0.08, 0.55, openSky));
-  return mix(albedo, vec3(0.36, 0.4, 0.46), cover);
-}
-
-// What fog leaves of the light on a dot, ahead of its tone curve.
-vec3 treeCropLitFog(vec3 color, float visibility) {
-  return treePhotoreal.weather.z > 0.0 ? mix(treePhotoreal.fog.rgb, color, visibility) : color;
-}
-
 vec3 treeCropLitTone(vec3 x) {
   if (material.unlit || lighting.enabled == 0) return sqrt(x);
   vec3 mapped = clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
-  // What is lost in fog must come out exactly the color asked for, so there the true curve is worth its cost.
-  if (treePhotoreal.weather.z > 0.0) return pow(mapped, vec3(1.0 / 2.2));
   return sqrt(mapped) * 1.02;
 }
 #endif
@@ -4880,14 +4605,13 @@ void main(void) {
   treeCropTints();
   // No two fruit quite one color: some a deeper orange, some yellower.
   cropRipe *= mix(vec3(1.05, 0.92, 0.9), vec3(0.97, 1.09, 1.1), hashD);
-  float fogLeft = treeFogVisibility(commonPosition.xyz);
   float leafCut = treeCropLeafCut(isContact ? 0.0 : among, leafCutHash, radiusPixels);
 #ifdef TREE_CROP_LIT
   if (isContact) {
     vLit = vec3(0.0);
     vLitRight = vec3(0.0);
     vLitUp = vec3(0.0);
-    vLitCore = vec3(contact * fogLeft);
+    vLitCore = vec3(contact);
   } else {
     vec3 ripe = pow(cropRipe, vec3(1.12)) * vec3(0.52, 0.46, 0.3);
     vec3 green = cropGreen * vec3(0.62, 0.38, 0.75);
@@ -4896,25 +4620,24 @@ ${
     ? /* glsl */ `    vec3 albedo = treeRindColor(green, ripe, ripeness, ripeness) * mix(0.9, 1.08, hashC);`
     : /* glsl */ `    vec3 albedo = mix(green, ripe, ripeness) * cropPart.y;`
 }
-    albedo = treeCropLitWeather(albedo, ${rind ? '0.12' : '0.7'}, crown.y);
     treeCropLitLoad(commonPosition.xyz, crown, treeCropSunShare(among, fract(seed * 17.93)));
 ${rind ? `    litAmbient *= ${TREE_CROP_RIND_SHADE};` : ''}
     bool lit = !(material.unlit || lighting.enabled == 0);
     vec3 shade = lit ? treeCropLitShade(gDotToward, 0.18) : vec3(1.0);
-    // What a waxy skin mirrors, on average: the sky it can see, and more of it wet.
-    vec3 sheen = lit ? litAmbient * vec3(0.09) * (1.0 - 0.4 * among) * (1.0 + 2.0 * treePhotoreal.weather.x) : vec3(0.0);
-    vLit = treeCropLitTone(treeCropLitFog(albedo * shade + sheen, fogLeft));
+    // What a waxy skin mirrors, on average: the sky it can see, on the side facing the sky.
+    vec3 sheen = lit ? litAmbient * vec3(0.09) * (1.0 - 0.4 * among) : vec3(0.0);
+    vLit = treeCropLitTone(albedo * shade + sheen);
     // It is a ball: light falls off across it, and on a display goes about as its square root.
     vLitRight = vec3(0.0);
     vLitUp = vec3(0.0);
     if (lit) {
       vec3 toward = max(shade, vec3(1e-3));
-      vLitRight = vLit * (treeCropLitShade(normalize(gDotToward + gDotRight), 0.18) / toward - 1.0) * 0.5 * fogLeft;
-      vLitUp = vLit * (treeCropLitShade(normalize(gDotToward + gDotUp), 0.18) / toward - 1.0) * 0.5 * fogLeft;
+      vLitRight = vLit * (treeCropLitShade(normalize(gDotToward + gDotRight), 0.18) / toward - 1.0) * 0.5;
+      vLitUp = vLit * (treeCropLitShade(normalize(gDotToward + gDotUp), 0.18) / toward - 1.0) * 0.5;
     }
-    // A leaf that crosses it, from its own side, and how much of that fog leaves.
+    // A leaf that crosses it, from its own side.
     float cutAngle = leafCutHash * TREE_TWO_PI * 5.0;
-    vLitCore = vec3(vec2(cos(cutAngle), sin(cutAngle)) * fogLeft, leafCut);
+    vLitCore = vec3(vec2(cos(cutAngle), sin(cutAngle)), leafCut);
   }
 #else
   vPosition = commonPosition.xyz;
@@ -4922,7 +4645,7 @@ ${rind ? `    litAmbient *= ${TREE_CROP_RIND_SHADE};` : ''}
   vAxisZ = treeToCommonDirection(axisZ);
   vAway = treeToCommonDirection(treeLeanTurn(away));
   vInfo = vec4(among, part, cropPart.y, shadowBias);
-  vRest = vec4(grounded, max(passed, 0.0), fogLeft, leafCut);
+  vRest = vec3(grounded, max(passed, 0.0), leafCut);
   vCrown = crown;
   vRipe = isContact ? contactPlace : vec4(cropRipe, ripeness);
   vUnripe = vec4(cropGreen, cropSeed);
@@ -5189,7 +4912,6 @@ void main(void) {
   // The crown takes most of its light, wherever it has got to, and the leaves of its own shoot more.
   vec4 crown = treeCrownLight(mix(twig, path, progress), mix(cropShell, 1.0, progress));
   float among = treeCropAmong(crown, hashC, progress);
-  float fogLeft = treeFogVisibility(commonPosition.xyz);
   float early = hashE * 0.38;
   float ripeness = smoothstep(early, early + 0.62, cropSlot.z);
   treeCropTints();
@@ -5201,20 +4923,19 @@ void main(void) {
     // On the ground a petal browns, the first to fall the most.
     float aged = grounded * smoothstep(0.25, 0.95, passed) * fract(seed * 19.3);
     tint = mix(tint, vec3(0.34, 0.24, 0.13), aged * 0.75);
-    tint = treeCropLitWeather(tint, 0.22, crown.y);
     treeCropLitLoad(commonPosition.xyz, crown, treeCropSunShare(among, fract(seed * 17.93)));
     litThrough = 0.8 * (1.0 - grounded);
     vec3 shade = material.unlit || lighting.enabled == 0 ? vec3(1.0) : treeCropLitShade(dotNormal, 0.5);
-    vLit = treeCropLitTone(treeCropLitFog(tint * shade, fogLeft));
+    vLit = treeCropLitTone(tint * shade);
     vLitRight = vec3(0.0);
     vLitUp = vec3(0.0);
-    vLitCore = treeCropLitTone(treeCropLitFog(vec3(0.55, 0.34, 0.03) * shade, fogLeft));
+    vLitCore = treeCropLitTone(vec3(0.55, 0.34, 0.03) * shade);
   }
 #else
   vPosition = commonPosition.xyz;
   vAway = treeToCommonDirection(treeLeanTurn(away));
   vInfo = vec4(among, part, cropPart.y, shadowBias);
-  vRest = vec4(grounded, max(passed, 0.0), fogLeft, 1.3);
+  vRest = vec3(grounded, max(passed, 0.0), 1.3);
   vCrown = crown;
   vRipe = vec4(cropRipe, ripeness);
   vUnripe = vec4(cropGreen, cropSeed);
@@ -5271,12 +4992,11 @@ ${
     return;
   }
   // A ball darkens toward its edge. A leaf crosses many of them, from its own side, and what is right behind
-  // the leaf is in its shade, so a far fruit is an irregular fleck among leaves and not a disc on top of them. The
-  // length of the leaf's direction is what fog leaves of all this, as fog lies in front of it.
-  float clear = length(vLitCore.xy);
-  color *= 1.0 - 0.26 * clear * (1.0 - sqrt(max(1.0 - rho * rho, 0.0)));
+  // the leaf is in its shade, so a far fruit is an irregular fleck among leaves.
+  float leafDirectionLength = length(vLitCore.xy);
+  color *= 1.0 - 0.26 * leafDirectionLength * (1.0 - sqrt(max(1.0 - rho * rho, 0.0)));
   float beyondCut = dot(q, vLitCore.xy) - vLitCore.z;
-  color *= 1.0 - 0.4 * clear * smoothstep(-0.6, 0.0, beyondCut);
+  color *= 1.0 - 0.4 * leafDirectionLength * smoothstep(-0.6, 0.0, beyondCut);
   coverage *= 1.0 - clamp(beyondCut * pixels * 0.5 + 0.5, 0.0, 1.0);`
 }
   if (coverage <= (picking.isActive > 0.5 ? 0.5 : 0.0)) discard;
@@ -5298,7 +5018,7 @@ in vec3 vPosition;
 in vec4 vRipe;
 in vec4 vUnripe;
 in vec4 vInfo;
-in vec4 vRest;
+in vec3 vRest;
 in vec4 vCrown;
 flat in vec3 vAway;
 ${
@@ -5384,18 +5104,6 @@ float treeCropOpen(vec3 normal, vec3 up, float among) {
   float outward = smoothstep(-0.8, 0.45, dot(normal, vAway));
   float roofed = smoothstep(0.25, 0.95, dot(normal, up));
   return mix(1.0, mix(0.34, 1.0, outward) * (1.0 - 0.34 * roofed), among);
-}
-
-// Rain and rime on what a crop is made of. Porosity is as in treeWetAlbedo, and grain any noise of the surface.
-// A ball has no edge for rime to stop at, so share says how much it takes where it lies.
-vec3 treeCropWeather(vec3 albedo, vec3 normal, vec3 up, float porosity, float grain, float share) {
-  albedo = treeWetAlbedo(albedo, porosity);
-  gShininess = treeWetShininess(gShininess);
-  gWax *= 1.0 + 0.8 * treePhotoreal.weather.x;
-  float rime = treeFrostCover(normal, up, vCrown.y, grain) * share;
-  gWax *= 1.0 - rime;
-  gThrough *= 1.0 - 0.8 * rime;
-  return treeFrostAlbedo(albedo, rime);
 }
 
 ${
@@ -5502,13 +5210,13 @@ ${dot ? '  vec4 dotPoint = treeCropDotPoint();' : ''}
   if (part == ${TREE_CROP_PART.CONTACT}.0) {
 ${
   dot
-    ? /* glsl */ `    // Dark to nothing, in how much of a crop lies here. Fog hides it as it hides the ground.
+    ? /* glsl */ `    // Dark to nothing, in how much of a crop lies here.
     float falloff = max(1.0 - dot(dotPoint.xy, dotPoint.xy), 0.0);
-    fragColor = vec4(vec3(0.0), layer.opacity * vInfo.x * 0.6 * falloff * falloff * vRest.z);`
+    fragColor = vec4(vec3(0.0), layer.opacity * vInfo.x * 0.6 * falloff * falloff);`
     : /* glsl */ `    // Dark to nothing under the ball, in how much of a crop lies here. Beyond it, where the ground is in the
-    // sun, its shadow, in the color the ground's other shadows have. Fog hides both as it hides the ground.
+    // sun, its shadow, in the color the ground's other shadows have.
     float falloff = max(1.0 - dot(vRipe.xy, vRipe.xy), 0.0);
-    float under = vInfo.x * 0.62 * falloff * falloff * vRest.z;
+    float under = vInfo.x * 0.62 * falloff * falloff;
     vec3 shadowColor = vec3(0.0);
     float shadowAlpha = 0.45;
 #ifdef MODULE_SHADOW
@@ -5517,7 +5225,7 @@ ${
       shadowAlpha = shadow.color.a;
     }
 #endif
-    float thrown = vLocal.z * shadowAlpha * smoothstep(1.06, 0.72, length(vRipe.zw)) * vRest.z;
+    float thrown = vLocal.z * shadowAlpha * smoothstep(1.06, 0.72, length(vRipe.zw));
     if (thrown > 0.0) thrown *= treeDirectionalVisibility(0, vInfo.w);
     float alpha = 1.0 - (1.0 - under) * (1.0 - thrown);
     fragColor = vec4(shadowColor * thrown * (1.0 - under) / max(alpha, 1e-3), layer.opacity * alpha);`
@@ -5547,10 +5255,6 @@ ${
   gWax = 1.0;
   float among = vInfo.x;
   float occlusion = 1.0;
-  float porosity = 0.7;
-  float rimeGrain = 0.5;
-  float rimeShare = 1.0;
-  if (treePhotoreal.weather.y > 0.0) rimeGrain = treeNoise(local * 31.0 + seed * 47.0);
 
   if (part == ${TREE_CROP_PART.CALYX}.0) {
     // Sepals: a dull waxy green, drying brown at their tips and on a fruit that has come down.
@@ -5570,7 +5274,6 @@ ${
     gShininess = 12.0;
     gWax = 0.25;
     gBroad = 0.3;
-    porosity = 1.0;
   } else {
 ${
   rind
@@ -5594,12 +5297,6 @@ ${
     gBroad = 1.0;
     gWrap = 0.2;
     gWax = 1.5;
-    porosity = 0.12;
-    // Rime gathers toward the top of a fruit in fine crystals, thinning out down its sides.
-    if (treePhotoreal.weather.y > 0.0) {
-      rimeShare = smoothstep(-0.05, 0.9, dot(smoothNormal, up)) *
-        mix(0.42, 1.0, smoothstep(0.3, 0.72, treeNoise(local * 97.0 + seed * 29.0)));
-    }
 ${
   dot
     ? /* glsl */ `    // The calyx as a dark spot on top; too small for glands, which still spread the highlight, and it is
@@ -5687,7 +5384,6 @@ ${
     // The pits are shaded.
     albedo *= 1.0 - 0.2 * cavity;
     occlusion *= 1.0 - 0.28 * cavity;
-    if (treePhotoreal.weather.y > 0.0) rimeGrain = mix(rimeGrain, cavity, 0.4);
     // Where the glands can't be seen they still spread the highlight.
     gShininess = mix(gShininess * 0.3, gShininess, shown);`
 }
@@ -5709,8 +5405,6 @@ ${
 }
   }
 
-  // Weather, then light. The smooth surface is what rime settles on, and what a shadow is measured against.
-  albedo = treeCropWeather(albedo, smoothNormal, up, porosity, rimeGrain, rimeShare);
   gNormal = normal;
   gView = view;
   gSunShare = treeCropSunShare(among, fract(seed * 17.93));
@@ -5730,21 +5424,20 @@ ${dot ? '' : '  treeShadowNormal = smoothNormal;'}
   float fresnel = 0.038 + 0.42 * pow(1.0 - max(dot(normal, view), 0.0), 5.0);
   vec3 mirrored = treeCropSoftSky(reflected, up) * fresnel * vCrown.y * openToMirror * occlusion * gWax;
   vec3 color = albedo * (sky * material.ambient${rind ? ` * ${TREE_CROP_RIND_SHADE}` : ''} + gDiffuse * material.diffuse) +
-    gSpecular * floatColors_normalize(material.specularColor) + mirrored +
-    treeWetFilm(normal, view, up, vCrown.y * openToMirror);
+    gSpecular * floatColors_normalize(material.specularColor) + mirrored;
   if (material.unlit || lighting.enabled == 0) color = albedo;
 ${
   dot
     ? /* glsl */ `  // A leaf that crosses a small dot, from its own side, and it is in shade right behind that leaf. A mesh has
   // real leaves in front of it.
   float cutAngle = fract(seed * 47.13) * TREE_PI * 10.0;
-  float beyondCut = dot(dotPoint.xy, vec2(cos(cutAngle), sin(cutAngle))) - vRest.w;
+  float beyondCut = dot(dotPoint.xy, vec2(cos(cutAngle), sin(cutAngle))) - vRest.z;
   color *= mix(1.0, 0.55, smoothstep(-0.5, 0.0, beyondCut));
   float alpha = dotPoint.w * (1.0 - clamp(beyondCut * vDotShape.x * 0.5 + 0.5, 0.0, 1.0));`
     : ''
 }
 
-  fragColor = vec4(treeFilmic(treeFogged(color, vRest.z)), layer.opacity${dot ? ' * alpha' : ''});
+  fragColor = vec4(treeFilmic(color), layer.opacity${dot ? ' * alpha' : ''});
   DECKGL_FILTER_COLOR(fragColor, geometry);
 }
 `;
@@ -5847,9 +5540,6 @@ ${
   }
 
   vec3 up = treeUp(vPosition);
-  float rimeGrain = 0.5;
-  if (treePhotoreal.weather.y > 0.0) rimeGrain = treeNoise(local * vec3(23.0, 31.0, 7.0) + seed * 47.0);
-  albedo = treeCropWeather(albedo, normal, up, 0.22, rimeGrain, 1.0);
   gNormal = normal;
   gView = view;
   gSunShare = treeCropSunShare(among, fract(seed * 17.93));
@@ -5865,11 +5555,10 @@ ${
   vec3 glowColor = pow(max(albedo, vec3(0.002)), vec3(0.8)) * vec3(1.0, 0.96, 0.78);
   vec3 color = albedo * (sky * material.ambient + gDiffuse * material.diffuse) +
     glowColor * gGlow * material.diffuse +
-    gSpecular * floatColors_normalize(material.specularColor) + mirrored +
-    treeWetFilm(normal, view, up, vCrown.y * openToMirror);
+    gSpecular * floatColors_normalize(material.specularColor) + mirrored;
   if (material.unlit || lighting.enabled == 0) color = albedo;
 
-  fragColor = vec4(treeFilmic(treeFogged(color, vRest.z)), layer.opacity);
+  fragColor = vec4(treeFilmic(color), layer.opacity);
   DECKGL_FILTER_COLOR(fragColor, geometry);
 }
 `;

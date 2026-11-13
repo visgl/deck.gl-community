@@ -30,33 +30,8 @@ export type TreeTransitionKey =
   | 'getTrunkColor'
   | 'getCrop';
 
-/**
- * Transition lifecycle callback. Tweens are per tree, so unlike deck.gl's per-attribute callbacks
- * this one fires once per tree and field group, and receives which ones. A callback written for
- * deck.gl, which takes no arguments, works unchanged.
- */
-export type TreeTransitionCallback = (row: number, key: TreeTransitionKey) => void;
-
-/**
- * Gives the value a newly added row starts from. `toValue` holds the row's target for the field
- * group, in the units listed on {@link TreeStateStore}. A shorter result, or a non-finite entry,
- * leaves that channel at its target. A single number fills every channel.
- */
-export type TreeTransitionEnter = (toValue: number[]) => ArrayLike<number> | number;
-
-type TreeTransitionSettingsBase = {
-  /** Start value of a row added with `isNew`. Without it a new row jumps to its target. */
-  enter?: TreeTransitionEnter;
-  /** Called when a tween starts, including when it restarts after a retarget. */
-  onStart?: TreeTransitionCallback;
-  /** Called when a tween reaches its target. */
-  onEnd?: TreeTransitionCallback;
-  /** Called when a tween is retargeted or removed before reaching its target. */
-  onInterrupt?: TreeTransitionCallback;
-};
-
 /** deck.gl's interpolation settings. */
-export type TreeInterpolationSettings = TreeTransitionSettingsBase & {
+export type TreeInterpolationSettings = {
   type?: 'interpolation';
   /** Milliseconds. Zero, negative or non-finite durations jump. */
   duration: number;
@@ -64,20 +39,8 @@ export type TreeInterpolationSettings = TreeTransitionSettingsBase & {
   easing?: (t: number) => number;
 };
 
-/**
- * deck.gl's per-frame spring, `next = cur + velocity + (dest - cur) * stiffness - velocity * damping`,
- * stepped at 1/60 s of elapsed time so it does not depend on the frame rate.
- */
-export type TreeSpringSettings = TreeTransitionSettingsBase & {
-  type: 'spring';
-  /** Tension. @default 0.05 */
-  stiffness?: number;
-  /** Friction. @default 0.5 */
-  damping?: number;
-};
-
-/** A duration in milliseconds, or settings in deck.gl's shapes. */
-export type TreeTransitionSettings = number | TreeInterpolationSettings | TreeSpringSettings;
+/** A duration in milliseconds, or interpolation settings. */
+export type TreeTransitionSettings = number | TreeInterpolationSettings;
 
 /**
  * The `transitions` prop. A key that is absent falls back to `getTree`. A key that is present but
@@ -199,8 +162,10 @@ export type TreeStateRowOptions = {
   now: number;
   /** Layer clock in seconds: `windTime` when numeric, else the timeline. Loss rates use this. */
   clock: number;
-  /** The row now holds a newly added tree. Only such a row runs `enter`. @default false */
+  /** The row now holds a newly added tree. @default false */
   isNew?: boolean;
+  /** A replacement crop uses its own appearance immediately. */
+  cropKindChanged?: boolean;
 };
 
 /** Result of `tick`. These objects are shared and frozen, so they are safe to keep. */
@@ -214,15 +179,8 @@ export type TreeStateTickResult = Readonly<{
 type ResolvedTreeTransition = {
   /** The settings this came from, so an equal object in the next render can be recognized. */
   readonly source: TreeTransitionSettings;
-  readonly spring: boolean;
   readonly duration: number;
   readonly easing: ((t: number) => number) | null;
-  readonly stiffness: number;
-  readonly damping: number;
-  readonly enter: TreeTransitionEnter | null;
-  readonly onStart: TreeTransitionCallback | null;
-  readonly onEnd: TreeTransitionCallback | null;
-  readonly onInterrupt: TreeTransitionCallback | null;
 };
 
 const FLOATS_PER_TEXEL = 4;
@@ -235,19 +193,6 @@ const FLOATS_PER_LINE = TREE_STATE_TEXTURE_WIDTH * FLOATS_PER_TEXEL;
  * per field of every row is what would otherwise make garbage on each frame of animated data.
  */
 const NOT_SET = Number.NaN;
-
-const DEFAULT_SPRING_STIFFNESS = 0.05;
-const DEFAULT_SPRING_DAMPING = 0.5;
-/** Springs step at this period, in milliseconds. */
-const SPRING_STEP_MS = 1000 / 60;
-/** Absorbs rounding, so an elapsed time of exactly n steps counts as n and not n - 1. */
-const SPRING_STEP_ROUNDING = 1e-9;
-/** A tick that skips more than a minute of spring steps ends the spring instead of simulating it. */
-const MAX_SPRING_STEPS_PER_TICK = 3600;
-/** deck.gl's settling threshold on both distance and per-step velocity. */
-const SPRING_EPSILON = 1e-5;
-/** 1e-5 of a degree of longitude is a metre, which would be a visible snap on a settled tree. */
-const SPRING_POSITION_EPSILON = 1e-9;
 
 /** A larger clock step than this, in seconds, says nothing about how fast a value is falling. */
 const MAX_RATE_CLOCK_STEP = 0.25;
@@ -430,63 +375,51 @@ const GROUP_CROP0 = 16;
 const GROUP_CROP1 = 17;
 
 const GROUPS: readonly {
-  /** The accessor reported to callbacks. */
-  key: TreeTransitionKey;
   /** Where settings come from, most specific first. */
   keys: readonly TreeTransitionKey[];
   first: number;
   count: number;
-  epsilon?: number;
 }[] = [
   // Elevation and trunk height tween with position and height unless their own key is present,
   // which is when these groups take over the trailing channel. See `setTransitions`.
   {
-    key: 'getPosition',
     keys: ['getPosition', 'getTree'],
     first: CHANNEL_X,
-    count: 3,
-    epsilon: SPRING_POSITION_EPSILON
+    count: 3
   },
-  {key: 'getElevation', keys: ['getElevation'], first: CHANNEL_Z, count: 1},
-  {key: 'getHeight', keys: ['getHeight', 'getTree'], first: CHANNEL_HEIGHT, count: 3},
+  {keys: ['getElevation'], first: CHANNEL_Z, count: 1},
+  {keys: ['getHeight', 'getTree'], first: CHANNEL_HEIGHT, count: 3},
   {
-    key: 'getTrunkHeightFraction',
     keys: ['getTrunkHeightFraction'],
     first: CHANNEL_TRUNK_HEIGHT,
     count: 1
   },
-  {key: 'getCanopyRadius', keys: ['getCanopyRadius', 'getTree'], first: CHANNEL_CROWN_X, count: 2},
+  {keys: ['getCanopyRadius', 'getTree'], first: CHANNEL_CROWN_X, count: 2},
   {
-    key: 'getTrunkRadius',
     keys: ['getTrunkRadius', 'getTree'],
     first: CHANNEL_TRUNK_RADIUS,
     count: 1
   },
-  {key: 'getGrowth', keys: ['getGrowth', 'getTree'], first: CHANNEL_GROWTH, count: 1},
-  {key: 'getHealth', keys: ['getHealth', 'getTree'], first: CHANNEL_HEALTH, count: 1},
-  {key: 'getFoliage', keys: ['getFoliage', 'getTree'], first: CHANNEL_FOLIAGE, count: 1},
-  {key: 'getFlush', keys: ['getFlush', 'getTree'], first: CHANNEL_FLUSH, count: 1},
-  {key: 'getLean', keys: ['getLean', 'getTree'], first: CHANNEL_LEAN_DEGREES, count: 2},
-  {key: 'getDamage', keys: ['getDamage', 'getTree'], first: CHANNEL_DAMAGE, count: 1},
-  {key: 'getDecay', keys: ['getDecay', 'getTree'], first: CHANNEL_DECAY, count: 1},
+  {keys: ['getGrowth', 'getTree'], first: CHANNEL_GROWTH, count: 1},
+  {keys: ['getHealth', 'getTree'], first: CHANNEL_HEALTH, count: 1},
+  {keys: ['getFoliage', 'getTree'], first: CHANNEL_FOLIAGE, count: 1},
+  {keys: ['getFlush', 'getTree'], first: CHANNEL_FLUSH, count: 1},
+  {keys: ['getLean', 'getTree'], first: CHANNEL_LEAN_DEGREES, count: 2},
+  {keys: ['getDamage', 'getTree'], first: CHANNEL_DAMAGE, count: 1},
+  {keys: ['getDecay', 'getTree'], first: CHANNEL_DECAY, count: 1},
   {
-    key: 'getCanopyColor',
     keys: ['getCanopyColor', 'getSeason', 'getTree'],
     first: CHANNEL_CANOPY,
     count: 4
   },
-  {key: 'getTrunkColor', keys: ['getTrunkColor', 'getTree'], first: CHANNEL_BARK, count: 4},
-  {key: 'getTree', keys: ['getTree'], first: CHANNEL_WIND_FLEX, count: 1},
-  {key: 'getCrop', keys: ['getCrop', 'getTree'], first: CHANNEL_CROP0, count: CROP_CHANNELS},
-  {key: 'getCrop', keys: ['getCrop', 'getTree'], first: CHANNEL_CROP1, count: CROP_CHANNELS}
+  {keys: ['getTrunkColor', 'getTree'], first: CHANNEL_BARK, count: 4},
+  {keys: ['getTree'], first: CHANNEL_WIND_FLEX, count: 1},
+  {keys: ['getCrop', 'getTree'], first: CHANNEL_CROP0, count: CROP_CHANNELS},
+  {keys: ['getCrop', 'getTree'], first: CHANNEL_CROP1, count: CROP_CHANNELS}
 ];
 const GROUP_COUNT = GROUPS.length;
 const GROUP_MAX_CHANNELS = CROP_CHANNELS;
 const GROUP_FIRST = Uint8Array.from(GROUPS, group => group.first);
-const GROUP_EPSILON_SQUARED = Float64Array.from(
-  GROUPS,
-  group => (group.epsilon ?? SPRING_EPSILON) ** 2
-);
 const RATE_GROUPS = [GROUP_FOLIAGE, GROUP_DAMAGE, GROUP_CROP0, GROUP_CROP1] as const;
 
 const TICK_RESULTS: readonly TreeStateTickResult[] = [
@@ -499,19 +432,11 @@ const TICK_RESULTS: readonly TreeStateTickResult[] = [
 /** Whether two settings mean the same transition, field by field. */
 function isSameTransition(a: TreeTransitionSettings, b: TreeTransitionSettings): boolean {
   if (a === b) return true;
-  if (typeof a !== 'object' || typeof b !== 'object' || a.type !== b.type) return false;
-  if (a.type === 'spring') {
-    const spring = b as TreeSpringSettings;
-    if (a.stiffness !== spring.stiffness || a.damping !== spring.damping) return false;
-  } else {
-    const interpolation = b as TreeInterpolationSettings;
-    if (a.duration !== interpolation.duration || a.easing !== interpolation.easing) return false;
-  }
   return (
-    a.enter === b.enter &&
-    a.onStart === b.onStart &&
-    a.onEnd === b.onEnd &&
-    a.onInterrupt === b.onInterrupt
+    typeof a === 'object' &&
+    typeof b === 'object' &&
+    a.duration === b.duration &&
+    a.easing === b.easing
   );
 }
 
@@ -524,41 +449,15 @@ function resolveTreeTransition(
   previous: ResolvedTreeTransition | null
 ): ResolvedTreeTransition | null {
   if (!settings) return null;
-  if (previous && isSameTransition(settings, previous.source)) return previous;
   const object = typeof settings === 'object' ? settings : null;
-  const spring = object?.type === 'spring';
-  let duration = 0;
-  let easing: ((t: number) => number) | null = null;
-  let stiffness = 0;
-  let damping = 0;
-  if (spring) {
-    // Finite, and within the formula's stable range, so a spring always settles.
-    const {damping: rawDamping, stiffness: rawStiffness} = object as TreeSpringSettings;
-    damping = Number.isFinite(rawDamping) ? (rawDamping as number) : DEFAULT_SPRING_DAMPING;
-    damping = Math.max(0.001, Math.min(1.9, damping));
-    stiffness =
-      Number.isFinite(rawStiffness) && (rawStiffness as number) > 0
-        ? (rawStiffness as number)
-        : DEFAULT_SPRING_STIFFNESS;
-    stiffness = Math.max(1e-4, Math.min(3.9 - 2 * damping, stiffness));
-  } else {
-    const interpolation = object as TreeInterpolationSettings | null;
-    const raw = interpolation ? interpolation.duration : settings;
-    if (!Number.isFinite(raw) || (raw as number) <= 0) return null;
-    duration = raw as number;
-    easing = typeof interpolation?.easing === 'function' ? interpolation.easing : null;
-  }
+  if (object?.type && object.type !== 'interpolation') return null;
+  if (previous && isSameTransition(settings, previous.source)) return previous;
+  const duration = typeof settings === 'number' ? settings : settings.duration;
+  if (!Number.isFinite(duration) || duration <= 0) return null;
   return {
     source: settings,
-    spring,
     duration,
-    easing,
-    stiffness,
-    damping,
-    enter: object?.enter ?? null,
-    onStart: object?.onStart ?? null,
-    onEnd: object?.onEnd ?? null,
-    onInterrupt: object?.onInterrupt ?? null
+    easing: typeof object?.easing === 'function' ? object.easing : null
   };
 }
 
@@ -698,8 +597,8 @@ export function createTreeStateValues(): TreeStateValues {
 }
 
 /**
- * Stable slot ids for records in struct-of-arrays pools. `order` keeps allocation order, so
- * callbacks fire in a predictable sequence. A released slot leaves `order` at the next pass.
+ * Stable slot ids for records in struct-of-arrays pools. A released slot leaves
+ * `order` at the next pass.
  */
 class TreeSlotList {
   capacity = 16;
@@ -766,7 +665,7 @@ function growArray(array: Float64Array, length: number) {
 }
 
 /**
- * Per-tree state for `TreeLayer`: targets, tweens, springs and loss rates, and the Float32Array that
+ * Per-tree state for `TreeLayer`: targets, tweens and loss rates, and the Float32Array that
  * backs the RGBA32F state texture, laid out by `TREE_STATE_TEXEL`. It is pure, so wood, leaves and
  * crops read one value per tree and can never disagree, whichever sub-layer or level of detail they
  * are in.
@@ -789,27 +688,26 @@ function growArray(array: Float64Array, length: number) {
  *
  * Each field group tweens independently, and takes its settings from its own key or else `getTree`:
  *
- * | Fields | Own keys | `enter` value |
- * | --- | --- | --- |
- * | `position` | `getPosition` | `[x, y, z]` |
- * | `position` z | `getElevation` when present, else with `getPosition` | `[z]` |
- * | `height`, `leafScale` | `getHeight` | `[height, leafScale, trunkHeight]` |
- * | `trunkHeight` | `getTrunkHeightFraction` when present, else with `getHeight` | `[fraction]` |
- * | `crownX`, `crownY` | `getCanopyRadius` | `[crownX, crownY]` |
- * | `trunkRadius` | `getTrunkRadius` | `[radius]` |
- * | `growth`, `health`, `foliage`, `flush`, `damage`, `decay` | `getGrowth` and so on | `[value]` |
- * | `leanDegrees`, `leanBearing` | `getLean` | `[degrees, bearing]` |
- * | `canopyColor` | `getCanopyColor`, then `getSeason` | `[r, g, b, a]` |
- * | `trunkColor` | `getTrunkColor` | `[r, g, b, a]` |
- * | `windFlex` | none | `[flex]` |
- * | Each crop slot | `getCrop` | `[count, radius, ripeness, fallen, r, g, b, a, r, g, b, dropped]` |
+ * | Fields | Own keys |
+ * | --- | --- |
+ * | `position` | `getPosition` |
+ * | `position` z | `getElevation` when present, else with `getPosition` |
+ * | `height`, `leafScale` | `getHeight` |
+ * | `trunkHeight` | `getTrunkHeightFraction` when present, else with `getHeight` |
+ * | `crownX`, `crownY` | `getCanopyRadius` |
+ * | `trunkRadius` | `getTrunkRadius` |
+ * | `growth`, `health`, `foliage`, `flush`, `damage`, `decay` | `getGrowth` and so on |
+ * | `leanDegrees`, `leanBearing` | `getLean` |
+ * | `canopyColor` | `getCanopyColor`, then `getSeason` |
+ * | `trunkColor` | `getTrunkColor` |
+ * | `windFlex` | none |
+ * | Each crop slot | `getCrop` |
  *
  * `yaw`, `windPhase`, `coverage`, `leafDetail` and `seed` identify a tree or are driven per frame by
  * the layer, and always jump.
  *
  * Inside a group, each channel keeps its own timing, so a `ripeness` that changes every frame does
- * not restart a `fallen` that is still falling. Callbacks are per group: changing several channels
- * at once starts one transition.
+ * not restart another channel that is still moving.
  *
  * Lean never swings a tree around while it is upright: a tree rising from upright goes straight to
  * its target bearing, and one returning upright holds its bearing on the way. Otherwise a bearing
@@ -853,18 +751,11 @@ export class TreeStateStore {
   private tweenRow = new Int32Array(this.tweens.capacity);
   private tweenGroup = new Uint8Array(this.tweens.capacity);
   private tweenSettings: (ResolvedTreeTransition | null)[] = [];
-  /** Spring: when the current run of steps began. */
-  private tweenBegin = new Float64Array(this.tweens.capacity);
-  /** Spring: steps taken since `tweenBegin`. */
-  private tweenSteps = new Float64Array(this.tweens.capacity);
-  /** Interpolation: blend origin of each channel. Spring: position at the latest step. */
   private tweenFrom = new Float64Array(this.tweens.capacity * GROUP_MAX_CHANNELS);
   /** Destination of each channel. Bearings are unwrapped, so they take the short way. */
   private tweenTo = new Float64Array(this.tweens.capacity * GROUP_MAX_CHANNELS);
   /** Current value of each channel. */
   private tweenCurrent = new Float64Array(this.tweens.capacity * GROUP_MAX_CHANNELS);
-  /** Spring: position at the step before `tweenFrom`. */
-  private tweenPrevious = new Float64Array(this.tweens.capacity * GROUP_MAX_CHANNELS);
   /** Interpolation: start time of each channel, or -Infinity if it is not moving. */
   private tweenStart = new Float64Array(this.tweens.capacity * GROUP_MAX_CHANNELS);
 
@@ -894,14 +785,6 @@ export class TreeStateStore {
   private nextValue = Number.NaN;
   private rateBefore = Number.NaN;
   private rateAfter = Number.NaN;
-
-  // Callbacks wait until the store is consistent, so they may call back into it.
-  private callbacks: (TreeTransitionCallback | null)[] = [];
-  private callbackRows: number[] = [];
-  private callbackKeys: TreeTransitionKey[] = [];
-  private callbackHead = 0;
-  private callbackCount = 0;
-  private flushing = false;
 
   constructor(rowCount = 0) {
     this.resize(rowCount);
@@ -971,7 +854,6 @@ export class TreeStateStore {
     groupCounts[GROUP_ELEVATION] = splitElevation ? 1 : 0;
     groupCounts[GROUP_HEIGHT] = splitTrunkHeight ? 2 : 3;
     groupCounts[GROUP_TRUNK_HEIGHT] = splitTrunkHeight ? 1 : 0;
-    this.flushCallbacks();
   }
 
   /**
@@ -992,14 +874,13 @@ export class TreeStateStore {
       this.markLines(previous, count);
       this.changedSinceTick = true;
     }
-    this.flushCallbacks();
   }
 
   /**
    * Sets the targets of one row. Unchanged values do nothing, and a tween already running toward
    * them carries on. A changed value starts or retargets its group's tween from the current value,
-   * or jumps if the group has no settings. A row's first `setRow` jumps, except where it is `isNew`
-   * and the group has `enter`. `isNew` means the row holds a different tree from now on: anything
+   * or jumps if the group has no settings. A row's first `setRow` jumps. `isNew` means the
+   * row holds a different tree from now on: anything
    * running on it is interrupted, and absent fields take their defaults rather than previous values.
    *
    * This allocates nothing as long as `values` objects keep one shape, and `options` objects keep
@@ -1023,11 +904,13 @@ export class TreeStateStore {
     for (let group = 0; group < GROUP_COUNT; group++) {
       const count = groupCounts[group];
       if (count === 0) continue;
-      const settings = groupSettings[group];
-      if (isNew && settings?.enter) {
-        this.enterGroup(row, group, settings);
+      if (group === GROUP_CROP0 && options.cropKindChanged) {
+        const slot = this.tweenIndex[row * GROUP_COUNT + group];
+        if (slot >= 0) this.releaseTween(slot);
+        this.jumpGroup(row, group, false);
         continue;
       }
+      const settings = groupSettings[group];
       const first = GROUP_FIRST[group];
       const end = first + count;
       let changed = false;
@@ -1048,7 +931,6 @@ export class TreeStateStore {
       }
     }
     this.sampleRowRates(row);
-    this.flushCallbacks();
   }
 
   /**
@@ -1061,7 +943,6 @@ export class TreeStateStore {
     this.advanceTweens();
     this.advanceRates();
     this.frameTicked = true;
-    this.flushCallbacks();
     const changed = this.changedSinceTick;
     this.changedSinceTick = false;
     const active = this.tweens.aliveCount > 0 || this.rates.aliveCount > 0;
@@ -1170,11 +1051,6 @@ export class TreeStateStore {
     for (let i = 0; i < tweens.orderCount; i++) {
       const slot = tweens.order[i];
       if (tweens.alive[slot] === 1 && this.tweenRow[slot] >= rowCount) {
-        this.enqueueCallback(
-          this.tweenSettings[slot]?.onInterrupt,
-          this.tweenRow[slot],
-          this.tweenGroup[slot]
-        );
         this.releaseTween(slot);
       }
     }
@@ -1190,7 +1066,6 @@ export class TreeStateStore {
     for (let group = 0; group < GROUP_COUNT; group++) {
       const slot = this.tweenIndex[row * GROUP_COUNT + group];
       if (slot >= 0) {
-        this.enqueueCallback(this.tweenSettings[slot]?.onInterrupt, row, group);
         this.releaseTween(slot);
       }
     }
@@ -1282,38 +1157,6 @@ export class TreeStateStore {
     this.readIncomingColor(crop?.unripeColor, channel + CROP_UNRIPE, 3);
   }
 
-  private enqueueCallback(
-    callback: TreeTransitionCallback | null | undefined,
-    row: number,
-    group: number
-  ): void {
-    if (!callback) return;
-    const index = this.callbackCount++;
-    this.callbacks[index] = callback;
-    this.callbackRows[index] = row;
-    this.callbackKeys[index] = GROUPS[group].key;
-  }
-
-  private flushCallbacks(): void {
-    if (this.flushing || this.callbackHead === this.callbackCount) return;
-    this.flushing = true;
-    try {
-      while (this.callbackHead < this.callbackCount) {
-        const index = this.callbackHead++;
-        const callback = this.callbacks[index] as TreeTransitionCallback;
-        this.callbacks[index] = null;
-        callback(this.callbackRows[index], this.callbackKeys[index]);
-      }
-    } finally {
-      // If a callback threw, the rest run on the next flush, so every start still gets its end.
-      this.flushing = false;
-      if (this.callbackHead === this.callbackCount) {
-        this.callbackHead = 0;
-        this.callbackCount = 0;
-      }
-    }
-  }
-
   private allocateTween(): number {
     const {tweens} = this;
     const slot = tweens.allocate();
@@ -1326,12 +1169,9 @@ export class TreeStateStore {
       const tweenGroup = new Uint8Array(capacity);
       tweenGroup.set(this.tweenGroup);
       this.tweenGroup = tweenGroup;
-      this.tweenBegin = growArray(this.tweenBegin, capacity);
-      this.tweenSteps = growArray(this.tweenSteps, capacity);
       this.tweenFrom = growArray(this.tweenFrom, channels);
       this.tweenTo = growArray(this.tweenTo, channels);
       this.tweenCurrent = growArray(this.tweenCurrent, channels);
-      this.tweenPrevious = growArray(this.tweenPrevious, channels);
       this.tweenStart = growArray(this.tweenStart, channels);
     }
     return slot;
@@ -1386,53 +1226,22 @@ export class TreeStateStore {
     this.beginTween(row, group, settings);
   }
 
-  /** Runs `enter` for one group of a new row, and starts its tween from the result. */
-  private enterGroup(row: number, group: number, settings: ResolvedTreeTransition): void {
-    const {incoming, startValues} = this;
-    const first = GROUP_FIRST[group];
-    const count = this.groupCounts[group];
-    const height = incoming[CHANNEL_HEIGHT];
-    const asFraction = group === GROUP_TRUNK_HEIGHT;
-    const toValue: number[] = [];
-    if (asFraction) {
-      toValue.push(height > 0 ? incoming[CHANNEL_TRUNK_HEIGHT] / height : 0);
-    } else {
-      for (let c = 0; c < GROUPS[group].count; c++) toValue.push(incoming[first + c]);
-    }
-    const start = (settings.enter as TreeTransitionEnter)(toValue);
-    for (let c = 0; c < count; c++) {
-      const channel = first + c;
-      const value = typeof start === 'number' ? start : start?.[c];
-      if (Number.isFinite(value)) {
-        const scaled = asFraction ? (value as number) * height : (value as number);
-        startValues[c] = Math.min(CHANNEL_MAX[channel], Math.max(CHANNEL_MIN[channel], scaled));
-      } else {
-        startValues[c] = incoming[channel];
-      }
-    }
-    this.beginTween(row, group, settings);
-  }
-
   /** Starts a tween from `startValues` toward the incoming values, if anything would move. */
   private beginTween(row: number, group: number, settings: ResolvedTreeTransition): void {
     // Allocating can replace the record arrays, so read them afterward.
     const slot = this.allocateTween();
-    const {incoming, startValues, tweenFrom, tweenTo, tweenCurrent, tweenPrevious, tweenStart} =
-      this;
+    const {incoming, startValues, tweenFrom, tweenTo, tweenCurrent, tweenStart} = this;
     const first = GROUP_FIRST[group];
     const count = this.groupCounts[group];
     this.tweenRow[slot] = row;
     this.tweenGroup[slot] = group;
     this.tweenSettings[slot] = settings;
-    this.tweenBegin[slot] = this.now;
-    this.tweenSteps[slot] = 0;
     const offset = slot * GROUP_MAX_CHANNELS;
     for (let c = 0; c < count; c++) {
       const from = startValues[c];
       const to = incoming[first + c];
       tweenFrom[offset + c] = from;
       tweenCurrent[offset + c] = from;
-      tweenPrevious[offset + c] = from;
       tweenTo[offset + c] = to;
       tweenStart[offset + c] = from === to ? -Infinity : this.now;
     }
@@ -1445,7 +1254,6 @@ export class TreeStateStore {
     this.tweenIndex[row * GROUP_COUNT + group] = slot;
     for (let c = 0; c < count; c++) this.writeRowChannel(row, first + c, tweenCurrent, offset + c);
     this.commitTargets(row, group);
-    this.enqueueCallback(settings.onStart, row, group);
   }
 
   /** Points a running tween at the incoming values, continuing from where it is at `now`. */
@@ -1455,33 +1263,16 @@ export class TreeStateStore {
     group: number,
     settings: ResolvedTreeTransition
   ): void {
-    const finished = this.advanceTween(slot);
+    this.advanceInterpolation(slot);
     const previous = this.tweenSettings[slot] as ResolvedTreeTransition;
-    this.enqueueCallback(finished ? previous.onEnd : previous.onInterrupt, row, group);
 
-    const {now, incoming, targets, tweenFrom, tweenTo, tweenCurrent, tweenPrevious, tweenStart} =
-      this;
+    const {now, incoming, targets, tweenFrom, tweenTo, tweenCurrent, tweenStart} = this;
     const base = row * CHANNEL_COUNT;
     const first = GROUP_FIRST[group];
     const count = this.groupCounts[group];
     const offset = slot * GROUP_MAX_CHANNELS;
-    if (settings.spring) {
-      if (previous.spring && !finished) {
-        this.rebaseSpring(slot, group, previous);
-      } else {
-        // Nothing to carry over: a spring that settled has no velocity, and an interpolation's is
-        // not a spring's.
-        for (let c = 0; c < count; c++) {
-          tweenFrom[offset + c] = tweenCurrent[offset + c];
-          tweenPrevious[offset + c] = tweenCurrent[offset + c];
-        }
-      }
-      this.tweenBegin[slot] = now;
-      this.tweenSteps[slot] = 0;
-    } else if (previous.duration !== settings.duration) {
-      // Whatever is still moving carries on under the new timing, from where it is now. This includes
-      // a spring, whose duration is 0. A new easing alone does not count: a layer that writes it
-      // inline passes a new function every render, which must not restart everything in the group.
+    if (previous.duration !== settings.duration) {
+      // An inline easing can change identity every render without restarting other channels.
       for (let c = 0; c < count; c++) {
         const current = tweenCurrent[offset + c];
         tweenFrom[offset + c] = current;
@@ -1503,9 +1294,7 @@ export class TreeStateStore {
     }
     this.applyGroupRules(slot, row, group, true);
     this.commitTargets(row, group);
-    if (this.isTweenMoving(slot, count, settings)) {
-      this.enqueueCallback(settings.onStart, row, group);
-    } else {
+    if (!this.isTweenMoving(slot, count, settings)) {
       for (let c = 0; c < count; c++)
         this.writeRowChannel(row, first + c, targets, base + first + c);
       this.releaseTween(slot);
@@ -1515,11 +1304,7 @@ export class TreeStateStore {
   private isTweenMoving(slot: number, count: number, settings: ResolvedTreeTransition): boolean {
     const offset = slot * GROUP_MAX_CHANNELS;
     for (let c = 0; c < count; c++) {
-      if (settings.spring) {
-        const current = this.tweenCurrent[offset + c];
-        if (current !== this.tweenTo[offset + c] || current !== this.tweenPrevious[offset + c])
-          return true;
-      } else if (this.now - this.tweenStart[offset + c] < settings.duration) {
+      if (this.now - this.tweenStart[offset + c] < settings.duration) {
         return true;
       }
     }
@@ -1539,13 +1324,12 @@ export class TreeStateStore {
     this.tweenFrom[offset] = value;
     this.tweenTo[offset] = value;
     this.tweenCurrent[offset] = value;
-    this.tweenPrevious[offset] = value;
     this.tweenStart[offset] = -Infinity;
     this.writeRowChannel(row, channel, this.tweenCurrent, offset);
   }
 
   private applyLeanRule(slot: number, row: number, retargeting: boolean): void {
-    const {incoming, tweenFrom, tweenTo, tweenCurrent, tweenPrevious, tweenStart} = this;
+    const {incoming, tweenFrom, tweenTo, tweenCurrent, tweenStart} = this;
     const offset = slot * GROUP_MAX_CHANNELS;
     const degrees = tweenCurrent[offset];
     const bearing = tweenCurrent[offset + 1];
@@ -1560,7 +1344,6 @@ export class TreeStateStore {
       // Held here until the tween ends, when the target bearing lands on an upright tree.
       tweenFrom[offset + 1] = bearing;
       tweenTo[offset + 1] = bearing;
-      tweenPrevious[offset + 1] = bearing;
       tweenStart[offset + 1] = -Infinity;
       return;
     }
@@ -1587,28 +1370,6 @@ export class TreeStateStore {
       this.snapTweenChannel(offset + c, row, first + c);
   }
 
-  /**
-   * Restarts a spring's steps at its current value and velocity. The value at `now` lies between two
-   * steps. Stepping onward from there, instead of from the earlier step, keeps it continuous when
-   * the new destination takes effect.
-   */
-  private rebaseSpring(slot: number, group: number, settings: ResolvedTreeTransition): void {
-    const {stiffness, damping} = settings;
-    const {tweenFrom, tweenTo, tweenCurrent, tweenPrevious} = this;
-    const offset = slot * GROUP_MAX_CHANNELS;
-    const elapsed = (this.now - this.tweenBegin[slot]) / SPRING_STEP_MS;
-    const fraction = Math.max(0, Math.min(1, elapsed - this.tweenSteps[slot]));
-    for (let c = 0; c < this.groupCounts[group]; c++) {
-      const position = tweenFrom[offset + c];
-      const velocity = position - tweenPrevious[offset + c];
-      const next =
-        position + velocity + (tweenTo[offset + c] - position) * stiffness - velocity * damping;
-      const current = tweenCurrent[offset + c];
-      tweenFrom[offset + c] = current;
-      tweenPrevious[offset + c] = current - (velocity + (next - position - velocity) * fraction);
-    }
-  }
-
   private advanceTweens(): void {
     const list = this.tweens;
     let kept = 0;
@@ -1616,7 +1377,7 @@ export class TreeStateStore {
       const slot = list.order[i];
       if (list.alive[slot] === 0) {
         list.recycle(slot);
-      } else if (this.advanceTween(slot)) {
+      } else if (this.advanceInterpolation(slot)) {
         this.finishTween(slot);
         list.recycle(slot);
       } else {
@@ -1624,13 +1385,6 @@ export class TreeStateStore {
       }
     }
     list.orderCount = kept;
-  }
-
-  /** Brings a tween to `now`, and returns whether it has reached its destination. */
-  private advanceTween(slot: number): boolean {
-    return (this.tweenSettings[slot] as ResolvedTreeTransition).spring
-      ? this.advanceSpring(slot)
-      : this.advanceInterpolation(slot);
   }
 
   private advanceInterpolation(slot: number): boolean {
@@ -1675,57 +1429,6 @@ export class TreeStateStore {
     return finished;
   }
 
-  private advanceSpring(slot: number): boolean {
-    const elapsed = (this.now - this.tweenBegin[slot]) / SPRING_STEP_MS;
-    if (elapsed < 0) return false;
-    const {stiffness, damping} = this.tweenSettings[slot] as ResolvedTreeTransition;
-    const {tweenFrom, tweenTo, tweenPrevious} = this;
-    const row = this.tweenRow[slot];
-    const group = this.tweenGroup[slot];
-    const first = GROUP_FIRST[group];
-    const count = this.groupCounts[group];
-    const offset = slot * GROUP_MAX_CHANNELS;
-    const epsilonSquared = GROUP_EPSILON_SQUARED[group];
-    const steps = Math.floor(elapsed + SPRING_STEP_ROUNDING);
-    let taken = this.tweenSteps[slot];
-    let finished = steps - taken > MAX_SPRING_STEPS_PER_TICK;
-    while (!finished && taken < steps) {
-      let distance = 0;
-      let speed = 0;
-      for (let c = 0; c < count; c++) {
-        const position = tweenFrom[offset + c];
-        const velocity = position - tweenPrevious[offset + c];
-        const to = tweenTo[offset + c];
-        const next = position + velocity + (to - position) * stiffness - velocity * damping;
-        tweenPrevious[offset + c] = position;
-        tweenFrom[offset + c] = next;
-        distance += (next - to) * (next - to);
-        speed += (next - position) * (next - position);
-      }
-      taken++;
-      finished = distance < epsilonSquared && speed < epsilonSquared;
-    }
-    this.tweenSteps[slot] = taken;
-    if (finished) {
-      for (let c = 0; c < count; c++) {
-        this.nextValue = tweenTo[offset + c];
-        this.setTweenValue(offset + c, row, first + c);
-      }
-      return true;
-    }
-    // Between steps, show the way to the next one, so motion is smooth at any frame rate.
-    const fraction = Math.max(0, elapsed - taken);
-    for (let c = 0; c < count; c++) {
-      const position = tweenFrom[offset + c];
-      const velocity = position - tweenPrevious[offset + c];
-      const next =
-        position + velocity + (tweenTo[offset + c] - position) * stiffness - velocity * damping;
-      this.nextValue = position + (next - position) * fraction;
-      this.setTweenValue(offset + c, row, first + c);
-    }
-    return false;
-  }
-
   /** Moves a tween's channel to `nextValue`. */
   private setTweenValue(offset: number, row: number, channel: number): void {
     const {tweenCurrent} = this;
@@ -1747,7 +1450,6 @@ export class TreeStateStore {
   private finishTween(slot: number): void {
     const row = this.tweenRow[slot];
     const group = this.tweenGroup[slot];
-    this.enqueueCallback(this.tweenSettings[slot]?.onEnd, row, group);
     const base = row * CHANNEL_COUNT;
     const first = GROUP_FIRST[group];
     for (let channel = first; channel < first + this.groupCounts[group]; channel++)
@@ -1770,7 +1472,6 @@ export class TreeStateStore {
           group === GROUP_TRUNK_HEIGHT);
       if (!reassigned && this.groupSettings[group]) continue;
       const row = this.tweenRow[slot];
-      this.enqueueCallback(this.tweenSettings[slot]?.onInterrupt, row, group);
       const base = row * CHANNEL_COUNT;
       const first = GROUP_FIRST[group];
       const offset = slot * GROUP_MAX_CHANNELS;

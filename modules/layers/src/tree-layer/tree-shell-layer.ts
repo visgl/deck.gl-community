@@ -39,7 +39,6 @@ out vec4 vTint;
 out vec3 vNormal;
 out vec3 vPosition;
 out vec3 vLife;
-out float vFog;
 #endif
 ${TREE_PHOTOREAL_VERTEX_CHUNK}
 #ifndef TREE_SHELL_SHADOW_ONLY
@@ -88,7 +87,6 @@ void main() {
   normal = treeLeanTurn(treeTurnYaw(normal));
   normal = treeWindTurn(normal, point.z);
   vPosition = commonPosition.xyz;
-  vFog = treeFogVisibility(commonPosition.xyz);
   vNormal = treeToCommonDirection(normal);
   geometry.normal = vNormal;
   geometry.uv = vec2(0.0);
@@ -115,7 +113,6 @@ in vec4 vTint;
 in vec3 vNormal;
 in vec3 vPosition;
 in vec3 vLife;
-in float vFog;
 #endif
 out vec4 fragColor;
 ${TREE_PHOTOREAL_FRAGMENT_CHUNK}
@@ -159,7 +156,6 @@ void main() {
   float openness = mix(0.56, 1.0, vLife.z * 0.4 + grain * 0.6);
   vec3 color = mix(vTint.rgb * vec3(1.0, 0.68, 0.32), vTint.rgb, vLife.x);
   color = mix(color, color * vec3(1.27, 1.46, 0.76), vLife.y * grain);
-  color = treeFrostAlbedo(treeWetAlbedo(color, 0.3), treeFrostCover(normal, up, openness, pores));
   vec3 lit = color;
   if (lighting.enabled != 0 && !material.unlit) {
     lit = color * treeHemisphere(normal, up) * material.ambient * openness;
@@ -180,7 +176,7 @@ void main() {
         getPointLightAttenuation(light, length(ray));
     }
   }
-  fragColor = vec4(treeFilmic(treeFogged(lit, vFog)), layer.opacity);
+  fragColor = vec4(treeFilmic(lit), layer.opacity);
   DECKGL_FILTER_COLOR(fragColor, geometry);
 #endif
 }
@@ -269,7 +265,7 @@ struct HullVaryings {
   let openness = mix(0.56, 1.0, input.life.z * 0.4 + grain * 0.6);
   var color = mix(input.tint.rgb * vec3<f32>(1.0, 0.68, 0.32), input.tint.rgb, input.life.x);
   color = mix(color, color * vec3<f32>(1.27, 1.46, 0.76), input.life.y * grain);
-  let lit = treeShadeMaterial(color, normalize(input.normal), input.commonPosition, 0.3, openness, 0.18);
+  let lit = treeShadeMaterial(color, normalize(input.normal), input.commonPosition, openness, 0.18);
   return treeOutput(lit, layer.opacity, input.pickColor);
 }
 `

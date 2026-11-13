@@ -84,15 +84,10 @@ import {
   selectTreeLeafClusters,
   type TreeLeafSelection
 } from './tree-leaf-clusters';
-import type {TreeFog} from './tree-photoreal-primitive-layer';
 import {
   TREE_CROP_BLOOM_FROM,
-  TREE_LEAF_SHADOW_FULL_PIXELS,
   TREE_LEAF_BLADE_MARGIN_MACRO,
   TREE_LEAF_BLADE_MARGIN_MOST,
-  TREE_LEAF_SHADOW_MOST,
-  TREE_LEAF_SHADOW_SHARE,
-  TREE_LEAF_STABLE_SHADOW_SHARE,
   TREE_WOOD_HIDDEN_FROM,
   TREE_WOOD_HIDDEN_TO,
   TREE_WOOD_LOD_SHIFT
@@ -100,17 +95,9 @@ import {
 import {getTreeStemModel} from './tree-stem-model';
 import {TreeShellLayer} from './tree-shell-layer';
 import {TreePhotorealWoodLayer} from './tree-photoreal-wood-layer';
-import {
-  TreeStateStore,
-  type TreeStateCropUpdate,
-  type TreeStateUpdate,
-  type TreeTransitions
-} from './tree-state-store';
+import {TreeStateStore, type TreeStateUpdate, type TreeTransitions} from './tree-state-store';
 export type {
   TreeInterpolationSettings,
-  TreeSpringSettings,
-  TreeTransitionCallback,
-  TreeTransitionEnter,
   TreeTransitionKey,
   TreeTransitions,
   TreeTransitionSettings
@@ -130,8 +117,7 @@ export type TreeType =
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 /**
  * Optional, explicitly supplied fruit, nuts, or flowering points. Every field but `kind` tweens under the
- * `getCrop` transition. A change of `kind` swaps the shape at once, unless the old kind has a slot of its
- * own to leave by.
+ * `getCrop` transition. A change of `kind` swaps the crop at once.
  */
 export type CropConfig = {
   /** Shape of the supplied crop. @default 'fruit' */
@@ -151,12 +137,6 @@ export type CropConfig = {
    * this bound.
    */
   radius: number;
-  /** Tint at `ripeness` 0. Defaults to a green derived from `color`. */
-  unripeColor?: Color;
-  /** Blend from `unripeColor` to `color`, varied fruit by fruit. @default 1 */
-  ripeness?: number;
-  /** Fraction of attached crops that have fallen and rest on the ground. @default 0 */
-  fallen?: number;
 };
 
 /** Whole-tree tilt: degrees from upright (90 lies flat), and the compass bearing it tips toward. */
@@ -182,8 +162,8 @@ export type TreeSpec = {
   season?: Season;
   /** Shared morphology preset for wood, leaves and attached crops. */
   characteristics?: TreeCharacteristics;
-  /** Explicit crops, up to two such as blossom and fruit; omitted/null means none. */
-  crop?: CropConfig | readonly CropConfig[] | null;
+  /** Crop configuration. Omit or pass null to draw no crops. */
+  crop?: CropConfig | null;
   /**
    * Biological time, 0-1. Shoots extend, fork and thicken; leaves and crops exist only on wood that
    * exists. 0 draws nothing. @default 1
@@ -399,12 +379,10 @@ type _TreeLayerProps<DataT> = {
    * coordinates; they are stable across re-renders.
    *
    * Attached crops too large to fit the foliage are omitted.
-   * Up to two configs may be returned in an array, such as blossom and fruit. All their fields but `kind`
-   * tween under this accessor's transition.
    *
    * @default null (no crops)
    */
-  getCrop?: Accessor<DataT, CropConfig | readonly CropConfig[] | null>;
+  getCrop?: Accessor<DataT, CropConfig | null>;
 
   /**
    * Global size multiplier applied to all dimensions.
@@ -415,13 +393,11 @@ type _TreeLayerProps<DataT> = {
   characteristics?: TreeCharacteristics;
   /** @internal Disable conservative near-leaf compaction for render and performance comparisons. */
   _leafCulling?: boolean;
-  /** @internal Keep the leaf and wood caster geometry independent of the color LOD. */
-  _stableLeafShadows?: boolean;
   /** @internal Draw crops independently of a field's canopy renderer, without preparing leaves or wood. */
   _cropOnly?: boolean;
   /**
-   * Standard deck.gl transition settings keyed by accessor name, such as `getGrowth: 2000` or
-   * `getLean: {type: 'spring'}`. `getTree` is the default for every `TreeSpec` field. Follows the deck.gl timeline. @default null
+   * Interpolation settings keyed by accessor name, such as `getGrowth: 2000`.
+   * `getTree` supplies defaults for its fields. Timing follows the deck.gl timeline. @default null
    */
   transitions?: TreeTransitions | null;
   /** Bark and root material. A default suited to bark when null. @default null */
@@ -438,23 +414,6 @@ type _TreeLayerProps<DataT> = {
    */
   lodBias?: number;
   /**
-   * Rain on the trees, from 0 to 1. Bark darkens and turns glossy, and leaves
-   * darken a little and gain a stronger sheen, down to litter on the soil. @default 0
-   */
-  wetness?: number;
-  /**
-   * Hoar frost on the trees, from 0 to 1, leaves a pale rime on the upper surfaces of
-   * leaves and twigs that are open to the sky. @default 0
-   */
-  frost?: number;
-  /**
-   * Exponential fog by distance from the camera, in linear light at the end of
-   * every fragment, so a far grove has atmospheric depth. `color` is sRGB, each 0-255, the color a surface
-   * lost in fog shows exactly. `density` is per metre: 0.01 takes about 63 percent of a surface's light at
-   * 100 m. @default null
-   */
-  fog?: TreeFog | null;
-  /**
    * Fraction of tree height used for optional GPU wind deformation, from 0 to 1: `0.025` is a gentle
    * breeze, and 1 a hurricane. A tree's own bend levels off at 0.3 of its height
    * and the rest goes into its crown, limbs and leaves. Zero stops continuous redraw. @default 0
@@ -468,13 +427,6 @@ type _TreeLayerProps<DataT> = {
   windDirection?: number | null;
   /** Wind clock in seconds, or null to use deck.gl's timeline. Set a number for repeatable comparisons. @default null */
   windTime?: number | null;
-  /**
-   * The clock, in seconds, that gust fronts and their chop run on, or null to run them on `windTime`. Sway,
-   * flutter, falls and everything else stay on `windTime`. A host that wants a gust to reach a place at a given
-   * moment, such as a beat of a story, runs this clock faster or slower through it, solving with
-   * `getTreeWindGust`, which reads the same gusts on the CPU. @default null
-   */
-  windGustTime?: number | null;
   /** Optical coverage used by streaming transitions; does not rebuild owner geometry. @default 1 */
   getCoverageWeight?: Accessor<DataT, number>;
   /**
@@ -509,22 +461,17 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   getDamage: {type: 'accessor', value: (_d: any) => 0},
   getDecay: {type: 'accessor', value: (_d: any) => 0},
   _leafCulling: true,
-  _stableLeafShadows: true,
   _cropOnly: false,
   transitions: null,
   woodMaterial: {type: 'object', value: null, compare: 2, optional: true},
   foliageMaterial: {type: 'object', value: null, compare: 2, optional: true},
   cropMaterial: {type: 'object', value: null, compare: 2, optional: true},
   lodBias: {type: 'number', value: 0},
-  wetness: {type: 'number', value: 0, min: 0, max: 1},
-  frost: {type: 'number', value: 0, min: 0, max: 1},
-  fog: {type: 'object', value: null, compare: 2, optional: true},
   windDirection: null,
   sizeScale: {type: 'number', value: 1, min: 0},
   characteristics: {type: 'object', value: {}},
   windStrength: {type: 'number', value: 0, min: 0, max: 1},
   windTime: null,
-  windGustTime: null,
   getCoverageWeight: {type: 'accessor', value: 1},
   shadowEnabled: true
 };
@@ -638,9 +585,6 @@ const CROP_POINT_BUDGET = 4e5;
 const CROP_NEAR_MARGIN = 0.92;
 /** How far a crop can be from its twig on the tree, or lie from it on the ground, in metres. */
 const CROP_NEAR_REACH = 0.3;
-const CROP_NEAR_REACH_FALLEN = 1.3;
-const CROP_NEAR_REACH_PETAL = 3.2;
-const CROP_NEAR_BEYOND_CROWN = 3;
 /**
  * The lists are worked out again after a change in size by this fraction, and after the camera has moved by
  * this much of the way the margin above allows.
@@ -649,7 +593,6 @@ const CROP_NEAR_SIZE_HOLD = 0.04;
 const CROP_NEAR_MOVE = 0.6;
 /** Added to the slot, in the code of an instance. */
 const CROP_CODE_DROPPED = 2;
-const CROP_CODE_OFF_TWIG = 4;
 
 const DEFAULT_CROP_MATERIAL: PhongMaterialProps = {
   ambient: 0.9,
@@ -684,9 +627,7 @@ type TreeSource<DataT> = {
   windStrength?: number;
   trunkColor?: Color | null;
   canopyColor?: Color | null;
-  crops: CropConfig[];
-  /** The state row's crop slot of each of `crops`: a kind keeps the slot it has. */
-  cropSlots: number[];
+  crop: CropConfig | null;
   sizeScale: number;
   growth: number;
   health: number;
@@ -700,6 +641,7 @@ type TreeSource<DataT> = {
 
 function getTreeTemplateKey(source: TreeSource<unknown>): string {
   const {type, morphologyKey, levels} = source;
+  if (type === 'palm') return `palm-${source.characteristics.seed ?? 1}`;
   return type === 'pine' ? `${type}-${levels}-${morphologyKey}` : `${type}-${morphologyKey}`;
 }
 
@@ -724,7 +666,7 @@ type PhotorealRow<DataT> = {
   object: DataT;
   stateRow: number;
   groupKey: string;
-  cropKinds: string;
+  cropKind: CropKind | null;
   /** Anchor the projection below was computed for, and the projection's key. */
   anchorX: number;
   anchorY: number;
@@ -755,8 +697,8 @@ type PhotorealRow<DataT> = {
   focalPixels: number;
   /** The camera in this tree's own metres, or null with no single camera to measure crops from. */
   camera: [number, number, number] | null;
-  /** What its two crop slots hold in their buckets. */
-  crops: [PhotorealCropSlot, PhotorealCropSlot];
+  /** How the crop is distributed among its detail buckets. */
+  crop: PhotorealCropSlot;
   /** Leaves near enough to the camera for the fine and macro blades, and where the camera was for those lists. */
   fineLeaves: number[];
   macroLeaves: number[];
@@ -770,7 +712,7 @@ type PhotorealRow<DataT> = {
   useListedLeaves: boolean;
 };
 
-/** One crop slot of a tree on the photoreal path, as its instances stand. */
+/** The instance capacity and detail buckets for a tree’s crop. */
 type PhotorealCropSlot = {
   kind: CropKind | null;
   /** Level of detail, or -1 when nothing of it is drawn. */
@@ -786,9 +728,8 @@ type PhotorealCropSlot = {
   near: [number[], number[]];
   /** The camera, in this tree's metres, that `near` was worked out for. */
   nearFrom: [number, number, number] | null;
-  /** The size on screen it allowed for, in metres times its focal scale, and whether crops had fallen. */
+  /** The size on screen it allowed for, in metres times its focal scale. */
   nearScale: number;
-  nearFallen: boolean;
 };
 
 /** All the crop instances of one kind and level of detail, of one template. */
@@ -826,7 +767,6 @@ type PhotorealGroup<DataT> = {
   /** Rows of LOD 0 that are losing leaves, whose leaves in the air a pass of their own draws, and if it ever had any. */
   airSlots: SplatRowSlots<PhotorealRow<DataT>>;
   airBucket: PhotorealRow<DataT>[];
-  airUsed: boolean;
   /** The leaves that draw the finer blades, of all rows, and whether that has changed since this data. */
   fineData: TreeLeafData<DataT>;
   macroData: TreeLeafData<DataT>;
@@ -834,16 +774,9 @@ type PhotorealGroup<DataT> = {
   /** Full-tree LOD 0 rows that cannot use the conservative upright-leaf bounds. */
   coarseSlots: SplatRowSlots<PhotorealRow<DataT>>;
   coarseBucket: PhotorealRow<DataT>[];
-  coarseShadowCount: number;
-  coarseShadowInstances: number;
   bladesDirty: boolean;
   /** Of the leaves at LOD 0, the largest share that any tree casts. */
-  shadowShare: number;
   /** A level that has held trees keeps its sub-layer, so moving between levels never builds a model. */
-  used: boolean[];
-  woodUsed: boolean[];
-  fineUsed: boolean;
-  macroUsed: boolean;
   /** Crop buckets that have held crops, by kind and level. They keep their sub-layers, as levels do. */
   crops: Map<string, PhotorealCropBucket<DataT>>;
 };
@@ -869,7 +802,7 @@ type TreeState<DataT> = {
   windBearing: number | null | undefined;
   windVector: [number, number] | null;
   store: TreeStateStore | null;
-  /** The kind in each crop slot, two per state row. A kind stays while its crops animate out. */
+  /** The crop kind of each state row. A kind stays while its crops animate out. */
   cropKinds: (CropKind | null)[];
   /** Latest values read from tree accessors. */
   sources: TreeSource<DataT>[];
@@ -966,14 +899,6 @@ function getWindUnits(props, origin: ArrayLike<number>, viewport?: Viewport): [n
   return lngLat
     ? [METRES_PER_DEGREE * Math.cos((origin[1] * Math.PI) / 180), METRES_PER_DEGREE]
     : [1, 1];
-}
-
-/** Stable across a canopy's changes of pose, and one function so it is not a change of prop. */
-function getCropConfigs(crop: CropConfig | readonly CropConfig[] | null | undefined): CropConfig[] {
-  if (!crop) return [];
-  const list = (Array.isArray(crop) ? crop : [crop]) as CropConfig[];
-  // A radius of 0 draws nothing, but it is still that crop: it keeps its slot for a radius on the way up.
-  return list.slice(0, 2).filter(config => config && Number.isFinite(config.radius));
 }
 
 /**
@@ -1110,21 +1035,6 @@ function getCropCamera(row: PhotorealRow<unknown>, view: Viewport): [number, num
     : [x / units[0], y / units[1], z / units[2]];
 }
 
-/**
- * What the shaders know of a slot from an instance: which slot it is, and whether this crop takes the next
- * twig along, as the second of two that would otherwise hang in the same place. A blossom has room for a
- * fruit at its twig, as they do in a real tree.
- */
-function getCropCode(row: PhotorealRow<unknown>, slot: number): number {
-  const [first, second] = row.crops;
-  const overlaps =
-    slot === 1 &&
-    first.kind &&
-    second.kind &&
-    (first.kind === 'flower') === (second.kind === 'flower');
-  return slot + (overlaps ? CROP_CODE_OFF_TWIG : 0);
-}
-
 function createPhotorealCropSlot(): PhotorealCropSlot {
   return {
     kind: null,
@@ -1133,8 +1043,7 @@ function createPhotorealCropSlot(): PhotorealCropSlot {
     dropped: 0,
     near: [[], []],
     nearFrom: null,
-    nearScale: 0,
-    nearFallen: false
+    nearScale: 0
   };
 }
 
@@ -1201,7 +1110,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
 
   /** Reused, one shape, for all `setRow` calls of the accessor path. */
   private rowUpdate: TreeStateUpdate = {};
-  private rowOptions = {now: 0, clock: 0, isNew: false};
+  private rowOptions = {now: 0, clock: 0, isNew: false, cropKindChanged: false};
   /** Reused for the per-camera `leafDetail` writes, which change nothing else. */
   private detailUpdate: TreeStateUpdate = {leafDetail: 1};
 
@@ -1265,7 +1174,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       Boolean(changeFlags.viewportChanged) ||
         props.lodBias !== oldProps.lodBias ||
         props._leafCulling !== oldProps._leafCulling ||
-        props._stableLeafShadows !== oldProps._stableLeafShadows ||
         props._cropOnly !== oldProps._cropOnly ||
         props.windStrength !== oldProps.windStrength ||
         props.shadowEnabled !== oldProps.shadowEnabled,
@@ -1389,9 +1297,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               )
             );
       const lean = value<TreeLean>('getLean', tree.lean);
-      const crops = getCropConfigs(
-        value<CropConfig | readonly CropConfig[] | null>('getCrop', tree.crop)
-      );
+      const crop = value<CropConfig | null>('getCrop', tree.crop);
       sources.push({
         object,
         index: objectInfo.index,
@@ -1420,8 +1326,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         windStrength,
         trunkColor: tree.trunkColor,
         canopyColor: tree.canopyColor,
-        crops,
-        cropSlots: crops.map((_, slot) => slot),
+        crop: crop && Number.isFinite(crop.radius) ? crop : null,
         sizeScale,
         growth: getUnitValue(value<number>('getGrowth', tree.growth), 1),
         health: getUnitValue(value<number>('getHealth', tree.health), 1),
@@ -1489,6 +1394,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   ): void {
     const previousCount = store.rowCount;
     store.resize(sources.length);
+    this.state.cropKinds.length = sources.length;
     const getCoverageWeight = props.getCoverageWeight;
     let maxWind = 0,
       defaultWind = false;
@@ -1559,77 +1465,32 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       );
       update.seed = seed / 4294967296;
       options.isNew = source.stateRow >= previousCount;
-      this.assignCropSlots(source, store, options.isNew);
-      if (source.crops.length) {
-        const slots: (TreeStateCropUpdate | null)[] = [null, null];
-        source.crops.forEach((crop, index) => {
-          slots[source.cropSlots[index]] = {
-            count: crop.count,
-            radius: crop.radius * source.sizeScale,
-            ripeness: crop.ripeness ?? 1,
-            fallen: crop.fallen ?? 0,
-            color: crop.color,
-            unripeColor: crop.unripeColor ?? getUnripeColor(crop.color),
-            dropped: crop.droppedCount ?? 0
-          };
-        });
-        update.crops = slots;
-      } else {
-        update.crops = null;
-      }
+      const {crop, stateRow} = source;
+      const nextKind = crop ? (crop.kind ?? 'fruit') : null;
+      const previousKind = this.state.cropKinds[stateRow];
+      const base = stateRow * LOD_FLOATS_PER_ROW;
+      const hasCrops =
+        store.data[base + TREE_STATE_TEXEL.CROP0 * 4] > 0 ||
+        store.data[base + TREE_STATE_TEXEL.CROP_DROPPED * 4] > 0;
+      this.state.cropKinds[stateRow] =
+        nextKind ?? (!options.isNew && hasCrops ? previousKind : null);
+      options.cropKindChanged = Boolean(nextKind && previousKind && nextKind !== previousKind);
+      update.crops = crop
+        ? [
+            {
+              count: crop.count,
+              radius: crop.radius * source.sizeScale,
+              color: crop.color,
+              unripeColor: getUnripeColor(crop.color),
+              dropped: crop.droppedCount ?? 0
+            }
+          ]
+        : null;
       store.setRow(source.stateRow, update, options);
     }
   }
 
-  /**
-   * Gives each of a tree's crops its slot. A kind stays in the slot it has, so fruit keeps its anchors when
-   * blossom comes or goes. A slot whose kind no longer appears keeps it until its crops have gone.
-   */
-  private assignCropSlots(source: TreeSource<DataT>, store: TreeStateStore, isNew: boolean): void {
-    const kinds = this.state.cropKinds;
-    const first = source.stateRow * 2;
-    if (kinds.length < first + 2) kinds.length = first + 2;
-    if (isNew) {
-      kinds[first] = null;
-      kinds[first + 1] = null;
-    }
-    const {crops, cropSlots} = source;
-    let taken = 0;
-    for (let index = 0; index < crops.length; index++) cropSlots[index] = -1;
-    // Those whose kind has a slot already.
-    for (let index = 0; index < crops.length; index++) {
-      const kind = crops[index].kind ?? 'fruit';
-      for (let slot = 0; slot < 2; slot++) {
-        if (!(taken & (1 << slot)) && kinds[first + slot] === kind) {
-          cropSlots[index] = slot;
-          taken |= 1 << slot;
-          break;
-        }
-      }
-    }
-    const base = source.stateRow * LOD_FLOATS_PER_ROW;
-    const isEmpty = (slot: number) => {
-      const count = store.data[base + (TREE_STATE_TEXEL.CROP0 + slot * 3) * 4];
-      const dropped = store.data[base + TREE_STATE_TEXEL.CROP_DROPPED * 4 + slot];
-      return !kinds[first + slot] || (count <= 0 && dropped <= 0);
-    };
-    // The rest take a free slot, an empty one first, or else one that other crops are leaving.
-    for (let index = 0; index < crops.length; index++) {
-      if (cropSlots[index] >= 0) continue;
-      let slot = !(taken & 1) && isEmpty(0) ? 0 : !(taken & 2) && isEmpty(1) ? 1 : -1;
-      if (slot < 0) slot = taken & 1 ? 1 : 0;
-      cropSlots[index] = slot;
-      taken |= 1 << slot;
-    }
-    for (let slot = 0; slot < 2; slot++) {
-      if (!(taken & (1 << slot)) && isEmpty(slot)) kinds[first + slot] = null;
-    }
-    for (let index = 0; index < crops.length; index++) {
-      kinds[first + cropSlots[index]] = crops[index].kind ?? 'fruit';
-    }
-  }
-
-  /** Keeps every row and sub-layer data array unless a tree changed template or crop kinds. */
+  /** Keeps every row and sub-layer data array unless a tree changed template or crop kind. */
   private groupPhotorealRows(props, sources: TreeSource<DataT>[]): boolean {
     const previous = this.state.photoreal;
     const photoreal: PhotorealState<DataT> = previous ?? {
@@ -1648,7 +1509,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     for (const source of sources) {
       const {object, stateRow} = source;
       const groupKey = getTreeTemplateKey(source);
-      const cropKinds = `${this.state.cropKinds[stateRow * 2] ?? ''},${this.state.cropKinds[stateRow * 2 + 1] ?? ''}`;
+      const cropKind = this.state.cropKinds[stateRow] ?? null;
       let row = rows[stateRow];
       if (!row) {
         row = this.getSubLayerRow<PhotorealRow<DataT>>(
@@ -1656,7 +1517,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             object,
             stateRow,
             groupKey,
-            cropKinds,
+            cropKind,
             anchorX: Number.NaN,
             anchorY: Number.NaN,
             anchorZ: Number.NaN,
@@ -1673,7 +1534,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             middlePixelsPerMeter: 0,
             focalPixels: 0,
             camera: null,
-            crops: [createPhotorealCropSlot(), createPhotorealCropSlot()],
+            crop: createPhotorealCropSlot(),
             fineLeaves: [],
             macroLeaves: [],
             bladesFrom: null,
@@ -1691,16 +1552,16 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         const templateChanged = row.groupKey !== groupKey;
         if (templateChanged) {
           // Crop residency and near anchors belong to the template's crop table.
-          row.crops = [createPhotorealCropSlot(), createPhotorealCropSlot()];
+          row.crop = createPhotorealCropSlot();
         }
-        if (templateChanged || row.cropKinds !== cropKinds) {
+        if (templateChanged || row.cropKind !== cropKind) {
           row.leafSelection = null;
           row.leafBounds = null;
           row.bladesFrom = null;
           row.fineLeaves = [];
           row.macroLeaves = [];
           row.groupKey = groupKey;
-          row.cropKinds = cropKinds;
+          row.cropKind = cropKind;
           row.bounds = null;
           regroup = true;
         }
@@ -1787,23 +1648,15 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       stemBucket: [],
       airSlots: new SplatRowSlots<PhotorealRow<DataT>>(),
       airBucket: [],
-      airUsed: true,
       fineData: createLeafData<DataT>(new Float32Array(0), []),
       macroData: createLeafData<DataT>(new Float32Array(0), []),
       coarseData: createLeafData<DataT>(new Float32Array(0), []),
       coarseSlots: new SplatRowSlots<PhotorealRow<DataT>>(),
       coarseBucket: [],
-      coarseShadowCount: 0,
-      coarseShadowInstances: 0,
       bladesDirty: false,
-      shadowShare: TREE_LEAF_SHADOW_SHARE,
       // Compile every leaf and wood variant while the template first loads. Waiting for a camera to
       // enter each level otherwise puts a synchronous program link on that hand-off frame. Empty
       // variants retain their model without issuing a draw, so a later dive only changes their rows.
-      used: [true, true, true, true, true, true, true, true],
-      woodUsed: [true, true, true, true],
-      fineUsed: true,
-      macroUsed: true,
       crops: new Map()
     };
   }
@@ -1845,6 +1698,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     options.now = now;
     options.clock = clock;
     options.isNew = false;
+    options.cropKindChanged = false;
     const {SIZE, LIFE, POSE, MISC, DETAIL, ANCHOR_LOW} = TREE_STATE_TEXEL;
     const center = [0, 0, 0];
 
@@ -1934,9 +1788,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           };
         }
         const {center: middle, radius, cullRadius, margin, reach: windReach} = row.bounds;
-        const hasCrops = Boolean(
-          this.state.cropKinds[row.stateRow * 2] || this.state.cropKinds[row.stateRow * 2 + 1]
-        );
+        const hasCrops = Boolean(this.state.cropKinds[row.stateRow]);
         const crownScale = (Math.max(crownX, crownY) * 2) / biasScale;
         let visible = false;
         let near = false;
@@ -2113,11 +1965,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       const stemKeys: number[] = [];
       const shadowRows: PhotorealRow<DataT>[] = [];
       const shadowKeys: number[] = [];
-      const stableShadows = props._stableLeafShadows;
-      let shadowShare = stableShadows ? TREE_LEAF_STABLE_SHADOW_SHARE : TREE_LEAF_SHADOW_SHARE;
       for (const bucket of group.crops.values()) bucket.shedding = false;
       for (const row of group.rows) {
-        if (row.cropKinds !== ',' || row.crops[0].kind || row.crops[1].kind) {
+        if (row.cropKind || row.crop.kind) {
           this.updateRowCrops(group, row, data, cropPixelScale);
         }
         if (row.level < 0) {
@@ -2129,7 +1979,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           continue;
         }
         const base = row.stateRow * LOD_FLOATS_PER_ROW;
-        if (stableShadows && props.shadowEnabled !== false) {
+        if (props.shadowEnabled !== false) {
           shadowRows.push(row);
           shadowKeys.push(row.stateRow);
         }
@@ -2167,11 +2017,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         if ((lod === 0 || row.shellLevel === 0) && data[base + DETAIL * 4 + 2] > 0) {
           nextAir.push(row);
           airKeys.push(row.stateRow);
-        }
-        if (lod === 0 && !stableShadows) {
-          // Bound the adaptive caster prefix while it blends toward full detail.
-          const size = row.leafPixels / TREE_LEAF_SHADOW_FULL_PIXELS;
-          shadowShare = Math.max(shadowShare, Math.min(size * size, TREE_LEAF_SHADOW_MOST));
         }
         if (level === 0) {
           this.updateNearLeaves(group, row, data, finePixels, macroPixels, focal, props);
@@ -2212,23 +2057,11 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           store.setRow(row.stateRow, update, options);
         }
       }
-      const shadowCount =
-        props.shadowEnabled !== false && !stableShadows
-          ? Math.min(
-              group.model.leafCount,
-              Math.max(Math.ceil(group.model.leafCount * shadowShare), 200)
-            )
-          : 0;
-      if (group.coarseShadowCount !== shadowCount) {
-        group.coarseShadowCount = shadowCount;
-        group.bladesDirty = true;
-      }
       for (const row of next[0]) {
         // Leaf-by-leaf instancing pays off only when it removes a substantial part of the original
-        // submission, including its shadow prefix. Otherwise retain the original per-tree draw.
+        // submission. Otherwise retain the original per-tree draw.
         const listed = Boolean(
-          row.leafSelection &&
-            row.leafSelection.visibleLeaves.length + shadowCount < group.model.leafCount * 0.8
+          row.leafSelection && row.leafSelection.visibleLeaves.length < group.model.leafCount * 0.8
         );
         if (row.useListedLeaves !== listed) group.bladesDirty = true;
         row.useListedLeaves = listed;
@@ -2245,18 +2078,14 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       }
       for (let lod = 0; lod < CANOPY_LEVEL_COUNT; lod++) {
         group.buckets[lod] = group.slots[lod].update(next[lod], keys[lod]);
-        if (group.buckets[lod].length) group.used[lod] = true;
         if (lod < FIRST_SHELL_LEVEL) {
           group.woodBuckets[lod] = group.woodSlots[lod].update(nextWood[lod], woodKeys[lod]);
-          if (group.woodBuckets[lod].length) group.woodUsed[lod] = true;
         }
       }
       group.stemBucket = group.stemSlots.update(stems, stemKeys);
       group.airBucket = group.airSlots.update(nextAir, airKeys);
       group.coarseBucket = group.coarseSlots.update(coarse, coarseKeys);
-      if (stableShadows) group.shadowBucket = group.shadowSlots.update(shadowRows, shadowKeys);
-      if (group.airBucket.length) group.airUsed = true;
-      group.shadowShare = shadowShare;
+      group.shadowBucket = group.shadowSlots.update(shadowRows, shadowKeys);
       this.rebuildNearLeaves(group, photoreal);
       this.rebuildCropBuckets(group, photoreal);
     }
@@ -2351,7 +2180,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       let clusterIndex = 0;
       selection = selectTreeLeafClusters(
         clusters,
-        0,
         () => {
           const offset = clusterIndex++ * 5;
           return intersectsTreeLeafClipBounds(
@@ -2535,7 +2363,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   private rebuildNearLeaves(group: PhotorealGroup<DataT>, photoreal: PhotorealState<DataT>): void {
     if (!group.bladesDirty) return;
     group.bladesDirty = false;
-    const build = (list: (row: PhotorealRow<DataT>) => number[]) => {
+    const build = (list: (row: PhotorealRow<DataT>) => ArrayLike<number> & Iterable<number>) => {
       let instances = 0;
       for (const row of group.rows) instances += list(row).length;
       const value = new Float32Array(instances * 2);
@@ -2550,34 +2378,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     };
     group.fineData = build(row => row.fineLeaves);
     group.macroData = build(row => row.macroLeaves);
-    const listed = group.rows.filter(row => row.useListedLeaves && row.leafSelection);
-    const {coarseShadowCount} = group;
-    group.coarseShadowInstances = listed.length * coarseShadowCount;
-    let coarseCount = group.coarseShadowInstances;
-    for (const row of listed) {
-      for (const leaf of row.leafSelection!.visibleLeaves)
-        if (leaf >= coarseShadowCount) coarseCount++;
-    }
-    const coarse = new Float32Array(coarseCount * 2);
-    let coarseOffset = 0;
-    // Every tree's original shadow prefix comes first. A shadow draw submits only this prefix,
-    // rather than running every camera-visible leaf through a shader just to reject most of it.
-    for (const row of listed) {
-      for (let leaf = 0; leaf < coarseShadowCount; leaf++) {
-        coarse[coarseOffset++] = row.stateRow;
-        coarse[coarseOffset++] = leaf;
-      }
-    }
-    for (const row of listed) {
-      for (const leaf of row.leafSelection!.visibleLeaves) {
-        if (leaf < coarseShadowCount) continue;
-        coarse[coarseOffset++] = row.stateRow;
-        coarse[coarseOffset++] = leaf;
-      }
-    }
-    group.coarseData = createLeafData(coarse, photoreal.rows);
-    if (group.fineData.length) group.fineUsed = true;
-    if (group.macroData.length) group.macroUsed = true;
+    group.coarseData = build(row =>
+      row.useListedLeaves ? (row.leafSelection?.visibleLeaves ?? []) : []
+    );
   }
 
   /** The points a tree's crops would take in this view, before any budget. */
@@ -2589,101 +2392,86 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const kinds = this.state.cropKinds;
     const {CROP0, CROP_DROPPED} = TREE_STATE_TEXEL;
     const base = row.stateRow * LOD_FLOATS_PER_ROW;
-    let vertices = 0;
-    for (let slot = 0; slot < 2; slot++) {
-      const kind = kinds[row.stateRow * 2 + slot];
-      if (!kind) continue;
-      const first = base + (CROP0 + slot * 3) * 4;
-      const dropped = data[base + CROP_DROPPED * 4 + slot];
-      const count = data[first] + dropped;
-      if (!(count > 0) || !(data[first + 1] > 0)) continue;
-      const level = getCropDotLevel(
-        kind,
-        data[first + 1],
-        row as PhotorealRow<unknown>,
-        2 ** -lodBias,
-        -1
-      );
-      const shedding = data[first + 3] > 0 || dropped > 0;
-      vertices +=
-        count *
-        getTreeCropLevelThin(kind, level) *
-        (shedding ? getTreeCropVertexCount(kind, getTreeCropLevelMesh(level)) : 1);
-    }
-    return vertices;
+    const kind = kinds[row.stateRow];
+    const first = base + CROP0 * 4;
+    const dropped = data[base + CROP_DROPPED * 4];
+    const count = data[first] + dropped;
+    if (!kind || !(count > 0) || !(data[first + 1] > 0)) return 0;
+    const level = getCropDotLevel(
+      kind,
+      data[first + 1],
+      row as PhotorealRow<unknown>,
+      2 ** -lodBias,
+      -1
+    );
+    return (
+      count *
+      getTreeCropLevelThin(kind, level) *
+      (dropped > 0 ? getTreeCropVertexCount(kind, getTreeCropLevelMesh(level)) : 1)
+    );
   }
 
-  /**
-   * Puts a tree's two crop slots in the bucket of their level of detail, and marks what changed. Instances
-   * cover the capacity of each slot, so as long as a value stays within it, nothing is written.
-   */
+  /** Assigns a tree's crops to a detail level and updates instance data when capacity changes. */
   private updateRowCrops(
     group: PhotorealGroup<DataT>,
     row: PhotorealRow<DataT>,
     data: Float32Array,
     pixelScale: number
   ): void {
-    const kinds = this.state.cropKinds;
     const {CROP0, CROP_DROPPED, LIFE} = TREE_STATE_TEXEL;
     const base = row.stateRow * LOD_FLOATS_PER_ROW;
     const growth = data[base + LIFE * 4];
-    const firstKindChanged = (kinds[row.stateRow * 2] ?? null) !== row.crops[0].kind;
-    for (let slot = 0; slot < 2; slot++) {
-      const entry = row.crops[slot];
-      const kind = kinds[row.stateRow * 2 + slot] ?? null;
-      const first = base + (CROP0 + slot * 3) * 4;
-      const count = data[first];
-      const radius = data[first + 1];
-      const dropped = data[base + CROP_DROPPED * 4 + slot];
-      let level = -1;
-      if (kind && radius > 0 && (count > 0 || dropped > 0) && growth > 0 && row.visible) {
-        level = getCropDotLevel(
-          kind,
-          radius,
-          row as PhotorealRow<unknown>,
-          pixelScale,
-          entry.kind === kind ? entry.level : -1
-        );
-      }
-      let changed =
-        kind !== entry.kind || level !== entry.level || (slot === 1 && firstKindChanged);
-      if (changed) this.markCropBucket(group, entry.kind, entry.level);
-      if (kind !== entry.kind) this.clearNearCrops(group, entry);
-      entry.kind = kind;
-      entry.level = level;
-      if (level < 0 || !kind) {
-        entry.attached.capacity = 0;
-        entry.dropped = 0;
-        this.clearNearCrops(group, entry);
-        continue;
-      }
-      const shedding = data[first + 3] > 0 || dropped > 0;
-      if (shedding) this.getCropBucket(group, kind, level).shedding = true;
-      const thin = getTreeCropLevelThin(kind, level);
-      if (
-        updateTreeCropCapacity(
-          entry.attached,
-          getTreeCropTable(group.model),
-          // Blossoms take every twig's way out of the crown, born or not, once the tree can bloom.
-          kind === 'flower' && growth >= TREE_CROP_BLOOM_FROM ? 1 : growth,
-          count * thin,
-          getTreeCropCluster(kind, level)
-        )
-      ) {
-        changed = true;
-      }
-      const droppedNeed = Math.ceil(dropped * thin);
-      if (droppedNeed > entry.dropped || droppedNeed * 4 < entry.dropped) {
-        entry.dropped = droppedNeed > 0 ? 2 ** Math.ceil(Math.log2(droppedNeed)) : 0;
-        changed = true;
-      }
-      if (changed) this.markCropBucket(group, kind, level);
-      this.updateNearCrops(group, row, entry, slot, data, radius, pixelScale, changed);
-      if (shedding) {
-        // Its near crops are in the buckets of the meshes, whatever level the slot itself has.
-        for (let mesh = 0; mesh < CROP_FIRST_DOT_LEVEL; mesh++) {
-          if (entry.near[mesh].length) this.getCropBucket(group, kind, mesh).shedding = true;
-        }
+    const entry = row.crop;
+    const kind = this.state.cropKinds[row.stateRow] ?? null;
+    const first = base + CROP0 * 4;
+    const count = data[first];
+    const radius = data[first + 1];
+    const dropped = data[base + CROP_DROPPED * 4];
+    const level =
+      kind && radius > 0 && (count > 0 || dropped > 0) && growth > 0 && row.visible
+        ? getCropDotLevel(
+            kind,
+            radius,
+            row as PhotorealRow<unknown>,
+            pixelScale,
+            entry.kind === kind ? entry.level : -1
+          )
+        : -1;
+    let changed = kind !== entry.kind || level !== entry.level;
+    if (changed) this.markCropBucket(group, entry.kind, entry.level);
+    if (kind !== entry.kind) this.clearNearCrops(group, entry);
+    entry.kind = kind;
+    entry.level = level;
+    if (level < 0 || !kind) {
+      entry.attached.capacity = 0;
+      entry.dropped = 0;
+      this.clearNearCrops(group, entry);
+      return;
+    }
+    if (dropped > 0) this.getCropBucket(group, kind, level).shedding = true;
+    const thin = getTreeCropLevelThin(kind, level);
+    if (
+      updateTreeCropCapacity(
+        entry.attached,
+        getTreeCropTable(group.model),
+        // Blossoms can use any twig anchor once the tree is old enough to bloom.
+        kind === 'flower' && growth >= TREE_CROP_BLOOM_FROM ? 1 : growth,
+        count * thin,
+        getTreeCropCluster(kind, level)
+      )
+    ) {
+      changed = true;
+    }
+    const droppedNeed = Math.ceil(dropped * thin);
+    if (droppedNeed > entry.dropped || droppedNeed * 4 < entry.dropped) {
+      entry.dropped = droppedNeed > 0 ? 2 ** Math.ceil(Math.log2(droppedNeed)) : 0;
+      changed = true;
+    }
+    if (changed) this.markCropBucket(group, kind, level);
+    this.updateNearCrops(group, row, entry, data, radius, pixelScale, changed);
+    if (dropped > 0) {
+      for (let mesh = 0; mesh < CROP_FIRST_DOT_LEVEL; mesh++) {
+        if (entry.near[mesh].length) this.getCropBucket(group, kind, mesh).shedding = true;
       }
     }
   }
@@ -2708,7 +2496,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     group: PhotorealGroup<DataT>,
     row: PhotorealRow<DataT>,
     entry: PhotorealCropSlot,
-    slot: number,
     data: Float32Array,
     radius: number,
     pixelScale: number,
@@ -2717,12 +2504,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const kind = entry.kind as CropKind;
     const {model} = group;
     const [macroPixels, finePixels] = getTreeCropMeshPixels(kind);
-    const {ANCHOR, SIZE, POSE, CROP0} = TREE_STATE_TEXEL;
+    const {ANCHOR, SIZE, POSE} = TREE_STATE_TEXEL;
     const base = row.stateRow * LOD_FLOATS_PER_ROW;
-    const fallen = data[base + (CROP0 + slot * 3) * 4 + 3];
-    // What has fallen lies beyond the crown, which is what this is measured to.
-    const beyondCrown = fallen > 0 ? CROP_NEAR_BEYOND_CROWN : 1;
-    if (radius * row.pixelsPerMeter * pixelScale * beyondCrown < finePixels * CROP_NEAR_MARGIN) {
+    if (radius * row.pixelsPerMeter * pixelScale < finePixels * CROP_NEAR_MARGIN) {
       this.clearNearCrops(group, entry);
       return;
     }
@@ -2733,7 +2517,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       camera &&
       entry.nearFrom &&
       !changed &&
-      entry.nearFallen === fallen > 0 &&
       Math.abs(entry.nearScale - scale) <= entry.nearScale * CROP_NEAR_SIZE_HOLD
     ) {
       // The lists have a margin in size on screen, which holds until the camera has gone this far, from the
@@ -2744,7 +2527,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     }
     entry.nearFrom = camera;
     entry.nearScale = scale;
-    entry.nearFallen = fallen > 0;
 
     const yaw = data[base + ANCHOR * 4 + 3];
     const crownX = data[base + SIZE * 4];
@@ -2756,14 +2538,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     // A tree that has moved from its template, or a view with no one camera, gets a mesh for every crop.
     const anywhere =
       !camera || !(focal > 0) || data[base + POSE * 4] > 0 || data[base + POSE * 4 + 2] > 0;
-    const margin =
-      (fallen > 0
-        ? kind === 'flower'
-          ? CROP_NEAR_REACH_PETAL
-          : CROP_NEAR_REACH_FALLEN
-        : CROP_NEAR_REACH) +
-      getFiniteDimension(this.props.windStrength, 0) * height * 0.5;
-    const code = getCropCode(row as PhotorealRow<unknown>, slot);
+    const margin = CROP_NEAR_REACH + getFiniteDimension(this.props.windStrength, 0) * height * 0.5;
     const macro: number[] = [];
     const fine: number[] = [];
     const table = getTreeCropTable(model);
@@ -2792,31 +2567,23 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           ) - margin,
           0
         );
-        // From the camera to the crop as it hangs, or anywhere below it if it may have fallen.
         const cameraZ = (camera as number[])[2];
         const above = cameraZ > z + margin ? cameraZ - z - margin : 0;
-        const below =
-          fallen > 0
-            ? cameraZ < 0
-              ? -cameraZ
-              : 0
-            : cameraZ < z - margin
-              ? z - margin - cameraZ
-              : 0;
+        const below = cameraZ < z - margin ? z - margin - cameraZ : 0;
         pixels =
           (radius * focal) / Math.max(Math.hypot(across, above + below), CROP_NEAREST_METRES);
       }
       if (pixels < finePixels * CROP_NEAR_MARGIN) continue;
       for (let member = 0; member < cluster; member++) {
         const index = anchor * cluster + member;
-        fine.push(index, code);
-        if (pixels >= macroPixels * CROP_NEAR_MARGIN) macro.push(index, code);
+        fine.push(index, 0);
+        if (pixels >= macroPixels * CROP_NEAR_MARGIN) macro.push(index, 0);
       }
     }
     // Crops supplied as dropped lie anywhere under the crown.
     for (let crop = 0; crop < entry.dropped; crop++) {
-      fine.push(crop, slot + CROP_CODE_DROPPED);
-      macro.push(crop, slot + CROP_CODE_DROPPED);
+      fine.push(crop, CROP_CODE_DROPPED);
+      macro.push(crop, CROP_CODE_DROPPED);
     }
     this.setNearCrops(group, entry, 0, macro);
     this.setNearCrops(group, entry, 1, fine);
@@ -2870,41 +2637,28 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       const cluster = getTreeCropCluster(kind, level);
       const isMesh = level < CROP_FIRST_DOT_LEVEL;
       let instances = 0;
-      for (const row of group.rows) {
-        for (const entry of row.crops) {
-          if (entry.kind !== kind) continue;
-          if (isMesh) instances += entry.near[level].length / 2;
-          else if (entry.level === level) instances += entry.attached.capacity + entry.dropped;
-        }
+      for (const {crop: entry} of group.rows) {
+        if (entry.kind !== kind) continue;
+        if (isMesh) instances += entry.near[level].length / 2;
+        else if (entry.level === level) instances += entry.attached.capacity + entry.dropped;
       }
       const value = new Float32Array(instances * 3);
       let offset = 0;
-      for (const row of group.rows) {
-        for (let slot = 0; slot < 2; slot++) {
-          const entry = row.crops[slot];
-          if (entry.kind !== kind) continue;
-          if (isMesh) {
-            const crops = entry.near[level];
-            for (let i = 0; i < crops.length; i += 2) {
-              value[offset++] = row.stateRow;
-              value[offset++] = crops[i];
-              value[offset++] = crops[i + 1];
-            }
-          } else if (entry.level === level) {
-            offset = writeTreeCropRefs(
-              value,
-              offset,
-              row.stateRow,
-              getCropCode(row as PhotorealRow<unknown>, slot),
-              entry.attached,
-              table,
-              cluster
-            );
-            for (let crop = 0; crop < entry.dropped; crop++) {
-              value[offset++] = row.stateRow;
-              value[offset++] = crop;
-              value[offset++] = slot + CROP_CODE_DROPPED;
-            }
+      for (const {crop: entry, stateRow} of group.rows) {
+        if (entry.kind !== kind) continue;
+        if (isMesh) {
+          const crops = entry.near[level];
+          for (let i = 0; i < crops.length; i += 2) {
+            value[offset++] = stateRow;
+            value[offset++] = crops[i];
+            value[offset++] = crops[i + 1];
+          }
+        } else if (entry.level === level) {
+          offset = writeTreeCropRefs(value, offset, stateRow, 0, entry.attached, table, cluster);
+          for (let crop = 0; crop < entry.dropped; crop++) {
+            value[offset++] = stateRow;
+            value[offset++] = crop;
+            value[offset++] = CROP_CODE_DROPPED;
           }
         }
       }
@@ -3034,7 +2788,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   private renderPhotorealLayers(windStrength: number): Layer[] {
     const {photoreal, stateTexture} = this.state;
     if (!photoreal || !stateTexture) return [];
-    const {windTime, windGustTime, shadowEnabled, pickable, wetness, frost, fog} = this.props;
+    const {windTime, shadowEnabled, pickable} = this.props;
     const shared = {
       stateTexture,
       _stateData: this.state.store?.data ?? null,
@@ -3043,14 +2797,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       windStrength,
       windDirection: this.state.windVector,
       windTime,
-      windGustTime,
       windOrigin: photoreal.windOrigin,
       windUnits: photoreal.windUnits,
       shadowEnabled,
       pickable,
-      wetness,
-      frost,
-      fog,
       _dataDiff: getSplatChangedRanges,
       _offset: 0
     };
@@ -3060,19 +2810,18 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const air: Layer[] = [];
     const {leafBlades} = photoreal;
     const {_dataDiff: _noDiff, ...sharedByLeaf} = shared;
-    const stableShadows = this.props._stableLeafShadows;
     const woodParameters = {
       blend: this.props.opacity !== 1,
       ...this.props.parameters,
       cullMode: 'back'
     };
     for (const group of photoreal.groups.values()) {
-      const {key, model, species, shadowShare, meanLeaf} = group;
+      const {key, model, species, meanLeaf} = group;
       const part = {...shared, template: model, species};
       const blades = [leafBlades[0], leafBlades[1], leafBlades[2], meanLeaf];
       const material = this.props.foliageMaterial ?? DEFAULT_FOLIAGE_MATERIAL;
       const parameters = {...this.props.parameters, cullMode: 'none'};
-      if (stableShadows && shadowEnabled !== false) {
+      if (shadowEnabled !== false) {
         // Color tiers never change these meshes. The caster rows and opacity still follow
         // near residency and lifecycle updates, so a departing tree fades as before.
         const caster = {
@@ -3115,7 +2864,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             template: getTreeStemModel(model),
             _woodCulling: false,
             lod: 3,
-            _shadowPass: stableShadows ? 'skip' : null,
+            _shadowPass: 'skip',
             data: group.stemBucket,
             visible: group.stemBucket.length > 0 && this.props.visible,
             type: TreePhotorealWoodLayer,
@@ -3127,7 +2876,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       );
       // Nearest first, for the depth test, and most of a crown's wood is behind its leaves.
       for (const blade of ['macro', 'fine'] as const) {
-        if (!(blade === 'macro' ? group.macroUsed : group.fineUsed)) continue;
         const data = blade === 'macro' ? group.macroData : group.fineData;
         leaves.push(
           new TreePhotorealLeafLayer({
@@ -3138,6 +2886,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               lod: 0,
               blade,
               leafBlades: blades,
+              _shadowPass: 'skip',
               data: NO_CROP_ROWS,
               type: TreePhotorealLeafLayer,
               id: `photoreal-leaves-${key}-${blade}`,
@@ -3160,10 +2909,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             lod: 0,
             blade: 'coarse',
             listed: true,
-            shadowInstances: group.coarseShadowInstances,
             leafBlades: blades,
-            shadowShare,
-            _shadowPass: stableShadows ? 'skip' : null,
+            _shadowPass: 'skip',
             data: NO_CROP_ROWS,
             type: TreePhotorealLeafLayer,
             id: `photoreal-leaves-${key}-listed`,
@@ -3176,48 +2923,44 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         } as never)
       );
       for (let lod = 0; lod < 4; lod++) {
-        if (group.woodUsed[lod])
-          wood.push(
-            new TreePhotorealWoodLayer(
-              this.getTreeSubLayerProps({
-                ...part,
-                lod,
-                _woodCulling: shared._woodCulling && lod < 2 && group.woodBuckets[lod].length < 32,
-                _shadowPass: stableShadows ? 'skip' : null,
-                data: group.woodBuckets[lod],
-                type: TreePhotorealWoodLayer,
-                id: `photoreal-wood-${key}-${lod}`,
-                material: this.props.woodMaterial ?? DEFAULT_WOOD_MATERIAL,
-                parameters: woodParameters
-              })
-            )
-          );
-        if (group.used[lod])
-          leaves.push(
-            new TreePhotorealLeafLayer(
-              this.getTreeSubLayerProps({
-                ...part,
-                lod,
-                leafBlades: blades,
-                shadowShare: lod === 0 ? shadowShare : undefined,
-                _shadowPass: stableShadows ? 'skip' : null,
-                data: lod === 0 ? group.coarseBucket : group.buckets[lod],
-                type: TreePhotorealLeafLayer,
-                id: `photoreal-leaves-${key}-${lod}`,
-                material,
-                parameters
-              })
-            )
-          );
+        wood.push(
+          new TreePhotorealWoodLayer(
+            this.getTreeSubLayerProps({
+              ...part,
+              lod,
+              _woodCulling: shared._woodCulling && lod < 2 && group.woodBuckets[lod].length < 32,
+              _shadowPass: 'skip',
+              data: group.woodBuckets[lod],
+              type: TreePhotorealWoodLayer,
+              id: `photoreal-wood-${key}-${lod}`,
+              material: this.props.woodMaterial ?? DEFAULT_WOOD_MATERIAL,
+              parameters: woodParameters
+            })
+          )
+        );
+        leaves.push(
+          new TreePhotorealLeafLayer(
+            this.getTreeSubLayerProps({
+              ...part,
+              lod,
+              leafBlades: blades,
+              _shadowPass: 'skip',
+              data: lod === 0 ? group.coarseBucket : group.buckets[lod],
+              type: TreePhotorealLeafLayer,
+              id: `photoreal-leaves-${key}-${lod}`,
+              material,
+              parameters
+            })
+          )
+        );
       }
       for (let lod = FIRST_SHELL_LEVEL; lod < CANOPY_LEVEL_COUNT; lod++) {
-        if (!group.used[lod]) continue;
         leaves.push(
           new TreeShellLayer(
             this.getTreeSubLayerProps({
               ...part,
               lod: lod - FIRST_SHELL_LEVEL,
-              _shadowPass: stableShadows ? 'skip' : null,
+              _shadowPass: 'skip',
               data: group.buckets[lod],
               type: TreeShellLayer,
               id: `canopy-${key}-${lod}`,
@@ -3227,28 +2970,27 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           )
         );
       }
-      if (group.airUsed) {
-        // Their depth first, then the leaves themselves, which blend.
-        for (const pass of ['depth', 'blend'] as const) {
-          air.push(
-            new TreePhotorealLeafLayer({
-              ...this.getTreeSubLayerProps({
-                ...part,
-                lod: 0,
-                air: pass,
-                leafBlades: blades,
-                data: group.airBucket,
-                type: TreePhotorealLeafLayer,
-                id: `photoreal-leaves-${key}-air-${pass}`,
-                material,
-                parameters: {...parameters, ...AIR_PARAMETERS[pass]}
-              }),
-              // Not for picking, and an empty one keeps its model and costs a frame nothing.
-              pickable: false,
-              visible: group.airBucket.length > 0 && this.props.visible
-            } as never)
-          );
-        }
+      // Their depth first, then the leaves themselves, which blend.
+      for (const pass of ['depth', 'blend'] as const) {
+        air.push(
+          new TreePhotorealLeafLayer({
+            ...this.getTreeSubLayerProps({
+              ...part,
+              lod: 0,
+              air: pass,
+              leafBlades: blades,
+              _shadowPass: 'skip',
+              data: group.airBucket,
+              type: TreePhotorealLeafLayer,
+              id: `photoreal-leaves-${key}-air-${pass}`,
+              material,
+              parameters: {...parameters, ...AIR_PARAMETERS[pass]}
+            }),
+            // Not for picking, and an empty one keeps its model and costs a frame nothing.
+            pickable: false,
+            visible: group.airBucket.length > 0 && this.props.visible
+          } as never)
+        );
       }
     }
     // Leaves in the air blend, so they come after everything they may be seen against.

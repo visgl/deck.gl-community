@@ -6,7 +6,6 @@ import {describe, expect, it} from 'vitest';
 import {
   getTreeCropBornCount,
   getTreeCropGeometry,
-  getTreeCropMesh,
   getTreeCropReach,
   getTreeCropTable,
   TREE_CROP_PART,
@@ -326,9 +325,7 @@ describe('getTreeCropGeometry', () => {
     expect(far.bodyIndexCount).toBe(1);
   });
 
-  it('caches, and leaves the standard pipeline its own meshes', () => {
+  it('shares cached crop geometry', () => {
     expect(getTreeCropGeometry('fruit', 0)).toBe(getTreeCropGeometry('fruit', 0));
-    expect(getTreeCropMesh('fruit').attributes.POSITION.value).toBeInstanceOf(Float32Array);
-    expect(getTreeCropMesh('flower')).toBe(getTreeCropMesh('flower'));
   });
 });

@@ -19,8 +19,6 @@ import {
   getTreeLeafShaders,
   TREE_LEAF_AIR_CORNERS,
   TREE_LEAF_AIR_PATTERN,
-  TREE_LEAF_SHADOW_MINIMUM,
-  TREE_LEAF_SHADOW_SHARE,
   treePhotoreal,
   type TreeLeafBlade,
   type TreePhotorealUniforms
@@ -51,8 +49,6 @@ export type TreePhotorealLeafLayerProps<DataT = unknown> = Omit<
   blade?: TreeLeafBlade;
   /** The coarse blade supplied as original `[tree row, leaf index]` references after spatial culling. */
   listed?: boolean;
-  /** Number of prefix-first listed instances that reproduce the original per-tree shadow draw. */
-  shadowInstances?: number;
   /**
    * Draws only the leaves of the coarse blade that are in the air, which that blade leaves out, for the trees of LOD 0
    * that are losing leaves, and nothing in a shadow pass. `'blend'` draws them as soft streaks that blend and write no
@@ -61,17 +57,12 @@ export type TreePhotorealLeafLayerProps<DataT = unknown> = Omit<
   air?: 'blend' | 'depth' | null;
   /** The `leafBlades` uniform: on-screen sizes of the finer blades, pixels at a metre, and the mean leaf. */
   leafBlades?: TreePhotorealUniforms['leafBlades'];
-  /** Of a level's leaves, the largest share any of its trees casts with. */
-  shadowShare?: number;
-  /** Use the supplied share for every caster in LOD 0. */
-  stableShadows?: boolean;
 };
 
 /**
  * Individual leaves of one template. The coarse blade is drawn per tree, at one level of detail: vertices are
  * pulled, as `gl_VertexID` gives the leaf and its corner through a shared index buffer, and everything else
- * comes from the leaf texture and the state row. A level of detail draws a prefix of the leaves, a coarser one
- * in the shadow pass.
+ * comes from the leaf texture and the state row. A level of detail draws a prefix of the leaves.
  *
  * The finer blades are drawn per leaf, for a list of those near the camera: a leaf is an instance, its corners
  * are `gl_VertexID`, and they draw nothing in a shadow pass. Their picking colors encode the tree's state row,
@@ -82,11 +73,8 @@ export class TreePhotorealLeafLayer<DataT = unknown> extends TreePhotorealPrimit
   static defaultProps = {
     blade: undefined,
     listed: false,
-    shadowInstances: 0,
     air: null,
     leafBlades: {type: 'array', value: [0, 0, 0, 0], compare: true},
-    shadowShare: TREE_LEAF_SHADOW_SHARE,
-    stableShadows: false,
     getLeafRef: {type: 'accessor', value: [0, 0]}
   } as DefaultProps<any>;
 
@@ -175,29 +163,15 @@ export class TreePhotorealLeafLayer<DataT = unknown> extends TreePhotorealPrimit
     }
   }
 
-  draw(params: Parameters<TreePhotorealPrimitiveLayer<DataT>['draw']>[0]): void {
-    if ((this.isListed() && !this.getLeafProps().listed) || this.getLeafProps().air) {
-      // The blades of a tree's level of detail cast for all of them, and leaves in the air cast nothing.
-      if (!this.getNumInstances() || params.shaderModuleProps?.shadow?.drawToShadowMap) return;
-    }
-    super.draw(params);
-  }
-
-  protected prepareDraw(
-    model: Model,
-    shadowPass: boolean
-  ): Pick<TreePhotorealUniforms, 'shape' | 'look' | 'leafBlades'> & {
+  protected prepareDraw(model: Model): Pick<
+    TreePhotorealUniforms,
+    'shape' | 'look' | 'leafBlades'
+  > & {
     nextLook: readonly [number, number];
-    fixedLeafShadowShare: number;
   } {
     const {template, lod} = this.props;
     const {forkZ, leafCount} = template;
-    const {
-      leafBlades = [0, 0, 0, 0],
-      shadowShare = TREE_LEAF_SHADOW_SHARE,
-      stableShadows
-    } = this.getLeafProps();
-    const fixedLeafShadowShare = shadowPass && lod === 0 && stableShadows ? shadowShare : 0;
+    const {leafBlades = [0, 0, 0, 0]} = this.getLeafProps();
     const [blend, gloss] = LOOK_BY_LOD[lod];
     const look: TreePhotorealUniforms['look'] = [
       blend,
@@ -207,49 +181,14 @@ export class TreePhotorealLeafLayer<DataT = unknown> extends TreePhotorealPrimit
     ];
     const nextLook = LOOK_BY_LOD[lod + 1];
     const patternLength = this.getLeafLayout().pattern.length;
-    if (this.isListed()) {
-      model.setIndexCount(patternLength);
-      return {
-        shape: [
-          forkZ,
-          leafCount,
-          leafCount,
-          shadowPass ? Math.min(TREE_LEAF_SHADOW_MINIMUM, leafCount) : 0
-        ],
-        look,
-        nextLook,
-        leafBlades,
-        fixedLeafShadowShare
-      };
-    }
-    const count = template.lodLeafCounts[lod];
-    // The same share at every level, so the shadow does not change when a tree changes level. The vertex stage
-    // takes each tree's own, so this only says how many leaves it can ask for.
-    const minimum = shadowPass ? Math.min(TREE_LEAF_SHADOW_MINIMUM, count) : 0;
-    const drawn = shadowPass ? Math.max(count * shadowShare, minimum) : count;
-    model.setIndexCount(Math.ceil(drawn) * patternLength);
-    return {
-      shape: [forkZ, leafCount, count, minimum],
-      look,
-      nextLook,
-      leafBlades,
-      fixedLeafShadowShare
-    };
+    const listed = this.isListed();
+    const count = listed ? leafCount : template.lodLeafCounts[lod];
+    model.setIndexCount((listed ? 1 : count) * patternLength);
+    return {shape: [forkZ, leafCount, count, 0], look, nextLook, leafBlades};
   }
 
   protected setTemplateBindings(model: Model, resources: TreeTemplateResources): void {
     model.setBindings({treeLeaves: resources.leaves});
-  }
-
-  protected drawPreparedModel(
-    model: Model,
-    params: Parameters<TreePhotorealPrimitiveLayer<DataT>['draw']>[0],
-    shadowPass: boolean
-  ): void {
-    if (this.getLeafProps().listed && shadowPass) {
-      model.setInstanceCount(this.getLeafProps().shadowInstances ?? 0);
-    }
-    super.drawPreparedModel(model, params, shadowPass);
   }
 
   /** The pass that writes only the depth of leaves in the air lights nothing, so it samples no shadow map. */

@@ -203,13 +203,10 @@ const TreeCropSchema = z
     color: ColorSchema,
     count: z.number(),
     radius: z.number(),
-    droppedCount: z.number().optional(),
-    unripeColor: ColorSchema.optional(),
-    ripeness: TreeFractionSchema.optional(),
-    fallen: TreeFractionSchema.optional()
+    droppedCount: z.number().optional()
   })
   .strict();
-const TreeCropsSchema = z.union([TreeCropSchema, z.array(TreeCropSchema).max(2)]).nullable();
+const OptionalTreeCropSchema = TreeCropSchema.nullable();
 const TreeCharacteristicsSchema = z
   .object({
     seed: z.number().optional(),
@@ -239,7 +236,7 @@ export const TreeSpecSchema = z
     elevation: z.number().optional(),
     season: z.enum(['spring', 'summer', 'autumn', 'winter']).optional(),
     characteristics: TreeCharacteristicsSchema.optional(),
-    crop: TreeCropsSchema.optional(),
+    crop: OptionalTreeCropSchema.optional(),
     growth: TreeFractionSchema.optional(),
     health: TreeFractionSchema.optional(),
     foliage: TreeFractionSchema.optional(),
@@ -270,7 +267,7 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
   getCanopyColor: createAccessorSchema(ColorSchema.nullable()).optional(),
   getSeason: createAccessorSchema(z.enum(['spring', 'summer', 'autumn', 'winter'])).optional(),
   getBranchLevels: NumberAccessorSchema.optional(),
-  getCrop: createAccessorSchema(TreeCropsSchema).optional(),
+  getCrop: createAccessorSchema(OptionalTreeCropSchema).optional(),
   getGrowth: createAccessorSchema(TreeFractionSchema).optional(),
   getHealth: createAccessorSchema(TreeFractionSchema).optional(),
   getFoliage: createAccessorSchema(TreeFractionSchema).optional(),
@@ -282,17 +279,10 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
   sizeScale: z.number().nonnegative().optional(),
   characteristics: TreeCharacteristicsSchema.optional(),
   lodBias: z.number().optional(),
-  wetness: TreeFractionSchema.optional(),
-  frost: TreeFractionSchema.optional(),
-  fog: z
-    .strictObject({color: Vector3Schema, density: z.number().nonnegative()})
-    .nullable()
-    .optional(),
   shadowEnabled: z.boolean().optional(),
   windStrength: TreeFractionSchema.optional(),
   windDirection: z.number().nullable().optional(),
-  windTime: z.number().nullable().optional(),
-  windGustTime: z.number().nullable().optional()
+  windTime: z.number().nullable().optional()
 });
 
 /** Prepared Gaussian assets, including their hierarchies, remain host-owned constants. */

@@ -160,27 +160,6 @@ function meanColor(
   return [sum[0] / count, sum[1] / count, sum[2] / count];
 }
 
-/** Median sRGB color, 0-255, of what is drawn in a region. */
-function medianColor(
-  pixels: Uint8Array,
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number
-): [number, number, number] {
-  const channels: [number[], number[], number[]] = [[], [], []];
-  for (let y = y0; y < y1; y++) {
-    for (let x = x0; x < x1; x++) {
-      const offset = ((SIZE - 1 - y) * SIZE + x) * 4;
-      if (pixels[offset + 3] === 0) continue;
-      for (let channel = 0; channel < 3; channel++)
-        channels[channel].push(pixels[offset + channel]);
-    }
-  }
-  const middle = (values: number[]) => values.sort((a, b) => a - b)[values.length >> 1];
-  return [middle(channels[0]), middle(channels[1]), middle(channels[2])];
-}
-
 function photorealLayers(scene: Scene): Layer[] {
   return subLayers(scene).filter(
     layer => layer instanceof TreePhotorealWoodLayer || layer instanceof TreePhotorealLeafLayer
@@ -451,46 +430,6 @@ describe('TreeLayer photoreal rendering', () => {
     120000
   );
 
-  it('takes wetness, frost and fog as layer props, in every part', async () => {
-    const scene = mount();
-    const crown = [90, 60, 166, 130] as const;
-    const clear = await scene.render([trees()]);
-    const wetness = () =>
-      photorealLayers(scene).map(layer => (layer.props as unknown as {wetness: number}).wetness);
-    expect(new Set(wetness())).toEqual(new Set([0]));
-
-    const wet = await scene.render([trees({wetness: 1})]);
-    expect(new Set(wetness())).toEqual(new Set([1]));
-    // Rain darkens a leaf, and it mirrors more of the sky: paler, and less green.
-    expect(meanColor(wet, ...crown)[2] - meanColor(wet, ...crown)[1]).toBeGreaterThan(
-      meanColor(clear, ...crown)[2] - meanColor(clear, ...crown)[1]
-    );
-
-    // Rime is pale.
-    const frosted = await scene.render([trees({frost: 1})]);
-    expect(brightness(frosted, ...crown)).toBeGreaterThan(brightness(clear, ...crown) * 1.1);
-
-    // A surface lost in fog shows exactly the color asked for, whatever its light.
-    const color = [180, 40, 60];
-    const fogged = await scene.render([trees({fog: {color, density: 4}})]);
-    // Well inside the crown, whose outline is uneven now, so no sky shows through a gap at its edge. A median, as
-    // a stray pixel of sky or of a part that has no fog of its own would pull a mean away.
-    const [red, green, blue] = medianColor(fogged, 118, 95, 138, 120);
-    expect(Math.abs(red - color[0])).toBeLessThan(4);
-    expect(Math.abs(green - color[1])).toBeLessThan(4);
-    expect(Math.abs(blue - color[2])).toBeLessThan(4);
-
-    // A thin fog takes a part of it, with distance.
-    const hazy = await scene.render([trees({fog: {color, density: 0.02}})]);
-    expect(meanColor(hazy, ...crown)[0]).toBeGreaterThan(meanColor(clear, ...crown)[0]);
-    expect(meanColor(hazy, ...crown)[0]).toBeLessThan(color[0] * 0.8);
-
-    const again = await scene.render([trees()]);
-    expect(brightness(again, ...crown)).toBeCloseTo(brightness(clear, ...crown), 0);
-    expect(scene.errors).toEqual([]);
-    expect(scene.glErrors).toEqual([]);
-  }, 120000);
-
   it('thins and rots progressively', async () => {
     const scene = mount();
     const count = async (props: Record<string, unknown>) =>
@@ -694,7 +633,7 @@ describe('TreeLayer photoreal rendering', () => {
       ]
     });
     scene.setViewState({...ORBIT_STATE, zoom: 8});
-    const props = {lodBias: -3, windTime: 12, windDirection: 80, wetness: 0.7};
+    const props = {lodBias: -3, windTime: 12, windDirection: 80};
     const receiver = ground();
     // A sparser crown exercises the same macro and culling paths with fewer submitted vertices.
     const tree: TreeSpec = {...CITRUS, characteristics: {leafDensity: 0.25}};
@@ -736,7 +675,7 @@ describe('TreeLayer photoreal rendering', () => {
       layer => layer instanceof TreeShellLayer && layer.id.endsWith('-shadow')
     );
     expect(caster?.getNumInstances()).toBe(1);
-    expect((listed.props as unknown as {shadowInstances: number}).shadowInstances).toBe(0);
+    expect((listed.props as unknown as {_shadowPass: string})._shadowPass).toBe('skip');
     let difference = 0;
     for (let offset = 0; offset < reference.length; offset++)
       difference += Math.abs(reference[offset] - selected[offset]);
@@ -844,19 +783,16 @@ describe('TreeLayer photoreal rendering', () => {
     const timeline = scene.layerManager().context.timeline;
     timeline.pause();
     timeline.setTime(1000);
-    const started = vi.fn();
-    const ended = vi.fn();
     const make = (growth: number) =>
       trees({
         getGrowth: () => growth,
         updateTriggers: {getGrowth: growth},
-        transitions: {getGrowth: {duration: 2000, onStart: started, onEnd: ended}}
+        transitions: {getGrowth: 2000}
       });
     const before = countPixels(await scene.render([make(0.15)]));
     expect(treeLayer(scene).state.store!.getRowValues(0).growth).toBeCloseTo(0.15);
     // The target changes while the clock stands still: nothing moves yet.
     const still = countPixels(await scene.render([make(0.95)]));
-    expect(started).toHaveBeenCalledTimes(1);
     expect(treeLayer(scene).state.store!.getRowValues(0).growth).toBeCloseTo(0.15);
     expect(still).toBe(before);
     // Halfway through.
@@ -865,14 +801,12 @@ describe('TreeLayer photoreal rendering', () => {
     expect(treeLayer(scene).state.store!.getRowValues(0).growth).toBeCloseTo(0.55);
     expect(treeLayer(scene).state.ticking).toBe(true);
     expect(middle).toBeGreaterThan(before);
-    expect(ended).not.toHaveBeenCalled();
     // The end.
     timeline.setTime(3000);
     const final = countPixels(await scene.settle());
     expect(treeLayer(scene).state.store!.getRowValues(0).growth).toBeCloseTo(0.95);
     expect(treeLayer(scene).state.ticking).toBe(false);
     expect(final).toBeGreaterThan(middle);
-    expect(ended).toHaveBeenCalledTimes(1);
     expect(scene.errors).toEqual([]);
   }, 120000);
 
@@ -968,25 +902,6 @@ describe('TreeLayer photoreal rendering', () => {
     expect(brightness(pulsing, 30, 40, 110, 130)).toBeGreaterThan(
       brightness(plain, 30, 40, 110, 130) + 20
     );
-    expect(scene.errors).toEqual([]);
-  }, 120000);
-
-  it('takes up to two crops in an array', async () => {
-    const scene = mount();
-    const flower = {kind: 'flower', color: [255, 252, 240, 255], count: 40, radius: 0.05} as const;
-    const fruit = {
-      color: [244, 140, 24, 255],
-      unripeColor: [86, 128, 44, 255],
-      ripeness: 0.5,
-      fallen: 0.25,
-      count: 40,
-      radius: 0.08
-    } as const;
-    const crop = [flower, fruit, flower] as TreeSpec['crop'];
-    await scene.render([trees({}, [{...CITRUS, crop}])]);
-    const cropLayers = subLayers(scene).filter(layer => layer.id.includes('photoreal-crops'));
-    expect(cropLayers.some(layer => layer.id.includes('-flower-'))).toBe(true);
-    expect(cropLayers.some(layer => layer.id.includes('-fruit-'))).toBe(true);
     expect(scene.errors).toEqual([]);
   }, 120000);
 
