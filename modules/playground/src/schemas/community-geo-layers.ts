@@ -251,8 +251,40 @@ export const TreeSpecSchema = z
   })
   .strict();
 
+const TreeTransitionSchema = z.union([
+  z.number(),
+  z.strictObject({
+    type: z.literal('interpolation').optional(),
+    duration: z.number(),
+    easing: FunctionSchema.optional()
+  }),
+  z.literal(false),
+  z.null()
+]);
+const TreeTransitionKeySchema = z.enum([
+  'getTree',
+  'getGrowth',
+  'getHealth',
+  'getFoliage',
+  'getFlush',
+  'getLean',
+  'getDamage',
+  'getDecay',
+  'getPosition',
+  'getElevation',
+  'getHeight',
+  'getCanopyRadius',
+  'getTrunkRadius',
+  'getTrunkHeightFraction',
+  'getCanopyColor',
+  'getSeason',
+  'getTrunkColor',
+  'getCrop'
+]);
+
 /** JSON props for the canonical TreeLayer, including constants and serialized accessors. */
 export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
+  transitions: z.partialRecord(TreeTransitionKeySchema, TreeTransitionSchema).nullable().optional(),
   getTree: createAccessorSchema(TreeSpecSchema).optional(),
   getPosition: PositionAccessorSchema.optional(),
   getElevation: NumberAccessorSchema.optional(),

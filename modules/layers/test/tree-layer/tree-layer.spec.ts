@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, LayerExtension} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, LayerExtension, WebMercatorViewport} from '@deck.gl/core';
 import {describe, expect, it, vi} from 'vitest';
 import {
   TreeLayer,
@@ -35,6 +35,33 @@ function load(data: TreeSpec[] = [OAK], props: Partial<TreeLayerProps<TreeSpec>>
 }
 
 describe('TreeLayer species and attributes', () => {
+  it('refreshes cached near-leaf bounds when moving a tree with coordinateOrigin', () => {
+    const viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 23, pitch: 45});
+    const scene = mountTreeScene<TreeSpec>(viewport);
+    const data: TreeSpec[] = [{...OAK, height: 6, characteristics: {leafDensity: 0.25}}];
+    const render = (target: typeof scene, longitude: number) =>
+      target.render({
+        ...baseProps,
+        data,
+        coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+        coordinateOrigin: [longitude, 0, 0],
+        windStrength: 0,
+        lodBias: -3
+      }).state.photoreal!.rows[0];
+
+    const original = render(scene, 0);
+    const oldBounds = original.leafBounds;
+    expect(oldBounds).not.toBeNull();
+    const moved = render(scene, 0.00001);
+    const fresh = render(mountTreeScene<TreeSpec>(viewport), 0.00001);
+    expect(moved).toBe(original);
+    expect(fresh.leafBounds!.spheres[0]).not.toBe(oldBounds!.spheres[0]);
+    expect(moved.leafBounds!.spheres[0]).toBe(fresh.leafBounds!.spheres[0]);
+    const leaves = fresh.leafSelection!.visibleLeaves;
+    expect(leaves.length).toBeGreaterThan(0);
+    expect(moved.leafSelection!.visibleLeaves).toEqual(leaves);
+  });
+
   it.each(SPECIES)('composes wood and leaves from a dedicated %s template', species => {
     const scene = load([{...OAK, species}]);
     const groups = Array.from(scene.layer().state.photoreal!.groups.values());
