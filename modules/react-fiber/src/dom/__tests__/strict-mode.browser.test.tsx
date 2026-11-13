@@ -67,11 +67,31 @@ function isFinalized(deck: Deck): boolean {
   return (deck as unknown as {layerManager: unknown}).layerManager === null;
 }
 
+/** Returns the distinct non-null instances that `onDeckChange` reported, in order. */
+function distinctInstances<T>(reported: (T | null)[]): T[] {
+  return [...new Set(reported.filter((instance): instance is T => Boolean(instance)))];
+}
+
+/**
+ * Unmounts a React root once. Tests call it in `finally` as well, so a failed assertion
+ * still tears down the root before its map and containers are removed.
+ */
+function createUnmount(reactRoot: {unmount: () => void}): () => Promise<void> {
+  let unmounted = false;
+  return async () => {
+    if (!unmounted) {
+      unmounted = true;
+      await act(async () => reactRoot.unmount());
+    }
+  };
+}
+
 webglTest(
   'StrictMode: a standalone root ends with one live Deck holding every element',
   async () => {
     const container = createContainer();
     const reactRoot = createRoot(container);
+    const unmount = createUnmount(reactRoot);
     const decks: (Deck | null)[] = [];
     const effect = new LightingEffect();
 
@@ -110,13 +130,15 @@ webglTest(
       }
       await waitFor(() => live.isInitialized);
 
-      // StrictMode replays the mount: the first Deck is finalized, and only the last is live.
-      const created = decks.filter((deck): deck is Deck => Boolean(deck));
-      expect(new Set(created).size).toBe(created.length);
+      // StrictMode replays the mount, so it creates at least two Decks. Every Deck but the
+      // last is finalized, and exactly one is live.
+      const created = distinctInstances(decks);
+      expect(created.length).toBeGreaterThanOrEqual(2);
+      expect(created[created.length - 1]).toBe(live);
       for (const deck of created.slice(0, -1)) {
         expect(isFinalized(deck)).toBe(true);
       }
-      expect(isFinalized(live)).toBe(false);
+      expect(created.filter(deck => !isFinalized(deck))).toEqual([live]);
       expect(container.querySelectorAll('canvas')).toHaveLength(1);
 
       expect(live.getViewports().map(viewport => viewport.id)).toEqual(['main']);
@@ -131,11 +153,12 @@ webglTest(
       );
       expect(decks[decks.length - 1]).toBe(live);
 
-      await act(async () => reactRoot.unmount());
+      await unmount();
       expect(decks[decks.length - 1]).toBeNull();
       expect(isFinalized(live)).toBe(true);
       expectNoConsoleProblems();
     } finally {
+      await unmount();
       container.remove();
     }
   }
@@ -180,6 +203,7 @@ for (const interleaved of [false, true]) {
       const reactHost = document.createElement('div');
       document.body.append(reactHost);
       const reactRoot = createRoot(reactHost);
+      const unmount = createUnmount(reactRoot);
       const overlays: (Overlay | null)[] = [];
 
       function App() {
@@ -212,15 +236,19 @@ for (const interleaved of [false, true]) {
         map.triggerRepaint();
         await waitFor(() => Boolean((live as unknown as {_deck?: Deck})._deck?.isInitialized));
 
-        // Only the live overlay is attached to the map.
+        // StrictMode replays the mount, so it creates at least two overlays. Only the last
+        // one is attached to the map.
+        const created = distinctInstances(overlays);
+        expect(created.length).toBeGreaterThanOrEqual(2);
+        expect(created[created.length - 1]).toBe(live);
         const controls = (map as unknown as {_controls: unknown[]})._controls;
-        const attached = overlays.filter(overlay => overlay && controls.includes(overlay));
-        expect(attached).toEqual([live]);
+        expect(created.filter(overlay => controls.includes(overlay))).toEqual([live]);
 
-        await act(async () => reactRoot.unmount());
+        await unmount();
         expect(controls.includes(live)).toBe(false);
         expectNoConsoleProblems();
       } finally {
+        await unmount();
         map.remove();
         reactHost.remove();
         container.remove();
@@ -246,6 +274,7 @@ webglTest('StrictMode: a /mapbox root attaches one live overlay', async () => {
   const reactHost = document.createElement('div');
   document.body.append(reactHost);
   const reactRoot = createRoot(reactHost);
+  const unmount = createUnmount(reactRoot);
   const overlays: (Overlay | null)[] = [];
 
   function App() {
@@ -277,14 +306,19 @@ webglTest('StrictMode: a /mapbox root attaches one live overlay', async () => {
     map.triggerRepaint();
     await waitFor(() => Boolean((live as unknown as {_deck?: Deck})._deck?.isInitialized));
 
+    // StrictMode replays the mount, so it creates at least two overlays. Only the last one is
+    // attached to the map.
+    const created = distinctInstances(overlays);
+    expect(created.length).toBeGreaterThanOrEqual(2);
+    expect(created[created.length - 1]).toBe(live);
     const controls = (map as unknown as {_controls: unknown[]})._controls;
-    const attached = overlays.filter(overlay => overlay && controls.includes(overlay));
-    expect(attached).toEqual([live]);
+    expect(created.filter(overlay => controls.includes(overlay))).toEqual([live]);
 
-    await act(async () => reactRoot.unmount());
+    await unmount();
     expect(controls.includes(live)).toBe(false);
     expectNoConsoleProblems();
   } finally {
+    await unmount();
     map.remove();
     reactHost.remove();
     container.remove();
