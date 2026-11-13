@@ -2,34 +2,19 @@
 
 ![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
 
-The native renderer accepts four deck.gl JSX elements: `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`. Each takes an instance you build. For deck.gl's own classes, the [components](./components.md) build the instance from props and render these elements for you; use the elements when you already have an instance, or for a class with no component. Every `DeckGL` root also has them as components, `DeckGL.Layer`, `DeckGL.View`, `DeckGL.Widget` and `DeckGL.Effect`, which render the same elements. Use either spelling:
+The native renderer accepts four deck.gl JSX elements: `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`. Each takes an instance you build. For deck.gl's own classes, the [components](./components.md) build the instance from props and render these elements for you; use the elements when you already have an instance, or for a class with no component. The elements are available after importing the root package:
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';
-
-<DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
-  <deckLayer layer={new ScatterplotLayer({id: 'airports', data: airports})} />
-  <DeckGL.Layer layer={new ScatterplotLayer({id: 'labels', data: labels})} />
-</DeckGL>;
 ```
 
-The `deck` prefix keeps the element names clear of DOM and SVG elements, such as SVG's `view`, and of other renderers' elements. The components are the same on every root, including the Mapbox and MapLibre roots and roots from `createDeckGL`. They also check a `ref` against the class of the instance they receive:
-
-```tsx
-const ref = useRef<ScatterplotLayer<Airport>>(null);
-
-<DeckGL.Layer ref={ref} layer={new ScatterplotLayer<Airport>({id: 'airports', data: airports})} />;
-// Type error: the ref is for a ScatterplotLayer.
-<DeckGL.Layer ref={ref} layer={new PathLayer({id: 'routes', data: routes})} />;
-```
-
-You can import the root under a shorter name, such as `import {DeckGL as D}` for `<D.Layer>`. Keep the alias capitalized: JSX reads a lowercase name such as `<deck>` as a DOM tag, although `<deck.Layer>` still works.
+The `deck` prefix keeps the element names clear of DOM and SVG elements, such as SVG's `view`, and of other renderers' elements.
 
 The import also provides the TypeScript JSX declarations. The elements are not DOM elements and they do not create DOM nodes. Each one carries a constructed deck.gl descriptor into the React Fiber renderer. Normal React components can organize the tree when they ultimately return these elements, but raw DOM nodes and text do not belong inside `DeckGL`: the custom renderer rejects any other host children. Each element also throws, in every build, when its prop is missing or holds another kind of descriptor, for example a `View` passed to `<deckLayer>`.
 
 ## Linting
 
-eslint-plugin-react's `react/no-unknown-property` rule, in its recommended config, checks every lowercase tag as a DOM element. `layer`, `view`, `widget` and `effect` are not DOM attributes, so it reports them on the native tags. The dotted `DeckGL.*` components are not checked by the rule. To keep the native tags, allow their props:
+eslint-plugin-react's `react/no-unknown-property` rule, in its recommended config, checks every lowercase tag as a DOM element. `layer`, `view`, `widget` and `effect` are not DOM attributes, so it reports them on the native tags. Allow them with the rule's `ignore` option, which applies to every lowercase tag, including DOM elements:
 
 ```js
 // eslint.config.js
@@ -38,7 +23,7 @@ rules: {
 }
 ```
 
-The `ignore` list applies to every lowercase tag, including DOM elements.
+The [built-in components](./components.md), such as `<ScatterplotLayer>`, and components made with the [factories](./components.md#custom-classes) have capitalized tags, so the rule does not check them.
 
 ## `<deckLayer>`
 

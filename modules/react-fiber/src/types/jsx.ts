@@ -19,8 +19,7 @@ export type AnyWidget = Widget<WidgetProps, View | View[] | null>;
  * JSX intrinsic elements supported by the deck.gl React Fiber renderer.
  *
  * Each name has a `deck` prefix so that it cannot clash with DOM and SVG elements, such as
- * SVG's `<view>`, or with another renderer's elements. The `DeckGL.Layer`, `DeckGL.View`,
- * `DeckGL.Widget` and `DeckGL.Effect` components render the same elements.
+ * SVG's `<view>`, or with another renderer's elements.
  */
 export interface DeckGLElements {
   /** The deck.gl Layer instance to render. */

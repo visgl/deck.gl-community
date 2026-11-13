@@ -16,10 +16,3 @@ export {
   createWidgetComponent
 } from '../wrappers/factories';
 export type {DeckCanvasProps} from './deck-canvas';
-export type {
-  DeckEffectProps,
-  DeckGLElementComponents,
-  DeckLayerProps,
-  DeckViewProps,
-  DeckWidgetProps
-} from './elements';

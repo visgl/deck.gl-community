@@ -12,7 +12,6 @@ import type {DeckGLRenderer} from '../shared/store';
 import {hasSameConfigProperties} from '../shared/has-same-config-properties';
 import {useEffectEvent} from '../shared/use-effect-event';
 import {useInstanceRef} from './use-instance-ref';
-import {DECKGL_ELEMENT_COMPONENTS} from './elements';
 import type {DeckGLRootProps, DeckGLProps, OnDeckChange} from '../types/index';
 import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
@@ -236,14 +235,14 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
 
   const recreateOverlayOnChange: readonly PropertyKey[] = options?.recreateOverlayOnChange ?? [];
 
-  return Object.assign(function DeckGL(props: ComponentProps<Props, Instance>) {
+  return function DeckGL(props: ComponentProps<Props, Instance>) {
     const generation = useRecreateGeneration(props, recreateOverlayOnChange);
     return (
       <FiberProvider>
         <DeckGLComponent key={generation} {...props} />
       </FiberProvider>
     );
-  }, DECKGL_ELEMENT_COMPONENTS);
+  };
 }
 
 // Counts changes to the listed props. Uses the store-previous-render-state pattern
@@ -261,11 +260,7 @@ function useRecreateGeneration(props: object, keys: readonly PropertyKey[]): num
 
 const PlainDeckGLComponent = createDeckGLComponent<DeckGLProps, Deck>();
 
-/**
- * Creates a native React Fiber component bound to a compatible external overlay factory.
- * Like every root, the component has the `Layer`, `View`, `Widget` and `Effect` element
- * components as static members.
- */
+/** Creates a native React Fiber component bound to a compatible external overlay factory. */
 export function createDeckGL<Props, Instance extends DeckGLRenderer>(
   options: CreateDeckGLOptions<Props, Instance>
 ) {
@@ -275,15 +270,10 @@ export function createDeckGL<Props, Instance extends DeckGLRenderer>(
 /**
  * The standalone Deck root exported from the package root and `/dom`.
  *
- * `DeckGL.Layer`, `DeckGL.View`, `DeckGL.Widget` and `DeckGL.Effect` render the native
- * `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>` elements.
- *
  * As in `@deck.gl/react`, the view state props are typed from the `views` prop. Without it,
  * they take one map view state. For views from `<deckView>` children or a widget, name their
  * type: `<DeckGL<MapView[]> initialViewState={{left: ..., right: ...}}>`.
  */
-export const DeckGL = Object.assign(function DeckGL<ViewsT extends View | View[] | null = null>(
-  props: DeckGLProps<ViewsT>
-) {
+export function DeckGL<ViewsT extends View | View[] | null = null>(props: DeckGLProps<ViewsT>) {
   return <PlainDeckGLComponent {...(props as DeckGLProps)} />;
-}, DECKGL_ELEMENT_COMPONENTS);
+}
