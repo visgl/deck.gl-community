@@ -1,3 +1,4 @@
+import 'client-only';
 import type {Effect, Layer, View} from '@deck.gl/core';
 import type {ReactElement, ReactNode} from 'react';
 
