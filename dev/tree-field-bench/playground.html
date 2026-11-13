@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./playground.css" />
+  <title>TreeLayer field</title>
+  <div id="scene"></div>
+  <aside id="field-controls" aria-label="Tree field controls">
+    <h1>Tree field</h1>
+    <p id="field-status">Preparing 20,000 trees…</p>
+    <div id="field-views" aria-label="Camera views">
+      <button data-view="overview" type="button">Overview</button>
+      <button data-view="tree" type="button">Tree</button>
+      <button data-view="macro" type="button">Leaf</button>
+      <button data-view="dive" type="button">Dive</button>
+    </div>
+    <details open>
+      <summary id="field-selection">Selected tree</summary>
+      <label>Height (m) <input id="tree-height" type="number" min="0.1" max="30" step="0.01" /></label>
+      <label>Crown radius (m) <input id="tree-radius" type="number" min="0.1" max="15" step="0.01" /></label>
+      <label>Foliage <input id="tree-foliage" type="number" min="0" max="1" step="0.05" /></label>
+      <label>Wind strength <input id="field-wind" type="number" min="0" max="1" step="0.005" value="0.035" /></label>
+    </details>
+    <details>
+      <summary>Rendering diagnostics</summary>
+      <dl>
+        <div><dt>Frame p95</dt><dd id="field-p95">—</dd></div>
+        <div><dt>Color candidates</dt><dd id="field-color-count">—</dd></div>
+        <div><dt>Highest detail</dt><dd id="field-near-count">—</dd></div>
+        <div><dt>Shadow casters</dt><dd id="field-shadow-count">—</dd></div>
+        <div><dt>Shadow texel</dt><dd id="field-texel">—</dd></div>
+      </dl>
+    </details>
+    <p class="field-help">Drag to orbit · Shift-drag to pan · Scroll to zoom · Click a tree to select</p>
+  </aside>
+  <script type="module" src="./field.ts"></script>
+</html>

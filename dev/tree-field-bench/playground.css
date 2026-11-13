@@ -1,0 +1,42 @@
+html, body, #scene {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body { background: #68634a; color: #eff2e9; font: 14px/1.4 system-ui, sans-serif; }
+
+#field-controls {
+  position: absolute;
+  inset: 16px auto auto 16px;
+  width: min(330px, calc(100vw - 64px));
+  max-height: calc(100dvh - 64px);
+  overflow: auto;
+  padding: 16px;
+  background: #172018f2;
+  border: 1px solid #87967d66;
+  border-radius: 12px;
+}
+
+h1 { margin: 0; font-size: 24px; }
+#field-status { margin: 3px 0 12px; color: #c7dcad; font-variant-numeric: tabular-nums; }
+#field-views { display: flex; flex-wrap: wrap; gap: 6px; }
+button, input {
+  border: 1px solid #77876d;
+  border-radius: 5px;
+  padding: 5px 8px;
+  background: #263326;
+  color: inherit;
+  font: inherit;
+}
+button, summary { cursor: pointer; }
+button:hover, button:focus-visible, button[aria-pressed='true'] { background: #42583d; }
+details { margin-top: 12px; padding-top: 8px; border-top: 1px solid #81927655; }
+summary { margin-bottom: 6px; font-weight: 600; }
+label, dl > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+label { margin-top: 5px; }
+input { width: 64px; }
+dl { margin: 0; color: #d6e0d0; }
+dd { margin: 0; font-variant-numeric: tabular-nums; }
+.field-help { margin: 10px 0 0; color: #b4c2ad; font-size: 12px; }
