@@ -1,6 +1,6 @@
 # @deck.gl-community/react-fiber
 
-![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+![From v10.0](https://img.shields.io/badge/from-v10.0-green.svg?style=flat-square)
 
 `@deck.gl-community/react-fiber` is a client-side React 19 renderer for deck.gl. It lets an application describe deck.gl layers and views in a React tree while keeping deck.gl's normal descriptor objects and ID-based diffing model.
 
