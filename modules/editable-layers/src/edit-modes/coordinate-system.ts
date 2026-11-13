@@ -133,13 +133,13 @@ export function getEditModeCoordinateSystem(
 }
 
 /**
- * Maps a deck.gl `` constant to the appropriate `EditModeCoordinateSystem`
+ * Maps a deck.gl `coordinateSystem` value to the appropriate `EditModeCoordinateSystem`
  * implementation for edit-mode geometric math.
  *
  * This allows the `EditableGeoJsonLayer` to automatically derive the correct math from
  * its own `coordinateSystem` prop without requiring consumers to configure it separately.
  *
- * | deck.gl constant                   | Math used             |
+ * | deck.gl coordinate system                   | Math used             |
  * |------------------------------------|-----------------------|
  * | `'lnglat'`         | GeoCoordinateSystem   |
  * | `'default'`        | GeoCoordinateSystem   |

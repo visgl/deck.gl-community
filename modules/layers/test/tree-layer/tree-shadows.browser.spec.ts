@@ -6,6 +6,7 @@ import {
   DirectionalLight,
   LightingEffect,
   MapView,
+  type CoordinateSystem,
   type Layer
 } from '@deck.gl/core';
 import {MapboxOverlay} from '@deck.gl/mapbox';
@@ -49,7 +50,7 @@ function lighting(shadow: boolean) {
 }
 
 /** A lit SimpleMeshLayer ground plane that receives shadows. */
-function ground(coordinateSystem: number = 'meter-offsets') {
+function ground(coordinateSystem: CoordinateSystem = 'meter-offsets') {
   return new SimpleMeshLayer({
     id: 'ground',
     data: [{}],

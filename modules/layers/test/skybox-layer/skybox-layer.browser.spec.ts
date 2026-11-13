@@ -19,7 +19,9 @@ test.each([
     resolve = accept;
     reject = fail;
   });
-  const load = vi.spyOn(TextureCubeLoader, 'parseText').mockReturnValue(pending);
+  const parser = await TextureCubeLoader.preload();
+  const parseText = vi.fn().mockReturnValue(pending);
+  const load = vi.spyOn(TextureCubeLoader, 'preload').mockResolvedValue({...parser, parseText});
   const layer = new SkyboxLayer({
     id: 'pending-skybox',
     cubemap: {
@@ -34,6 +36,7 @@ test.each([
   const deck = new Deck({parent: host, width: 128, height: 128, layers: [layer], onError});
   try {
     await vi.waitFor(() => expect(layer.state?.model).toBeTruthy(), {timeout: 10_000});
+    await vi.waitFor(() => expect(parseText).toHaveBeenCalled());
     const bindings = vi.spyOn(layer.state.model!, 'setBindings');
     const destroyModel = vi.spyOn(layer.state.model!, 'destroy');
     const inheritedCleanup = vi.spyOn(Layer.prototype, 'finalizeState');

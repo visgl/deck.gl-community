@@ -168,7 +168,7 @@ fix(panels) remove unused widgets dependency (#648)
 
 ## v9.3.1
 
-- feat(editable-layers): non-geospatial coordinate system support — `EditModeCoordinateSystem` abstraction with `GeoCoordinateSystem` and `CartesianCoordinateSystem` implementations, auto-derived from deck.gl `` prop (#587)
+- feat(editable-layers): non-geospatial coordinate system support — `EditModeCoordinateSystem` abstraction with `GeoCoordinateSystem` and `CartesianCoordinateSystem` implementations, auto-derived from deck.gl `COORDINATE_SYSTEM` prop (#587)
 - docs: add live interactive examples to 30+ API reference pages across graph-layers, editable-layers, geo-layers, timeline-layers, layers, widgets, and three modules (#582)
 - refactor(widgets): move settings types to `lib/settings/settings.ts` — `SettingsWidgetSchema` → `SettingsSchema`, `SettingsWidgetState` → `SettingsState`
 - refactor(widgets): remove standalone `KeyboardShortcutsWidget` class (use `KeyboardShortcutsPanel` instead)

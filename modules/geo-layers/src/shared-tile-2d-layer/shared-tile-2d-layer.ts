@@ -453,6 +453,10 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     const loadedViews = new Set<unknown>();
 
     this._pruneRemovedViewports();
+    // A render pass can skip a viewport until its tile sublayers exist.
+    for (const viewport of (this.state.tileset && this.context?.deck?.getViewports()) || []) {
+      this._knownViewports.set(viewport.id || 'default', viewport);
+    }
     for (const [viewportKey, viewport] of this._knownViewports) {
       this._prunePlaceholderViewportView(viewportKey);
       const tilesetView = this._getOrCreateTilesetView(viewportKey);
