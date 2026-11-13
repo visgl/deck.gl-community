@@ -1,9 +1,8 @@
 # Upgrade guide
 
 This page lists the changes to make when you move to `@deck.gl-community/react-fiber` from
-[`@deck.gl/react`](#from-deckglreact) or from the earlier
-[`@deckgl-fiber-renderer/dom`](#from-deckgl-fiber-rendererdom) package. Start with
-[Write JSX](#write-jsx), which shows the syntax both upgrades end up with.
+[`@deck.gl/react`](#from-deckglreact). Start with [Write JSX](#write-jsx), which shows the syntax
+you end up with.
 
 ## Requirements
 
@@ -104,49 +103,3 @@ To re-render when the instance is created or torn down, store it in state with `
 
 Nesting a layer inside a view does not assign it to that view, as in `@deck.gl/react`. Use
 deck.gl's `layerFilter` for per-view layers.
-
-## From `@deckgl-fiber-renderer/dom`
-
-### Change the package and root
-
-```tsx
-// Before
-import {Deckgl} from '@deckgl-fiber-renderer/dom';
-
-// After
-import {DeckGL} from '@deck.gl-community/react-fiber';
-```
-
-### Rename the elements, or switch to components
-
-`<layer>` and `<view>` are now `<deckLayer>` and `<deckView>`. Every root also has them as
-`DeckGL.Layer` and `DeckGL.View`. To drop the `new` calls, use the components instead:
-
-```tsx
-// Before
-<layer layer={new ScatterplotLayer({id: 'points', data})} />
-<view view={new MapView({id: 'main'})} />
-
-// After, with native elements
-<deckLayer layer={new ScatterplotLayer({id: 'points', data})} />
-<deckView view={new MapView({id: 'main'})} />
-
-// After, with components
-<ScatterplotLayer id="points" data={data} />
-<MapView id="main" />
-```
-
-Elements registered with `extend()`, such as `<scatterplotLayer>`, become components: import the
-built-in ones from a subpath, and make the others with `createLayerComponent`.
-
-### Replace `useDeckgl`
-
-`@deckgl-fiber-renderer/dom` exported a `useDeckgl()` hook. It is gone: receive the instance from the root's `ref` or
-`onDeckChange`.
-
-For a map, replace `<Deckgl interleaved>` inside react-map-gl, and its `useControl` bridge, with
-the `DeckGL` root from `/maplibre` or `/mapbox`. The root can stay inside `<Map>`. Receive the
-overlay it creates through `onDeckChange`, and add it to the map with `map.addControl` once the map
-has loaded. See [Attach the overlay to the host map](./using-with-maps.md#attach-the-overlay-to-the-host-map),
-and the [MapLibre](./base-maps/using-with-maplibre.md) and [Mapbox](./base-maps/using-with-mapbox.md)
-guides for the full pattern with React Map GL.

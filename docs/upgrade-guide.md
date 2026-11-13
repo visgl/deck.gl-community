@@ -11,7 +11,7 @@ Please refer the documentation of each module for detailed upgrade guides.
 Import components for deck.gl's layers, views, widgets and effects from the React Fiber subpaths,
 such as `ScatterplotLayer` from `@deck.gl-community/react-fiber/layers`. The types need TypeScript
 5.3 or later. The [React Fiber upgrade guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react)
-lists the changes from `@deck.gl/react` and from `@deckgl-fiber-renderer/dom`.
+lists the changes from `@deck.gl/react`.
 
 ### Consolidated sidebars
 

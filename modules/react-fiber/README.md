@@ -228,8 +228,7 @@ notifications.
 ## Upgrade
 
 The [upgrade guide](../../docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react.md)
-lists the changes to make when coming from `@deck.gl/react` or from the earlier
-`@deckgl-fiber-renderer/dom` package.
+lists the changes to make when coming from `@deck.gl/react`.
 
 ## Custom compatible overlays
 
