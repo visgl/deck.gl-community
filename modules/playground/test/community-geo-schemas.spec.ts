@@ -219,6 +219,35 @@ test('tree accessors accept typed constants and serialized functions', () => {
   }
 });
 
+test('tree transitions validate interpolation settings and accessor keys', () => {
+  const schema = CommunityGeoLayerSchemas.TreeLayer;
+  const layer = {id: 'trees', '@@type': 'TreeLayer'};
+  expect(
+    schema.safeParse({
+      ...layer,
+      transitions: {
+        getTree: 1000,
+        getGrowth: {type: 'interpolation', duration: 800, easing: '@@#ease'},
+        getCrop: {duration: 300},
+        getDamage: false,
+        getLean: null
+      }
+    }).success
+  ).toBe(true);
+  expect(schema.safeParse({...layer, transitions: null}).success).toBe(true);
+  for (const transitions of [
+    {getGrowth: {type: 'spring'}},
+    {getGrowth: {duration: 1000, enter: '@@#enter'}},
+    {getGrowth: {duration: 1000, onStart: '@@#start'}},
+    {getGrowth: {duration: 1000, onEnd: '@@#end'}},
+    {getGrowth: {duration: 1000, onInterrupt: '@@#interrupt'}},
+    {getGrowth: {easing: '@@#ease'}},
+    {getTreeType: 1000}
+  ]) {
+    expect(schema.safeParse({...layer, transitions}).success).toBe(false);
+  }
+});
+
 test('supports unified authored traits without requiring renderer configuration', () => {
   const valid = {
     id: 'trees',

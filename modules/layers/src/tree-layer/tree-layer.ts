@@ -430,7 +430,7 @@ type _TreeLayerProps<DataT> = {
   /** Optical coverage used by streaming transitions; does not rebuild owner geometry. @default 1 */
   getCoverageWeight?: Accessor<DataT, number>;
   /**
-   * Cast shadows from a `LightingEffect` light with `_shadow: true` (WebGL2): wood, crops and foliage
+   * Cast shadows from a `LightingEffect` light with `_shadow: true`: wood, crops and foliage
    * draw into deck.gl's shadow map. Trees receive shadows either way.
    * @default true
    */
@@ -1474,7 +1474,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         store.data[base + TREE_STATE_TEXEL.CROP_DROPPED * 4] > 0;
       this.state.cropKinds[stateRow] =
         nextKind ?? (!options.isNew && hasCrops ? previousKind : null);
-      options.cropKindChanged = Boolean(nextKind && previousKind && nextKind !== previousKind);
+      options.cropKindChanged = Boolean(
+        hasCrops && nextKind && previousKind && nextKind !== previousKind
+      );
       update.crops = crop
         ? [
             {
@@ -1735,6 +1737,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           row.common = this.projectPosition([x, y, z], {viewport, autoOffset: false}) as number[];
           row.units = getSplatCommonUnits(row.common, viewport) as number[];
           row.frame = getSplatTangentFrame(row.common, viewport);
+          row.leafBounds = null;
         }
         const crownX = data[base + SIZE * 4];
         const crownY = data[base + SIZE * 4 + 1];
