@@ -149,7 +149,7 @@ struct WoodVaryings {
   let bark = mix(aged * (relief + 0.08 * graft), vec3<f32>(0.10, 0.073, 0.047), decay);
   let through = mix(1.0, 0.35 + input.shade.x * 0.65, input.shade.z);
   let openness = mix(0.72, through, ${lod < 2 ? '1.0' : '0.65'});
-  return treeOutput(treeShadeMaterial(bark, normal, input.commonPosition, 1.0, openness, 0.0), layer.opacity, input.pickingColor);
+  return treeOutput(treeShadeMaterial(bark, normal, input.commonPosition, openness, 0.0), layer.opacity, input.pickingColor);
 }
 `
   };

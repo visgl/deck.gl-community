@@ -41,7 +41,7 @@ const coordinates = {
 const MAGENTA = [255, 0, 255, 255] as [number, number, number, number];
 
 function fruit(fields: Partial<CropConfig> = {}): CropConfig {
-  return {color: MAGENTA, unripeColor: MAGENTA, count: 60, radius: 0.09, ...fields};
+  return {color: MAGENTA, count: 60, radius: 0.09, ...fields};
 }
 
 /** Leafless, so a test sees what its crops do. Foliage has its own tests. */
@@ -333,81 +333,14 @@ describe('TreeLayer photoreal crops', () => {
     expect(scene.errors).toEqual([]);
   }, 120000);
 
-  it('turns from unripe to ripe in color alone', async () => {
+  it('updates count and radius without rewriting attributes below capacity', async () => {
     const scene = mount();
-    const make = (ripeness: number) =>
-      trees({
-        ...TREE,
-        crop: {
-          color: [244, 140, 24, 255],
-          unripeColor: [86, 128, 44, 255],
-          count: 60,
-          radius: 0.09,
-          ripeness
-        }
-      });
-    const bare = await scene.render([trees(TREE)]);
-    const unripe = await scene.render([make(0)]);
-    const middle = await scene.render([make(0.5)]);
-    const ripe = await scene.render([make(1)]);
-    // What differs from the bare tree are its crops.
-    const covered = (pixels: Uint8Array) => {
-      const mask: number[] = [];
-      for (let offset = 0; offset < pixels.length; offset += 4) {
-        if (
-          pixels[offset] !== bare[offset] ||
-          pixels[offset + 1] !== bare[offset + 1] ||
-          pixels[offset + 2] !== bare[offset + 2]
-        )
-          mask.push(offset);
-      }
-      return mask;
-    };
-    const unripeMask = covered(unripe);
-    const ripeMask = covered(ripe);
-    expect(unripeMask.length).toBeGreaterThan(100);
-    // The same pixels, but for one of a soft edge that rounds to the color behind it.
-    const apart = (a: number[], b: number[]) => {
-      const inB = new Set(b);
-      const inA = new Set(a);
-      return (
-        a.filter(offset => !inB.has(offset)).length + b.filter(offset => !inA.has(offset)).length
-      );
-    };
-    expect(apart(unripeMask, ripeMask)).toBeLessThan(ripeMask.length * 0.01);
-    expect(apart(covered(middle), ripeMask)).toBeLessThan(ripeMask.length * 0.01);
-    const mean = (pixels: Uint8Array, channel: number) =>
-      ripeMask.reduce((sum, offset) => sum + pixels[offset + channel], 0) / ripeMask.length;
-    expect(mean(ripe, 0)).toBeGreaterThan(mean(unripe, 0) * 1.5);
-    expect(mean(unripe, 1) / mean(unripe, 0)).toBeGreaterThan(mean(ripe, 1) / mean(ripe, 0));
-    expect(mean(middle, 0)).toBeGreaterThan(mean(unripe, 0));
-    expect(mean(middle, 0)).toBeLessThan(mean(ripe, 0));
-    expect(scene.errors).toEqual([]);
-  }, 120000);
-
-  it('animates count, radius, ripeness and fallen with no attribute written, below capacity', async () => {
-    const scene = mount();
-    const make = (
-      count: number,
-      ripeness: number,
-      fallen: number,
-      radius: number,
-      windTime: number
-    ) =>
+    const make = (count: number, radius: number, windTime: number) =>
       trees(
-        {
-          ...TREE,
-          crop: [
-            fruit({count, ripeness, fallen, radius}),
-            fruit({count: 8, kind: 'flower', radius: 0.03})
-          ]
-        },
-        {
-          updateTriggers: {getTree: `${count}-${ripeness}-${fallen}-${radius}-${windTime}`},
-          windTime
-        }
+        {...TREE, crop: fruit({count, radius})},
+        {updateTriggers: {getTree: `${count}-${radius}-${windTime}`}, windTime}
       );
-    await scene.render([make(40, 0, 0, 0.09, 10)]);
+    await scene.render([make(40, 0.09, 10)]);
     const before = cropLayers(scene);
     expect(before.length).toBeGreaterThan(0);
     const data = new Map(before.map(layer => [layer.id, layer.props.data]));
@@ -427,11 +360,11 @@ describe('TreeLayer photoreal crops', () => {
     expect(otherWrites.length).toBeGreaterThan(0);
     const texture = treeLayer(scene).state.stateTexture!;
     const upload = vi.spyOn(Object.getPrototypeOf(texture), 'writeData');
-    const frames: [number, number, number, number, number][] = [
-      [50, 0.25, 0.1, 0.095, 10 + 1 / 60],
-      [60, 0.5, 0.2, 0.1, 10 + 2 / 60],
-      [33, 0.75, 0.5, 0.08, 10 + 3 / 60],
-      [64, 1, 1, 0.09, 10 + 4 / 60]
+    const frames: [number, number, number][] = [
+      [50, 0.095, 10 + 1 / 60],
+      [60, 0.1, 10 + 2 / 60],
+      [33, 0.08, 10 + 3 / 60],
+      [64, 0.09, 10 + 4 / 60]
     ];
     for (const frame of frames) await scene.render([make(...frame)]);
     expect(scene.errors).toEqual([]);
@@ -445,7 +378,7 @@ describe('TreeLayer photoreal crops', () => {
     for (const layer of cropLayers(scene))
       expect(layer.props.data === data.get(layer.id)).toBe(true);
     // Past its capacity it does build new instances, once.
-    await scene.render([make(65, 1, 1, 0.09, 11)]);
+    await scene.render([make(65, 0.09, 11)]);
     expect(cropLayers(scene).some(layer => layer.props.data !== data.get(layer.id))).toBe(true);
     expect(scene.errors).toEqual([]);
   }, 120000);
@@ -462,29 +395,6 @@ describe('TreeLayer photoreal crops', () => {
     expect(scene.errors).toEqual([]);
   }, 120000);
 
-  it('leaves fruit on the ground at fallen 1, and none hanging', async () => {
-    const scene = mount();
-    const make = (fallen: number, windTime: number) =>
-      trees(
-        {...TREE, crop: fruit({count: 120, fallen})},
-        {updateTriggers: {getTree: `${fallen}-${windTime}`}, windTime}
-      );
-    // Below this line of the view lies the ground, and everything within a few decimetres of it.
-    const hanging = await scene.render([make(0, 100)]);
-    const groundFrom = 180;
-    expect(countCrop(hanging, 0, 0, SIZE, groundFrom)).toBeGreaterThan(500);
-    // A clock jump means no rate at all: they are simply down, as at a random-access frame.
-    const fallen = await scene.render([make(1, 200)]);
-    expect(countCrop(fallen, 0, 0, SIZE, groundFrom)).toBe(0);
-    expect(countCrop(fallen, 0, groundFrom, SIZE, SIZE)).toBeGreaterThan(100);
-    // And about half for half.
-    const half = await scene.render([make(0.5, 300)]);
-    const up = countCrop(half, 0, 0, SIZE, groundFrom);
-    expect(up).toBeGreaterThan(countCrop(hanging, 0, 0, SIZE, groundFrom) * 0.25);
-    expect(up).toBeLessThan(countCrop(hanging, 0, 0, SIZE, groundFrom) * 0.75);
-    expect(scene.errors).toEqual([]);
-  }, 120000);
-
   it('darkens the ground under fruit at rest, whatever level draws it', async () => {
     // Isolate the crop contact pass so dark bark cannot contribute to the patch measurement.
     const countPatch = (pixels: Uint8Array) => {
@@ -496,14 +406,19 @@ describe('TreeLayer photoreal crops', () => {
       return count;
     };
     const near = {...ORBIT_STATE, target: [1.2, 0, 0], rotationX: 30, zoom: 7.6};
-    const make = (fallen: number, windTime: number) =>
+    const make = (droppedCount: number, windTime: number) =>
       trees(
-        {...TREE, canopyColor: [0, 0, 0, 0], crop: fruit({count: 240, radius: 0.12, fallen})},
-        {_cropOnly: true, lodBias: 0, updateTriggers: {getTree: `${fallen}-${windTime}`}, windTime}
+        {...TREE, canopyColor: [0, 0, 0, 0], crop: fruit({count: 0, radius: 0.12, droppedCount})},
+        {
+          _cropOnly: true,
+          lodBias: 0,
+          updateTriggers: {getTree: `${droppedCount}-${windTime}`},
+          windTime
+        }
       );
     const scene = mount({viewState: near});
     expect(countPatch(await scene.render([make(0, 100)]))).toBeLessThan(20);
-    const atRest = await scene.render([make(1, 200)]);
+    const atRest = await scene.render([make(240, 200)]);
     const meshes = cropLayers(scene).filter(
       layer => (layer.props as never as {lod: number}).lod < 2 && layer.getNumInstances() > 0
     );
@@ -539,47 +454,11 @@ describe('TreeLayer photoreal crops', () => {
           })
         ]
       });
-      const pixels = await lit.render([make(1, 300)]);
+      const pixels = await lit.render([make(240, 300)]);
       expect(lit.errors).toEqual([]);
       return meanPatchX(pixels);
     };
     expect(await inSun(1)).toBeGreaterThan((await inSun(-1)) + 3);
-    expect(scene.errors).toEqual([]);
-  }, 120000);
-
-  it('drops fruit through the air while fallen rises, and leaves none there when it stops', async () => {
-    const scene = mount();
-    const make = (fallen: number, windTime: number) =>
-      trees(
-        {...TREE, crop: fruit({count: 240, fallen})},
-        {updateTriggers: {getTree: `${fallen}-${windTime}`}, windTime}
-      );
-    // All of the crown, with the ground out of it.
-    const band = (pixels: Uint8Array) => countCrop(pixels, 0, 0, SIZE, 175);
-    const settled = band(await scene.render([make(0, 100)]));
-    const fallenAlready = band(await scene.render([make(0.2, 150)]));
-    expect(fallenAlready).toBeLessThan(settled);
-    let t = 200;
-    const falling: number[] = [];
-    for (let frame = 0; frame < 12; frame++) {
-      t += 1 / 60;
-      const pixels = await scene.render([make(0.2 + frame * 0.004, t)]);
-      falling.push(band(pixels));
-    }
-    const fallRate = treeLayer(scene).state.store!.data[11 * 4 + 3];
-    expect(fallRate).toBeGreaterThan(0.1);
-    // The value stops. Within a few frames its rate is gone, and everything has landed.
-    let rate = 1;
-    for (let frame = 0; frame < 8; frame++) {
-      t += 1 / 60;
-      await scene.render([make(0.244, t)]);
-      rate = treeLayer(scene).state.store!.data[11 * 4 + 3];
-    }
-    expect(rate).toBe(0);
-    const landed = band(await scene.settle());
-    expect(landed).toBeLessThan(fallenAlready);
-    // In the air they were still up there.
-    expect(Math.max(...falling)).toBeGreaterThan(landed * 1.05);
     expect(scene.errors).toEqual([]);
   }, 120000);
 
@@ -613,85 +492,6 @@ describe('TreeLayer photoreal crops', () => {
     expect(scene.errors).toEqual([]);
   }, 120000);
 
-  it('takes a blossom and a fruit together, and each keeps its slot when the other goes', async () => {
-    const scene = mount();
-    const blossom: CropConfig = {
-      kind: 'flower',
-      color: [255, 252, 240, 255],
-      count: 400,
-      radius: 0.04
-    };
-    const orange = fruit({count: 60});
-    const fruitOnly = cropMask(await scene.render([trees({...TREE, crop: [blossom, orange]})]));
-    const ids = cropLayers(scene).map(layer => layer.id);
-    expect(ids.some(id => id.includes('-flower-'))).toBe(true);
-    expect(ids.some(id => id.includes('-fruit-'))).toBe(true);
-    const slotsBefore = treeLayer(scene).state.cropKinds.slice(0, 2);
-    expect(slotsBefore).toEqual(['flower', 'fruit']);
-    // The blossom goes: the fruit stays in its slot, with the same crops.
-    const after = cropMask(
-      await scene.render([trees({...TREE, crop: orange}, {updateTriggers: {getTree: 'gone'}})])
-    );
-    expect(treeLayer(scene).state.cropKinds[1]).toBe('fruit');
-    let kept = 0,
-      had = 0;
-    for (let i = 0; i < fruitOnly.length; i++) {
-      if (fruitOnly[i]) {
-        had++;
-        if (after[i]) kept++;
-      }
-    }
-    expect(had).toBeGreaterThan(100);
-    expect(kept / had).toBeGreaterThan(0.9);
-    expect(scene.errors).toEqual([]);
-    expect(scene.glErrors).toEqual([]);
-  }, 120000);
-
-  it('keeps two crops of a kind apart, on the same anchors', async () => {
-    const scene = mount();
-    const one = countCrop(await scene.render([trees({...TREE, crop: fruit({count: 40})})]));
-    const crop = [fruit({count: 40}), fruit({count: 40})];
-    const two = countCrop(await scene.render([trees({...TREE, crop}, {id: 'trees-two'})]));
-    expect(two).toBeGreaterThan(one * 1.6);
-    expect(scene.errors).toEqual([]);
-  }, 120000);
-
-  it('drifts petals to the ground as fallen rises, and they rest there', async () => {
-    const scene = mount();
-    const make = (fallen: number, windTime: number) =>
-      trees(
-        {
-          ...TREE,
-          crop: {
-            kind: 'flower',
-            color: MAGENTA,
-            unripeColor: MAGENTA,
-            count: 800,
-            radius: 0.04,
-            fallen
-          }
-        },
-        {updateTriggers: {getTree: `${fallen}-${windTime}`}, windTime}
-      );
-    const attached = await scene.render([make(0, 100)]);
-    expect(countCrop(attached, 0, 0, SIZE, 180)).toBeGreaterThan(100);
-    // They lie as far as a few metres behind the tree, which is this far up the view.
-    const rest = await scene.render([make(1, 200)]);
-    expect(countCrop(rest, 0, 0, SIZE, 170)).toBe(0);
-    expect(countCrop(rest, 0, 170, SIZE, SIZE)).toBeGreaterThan(50);
-    // Rising, between two frames, there are petals outside the crown's shape.
-    await scene.render([make(0, 300)]);
-    let t = 400;
-    for (let frame = 0; frame < 6; frame++) {
-      t += 1 / 60;
-      await scene.render([make(0.3 + frame * 0.002, t)]);
-    }
-    const falling = await scene.settle();
-    const inAir = countCrop(falling, 0, 0, SIZE, 170);
-    expect(inAir).toBeGreaterThan(countCrop(rest, 0, 0, SIZE, 170));
-    expect(scene.errors).toEqual([]);
-  }, 120000);
-
   it.each([
     'fruit',
     'lemon',
@@ -710,7 +510,7 @@ describe('TreeLayer photoreal crops', () => {
         })
       ]
     });
-    const crop = {kind, color: MAGENTA, unripeColor: MAGENTA, count: 200, radius: 0.09};
+    const crop = {kind, color: MAGENTA, count: 200, radius: 0.09};
     const seen: Record<string, number> = {};
     for (const [zoom, lodBias] of [
       [9.2, 0],
@@ -890,45 +690,12 @@ describe('TreeLayer photoreal crops', () => {
     expect(scene.errors).toEqual([]);
   }, 120000);
 
-  it('takes fog, rain and rime, whatever level draws it', async () => {
-    const scene = mount({staticFrames: true});
-    const tree = {...TREE, crop: fruit({count: 240, radius: 0.09})};
-    const make = (props: Record<string, unknown>) =>
-      trees(tree, {lodBias: 0, shadowEnabled: false, ...props});
-    for (const zoom of [4.7, 7.6]) {
-      scene.setViewState({...ORBIT_STATE, zoom});
-      const plain = await scene.render([make({})]);
-      // Pixels all of a crop, as those at an edge take in what lies behind them.
-      const mask: number[] = [];
-      for (let i = 0; i < SIZE * SIZE; i++) {
-        if (isMagenta(plain, i * 4) && plain[i * 4 + 3] === 255) mask.push(i * 4);
-      }
-      expect(mask.length, `at zoom ${zoom}`).toBeGreaterThan(100);
-      const mean = (pixels: Uint8Array, channel: number) =>
-        mask.reduce((sum, offset) => sum + pixels[offset + channel], 0) / mask.length;
-      // Lost in fog a surface shows exactly its color.
-      const fogged = await scene.render([make({fog: {color: [40, 200, 120], density: 60}})]);
-      expect(Math.abs(mean(fogged, 0) - 40), `at zoom ${zoom}`).toBeLessThan(6);
-      expect(Math.abs(mean(fogged, 1) - 200), `at zoom ${zoom}`).toBeLessThan(6);
-      expect(Math.abs(mean(fogged, 2) - 120), `at zoom ${zoom}`).toBeLessThan(6);
-      // Rime is pale: the green these have none of comes up.
-      const rimed = await scene.render([make({frost: 1})]);
-      expect(mean(rimed, 1), `at zoom ${zoom}`).toBeGreaterThan(mean(plain, 1) + 5);
-      // Rain changes all of them, though it hardly darkens a rind: a film mirrors the sky.
-      const wet = await scene.render([make({wetness: 1})]);
-      expect(countDifferent(plain, wet), `at zoom ${zoom}`).toBeGreaterThan(mask.length * 0.5);
-    }
-    expect(scene.errors).toEqual([]);
-    expect(scene.glErrors).toEqual([]);
-  }, 180000);
-
   it('adds about as much color to a crown near and far', async () => {
     const scene = mount();
     const tree: TreeSpec = {species: 'citrus', position: [0, 0, 0], height: 6, crownRadius: 2.6};
     const crop = {
       kind: 'fruit',
       color: [244, 140, 24, 255],
-      unripeColor: [86, 128, 44, 255],
       count: 600,
       radius: 0.04
     } as CropConfig;
@@ -1135,28 +902,26 @@ describe('TreeLayer photoreal crops', () => {
     const timeline = scene.layerManager().context.timeline;
     timeline.pause();
     timeline.setTime(1000);
-    const make = (count: number, ripeness: number) =>
+    const make = (count: number, radius: number) =>
       trees(
         {
           ...TREE,
           crop: {
             color: [244, 140, 24, 255],
-            unripeColor: [86, 128, 44, 255],
             count,
-            radius: 0.09,
-            ripeness
+            radius
           }
         },
-        {transitions: {getCrop: 2000}, updateTriggers: {getTree: `${count}-${ripeness}`}}
+        {transitions: {getCrop: 2000}, updateTriggers: {getTree: `${count}-${radius}`}}
       );
-    await scene.render([make(40, 0)]);
-    await scene.render([make(60, 1)]);
+    await scene.render([make(40, 0.08)]);
+    await scene.render([make(60, 0.1)]);
     const instanced = cropLayers(scene)[0].props.data;
     timeline.setTime(2000);
     await scene.settle();
     const {crops} = treeLayer(scene).state.store!.getRowValues(0);
     expect(crops[0].count).toBeCloseTo(50);
-    expect(crops[0].ripeness).toBeCloseTo(0.5);
+    expect(crops[0].radius).toBeCloseTo(0.09);
     expect(treeLayer(scene).state.ticking).toBe(true);
     timeline.setTime(3000);
     await scene.settle();
@@ -1181,42 +946,3 @@ describe('TreeLayer photoreal crops', () => {
     expect(scene.errors).toEqual([]);
   }, 120000);
 });
-
-describe('TreeLayer crop configurations and transitions', () => {
-  it('takes one config or an array, and tweens its fields', async () => {
-    const scene = mount();
-    const crop = fruit({count: 40, radius: 0.1});
-    const single = await scene.render([trees({...TREE, crop}, {id: 'crop-single'})]);
-    const array = await scene.render([trees({...TREE, crop: [crop]}, {id: 'crop-array'})]);
-    expect(countDifferent(single, array)).toBe(0);
-    await scene.render([
-      trees({...TREE, crop: [crop, {...crop, kind: 'flower'}]}, {id: 'crop-two'})
-    ]);
-    const ids = subLayers(scene).map(layer => layer.id);
-    expect(ids.some(id => id.includes('photoreal-crops') && id.includes('-fruit-'))).toBe(true);
-    expect(ids.some(id => id.includes('photoreal-crops') && id.includes('-flower-'))).toBe(true);
-
-    const timeline = scene.layerManager().context.timeline;
-    timeline.pause();
-    timeline.setTime(1000);
-    const make = (droppedCount: number) =>
-      trees(
-        {...TREE, crop: {...crop, droppedCount}},
-        {
-          id: 'crop-tween',
-          transitions: {getCrop: 2000},
-          updateTriggers: {getTree: droppedCount}
-        }
-      );
-    await scene.render([make(0)]);
-    await scene.render([make(20)]);
-    timeline.setTime(2000);
-    await scene.settle();
-    expect(treeLayer2(scene).state.store!.getRowValues(0).crops[0].dropped).toBeCloseTo(10);
-    expect(scene.errors).toEqual([]);
-  }, 120000);
-});
-
-function treeLayer2(scene: Scene): TreeLayer<TreeSpec> {
-  return subLayers(scene).find(layer => layer.id === 'crop-tween') as TreeLayer<TreeSpec>;
-}

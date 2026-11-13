@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {readFileSync} from 'node:fs';
-import {describe, expect, it, vi} from 'vitest';
+import {describe, expect, it} from 'vitest';
 import {
   TREE_STATE_ROWS_PER_LINE,
   TREE_STATE_TEXEL,
@@ -54,27 +54,6 @@ function set(
 
 function read(store: TreeStateStore, row = 0): TreeStateValues {
   return store.getRowValues(row);
-}
-
-/** deck.gl's per-frame spring from `from` at rest. Index i is the value after i steps. */
-function getSpringSeries(
-  from: number,
-  to: number,
-  stiffness: number,
-  damping: number,
-  steps: number
-): number[] {
-  const series = [from];
-  let previous = from;
-  let current = from;
-  for (let i = 0; i < steps; i++) {
-    const velocity = current - previous;
-    const next = current + velocity + (to - current) * stiffness - velocity * damping;
-    previous = current;
-    current = next;
-    series.push(current);
-  }
-  return series;
 }
 
 const RATE_TEXELS = {
@@ -383,9 +362,7 @@ describe('TreeStateStore.resize', () => {
   });
 
   it('keeps running tweens across growth, and interrupts those of removed rows', () => {
-    const onEnd = vi.fn();
-    const onInterrupt = vi.fn();
-    const store = createStore({getGrowth: {duration: 1000, onEnd, onInterrupt}}, {growth: 0}, 3);
+    const store = createStore({getGrowth: {duration: 1000}}, {growth: 0}, 3);
     set(store, {growth: 1}, 0, 0, 0);
     set(store, {growth: 1}, 0, 0, 2);
     store.tick(250, 0.25);
@@ -393,12 +370,10 @@ describe('TreeStateStore.resize', () => {
     expect(store.activeTweenCount).toBe(2);
     expect(read(store, 2).growth).toBeCloseTo(0.25, 12);
     store.resize(1);
-    expect(onInterrupt).toHaveBeenCalledTimes(1);
-    expect(onInterrupt).toHaveBeenCalledWith(2, 'getGrowth');
+
     expect(store.activeTweenCount).toBe(1);
     store.tick(1000, 1);
-    expect(onEnd).toHaveBeenCalledTimes(1);
-    expect(onEnd).toHaveBeenCalledWith(0, 'getGrowth');
+
     expect(read(store).growth).toBe(1);
   });
 
@@ -470,15 +445,12 @@ describe('TreeStateStore unchanged values', () => {
   });
 
   it('lets a running tween carry on when its target is set again', () => {
-    const onStart = vi.fn();
-    const onInterrupt = vi.fn();
-    const store = createStore({getGrowth: {duration: 1000, onStart, onInterrupt}}, {growth: 0});
+    const store = createStore({getGrowth: {duration: 1000}}, {growth: 0});
     set(store, {growth: 1});
     store.tick(250, 0.25);
     set(store, {growth: 1}, 250);
     set(store, {growth: 1}, 500);
-    expect(onStart).toHaveBeenCalledTimes(1);
-    expect(onInterrupt).not.toHaveBeenCalled();
+
     store.tick(500, 0.5);
     expect(read(store).growth).toBeCloseTo(0.5, 12);
   });
@@ -548,21 +520,12 @@ describe('TreeStateStore interpolation', () => {
     ['null', null],
     ['false', false]
   ] as const) {
-    it(`jumps with ${label}, with no callbacks`, () => {
-      const onStart = vi.fn();
-      const callbacks = typeof settings === 'object' && settings ? {onStart} : {};
-      const store = createStore(
-        {
-          getGrowth:
-            typeof settings === 'object' && settings ? {...settings, ...callbacks} : settings
-        },
-        {growth: 0}
-      );
+    it(`jumps with ${label}`, () => {
+      const store = createStore({getGrowth: settings}, {growth: 0});
       set(store, {growth: 1});
       expect(read(store).growth).toBe(1);
       expect(readFloat(store, 0, TEXEL.LIFE, 0)).toBe(1);
       expect(store.activeTweenCount).toBe(0);
-      expect(onStart).not.toHaveBeenCalled();
     });
   }
 
@@ -604,113 +567,28 @@ describe('TreeStateStore interpolation', () => {
     expect(previous).toBeGreaterThan(0.25);
   });
 
-  it('fires onStart once per start, onEnd once, in deck.gl order across an interruption', () => {
-    const events: string[] = [];
-    const store = createStore(
-      {
-        getGrowth: {
-          duration: 1000,
-          onStart: () => events.push('start'),
-          onEnd: () => events.push('end'),
-          onInterrupt: () => events.push('interrupt')
-        }
-      },
-      {growth: 0}
-    );
-    set(store, {growth: 1});
-    expect(events).toEqual(['start']);
-    store.tick(100, 0.1);
-    store.tick(200, 0.2);
-    expect(events).toEqual(['start']);
-    set(store, {growth: 0.5}, 200);
-    expect(events).toEqual(['start', 'interrupt', 'start']);
-    store.tick(600, 0.6);
-    expect(events).toEqual(['start', 'interrupt', 'start']);
-    store.tick(1200, 1.2);
-    expect(events).toEqual(['start', 'interrupt', 'start', 'end']);
-    store.tick(1300, 1.3);
-    expect(events).toEqual(['start', 'interrupt', 'start', 'end']);
-  });
-
-  it('fires one start for a group however many of its channels changed', () => {
-    const onStart = vi.fn();
-    const onEnd = vi.fn();
-    const store = createStore(
-      {getCanopyColor: {duration: 100, onStart, onEnd}},
-      {canopyColor: [0, 0, 0, 0]}
-    );
+  it('tweens color channels together', () => {
+    const store = createStore({getCanopyColor: {duration: 100}}, {canopyColor: [0, 0, 0, 0]});
     set(store, {canopyColor: [10, 20, 30, 40]});
-    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(store.activeTweenCount).toBe(1);
+
     store.tick(100, 0.1);
-    expect(onEnd).toHaveBeenCalledTimes(1);
+
     expect(read(store).canopyColor).toEqual([10, 20, 30, 40]);
   });
 
-  it('tells a callback which row and accessor it is about, in start order', () => {
-    const calls: [string, number, string][] = [];
-    const record =
-      (name: string) =>
-      (row: number, key: TreeTransitionKey): void => {
-        calls.push([name, row, key]);
-      };
-    const store = createStore(
-      {
-        getTree: {duration: 100, onStart: record('start'), onEnd: record('end')},
-        getHealth: {duration: 100, onEnd: record('healthEnd')}
-      },
-      {growth: 0, health: 0},
-      3
-    );
-    for (const row of [0, 1, 2]) set(store, {growth: 1}, 0, 0, row);
-    set(store, {health: 1}, 0, 0, 1);
-    store.tick(100, 0.1);
-    expect(calls).toEqual([
-      ['start', 0, 'getGrowth'],
-      ['start', 1, 'getGrowth'],
-      ['start', 2, 'getGrowth'],
-      ['end', 0, 'getGrowth'],
-      ['end', 1, 'getGrowth'],
-      ['end', 2, 'getGrowth'],
-      ['healthEnd', 1, 'getHealth']
-    ]);
-  });
-
-  it('calls onEnd rather than onInterrupt for a tween that had already finished by `now`', () => {
-    const events: string[] = [];
-    const store = createStore(
-      {
-        getGrowth: {
-          duration: 100,
-          onStart: () => events.push('start'),
-          onEnd: () => events.push('end'),
-          onInterrupt: () => events.push('interrupt')
-        }
-      },
-      {growth: 0}
-    );
+  it('retargets a tween from its destination once its duration has elapsed', () => {
+    const store = createStore({getGrowth: 100}, {growth: 0});
     set(store, {growth: 1});
     set(store, {growth: 0}, 500);
-    expect(events).toEqual(['start', 'end', 'start']);
     expect(read(store).growth).toBe(1);
   });
 
-  it('interrupts with no restart when a retarget lands exactly on the current value', () => {
-    const events: string[] = [];
-    const store = createStore(
-      {
-        getGrowth: {
-          duration: 1000,
-          onStart: () => events.push('start'),
-          onEnd: () => events.push('end'),
-          onInterrupt: () => events.push('interrupt')
-        }
-      },
-      {growth: 0}
-    );
+  it('ends the tween when a retarget lands exactly on the current value', () => {
+    const store = createStore({getGrowth: 1000}, {growth: 0});
     set(store, {growth: 1});
     store.tick(500, 0.5);
     set(store, {growth: 0.5}, 500);
-    expect(events).toEqual(['start', 'interrupt']);
     expect(store.activeTweenCount).toBe(0);
     expect(read(store).growth).toBe(0.5);
     expect(store.tick(600, 0.6).active).toBe(false);
@@ -1028,39 +906,32 @@ describe('TreeStateStore field groups', () => {
   });
 
   it('retargeting one group leaves the others alone', () => {
-    const onHealth = vi.fn();
     const store = createStore(
-      {getGrowth: 1000, getHealth: {duration: 1000, onInterrupt: onHealth}},
+      {getGrowth: 1000, getHealth: {duration: 1000}},
       {growth: 0, health: 0}
     );
     set(store, {growth: 1, health: 1});
     store.tick(500, 0.5);
     set(store, {growth: 0, health: 1}, 500);
-    expect(onHealth).not.toHaveBeenCalled();
+
     store.tick(750, 0.75);
     expect(read(store).growth).toBeCloseTo(0.375, 12);
     expect(read(store).health).toBeCloseTo(0.75, 12);
   });
 
   it('moves x, y and z as one transition unless getElevation asks for its own', () => {
-    const onStart = vi.fn();
-    const store = createStore({getPosition: {duration: 1000, onStart}}, {position: [0, 0, 0]});
+    const store = createStore({getPosition: {duration: 1000}}, {position: [0, 0, 0]});
     set(store, {position: [10, 10, 10]});
-    expect(onStart).toHaveBeenCalledTimes(1);
 
-    const onPosition = vi.fn();
-    const onElevation = vi.fn();
     const split = createStore(
       {
-        getPosition: {duration: 1000, onStart: onPosition},
-        getElevation: {duration: 100, onStart: onElevation}
+        getPosition: {duration: 1000},
+        getElevation: {duration: 100}
       },
       {position: [0, 0, 0]}
     );
     set(split, {position: [10, 10, 10]});
-    expect(onPosition).toHaveBeenCalledTimes(1);
-    expect(onElevation).toHaveBeenCalledTimes(1);
-    expect(onElevation).toHaveBeenCalledWith(0, 'getElevation');
+
     split.tick(50, 0.05);
     expect(read(split).position[0]).toBeCloseTo(0.5, 12);
     expect(read(split).position[2]).toBeCloseTo(5, 12);
@@ -1082,13 +953,9 @@ describe('TreeStateStore field groups', () => {
   });
 
   it('carries trunk height with getHeight in one transition, in proportion', () => {
-    const onStart = vi.fn();
-    const store = createStore(
-      {getHeight: {duration: 1000, onStart}},
-      {height: 10, trunkHeight: 3.5}
-    );
+    const store = createStore({getHeight: {duration: 1000}}, {height: 10, trunkHeight: 3.5});
     set(store, {height: 20, trunkHeight: 7});
-    expect(onStart).toHaveBeenCalledTimes(1);
+
     store.tick(500, 0.5);
     expect(read(store).height).toBeCloseTo(15, 9);
     expect(read(store).trunkHeight).toBeCloseTo(5.25, 9);
@@ -1127,19 +994,13 @@ describe('TreeStateStore field groups', () => {
   });
 
   it('tweens crop slots independently of each other', () => {
-    const onStart = vi.fn();
-    const onInterrupt = vi.fn();
     const crop = (count: number) => ({count, radius: 0.1});
-    const store = createStore(
-      {getCrop: {duration: 1000, onStart, onInterrupt}},
-      {crops: [crop(10), crop(10)]}
-    );
+    const store = createStore({getCrop: {duration: 1000}}, {crops: [crop(10), crop(10)]});
     set(store, {crops: [crop(20), crop(10)]});
-    expect(onStart).toHaveBeenCalledTimes(1);
+
     store.tick(500, 0.5);
     set(store, {crops: [crop(20), crop(30)]}, 500);
-    expect(onInterrupt).not.toHaveBeenCalled();
-    expect(onStart).toHaveBeenCalledTimes(2);
+
     store.tick(1000, 1);
     expect(read(store).crops[0].count).toBe(20);
     expect(read(store).crops[1].count).toBeCloseTo(20, 9);
@@ -1172,41 +1033,37 @@ describe('TreeStateStore field groups', () => {
     });
 
     it('interrupts and finishes a group whose settings are removed', () => {
-      const onInterrupt = vi.fn();
-      const onEnd = vi.fn();
       const store = createStore(
-        {getGrowth: {duration: 1000, onInterrupt, onEnd}, getHealth: 1000},
+        {getGrowth: {duration: 1000}, getHealth: 1000},
         {growth: 0, health: 0}
       );
       set(store, {growth: 1, health: 1});
       store.tick(500, 0.5);
       store.setTransitions({getHealth: 1000});
-      expect(onInterrupt).toHaveBeenCalledTimes(1);
+
       expect(read(store).growth).toBe(1);
       expect(readFloat(store, 0, TEXEL.LIFE, 0)).toBe(1);
       expect(read(store).health).toBeCloseTo(0.5, 12);
       store.setTransitions(null);
       expect(read(store).health).toBe(1);
       expect(store.activeTweenCount).toBe(0);
-      expect(onEnd).not.toHaveBeenCalled();
     });
 
     it('interrupts tweens whose channels move to another group', () => {
-      const onInterrupt = vi.fn();
       const store = createStore(
-        {getPosition: {duration: 1000, onInterrupt}, getHeight: {duration: 1000, onInterrupt}},
+        {getPosition: {duration: 1000}, getHeight: {duration: 1000}},
         {position: [0, 0, 0], height: 10, trunkHeight: 1, growth: 0}
       );
       store.setTransitions({
-        getPosition: {duration: 1000, onInterrupt},
-        getHeight: {duration: 1000, onInterrupt},
+        getPosition: {duration: 1000},
+        getHeight: {duration: 1000},
         getGrowth: 1000
       });
       set(store, {position: [10, 10, 10], height: 20, trunkHeight: 2, growth: 1});
       store.tick(500, 0.5);
-      expect(onInterrupt).not.toHaveBeenCalled();
+
       store.setTransitions({getElevation: 1000, getTrunkHeightFraction: 1000, getGrowth: 1000});
-      expect(onInterrupt).toHaveBeenCalledTimes(2);
+
       expect(read(store).position).toEqual([10, 10, 10]);
       expect(read(store).height).toBe(20);
       expect(read(store).trunkHeight).toBe(2);
@@ -1217,24 +1074,20 @@ describe('TreeStateStore field groups', () => {
     });
 
     it('interrupts tweens that a split reassigns even though their settings remain', () => {
-      const onInterrupt = vi.fn();
-      const getPosition = {duration: 1000, onInterrupt};
+      const getPosition = {duration: 1000};
       const store = createStore({getPosition}, {position: [0, 0, 0]});
       set(store, {position: [10, 10, 10]});
       store.tick(500, 0.5);
       store.setTransitions({getPosition, getElevation: 1000});
-      expect(onInterrupt).toHaveBeenCalledTimes(1);
+
       expect(read(store).position).toEqual([10, 10, 10]);
       expect(store.activeTweenCount).toBe(0);
 
-      const heights = createStore(
-        {getHeight: {duration: 1000, onInterrupt}},
-        {height: 10, trunkHeight: 1}
-      );
+      const heights = createStore({getHeight: {duration: 1000}}, {height: 10, trunkHeight: 1});
       set(heights, {height: 20, trunkHeight: 2});
       heights.tick(500, 0.5);
-      heights.setTransitions({getHeight: {duration: 1000, onInterrupt}, getTrunkHeightFraction: 0});
-      expect(onInterrupt).toHaveBeenCalledTimes(2);
+      heights.setTransitions({getHeight: {duration: 1000}, getTrunkHeightFraction: 0});
+
       expect(read(heights).height).toBe(20);
       expect(read(heights).trunkHeight).toBe(2);
     });
@@ -1249,72 +1102,18 @@ describe('TreeStateStore field groups', () => {
       };
       expect(read(growth({duration: 2000})).growth).toBeCloseTo(0.25, 12);
       expect(read(growth({duration: 1000, easing: t => t * t})).growth).toBeCloseTo(0.25, 12);
-
-      const events: string[] = [];
-      const log = (event: string) => () => {
-        events.push(event);
-      };
-      const store = createStore(
-        {getGrowth: {duration: 100, onStart: log('a'), onEnd: log('b'), onInterrupt: log('c')}},
-        {growth: 0}
-      );
-      store.setTransitions({getGrowth: {duration: 100, onStart: log('d'), onEnd: log('e')}});
-      set(store, {growth: 1});
-      store.tick(100, 0.1);
-      expect(events).toEqual(['d', 'e']);
-      store.setTransitions({getGrowth: {duration: 100, onInterrupt: log('f')}});
-      set(store, {growth: 0}, 100, 0.1);
-      store.tick(150, 0.15);
-      set(store, {growth: 1}, 150, 0.15);
-      expect(events).toEqual(['d', 'e', 'f']);
-
-      for (const name of ['onStart', 'onEnd', 'onInterrupt'] as const) {
-        const before = vi.fn();
-        const after = vi.fn();
-        const others = {onStart: vi.fn(), onEnd: vi.fn(), onInterrupt: vi.fn()};
-        const callbacks = createStore(
-          {getGrowth: {duration: 100, ...others, [name]: before}},
-          {growth: 0}
-        );
-        callbacks.setTransitions({getGrowth: {duration: 100, ...others, [name]: after}});
-        set(callbacks, {growth: 1});
-        callbacks.tick(50, 0.05);
-        set(callbacks, {growth: 0}, 50, 0.05);
-        callbacks.tick(200, 0.2);
-        expect(before).not.toHaveBeenCalled();
-        expect(after).toHaveBeenCalled();
-      }
-
-      const springs = (stiffness: number, damping: number) => {
-        const spring = createStore(
-          {getHeight: {type: 'spring', stiffness: 0.05, damping: 0.5}},
-          {height: 10, trunkHeight: 1}
-        );
-        spring.setTransitions({getHeight: {type: 'spring', stiffness, damping}});
-        set(spring, {height: 20, trunkHeight: 1});
-        spring.tick(5 * FRAME_MS, 5 * FRAME_SECONDS);
-        return read(spring).height;
-      };
-      expect(springs(0.2, 0.5)).toBeCloseTo(getSpringSeries(10, 20, 0.2, 0.5, 5)[5], 9);
-      expect(springs(0.05, 0.2)).toBeCloseTo(getSpringSeries(10, 20, 0.05, 0.2, 5)[5], 9);
-
-      const enter = createStore({getGrowth: {duration: 100, enter: () => [0]}}, {growth: 0});
-      enter.setTransitions({getGrowth: {duration: 100, enter: () => [0.5]}});
-      enter.setRow(0, {growth: 1}, {now: 0, clock: 0, isNew: true});
-      expect(read(enter).growth).toBe(0.5);
     });
 
     it('ignores the same object, and treats an equal new object as no change', () => {
-      const onStart = vi.fn();
-      const transitions = {getGrowth: {duration: 1000, onStart}};
+      const transitions = {getGrowth: {duration: 1000}};
       const store = createStore(transitions, {growth: 0});
       set(store, {growth: 1});
       store.tick(500, 0.5);
       store.setTransitions(transitions);
-      store.setTransitions({getGrowth: {duration: 1000, onStart}});
+      store.setTransitions({getGrowth: {duration: 1000}});
       store.setTransitions({...transitions, getLean: undefined});
       expect(store.activeTweenCount).toBe(1);
-      expect(onStart).toHaveBeenCalledTimes(1);
+
       store.tick(750, 0.75);
       expect(read(store).growth).toBeCloseTo(0.75, 12);
     });
@@ -1326,552 +1125,6 @@ describe('TreeStateStore field groups', () => {
       set(store, {growth: 1});
       expect(read(store).growth).toBe(1);
     });
-  });
-});
-
-describe('TreeStateStore enter', () => {
-  it('runs only for rows flagged new', () => {
-    const enter = vi.fn(() => [0]);
-    const store = new TreeStateStore(2);
-    store.setTransitions({getGrowth: {duration: 1000, enter}});
-    store.setRow(0, {growth: 0.75}, {now: 0, clock: 0});
-    expect(enter).not.toHaveBeenCalled();
-    expect(read(store).growth).toBe(0.75);
-    store.setRow(0, {growth: 0.25}, {now: 0, clock: 0});
-    expect(enter).not.toHaveBeenCalled();
-    store.setRow(1, {growth: 0.5}, {now: 0, clock: 0, isNew: true});
-    expect(enter).toHaveBeenCalledTimes(1);
-    expect(enter).toHaveBeenCalledWith([0.5]);
-  });
-
-  it('starts a new row from the value it gives, and tweens to the target with callbacks', () => {
-    const events: string[] = [];
-    const store = new TreeStateStore(1);
-    store.setTransitions({
-      getGrowth: {
-        duration: 1000,
-        enter: () => [0],
-        onStart: () => events.push('start'),
-        onEnd: () => events.push('end')
-      }
-    });
-    store.setRow(0, {growth: 0.8}, {now: 0, clock: 0, isNew: true});
-    expect(events).toEqual(['start']);
-    expect(read(store).growth).toBe(0);
-    expect(readFloat(store, 0, TEXEL.LIFE, 0)).toBe(0);
-    expect(store.isDirty).toBe(true);
-    store.tick(500, 0.5);
-    expect(read(store).growth).toBeCloseTo(0.4, 12);
-    store.tick(1000, 1);
-    expect(read(store).growth).toBe(0.8);
-    expect(events).toEqual(['start', 'end']);
-  });
-
-  it('jumps a new row with no enter, with no tween and no callbacks', () => {
-    const onStart = vi.fn();
-    const store = new TreeStateStore(1);
-    store.setTransitions({getGrowth: {duration: 1000, onStart}, getTree: 1000});
-    store.setRow(0, FULL_VALUES, {now: 0, clock: 0, isNew: true});
-    expect(read(store).growth).toBe(0.5);
-    expect(store.activeTweenCount).toBe(0);
-    expect(onStart).not.toHaveBeenCalled();
-  });
-
-  it('jumps the first set of a row not flagged new, even with enter and settings', () => {
-    const enter = vi.fn(() => [0]);
-    const store = new TreeStateStore(1);
-    store.setTransitions({getGrowth: {duration: 1000, enter}});
-    store.setRow(0, {growth: 0.5}, {now: 0, clock: 0});
-    expect(read(store).growth).toBe(0.5);
-    expect(store.activeTweenCount).toBe(0);
-    expect(enter).not.toHaveBeenCalled();
-  });
-
-  it('passes each group the array that matches its accessor', () => {
-    const calls: Partial<Record<TreeTransitionKey, number[]>> = {};
-    const capture = (key: TreeTransitionKey) => ({
-      duration: 1000,
-      enter: (toValue: number[]) => {
-        calls[key] = [...toValue];
-        return toValue;
-      }
-    });
-    const keys: TreeTransitionKey[] = [
-      'getGrowth',
-      'getHealth',
-      'getFoliage',
-      'getFlush',
-      'getLean',
-      'getDamage',
-      'getDecay',
-      'getPosition',
-      'getElevation',
-      'getHeight',
-      'getTrunkHeightFraction',
-      'getCanopyRadius',
-      'getTrunkRadius',
-      'getCanopyColor',
-      'getTrunkColor',
-      'getCrop'
-    ];
-    const store = new TreeStateStore(1);
-    store.setTransitions(Object.fromEntries(keys.map(key => [key, capture(key)])));
-    store.setRow(0, FULL_VALUES, {now: 0, clock: 0, isNew: true});
-    expect(calls).toEqual({
-      getGrowth: [0.5],
-      getHealth: [0.75],
-      getFoliage: [0.625],
-      getFlush: [0.125],
-      getLean: [30, 90],
-      getDamage: [0.25],
-      getDecay: [0.0625],
-      getPosition: [-122.4194, 37.7749, 12.5],
-      getElevation: [12.5],
-      getHeight: [7, 1.5, 1.5],
-      getTrunkHeightFraction: [1.5 / 7],
-      getCanopyRadius: [3.25, 2.75],
-      getTrunkRadius: [0.2],
-      getCanopyColor: [51, 102, 153, 204],
-      getTrunkColor: [10, 20, 30, 40],
-      getCrop: [30, 0.04, 0.75, 0.125, 244, 140, 24, 255, 20, 40, 60, 0]
-    });
-    // enter returned the target in every case, so nothing has anywhere to go.
-    expect(store.activeTweenCount).toBe(0);
-  });
-
-  it('runs a getTree enter once per group, and a fade-in keeps its color', () => {
-    const enter = vi.fn((toValue: number[]) => toValue);
-    const store = new TreeStateStore(1);
-    store.setTransitions({
-      getTree: {duration: 1000, enter},
-      getCanopyColor: {duration: 1000, enter: ([r, g, b]) => [r, g, b, 0]}
-    });
-    store.setRow(0, {canopyColor: [10, 20, 30, 200]}, {now: 0, clock: 0, isNew: true});
-    expect(enter.mock.calls.length).toBeGreaterThan(5);
-    expect(read(store).canopyColor).toEqual([10, 20, 30, 0]);
-    store.tick(500, 0.5);
-    expect(read(store).canopyColor).toEqual([10, 20, 30, 100]);
-  });
-
-  it('lifts a tree in on z through getPosition, with one transition', () => {
-    const onStart = vi.fn();
-    const store = new TreeStateStore(1);
-    store.setTransitions({
-      getPosition: {duration: 1000, onStart, enter: ([x, y, z]) => [x, y, z + 50]}
-    });
-    store.setRow(0, {position: [1, 2, 3]}, {now: 0, clock: 0, isNew: true});
-    expect(read(store).position).toEqual([1, 2, 53]);
-    expect(onStart).toHaveBeenCalledTimes(1);
-    store.tick(500, 0.5);
-    expect(read(store).position).toEqual([1, 2, 28]);
-  });
-
-  it('reads a getTrunkHeightFraction enter as a fraction', () => {
-    const store = new TreeStateStore(1);
-    store.setTransitions({getTrunkHeightFraction: {duration: 1000, enter: () => [0.1]}});
-    store.setRow(0, {height: 20, trunkHeight: 10}, {now: 0, clock: 0, isNew: true});
-    expect(read(store).trunkHeight).toBe(2);
-    store.tick(1000, 1);
-    expect(read(store).trunkHeight).toBe(10);
-  });
-
-  it('accepts a number, a short array, junk entries, and clamps the result', () => {
-    const store = new TreeStateStore(1);
-    store.setTransitions({
-      getGrowth: {duration: 1000, enter: () => 0.25},
-      getHealth: {duration: 1000, enter: () => [Number.NaN]},
-      getFoliage: {duration: 1000, enter: () => [-3]},
-      getLean: {duration: 1000, enter: () => [999, -90]},
-      getCanopyColor: {duration: 1000, enter: () => [1000, Number.POSITIVE_INFINITY]},
-      getCanopyRadius: {duration: 1000, enter: () => null as unknown as number[]},
-      getHeight: {duration: 1000, enter: () => [1]}
-    });
-    store.setRow(
-      0,
-      {
-        growth: 1,
-        health: 0.5,
-        foliage: 1,
-        leanDegrees: 45,
-        leanBearing: 10,
-        canopyColor: [1, 2, 3, 4],
-        crownX: 5,
-        crownY: 6,
-        height: 10,
-        trunkHeight: 4
-      },
-      {now: 0, clock: 0, isNew: true}
-    );
-    const values = read(store);
-    expect(values.growth).toBe(0.25);
-    expect(values.health).toBe(0.5);
-    expect(values.foliage).toBe(0);
-    expect(values.leanDegrees).toBe(90);
-    expect(values.leanBearing).toBe(270);
-    expect(values.canopyColor).toEqual([255, 2, 3, 4]);
-    expect(values.crownX).toBe(5);
-    expect(values.crownY).toBe(6);
-    expect(values.height).toBe(1);
-    expect(values.trunkHeight).toBe(4);
-  });
-
-  it('moves from the clamped start, not from where a wild value would have put it', () => {
-    const store = new TreeStateStore(1);
-    store.setTransitions({getFoliage: {duration: 1000, enter: () => [-3]}});
-    store.setRow(0, {foliage: 1}, {now: 0, clock: 0, isNew: true});
-    store.tick(500, 0.5);
-    expect(read(store).foliage).toBeCloseTo(0.5, 12);
-  });
-
-  it('runs with a spring too', () => {
-    const store = new TreeStateStore(1);
-    store.setTransitions({getHeight: {type: 'spring', enter: () => [0]}});
-    store.setRow(0, {height: 10}, {now: 0, clock: 0, isNew: true});
-    const series = getSpringSeries(0, 10, 0.05, 0.5, 10);
-    expect(read(store).height).toBe(0);
-    store.tick(10 * FRAME_MS, 10 * FRAME_SECONDS);
-    expect(read(store).height).toBeCloseTo(series[10], 9);
-  });
-
-  it('replaces a row in use: tween interrupted, absent fields back to defaults', () => {
-    const onInterrupt = vi.fn();
-    const store = createStore(
-      {getGrowth: {duration: 1000, onInterrupt, enter: () => [0]}},
-      {growth: 0.2, health: 0.3, foliage: 0.4}
-    );
-    set(store, {growth: 1});
-    store.tick(100, 0.1);
-    store.setRow(0, {foliage: 0.9}, {now: 100, clock: 0.1, isNew: true});
-    expect(onInterrupt).toHaveBeenCalledTimes(1);
-    expect(read(store).health).toBe(1);
-    expect(read(store).foliage).toBe(0.9);
-    expect(read(store).growth).toBe(0);
-    store.tick(600, 0.6);
-    expect(read(store).growth).toBeCloseTo(0.5, 12);
-  });
-});
-
-describe('TreeStateStore spring', () => {
-  it("follows deck.gl's per-frame formula at the default stiffness and damping", () => {
-    const store = createStore({getHeight: {type: 'spring'}}, {height: 10, trunkHeight: 1});
-    set(store, {height: 20, trunkHeight: 1});
-    const series = getSpringSeries(10, 20, 0.05, 0.5, 100);
-    for (let frame = 0; frame <= 100; frame++) {
-      expect(store.tick(frame * FRAME_MS, frame * FRAME_SECONDS).active).toBe(true);
-      expect(read(store).height).toBeCloseTo(series[frame], 9);
-    }
-  });
-
-  it('follows the formula at authored settings, when it overshoots', () => {
-    const settings = {type: 'spring', stiffness: 0.2, damping: 0.1} as const;
-    const store = createStore({getHeight: settings}, {height: 10, trunkHeight: 1});
-    set(store, {height: 20, trunkHeight: 1});
-    const series = getSpringSeries(10, 20, 0.2, 0.1, 60);
-    expect(Math.max(...series)).toBeGreaterThan(20);
-    for (let frame = 0; frame <= 60; frame++) {
-      store.tick(frame * FRAME_MS, frame * FRAME_SECONDS);
-      expect(read(store).height).toBeCloseTo(series[frame], 9);
-    }
-  });
-
-  it('does not depend on the frame rate', () => {
-    const runAt = (getNow: (frame: number) => number, frames: number) => {
-      const store = createStore({getHeight: {type: 'spring'}}, {height: 10, trunkHeight: 1});
-      set(store, {height: 20, trunkHeight: 1});
-      for (let frame = 0; frame < frames; frame++) store.tick(getNow(frame), getNow(frame) / 1000);
-      store.tick(1000, 1);
-      return read(store).height;
-    };
-    const at60 = runAt(frame => frame * FRAME_MS, 60);
-    expect(at60).toBeCloseTo(getSpringSeries(10, 20, 0.05, 0.5, 60)[60], 9);
-    expect(runAt(frame => frame * 2 * FRAME_MS, 30)).toBeCloseTo(at60, 9);
-    expect(runAt(frame => (frame * FRAME_MS) / 2, 120)).toBeCloseTo(at60, 9);
-    expect(runAt(frame => (frame * 1000) / 144, 144)).toBeCloseTo(at60, 9);
-    expect(runAt(frame => frame * 100, 10)).toBeCloseTo(at60, 9);
-    expect(runAt(() => 0, 1)).toBeCloseTo(at60, 9);
-    expect(runAt(frame => (frame + Math.sin(frame * 9) * 0.45) * FRAME_MS, 59)).toBeCloseTo(
-      at60,
-      9
-    );
-  });
-
-  it('moves smoothly between steps instead of holding, whatever the phase of the frames', () => {
-    const store = createStore({getHeight: {type: 'spring'}}, {height: 10, trunkHeight: 1});
-    set(store, {height: 20, trunkHeight: 1});
-    let previous = 10;
-    let previousDelta = 0;
-    // 240 Hz frames, slightly out of phase with the 1/60 s steps, on the rising part of the curve.
-    for (let frame = 1; frame < 40; frame++) {
-      store.tick(frame * 4.1, (frame * 4.1) / 1000);
-      const {height} = read(store);
-      const delta = height - previous;
-      expect(delta).toBeGreaterThan(0);
-      if (frame > 8) expect(delta).toBeLessThan(previousDelta * 1.8 + 1e-9);
-      previous = height;
-      previousDelta = delta;
-    }
-  });
-
-  it('ends when velocity and distance are both tiny, exactly on target, once', () => {
-    const onEnd = vi.fn();
-    const store = createStore({getGrowth: {type: 'spring', onEnd}}, {growth: 0});
-    set(store, {growth: 1});
-    const series = getSpringSeries(0, 1, 0.05, 0.5, 2000);
-    const settleStep = series.findIndex(
-      (value, i) => i > 0 && Math.abs(value - 1) < 1e-5 && Math.abs(value - series[i - 1]) < 1e-5
-    );
-    expect(settleStep).toBeGreaterThan(10);
-    for (let frame = 0; frame < settleStep; frame++) {
-      expect(store.tick(frame * FRAME_MS, frame * FRAME_SECONDS).active).toBe(true);
-      expect(onEnd).not.toHaveBeenCalled();
-    }
-    store.tick(settleStep * FRAME_MS, settleStep * FRAME_SECONDS);
-    expect(onEnd).toHaveBeenCalledTimes(1);
-    expect(read(store).growth).toBe(1);
-    expect(readFloat(store, 0, TEXEL.LIFE, 0)).toBe(1);
-    expect(store.activeTweenCount).toBe(0);
-    store.tick(99999, 1);
-    expect(onEnd).toHaveBeenCalledTimes(1);
-  });
-
-  it('settles a position closely enough not to snap in longitude and latitude', () => {
-    const store = createStore({getPosition: {type: 'spring'}}, {position: [-122.42, 37.77, 0]});
-    set(store, {position: [-122.41, 37.78, 0]});
-    let frame = 0;
-    let last = read(store).position[0];
-    while (store.tick(frame * FRAME_MS, frame * FRAME_SECONDS).active) {
-      last = read(store).position[0];
-      frame++;
-      expect(frame).toBeLessThan(2000);
-    }
-    expect(Math.abs(last - -122.41)).toBeLessThan(2e-9);
-    expect(read(store).position[0]).toBe(-122.41);
-  });
-
-  it('keeps velocity across a retarget and stays continuous', () => {
-    const events: string[] = [];
-    const store = createStore(
-      {
-        getHeight: {
-          type: 'spring',
-          onStart: () => events.push('start'),
-          onEnd: () => events.push('end'),
-          onInterrupt: () => events.push('interrupt')
-        }
-      },
-      {height: 10, trunkHeight: 1}
-    );
-    set(store, {height: 20, trunkHeight: 1});
-    const series = getSpringSeries(10, 20, 0.05, 0.5, 30);
-    store.tick(30 * FRAME_MS, 30 * FRAME_SECONDS);
-    const atRetarget = read(store).height;
-    expect(atRetarget).toBeCloseTo(series[30], 9);
-
-    // Retargeting downward from a rising spring: it must keep rising before it turns.
-    set(store, {height: 0, trunkHeight: 1}, 30 * FRAME_MS, 30 * FRAME_SECONDS);
-    expect(read(store).height).toBe(atRetarget);
-    expect(events).toEqual(['start', 'interrupt', 'start']);
-
-    let previous = series[29];
-    let current = series[30];
-    for (let frame = 31; frame < 60; frame++) {
-      const velocity = current - previous;
-      const next = current + velocity + (0 - current) * 0.05 - velocity * 0.5;
-      previous = current;
-      current = next;
-      store.tick(frame * FRAME_MS, frame * FRAME_SECONDS);
-      expect(read(store).height).toBeCloseTo(current, 9);
-    }
-    let frame = 60;
-    while (store.tick(frame * FRAME_MS, frame * FRAME_SECONDS).active) frame++;
-    expect(read(store).height).toBe(0);
-    expect(events).toEqual(['start', 'interrupt', 'start', 'end']);
-  });
-
-  it('stays continuous when retargeted between its steps', () => {
-    const store = createStore({getHeight: {type: 'spring'}}, {height: 10, trunkHeight: 1});
-    set(store, {height: 20, trunkHeight: 1});
-    const now = 30.5 * FRAME_MS;
-    store.tick(now, now / 1000);
-    const before = read(store).height;
-    set(store, {height: 40, trunkHeight: 1}, now);
-    expect(read(store).height).toBe(before);
-    store.tick(now, now / 1000);
-    expect(read(store).height).toBe(before);
-    store.tick(now + 0.01, now / 1000);
-    expect(Math.abs(read(store).height - before)).toBeLessThan(0.01);
-  });
-
-  it('runs a retarget every frame without stalling', () => {
-    const store = createStore({getHeight: {type: 'spring'}}, {height: 10, trunkHeight: 1});
-    let previous = 10;
-    for (let frame = 1; frame < 60; frame++) {
-      const now = frame * FRAME_MS;
-      set(store, {height: 100 + frame, trunkHeight: 1}, now);
-      store.tick(now, now / 1000);
-      const {height} = read(store);
-      expect(height).toBeGreaterThanOrEqual(previous);
-      previous = height;
-    }
-    expect(previous).toBeGreaterThan(50);
-  });
-
-  it('clamps what it writes, not its motion, so 0-1 fields overshoot safely', () => {
-    const settings = {type: 'spring', stiffness: 0.2, damping: 0.1} as const;
-    const store = createStore({getFoliage: settings}, {foliage: 1});
-    set(store, {foliage: 0});
-    const series = getSpringSeries(1, 0, 0.2, 0.1, 40);
-    expect(Math.min(...series)).toBeLessThan(0);
-    for (let frame = 0; frame <= 40; frame++) {
-      store.tick(frame * FRAME_MS, frame * FRAME_SECONDS);
-      const expected = Math.max(0, Math.min(1, series[frame]));
-      expect(read(store).foliage).toBeCloseTo(expected, 9);
-      expect(readFloat(store, 0, TEXEL.LIFE, 2)).toBeCloseTo(expected, 5);
-      expect(readRate(store, 'foliage')).toBeGreaterThanOrEqual(0);
-      // The fall is what the rate measures, so it drains away over frames once foliage reaches 0,
-      // however far the spring's own motion overshoots, and however it comes back.
-      if (series[frame] < 0 && series[frame - 1] >= 0)
-        expect(readRate(store, 'foliage')).toBeGreaterThan(0);
-    }
-  });
-
-  it('holds while the timeline is paused', () => {
-    const store = createStore({getHeight: {type: 'spring'}}, {height: 10, trunkHeight: 1});
-    set(store, {height: 20, trunkHeight: 1});
-    store.tick(200, 0.2);
-    const {height} = read(store);
-    store.clearDirty();
-    for (let i = 0; i < 5; i++) expect(store.tick(200, 0.2).changed).toBe(false);
-    expect(read(store).height).toBe(height);
-    expect(store.isDirty).toBe(false);
-    store.tick(100, 0.1);
-    expect(read(store).height).toBe(height);
-  });
-
-  it('does not end when it merely passes through its target at speed', () => {
-    const store = createStore({getHeight: {type: 'spring'}}, {height: 10, trunkHeight: 1});
-    set(store, {height: 20, trunkHeight: 1});
-    const series = getSpringSeries(10, 20, 0.05, 0.5, 20);
-    store.tick(20 * FRAME_MS, 20 * FRAME_SECONDS);
-    // Solved so that the next step lands exactly on the new target, still moving.
-    const velocity = series[20] - series[19];
-    const target = series[20] + (velocity * 0.5) / 0.95;
-    set(store, {height: target, trunkHeight: 1}, 20 * FRAME_MS, 20 * FRAME_SECONDS);
-    expect(store.tick(21 * FRAME_MS, 21 * FRAME_SECONDS).active).toBe(true);
-    expect(read(store).height).toBeCloseTo(target, 9);
-    store.tick(25 * FRAME_MS, 25 * FRAME_SECONDS);
-    expect(read(store).height).toBeGreaterThan(target);
-    store.tick(1000000, 1000);
-    expect(read(store).height).toBe(target);
-  });
-
-  it('carries the velocity it had at that moment when retargeted between steps', () => {
-    const store = createStore({getHeight: {type: 'spring'}}, {height: 10, trunkHeight: 1});
-    set(store, {height: 20, trunkHeight: 1});
-    const series = getSpringSeries(10, 20, 0.05, 0.5, 40);
-    const now = 30.5 * FRAME_MS;
-    store.tick(now, now / 1000);
-    set(store, {height: 40, trunkHeight: 1}, now);
-
-    const step = (position: number, velocity: number, to: number) =>
-      position + velocity + (to - position) * 0.05 - velocity * 0.5;
-    let current = series[30] + (series[31] - series[30]) * 0.5;
-    const velocityBefore = series[30] - series[29];
-    const velocityAfter = series[31] - series[30];
-    let velocity = velocityBefore + (velocityAfter - velocityBefore) * 0.5;
-    for (let i = 1; i <= 10; i++) {
-      const next = step(current, velocity, 40);
-      velocity = next - current;
-      current = next;
-      store.tick(now + i * FRAME_MS, (now + i * FRAME_MS) / 1000);
-      expect(read(store).height).toBeCloseTo(current, 9);
-    }
-  });
-
-  it('starts at rest when retargeted after a gap so long that it had finished', () => {
-    const store = createStore({getHeight: {type: 'spring'}}, {height: 10, trunkHeight: 1});
-    set(store, {height: 20, trunkHeight: 1});
-    store.tick(5 * FRAME_MS, 5 * FRAME_SECONDS);
-    const now = 10 * 60 * 1000;
-    set(store, {height: 30, trunkHeight: 1}, now, 600);
-    expect(read(store).height).toBe(20);
-    store.tick(now + 10 * FRAME_MS, 600 + 10 * FRAME_SECONDS);
-    expect(read(store).height).toBeCloseTo(getSpringSeries(20, 30, 0.05, 0.5, 10)[10], 9);
-  });
-
-  it('finishes at once after a huge time gap instead of simulating it', () => {
-    const onEnd = vi.fn();
-    const rows = 2000;
-    const store = createStore(
-      {getGrowth: {type: 'spring', stiffness: 0.0001, damping: 1, onEnd}},
-      {growth: 0},
-      rows
-    );
-    for (let row = 0; row < rows; row++) set(store, {growth: 1}, 0, 0, row);
-    store.tick(10, 0.01);
-    // Simulating this would be some 200 million steps.
-    const start = performance.now();
-    store.tick(1e9, 1e6);
-    expect(performance.now() - start).toBeLessThan(50);
-    expect(onEnd).toHaveBeenCalledTimes(rows);
-    expect(read(store, rows - 1).growth).toBe(1);
-  });
-
-  for (const [label, settings, atTarget] of [
-    ['a NaN stiffness', {stiffness: Number.NaN}, true],
-    ['a zero stiffness', {stiffness: 0}, true],
-    ['a negative stiffness', {stiffness: -1}, true],
-    ['an infinite damping', {damping: Number.POSITIVE_INFINITY}, true],
-    ['an unstable stiffness', {stiffness: 50, damping: 0.5}, true],
-    ['an unstable damping', {stiffness: 0.1, damping: 5}, true],
-    ['no damping', {stiffness: 0.1, damping: 0}, true]
-  ] as const) {
-    it(`always settles with ${label}`, () => {
-      const store = createStore(
-        {getHeight: {type: 'spring', ...settings}},
-        {height: 10, trunkHeight: 1}
-      );
-      set(store, {height: 20, trunkHeight: 1});
-      let frame = 0;
-      while (store.tick(frame * FRAME_MS, frame * FRAME_SECONDS).active) {
-        expect(Number.isFinite(read(store).height)).toBe(true);
-        frame += 10;
-        expect(frame).toBeLessThan(2e6);
-      }
-      expect(atTarget).toBe(true);
-      expect(read(store).height).toBe(20);
-    });
-  }
-
-  it('hands over between interpolation and spring without a jump', () => {
-    const store = createStore({getHeight: 1000}, {height: 10, trunkHeight: 1});
-    set(store, {height: 20, trunkHeight: 1});
-    store.tick(500, 0.5);
-    expect(read(store).height).toBeCloseTo(15, 9);
-
-    store.setTransitions({getHeight: {type: 'spring'}});
-    set(store, {height: 30, trunkHeight: 1}, 500);
-    expect(read(store).height).toBeCloseTo(15, 9);
-    store.tick(500 + 10 * FRAME_MS, 0.6);
-    expect(read(store).height).toBeCloseTo(getSpringSeries(15, 30, 0.05, 0.5, 10)[10], 9);
-    const atHandover = read(store).height;
-
-    store.setTransitions({getHeight: 1000});
-    const handoverTime = 500 + 10 * FRAME_MS;
-    set(store, {height: 40, trunkHeight: 1}, handoverTime);
-    expect(read(store).height).toBe(atHandover);
-    store.tick(handoverTime + 500, 1);
-    expect(read(store).height).toBeCloseTo((atHandover + 40) / 2, 9);
-  });
-
-  it('restarts a spring cleanly after it settled, with no leftover velocity', () => {
-    const store = createStore({getHeight: {type: 'spring'}}, {height: 10, trunkHeight: 1});
-    set(store, {height: 20, trunkHeight: 1});
-    store.tick(100000, 100);
-    expect(read(store).height).toBe(20);
-    set(store, {height: 30, trunkHeight: 1}, 100000, 100);
-    store.tick(100000 + 10 * FRAME_MS, 100 + 10 * FRAME_SECONDS);
-    expect(read(store).height).toBeCloseTo(getSpringSeries(20, 30, 0.05, 0.5, 10)[10], 9);
   });
 });
 
@@ -1909,18 +1162,6 @@ describe('TreeStateStore lean', () => {
     expect(readFloat(store, 0, TEXEL.POSE, 1)).toBeCloseTo(Math.PI / 2, 6);
   });
 
-  it('takes the short way with a spring', () => {
-    const store = createStore({getLean: {type: 'spring'}}, LEANING);
-    set(store, {leanDegrees: 30, leanBearing: 10});
-    const series = getSpringSeries(350, 370, 0.05, 0.5, 40);
-    for (let frame = 0; frame <= 40; frame++) {
-      store.tick(frame * FRAME_MS, frame * FRAME_SECONDS);
-      expect(read(store).leanBearing).toBeCloseTo(series[frame] % 360, 9);
-    }
-    store.tick(100000, 100);
-    expect(read(store).leanBearing).toBe(10);
-  });
-
   it('retargets across north from the current bearing', () => {
     const store = createStore({getLean: 1000}, {leanDegrees: 30, leanBearing: 340});
     set(store, {leanDegrees: 30, leanBearing: 40});
@@ -1934,48 +1175,30 @@ describe('TreeStateStore lean', () => {
   });
 
   it('falls straight toward its bearing from upright, without spinning', () => {
-    for (const settings of [1000, {type: 'spring'} as const]) {
-      const store = createStore({getLean: settings}, {leanDegrees: 0, leanBearing: 0});
-      set(store, {leanDegrees: 80, leanBearing: 200});
+    const store = createStore({getLean: 1000}, {leanDegrees: 0, leanBearing: 0});
+    set(store, {leanDegrees: 80, leanBearing: 200});
+    expect(read(store).leanBearing).toBe(200);
+    for (let frame = 0; frame < 40; frame++) {
+      store.tick(frame * 20, frame * 0.02);
       expect(read(store).leanBearing).toBe(200);
-      for (let frame = 0; frame < 40; frame++) {
-        store.tick(frame * 20, frame * 0.02);
-        expect(read(store).leanBearing).toBe(200);
-      }
     }
   });
 
   it('holds its bearing while returning upright, then takes the target at the end', () => {
-    for (const settings of [1000, {type: 'spring'} as const]) {
-      const store = createStore({getLean: settings}, {leanDegrees: 40, leanBearing: 120});
-      set(store, {leanDegrees: 0, leanBearing: 300});
-      for (let frame = 0; frame < 20; frame++) {
-        store.tick(frame * 20, frame * 0.02);
-        expect(read(store).leanBearing).toBe(120);
-      }
-      store.tick(1e6, 1000);
-      expect(read(store).leanDegrees).toBe(0);
-      expect(read(store).leanBearing).toBe(300);
-      const radians = (300 * Math.PI) / 180;
-      expect(readFloat(store, 0, TEXEL.POSE, 1)).toBeCloseTo(
-        Math.atan2(Math.cos(radians), Math.sin(radians)),
-        5
-      );
+    const store = createStore({getLean: 1000}, {leanDegrees: 40, leanBearing: 120});
+    set(store, {leanDegrees: 0, leanBearing: 300});
+    for (let frame = 0; frame < 20; frame++) {
+      store.tick(frame * 20, frame * 0.02);
+      expect(read(store).leanBearing).toBe(120);
     }
-  });
-
-  it('stops a spring turning when it starts returning upright', () => {
-    const store = createStore({getLean: {type: 'spring'}}, {leanDegrees: 40, leanBearing: 100});
-    set(store, {leanDegrees: 40, leanBearing: 200});
-    store.tick(20 * FRAME_MS, 20 * FRAME_SECONDS);
-    const {leanBearing: turning} = read(store);
-    expect(turning).toBeGreaterThan(110);
-    expect(turning).toBeLessThan(190);
-    set(store, {leanDegrees: 0, leanBearing: 200}, 20 * FRAME_MS, 20 * FRAME_SECONDS);
-    for (let frame = 21; frame < 30; frame++) {
-      store.tick(frame * FRAME_MS, frame * FRAME_SECONDS);
-      expect(read(store).leanBearing).toBe(turning);
-    }
+    store.tick(1e6, 1000);
+    expect(read(store).leanDegrees).toBe(0);
+    expect(read(store).leanBearing).toBe(300);
+    const radians = (300 * Math.PI) / 180;
+    expect(readFloat(store, 0, TEXEL.POSE, 1)).toBeCloseTo(
+      Math.atan2(Math.cos(radians), Math.sin(radians)),
+      5
+    );
   });
 
   it('turns toward a new target once it is no longer returning upright', () => {
@@ -2013,25 +1236,14 @@ describe('TreeStateStore lean', () => {
   });
 
   it('does not retarget a running tween for the same bearing written another way', () => {
-    const onInterrupt = vi.fn();
-    const store = createStore(
-      {getLean: {duration: 1000, onInterrupt}},
-      {leanDegrees: 30, leanBearing: 350}
-    );
+    const store = createStore({getLean: {duration: 1000}}, {leanDegrees: 30, leanBearing: 350});
     set(store, {leanBearing: 10});
     store.tick(500, 0.5);
     set(store, {leanBearing: 370}, 500);
     set(store, {leanBearing: -350}, 500);
-    expect(onInterrupt).not.toHaveBeenCalled();
+
     store.tick(750, 0.75);
     expect(read(store).leanBearing).toBeCloseTo(5, 9);
-  });
-
-  it('starts a new row exactly on the bearing that enter gives', () => {
-    const store = new TreeStateStore(1);
-    store.setTransitions({getLean: {duration: 1000, enter: () => [10, 0.1]}});
-    store.setRow(0, {leanDegrees: 40, leanBearing: 0.2}, {now: 0, clock: 0, isNew: true});
-    expect(read(store).leanBearing).toBe(0.1);
   });
 
   it('reads back a bearing exactly, and keeping it does not count as a change', () => {
@@ -2563,13 +1775,12 @@ describe('TreeStateStore input checks', () => {
   });
 
   it('does not disturb a running tween', () => {
-    const onInterrupt = vi.fn();
-    const store = createStore({getGrowth: {duration: 1000, onInterrupt}}, {growth: 0});
+    const store = createStore({getGrowth: {duration: 1000}}, {growth: 0});
     set(store, {growth: 1});
     store.tick(250, 0.25);
     set(store, {growth: Number.NaN}, 250);
     set(store, {}, 250);
-    expect(onInterrupt).not.toHaveBeenCalled();
+
     store.tick(500, 0.5);
     expect(read(store).growth).toBeCloseTo(0.5, 12);
     store.tick(1000, 1);
@@ -2723,10 +1934,9 @@ describe('TreeStateStore crops', () => {
   });
 
   it('gives a slot with nothing on the tree its new look at once, so only count tweens', () => {
-    const onStart = vi.fn();
-    const store = createStore({getCrop: {duration: 1000, onStart}}, {});
+    const store = createStore({getCrop: {duration: 1000}}, {});
     set(store, {crops: [FRUIT]});
-    expect(onStart).toHaveBeenCalledTimes(1);
+
     expect(read(store).crops[0]).toEqual({...FRUIT, count: 0});
     expect(readFloat(store, 0, TEXEL.CROP0, 1)).toBeCloseTo(0.05, 6);
     store.tick(500, 0.5);
@@ -2749,10 +1959,9 @@ describe('TreeStateStore crops', () => {
   });
 
   it('starts no tween when a slot stays empty', () => {
-    const onStart = vi.fn();
-    const store = createStore({getCrop: {duration: 1000, onStart}}, {});
+    const store = createStore({getCrop: {duration: 1000}}, {});
     set(store, {crops: [{...FRUIT, count: 0}]});
-    expect(onStart).not.toHaveBeenCalled();
+
     expect(store.activeTweenCount).toBe(0);
     expect(read(store).crops[0].radius).toBe(0.05);
   });
@@ -2863,86 +2072,7 @@ describe('TreeStateStore dirty lines', () => {
   });
 });
 
-describe('TreeStateStore callbacks', () => {
-  it('runs a callback after the store is consistent, so it can set the row again', () => {
-    const store = createStore(null, {growth: 0});
-    const events: string[] = [];
-    store.setTransitions({
-      getGrowth: {
-        duration: 100,
-        onStart: row => {
-          events.push(`start ${read(store, row).growth}`);
-        },
-        onEnd: row => {
-          events.push(`end ${read(store, row).growth}`);
-          if (read(store, row).growth === 1) set(store, {growth: 0}, 100, 0.1, row);
-        }
-      }
-    });
-    set(store, {growth: 1});
-    expect(events).toEqual(['start 0']);
-    const result = store.tick(100, 0.1);
-    expect(events).toEqual(['start 0', 'end 1', 'start 1']);
-    expect(result.active).toBe(true);
-    store.tick(200, 0.2);
-    expect(events).toEqual(['start 0', 'end 1', 'start 1', 'end 0']);
-    expect(read(store).growth).toBe(0);
-  });
-
-  it('keeps order when a callback starts another tween on another row', () => {
-    const events: string[] = [];
-    const store = createStore(null, {growth: 0}, 2);
-    store.setTransitions({
-      getGrowth: {
-        duration: 100,
-        onStart: row => {
-          events.push(`start ${row}`);
-          if (row === 0) set(store, {growth: 1}, 0, 0, 1);
-          events.push(`started ${row}`);
-        },
-        onEnd: row => {
-          events.push(`end ${row}`);
-        }
-      }
-    });
-    set(store, {growth: 1});
-    expect(events).toEqual(['start 0', 'started 0', 'start 1', 'started 1']);
-    store.tick(100, 0.1);
-    expect(events.slice(4)).toEqual(['end 0', 'end 1']);
-  });
-
-  it('survives a callback that throws: the error surfaces and later callbacks still run', () => {
-    const later = vi.fn();
-    const store = createStore(
-      {
-        getGrowth: {
-          duration: 100,
-          onEnd: () => {
-            throw new Error('user callback');
-          }
-        },
-        getHealth: {duration: 100, onEnd: later}
-      },
-      {growth: 0, health: 0}
-    );
-    set(store, {growth: 1, health: 1});
-    expect(() => store.tick(100, 0.1)).toThrow('user callback');
-    expect(read(store).growth).toBe(1);
-    expect(read(store).health).toBe(1);
-    expect(later).not.toHaveBeenCalled();
-    expect(store.tick(100, 0.1).active).toBe(false);
-    expect(later).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not keep growing its queue of callbacks', () => {
-    const onStart = vi.fn();
-    const store = createStore({getGrowth: {duration: 10, onStart}}, {growth: 0});
-    const internals = store as unknown as {callbacks: unknown[]};
-    for (let i = 1; i <= 500; i++) set(store, {growth: i % 2}, i * 100, i * 0.1);
-    expect(onStart).toHaveBeenCalledTimes(500);
-    expect(internals.callbacks.length).toBeLessThan(10);
-  });
-
+describe('TreeStateStore repeated updates', () => {
   it('has shared, frozen tick results that are safe to keep', () => {
     const store = createStore({getGrowth: 100}, {growth: 0});
     set(store, {growth: 1});
@@ -2955,9 +2085,6 @@ describe('TreeStateStore callbacks', () => {
     expect(Object.isFrozen(first)).toBe(true);
     expect(store.tick(150, 0.15)).toBe(third);
   });
-});
-
-describe('TreeStateStore repeated updates', () => {
   it('keeps initialized rows clean when their values are submitted again', () => {
     const store = createStore({getTree: 600, getGrowth: 2000}, FULL_VALUES, 64);
     for (let frame = 1; frame <= 4; frame++) {

@@ -39,7 +39,6 @@ describe('near leaf spatial clusters', () => {
     for (const force of [0, 0.03, 0.5, 1]) {
       const selected = selectTreeLeafClusters(
         clusters,
-        0,
         cluster => {
           const {center, radius} = getTreeLeafClusterSphere(cluster, 2, 2, 6, 1, 0.3, 0, 1, 0, 0);
           return intersectsTreeLeafClipBounds(
@@ -52,7 +51,7 @@ describe('near leaf spatial clusters', () => {
         },
         null
       );
-      const indices = new Set(selected.leaves);
+      const indices = new Set(selected.visibleLeaves);
       if (force === 0) expect(indices.size).toBeLessThan(model.leafCount * 0.5);
       for (let leaf = 0; leaf < model.leafCount; leaf++) {
         const offset = leaf * TREE_LEAF_STRIDE;
@@ -112,17 +111,15 @@ describe('near leaf spatial clusters', () => {
     expect(indices).toEqual(Array.from({length: model.leafCount}, (_, index) => index));
   });
 
-  it('keeps offscreen shadow-prefix leaves, and reuses data while the same clusters remain visible', () => {
+  it('keeps each visible leaf once and reuses data while the same clusters remain visible', () => {
     const clusters = getTreeLeafClusters(template());
     const visible = (cluster: (typeof clusters)[number]) => cluster.bounds[0] > 0.8;
-    const selection = selectTreeLeafClusters(clusters, 200, visible, null);
-    expect([...selection.leaves.slice(0, 200)]).toEqual(Array.from({length: 200}, (_, i) => i));
-    expect(new Set(selection.leaves).size).toBe(selection.leaves.length);
-    expect(selection.leaves.length).toBeLessThan(1000);
-    expect(selection.visibleLeaves.length).toBeLessThan(selection.leaves.length);
-    expect(selectTreeLeafClusters(clusters, 200, visible, selection)).toBe(selection);
-    const empty = selectTreeLeafClusters(clusters, 0, () => false, selection);
-    expect(empty.leaves.length).toBe(0);
+    const selection = selectTreeLeafClusters(clusters, visible, null);
+    expect(new Set(selection.visibleLeaves).size).toBe(selection.visibleLeaves.length);
+    expect(selection.visibleLeaves.length).toBeLessThan(1000);
+    expect(selectTreeLeafClusters(clusters, visible, selection)).toBe(selection);
+    const empty = selectTreeLeafClusters(clusters, () => false, selection);
+    expect(empty.visibleLeaves.length).toBe(0);
   });
 
   it('never rejects a leaf motion sphere intersecting a perspective view at any tested yaw or proportion', () => {
@@ -148,7 +145,6 @@ describe('near leaf spatial clusters', () => {
       const windReach = height * 0.1;
       const selection = selectTreeLeafClusters(
         clusters,
-        0,
         cluster => {
           const sphere = getTreeLeafClusterSphere(
             cluster,
@@ -165,7 +161,7 @@ describe('near leaf spatial clusters', () => {
         },
         null
       );
-      const selected = new Set(selection.leaves);
+      const selected = new Set(selection.visibleLeaves);
       let visibleCount = 0;
       for (let leaf = 0; leaf < model.leafCount; leaf++) {
         const offset = leaf * TREE_LEAF_STRIDE;

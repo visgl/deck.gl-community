@@ -20,7 +20,6 @@ import {getTreeShadowWgsl, treeUnshadowedWgsl} from './tree-photoreal-shadow-wgs
 import {TREE_TEMPLATE_TEXTURE_WIDTH, type TreeGrowthModel} from './tree-photoreal-layout';
 import {TREE_WIND_STRONG_FROM} from './tree-wind';
 import {
-  getTreeFogLight,
   getTreeLeafPaleness,
   TREE_BARK_STYLES,
   type TreePhotorealUniforms
@@ -271,9 +270,6 @@ function withPickingShadowBindings(owner: object, props: Record<string, any>) {
     : props;
 }
 
-/** Exponential fog over a photoreal tree: a sRGB color, each 0-255, and how thick it is, per metre. */
-export type TreeFog = {color: readonly number[]; density: number};
-
 /** What `TreeLayer` gives each photoreal primitive layer. */
 export type TreePhotorealLayerProps<DataT = unknown> = LayerProps & {
   data: DataT[];
@@ -295,8 +291,6 @@ export type TreePhotorealLayerProps<DataT = unknown> = LayerProps & {
   /** Unit vector the wind blows along, or null for isotropic sway. */
   windDirection?: readonly [number, number] | null;
   windTime?: number | null;
-  /** The clock gust fronts and their chop run on, or null for `windTime`. */
-  windGustTime?: number | null;
   /** Layer position gust phases are measured from. */
   windOrigin?: readonly [number, number];
   /** Metres per layer unit along x and y. */
@@ -306,11 +300,6 @@ export type TreePhotorealLayerProps<DataT = unknown> = LayerProps & {
   shadowEnabled?: boolean;
   /** Keep a dedicated caster draw independent of the color and picking batches. */
   _shadowPass?: 'only' | 'skip' | null;
-  /** Rain on the tree, 0-1. */
-  wetness?: number;
-  /** Rime on the tree, 0-1. */
-  frost?: number;
-  fog?: TreeFog | null;
 };
 
 const defaultProps: DefaultProps<TreePhotorealLayerProps> = {
@@ -324,15 +313,11 @@ const defaultProps: DefaultProps<TreePhotorealLayerProps> = {
   windStrength: 0,
   windDirection: {type: 'array', value: null, optional: true, compare: true},
   windTime: null,
-  windGustTime: null,
   windOrigin: {type: 'array', value: [0, 0], compare: true},
   windUnits: {type: 'array', value: [1, 1], compare: true},
   material: {type: 'object', value: null, compare: 2, optional: true},
   shadowEnabled: true,
-  _shadowPass: null,
-  wetness: 0,
-  frost: 0,
-  fog: {type: 'object', value: null, compare: 2, optional: true}
+  _shadowPass: null
 };
 
 /**
@@ -457,7 +442,6 @@ export abstract class TreePhotorealPrimitiveLayer<DataT = unknown> extends Layer
     leafBlades?: TreePhotorealUniforms['leafBlades'];
     /** The `woodLevel` uniform of a wood layer. */
     woodLevel?: TreePhotorealUniforms['woodLevel'];
-    fixedLeafShadowShare?: number;
   };
 
   /**
@@ -496,14 +480,9 @@ export abstract class TreePhotorealPrimitiveLayer<DataT = unknown> extends Layer
     if (shadowPass && this.context.device.type === 'webgl' && !prepareShadowDraw(this)) return;
     const model = this.getDrawModel(params);
     if (!model) return;
-    const {windStrength, windDirection, windTime, windGustTime, windOrigin, windUnits, species} =
-      this.props;
-    const {wetness, frost, fog} = this.props;
+    const {windStrength, windDirection, windTime, windOrigin, windUnits, species} = this.props;
     const time = windTime ?? this.context.timeline.getTime() / 1000;
-    const {shape, look, nextLook, leafBlades, woodLevel, fixedLeafShadowShare} = this.prepareDraw(
-      model,
-      shadowPass
-    );
+    const {shape, look, nextLook, leafBlades, woodLevel} = this.prepareDraw(model, shadowPass);
     const stormy = Boolean(windDirection) && windStrength > TREE_WIND_STRONG_FROM;
     model.shaderInputs.setProps({
       treePhotoreal: {
@@ -522,14 +501,12 @@ export abstract class TreePhotorealPrimitiveLayer<DataT = unknown> extends Layer
         world: [windOrigin[0], windOrigin[1], windUnits[0], windUnits[1]],
         shape,
         look,
-        weather: [wetness, frost, fog ? fog.density : 0, fixedLeafShadowShare ?? 0],
         shadowHistoryWeight: this.state.shadowHistoryWeight,
-        fog: fog ? [...getTreeFogLight(fog.color), 1] : [0, 0, 0, 0],
         leafBlades: leafBlades ?? [0, 0, 0, 0],
         woodLevel: woodLevel ?? [0, 0, 0, 0],
         // How much of a flip's paleness shows: more where a storm holds a blade over and shows its underside. That
         // it is more says a storm's terms are to come in, which is all they ask before they cost anything.
-        gust: [windGustTime ?? time, ...getTreeLeafPaleness(stormy ? windStrength : 0)],
+        leafPaleness: getTreeLeafPaleness(stormy ? windStrength : 0),
         ...TREE_BARK_STYLES[species]
       } satisfies TreePhotorealUniforms
     });

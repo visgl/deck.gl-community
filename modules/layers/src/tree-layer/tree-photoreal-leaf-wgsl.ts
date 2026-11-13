@@ -210,8 +210,8 @@ struct LeafVaryings {
     air
       ? `if (picking.isActive > 0.5) { discard; }
   let cover = input.optics.z * (1.0 - smoothstep(0.6, 1.0, abs(input.blade.y)));
-  ${air === 'depth' ? 'if (treeHash(input.position.xyz) >= cover) { discard; } return vec4<f32>(0.0);' : 'if (cover <= 0.001) { discard; } return treeOutput(treeShadeMaterial(input.color, normal, input.commonPosition, 0.3, 1.0, 0.25), cover * layer.opacity, input.pickingColor);'}`
-      : 'return treeOutput(treeShadeMaterial(input.color * modulation, normal, input.commonPosition, 0.3, input.optics.x, 0.22), layer.opacity, input.pickingColor);'
+  ${air === 'depth' ? 'if (treeHash(input.position.xyz) >= cover) { discard; } return vec4<f32>(0.0);' : 'if (cover <= 0.001) { discard; } return treeOutput(treeShadeMaterial(input.color, normal, input.commonPosition, 1.0, 0.25), cover * layer.opacity, input.pickingColor);'}`
+      : 'return treeOutput(treeShadeMaterial(input.color * modulation, normal, input.commonPosition, input.optics.x, 0.22), layer.opacity, input.pickingColor);'
   }
 }
 `

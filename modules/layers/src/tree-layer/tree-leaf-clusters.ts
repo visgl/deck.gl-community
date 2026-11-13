@@ -14,11 +14,8 @@ export type TreeLeafCluster = {
 export type TreeLeafSelection = {
   /** Camera-visible clusters, independent of the additional leaves needed to cast shadows. */
   visible: Uint8Array;
-  /** Leaves to submit, with the original template indices and no duplicates. */
-  leaves: Uint32Array;
-  /** Only the camera-visible clusters, for blades that cast no shadows of their own. */
+  /** Leaves in camera-visible clusters, retaining original template indices. */
   visibleLeaves: Uint32Array;
-  shadowCount: number;
 };
 
 const CLUSTERS = new WeakMap<TreeGrowthModel, TreeLeafCluster[]>();
@@ -117,43 +114,31 @@ export function getTreeLeafClusters(template: TreeGrowthModel): TreeLeafCluster[
   return clusters;
 }
 
-/**
- * Retain all leaves of visible clusters and the original shadow prefix. Reuse a previous selection
- * while its cluster membership stays the same, so small camera moves upload no new leaf attributes.
- */
+/** Reuse the previous leaf list while the same clusters remain visible. */
 export function selectTreeLeafClusters(
   clusters: readonly TreeLeafCluster[],
-  shadowCount: number,
   intersects: (cluster: TreeLeafCluster) => boolean,
   previous: TreeLeafSelection | null
 ): TreeLeafSelection {
   const visible = new Uint8Array(clusters.length);
-  let unchanged = previous?.shadowCount === shadowCount;
+  let unchanged = previous !== null;
+  let count = 0;
   for (let index = 0; index < clusters.length; index++) {
     if (intersects(clusters[index])) {
       visible[index] = 1;
+      count += clusters[index].leaves.length;
     }
     if (visible[index] !== previous?.visible[index]) unchanged = false;
   }
   if (unchanged && previous) return previous;
-  let count = shadowCount;
-  let visibleCount = 0;
+
+  const visibleLeaves = new Uint32Array(count);
+  let offset = 0;
   for (let index = 0; index < clusters.length; index++) {
     if (!visible[index]) continue;
-    visibleCount += clusters[index].leaves.length;
-    for (const leaf of clusters[index].leaves) if (leaf >= shadowCount) count++;
+    const {leaves} = clusters[index];
+    visibleLeaves.set(leaves, offset);
+    offset += leaves.length;
   }
-  const leaves = new Uint32Array(count);
-  const visibleLeaves = new Uint32Array(visibleCount);
-  for (let leaf = 0; leaf < shadowCount; leaf++) leaves[leaf] = leaf;
-  let offset = shadowCount;
-  let visibleOffset = 0;
-  for (let index = 0; index < clusters.length; index++) {
-    if (!visible[index]) continue;
-    for (const leaf of clusters[index].leaves) {
-      visibleLeaves[visibleOffset++] = leaf;
-      if (leaf >= shadowCount) leaves[offset++] = leaf;
-    }
-  }
-  return {visible, leaves, visibleLeaves, shadowCount};
+  return {visible, visibleLeaves};
 }

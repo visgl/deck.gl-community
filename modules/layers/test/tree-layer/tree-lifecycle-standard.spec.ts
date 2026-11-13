@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {describe, expect, it, vi} from 'vitest';
+import {describe, expect, it} from 'vitest';
 import {type CropConfig, type TreeLayerProps, type TreeSpec, type TreeType} from '../../src';
 import {mountTreeScene} from './tree-layer-test-utils';
 
@@ -172,19 +172,19 @@ describe('TreeLayer timeline transitions', () => {
     expect(scene.layer().hasUniformTransition()).toBe(false);
   });
 
-  it('uses explicit accessor settings ahead of getTree and settles springs', () => {
+  it('uses explicit interpolation settings ahead of getTree', () => {
     const scene = lifecycleScene();
     const render = (lean: TreeSpec['lean'], damage: number) =>
       scene.render([tree('oak', {lean, damage})], {
         getTree: row => row,
-        transitions: {getTree: 1000, getLean: {type: 'spring', stiffness: 0.1, damping: 0.4}}
+        transitions: {getTree: 1000, getLean: {duration: 800}}
       });
     render([0, 90], 0);
     render([60, 90], 1);
     scene.tick(1500);
     expect(scene.row().damage).toBeCloseTo(0.5, 8);
     expect(scene.row().leanDegrees).toBeGreaterThan(30);
-    for (let time = 1600; time <= 12000; time += 100) scene.tick(time);
+    scene.tick(2100);
     expect(scene.row().leanDegrees).toBeCloseTo(60, 3);
     expect(scene.row().damage).toBe(1);
     expect(scene.layer().hasUniformTransition()).toBe(false);
@@ -233,50 +233,26 @@ describe('TreeLayer timeline transitions', () => {
     expect(scene.layer().hasUniformTransition()).toBe(false);
   });
 
-  it('calls transition callbacks for each tree and skips unchanged initial values', () => {
+  it('tweens crop counts and uses the replacement kind immediately', () => {
     const scene = lifecycleScene();
-    const onStart = vi.fn();
-    const onEnd = vi.fn();
-    const data = [tree(), tree('pine', {position: [1e-4, 0, 0]})];
-    const render = (growth: number) =>
-      scene.render(data, {
-        getGrowth: growth,
-        transitions: {getGrowth: {duration: 1000, onStart, onEnd}}
-      });
-    render(0.5);
-    expect(onStart).not.toHaveBeenCalled();
-    render(0.9);
-    expect(onStart.mock.calls).toEqual([
-      [0, 'getGrowth'],
-      [1, 'getGrowth']
-    ]);
+    const render = (crop: CropConfig | null) =>
+      scene.render([tree('citrus', {crop})], {transitions: {getCrop: 1000}});
+    render(FRUIT);
+    render({...FRUIT, count: 30, droppedCount: 10});
     scene.tick(1500);
-    expect(onEnd).not.toHaveBeenCalled();
-    scene.tick(2100);
-    expect(onEnd.mock.calls).toEqual([
-      [0, 'getGrowth'],
-      [1, 'getGrowth']
-    ]);
-  });
+    expect(scene.row().crops[0]).toMatchObject({count: 25, dropped: 5});
 
-  it('keeps both crop shapes during a kind change and tweens count, ripeness and fallen amounts', () => {
-    const scene = lifecycleScene();
-    const render = (crop: CropConfig | CropConfig[]) =>
-      scene.render([tree('citrus', {crop})], {
-        transitions: {getCrop: 1000}
-      });
-    render({...FRUIT, ripeness: 0});
-    render({...FRUIT, count: 30, ripeness: 1, fallen: 0.8, droppedCount: 10});
-    scene.tick(1500);
-    expect(scene.row().crops[0]).toMatchObject({count: 25, ripeness: 0.5, fallen: 0.4, dropped: 5});
-    scene.tick(2100);
     render({...FRUIT, kind: 'lemon'});
-    scene.tick(2600);
-    const kinds = scene.layer().state.cropKinds;
-    expect(kinds).toEqual(['fruit', 'lemon']);
-    expect(scene.row().crops.map(crop => crop.count)).toEqual([15, 10]);
-    scene.tick(3200);
-    expect(scene.row().crops.map(crop => crop.count)).toEqual([0, 20]);
+    expect(scene.layer().state.cropKinds).toEqual(['lemon']);
+    expect(scene.row().crops[0]).toMatchObject({count: 20, dropped: 0});
+    expect(scene.layer().state.store!.activeTweenCount).toBe(0);
+
+    render(null);
+    scene.tick(2000);
+    expect(scene.layer().state.cropKinds).toEqual(['lemon']);
+    expect(scene.row().crops[0].count).toBe(10);
+    scene.tick(2500);
+    expect(scene.row().crops[0].count).toBe(0);
   });
 
   it('tweens deciduous foliage into winter and preserves its owner', () => {
@@ -341,24 +317,6 @@ describe('TreeLayer timeline transitions', () => {
     expect(scene.layer().state.store).toBe(store);
     expect(scene.layer().state.stateTexture).toBe(stateTexture);
     expect(scene.layer().hasUniformTransition()).toBe(false);
-  });
-
-  it('starts a new row from enter and leaves existing rows in place', () => {
-    const scene = lifecycleScene();
-    const one = tree();
-    const two = tree('oak', {position: [1e-4, 0, 0]});
-    const render = (data: TreeSpec[]) =>
-      scene.render(data, {
-        transitions: {getGrowth: {duration: 1000, enter: () => [0]}}
-      });
-    render([one]);
-    scene.tick(2000);
-    render([one, two]);
-    scene.tick(2500);
-    expect(scene.row(0).growth).toBe(1);
-    expect(scene.row(1).growth).toBeCloseTo(0.5, 8);
-    scene.tick(3100);
-    expect(scene.row(1).growth).toBe(1);
   });
 
   it('updates source identity on a trigger and regroups when the species changes', () => {

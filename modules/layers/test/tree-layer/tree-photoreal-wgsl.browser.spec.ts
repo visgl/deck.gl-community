@@ -262,7 +262,6 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
             kind: 'fruit' as const,
             count: 48,
             radius: 0.14,
-            ripeness: 1,
             color: [242, 123, 24] as const
           }
         : null
