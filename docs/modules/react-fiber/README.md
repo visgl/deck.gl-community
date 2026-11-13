@@ -4,12 +4,13 @@
 
 `@deck.gl-community/react-fiber` is a client-side React 19 renderer for deck.gl. It lets an application describe deck.gl layers and views in a React tree while keeping deck.gl's normal descriptor objects and ID-based diffing model.
 
-The package has three public surfaces:
+The package has four public surfaces:
 
 | Use case | Import | What it provides |
 | --- | --- | --- |
-| Applications | `@deck.gl-community/react-fiber` | The `DeckGL` root, the factories for custom classes, and the `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>` elements. |
-| Built-in deck.gl classes | `/core`, `/layers`, `/geo-layers`, `/aggregation-layers`, `/mesh-layers`, `/widgets` | A component for each view, layer, widget and effect that deck.gl ships, named as in deck.gl. |
+| Applications | `@deck.gl-community/react-fiber` | The `DeckGL` root. |
+| Built-in deck.gl classes | `/core`, `/layers`, `/geo-layers`, `/aggregation-layers`, `/mesh-layers`, `/widgets` | A component for each view, layer, widget and effect shipped natively in deck.gl. |
+| Custom classes | `@deck.gl-community/react-fiber` | The factories for custom classes, and the `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>` elements. Used by apps and libraries that write their own classes. |
 | Direct reconciler integration | `@deck.gl-community/react-fiber/reconciler` | Advanced root-management APIs. Most applications should use the native root instead. |
 
 ## Client-only renderer
@@ -44,9 +45,14 @@ their data type from `data`. Components can sit at any depth inside your own com
 use hooks and context.
 
 Every component renders one of four elements: `<deckLayer>`, `<deckView>`, `<deckWidget>` or
-`<deckEffect>`, each taking an instance you build. Use an element directly when you already have
-an instance. For your own classes, `createLayerComponent` and its view, widget and effect
-counterparts make a component once, with no registration. See [Components](./api-reference/components.md)
+`<deckEffect>`.
+
+You would use these when working directly with instances or when authoring your own classes.
+
+For your own classes you may also create JSX components with `createLayerComponent` and its view, widget and effect
+counterparts, with no registration.
+
+See [Components](./api-reference/components.md)
 and [Native elements](./api-reference/native-elements.md).
 
 The renderer flattens the committed tree into deck.gl's `layers`, `views`, `widgets` and `effects`
@@ -62,7 +68,9 @@ Install React 19 or later, the package, and the deck.gl packages that your appli
 npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers
 ```
 
-The package is built against the deck.gl 9.4 package family. Every deck.gl package except `@deck.gl/core` is an optional peer: install `@deck.gl/mapbox` or `@deck.gl/maplibre` for its root, and the layer or widget package behind each component subpath you import. The plain root imports none of them. TypeScript users need TypeScript 5.3 or later.
+The package is built against the deck.gl 9.4 package family. Every deck.gl package except `@deck.gl/core` is an optional peer: install `@deck.gl/mapbox` or `@deck.gl/maplibre` for its root, and the layer or widget package behind each component subpath you import. The plain root imports none of them.
+
+TypeScript users need TypeScript 5.3 or later.
 
 ## Standalone layout
 

@@ -141,7 +141,8 @@ built-in ones from a subpath, and make the others with `createLayerComponent`.
 
 ### Replace `useDeckgl`
 
-`useDeckgl()` is gone. Receive the instance from the root's `ref` or `onDeckChange`.
+`@deckgl-fiber-renderer/dom` exported a `useDeckgl()` hook. It is gone: receive the instance from the root's `ref` or
+`onDeckChange`.
 
 For a map, replace `<Deckgl interleaved>` inside react-map-gl, and its `useControl` bridge, with
 the `DeckGL` root from `/maplibre` or `/mapbox`. The root can stay inside `<Map>`. Receive the
