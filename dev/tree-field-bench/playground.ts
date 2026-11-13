@@ -50,7 +50,7 @@ export function mountFieldPlayground({
   let view = new OrbitView({id: 'orchard', orbitAxis: 'Z', fovy, near: 0.005});
   let far = 1000;
   let dive = 0;
-  let lastFrame = 0;
+  let lastFrame: number | undefined;
   let lastReadout = 0;
   const intervals: number[] = [];
 
@@ -209,12 +209,17 @@ export function mountFieldPlayground({
     }
   });
 
+  document.addEventListener('visibilitychange', () => {
+    lastFrame = undefined;
+  });
+
   return now => {
-    if (lastFrame && now - lastFrame < 250) {
-      intervals.push(now - lastFrame);
-      if (intervals.length > 120) intervals.shift();
-    }
+    if (document.visibilityState !== 'visible') return;
+    const previous = lastFrame;
     lastFrame = now;
+    if (previous === undefined) return;
+    intervals.push(now - previous);
+    if (intervals.length > 120) intervals.shift();
     if (now - lastReadout < 300 || intervals.length < 2) return;
     lastReadout = now;
     const fps = (1000 * intervals.length) / intervals.reduce((sum, interval) => sum + interval, 0);
