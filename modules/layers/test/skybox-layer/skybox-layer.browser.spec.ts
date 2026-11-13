@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, Layer, _GlobeView} from '@deck.gl/core';
-import {TextureCubeLoader} from '@loaders.gl/textures';
+import {TextureCubeLoader} from '@loaders.gl/images';
 import {afterEach, expect, test, vi} from 'vitest';
 import {SkyboxLayer} from '../../src';
 

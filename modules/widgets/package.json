@@ -36,16 +36,14 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@probe.gl/stats": "^4.1.1",
     "@turf/helpers": "^6.5.0",
     "preact": "^10.17.0",
+    "probe.gl": "^5.0.0",
     "supercluster": "^8.0.1"
   },
   "peerDependencies": {
     "@deck.gl-community/panels": "~9.4.0-alpha.0",
-    "@deck.gl/core": "~9.4.1",
-    "@luma.gl/core": "~9.4.2",
-    "@luma.gl/webgl": "~9.4.2",
-    "@luma.gl/webgpu": "~9.4.2"
+    "@deck.gl/core": "10.0.0-alpha.1",
+    "@luma.gl/core": "10.0.0-alpha.14"
   }
 }

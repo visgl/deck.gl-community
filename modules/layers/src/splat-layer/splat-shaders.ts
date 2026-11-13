@@ -1,7 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 import {SPLAT_DEFORMATION_GLSL} from './splat-deformation';
 import {SPLAT_GLOBE_GLSL} from './splat-globe';
 

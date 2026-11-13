@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
+import {CompositeLayer} from '@deck.gl/core';
 
 import {StraightLineEdgeLayer} from '../layers/edge-layers/straight-line-edge-layer';
 import {PathEdgeLayer} from './edge-layers/path-edge-layer';
@@ -78,7 +78,7 @@ export class EdgeLayer extends CompositeLayer {
         widthUpdateTrigger: stylesheet.getDeckGLAccessorUpdateTrigger('getWidth'),
         positionUpdateTrigger,
         pickable,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        coordinateSystem: 'cartesian',
         parameters: {
           depthCompare: 'always'
         }

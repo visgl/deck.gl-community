@@ -3,7 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import {describe, test, expect} from 'vitest';
-import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import {
   GeoCoordinateSystem,
   CartesianCoordinateSystem,
@@ -149,30 +148,24 @@ describe('CartesianCoordinateSystem bearing/destination consistency', () => {
 });
 
 describe('fromDeckCoordinateSystem', () => {
-  test('COORDINATE_SYSTEM.LNGLAT returns GeoCoordinateSystem', () => {
-    expect(fromDeckCoordinateSystem(COORDINATE_SYSTEM.LNGLAT)).toBeInstanceOf(GeoCoordinateSystem);
+  test('lnglat returns GeoCoordinateSystem', () => {
+    expect(fromDeckCoordinateSystem('lnglat')).toBeInstanceOf(GeoCoordinateSystem);
   });
 
-  test('COORDINATE_SYSTEM.DEFAULT returns GeoCoordinateSystem', () => {
-    expect(fromDeckCoordinateSystem(COORDINATE_SYSTEM.DEFAULT)).toBeInstanceOf(GeoCoordinateSystem);
+  test('default returns GeoCoordinateSystem', () => {
+    expect(fromDeckCoordinateSystem('default')).toBeInstanceOf(GeoCoordinateSystem);
   });
 
-  test('COORDINATE_SYSTEM.LNGLAT_OFFSETS returns GeoCoordinateSystem', () => {
-    expect(fromDeckCoordinateSystem(COORDINATE_SYSTEM.LNGLAT_OFFSETS)).toBeInstanceOf(
-      GeoCoordinateSystem
-    );
+  test('lnglat-offsets returns GeoCoordinateSystem', () => {
+    expect(fromDeckCoordinateSystem('lnglat-offsets')).toBeInstanceOf(GeoCoordinateSystem);
   });
 
-  test('COORDINATE_SYSTEM.CARTESIAN returns CartesianCoordinateSystem', () => {
-    expect(fromDeckCoordinateSystem(COORDINATE_SYSTEM.CARTESIAN)).toBeInstanceOf(
-      CartesianCoordinateSystem
-    );
+  test('cartesian returns CartesianCoordinateSystem', () => {
+    expect(fromDeckCoordinateSystem('cartesian')).toBeInstanceOf(CartesianCoordinateSystem);
   });
 
-  test('COORDINATE_SYSTEM.METER_OFFSETS returns CartesianCoordinateSystem', () => {
-    expect(fromDeckCoordinateSystem(COORDINATE_SYSTEM.METER_OFFSETS)).toBeInstanceOf(
-      CartesianCoordinateSystem
-    );
+  test('meter-offsets returns CartesianCoordinateSystem', () => {
+    expect(fromDeckCoordinateSystem('meter-offsets')).toBeInstanceOf(CartesianCoordinateSystem);
   });
 
   test('undefined returns GeoCoordinateSystem as default', () => {

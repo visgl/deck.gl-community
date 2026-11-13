@@ -7,7 +7,6 @@ import {distance as turfDistance} from '@turf/distance';
 import {destination} from '@turf/destination';
 import {midpoint} from '@turf/midpoint';
 import {point} from '@turf/helpers';
-import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import type {CoordinateSystem} from '@deck.gl/core';
 
 import {Position} from '../utils/geojson-types';
@@ -134,7 +133,7 @@ export function getEditModeCoordinateSystem(
 }
 
 /**
- * Maps a deck.gl `COORDINATE_SYSTEM` constant to the appropriate `EditModeCoordinateSystem`
+ * Maps a deck.gl `` constant to the appropriate `EditModeCoordinateSystem`
  * implementation for edit-mode geometric math.
  *
  * This allows the `EditableGeoJsonLayer` to automatically derive the correct math from
@@ -142,22 +141,22 @@ export function getEditModeCoordinateSystem(
  *
  * | deck.gl constant                   | Math used             |
  * |------------------------------------|-----------------------|
- * | `COORDINATE_SYSTEM.LNGLAT`         | GeoCoordinateSystem   |
- * | `COORDINATE_SYSTEM.DEFAULT`        | GeoCoordinateSystem   |
- * | `COORDINATE_SYSTEM.CARTESIAN`      | CartesianCoordinateSystem |
- * | `COORDINATE_SYSTEM.METER_OFFSETS`  | CartesianCoordinateSystem |
- * | `COORDINATE_SYSTEM.LNGLAT_OFFSETS` | GeoCoordinateSystem   |
+ * | `'lnglat'`         | GeoCoordinateSystem   |
+ * | `'default'`        | GeoCoordinateSystem   |
+ * | `'cartesian'`      | CartesianCoordinateSystem |
+ * | `'meter-offsets'`  | CartesianCoordinateSystem |
+ * | `'lnglat-offsets'` | GeoCoordinateSystem   |
  */
 export function fromDeckCoordinateSystem(
   deckCoordSystem: CoordinateSystem | undefined
 ): EditModeCoordinateSystem {
   switch (deckCoordSystem) {
-    case COORDINATE_SYSTEM.CARTESIAN:
-    case COORDINATE_SYSTEM.METER_OFFSETS:
+    case 'cartesian':
+    case 'meter-offsets':
       return cartesianCoordinateSystem;
-    case COORDINATE_SYSTEM.LNGLAT:
-    case COORDINATE_SYSTEM.LNGLAT_OFFSETS:
-    case COORDINATE_SYSTEM.DEFAULT:
+    case 'lnglat':
+    case 'lnglat-offsets':
+    case 'default':
     default:
       return geoCoordinateSystem;
   }

@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, MapView} from '@deck.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {afterEach, describe, expect, test} from 'vitest';
 import {SharedTile2DLayer, SharedTileset2D} from '../../src';
 

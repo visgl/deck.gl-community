@@ -9,11 +9,14 @@ import {
   type UpdateParameters
 } from '@deck.gl/core';
 import {SimpleMeshLayer, type SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 import {SPLAT_DEFORMATION_GLSL, SPLAT_DEFORMATION_WGSL} from '../splat-layer/splat-deformation';
 import {SPLAT_GLOBE_GLSL, SPLAT_GLOBE_WGSL} from '../splat-layer/splat-globe';
 import {prepareShadowDraw} from '../splat-layer/splat-shadow';
-import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
+import {
+  WGSL_FILTER_COLOR_ANCHOR,
+  INSTANCE_COLOR_PLUGIN
+} from '../selection-pulse-extension/selection-pulse-shaders';
 
 type WindProps<DataT> = {
   /** [tree height in metres, stable wind phase, flex multiplier]. */
@@ -95,11 +98,16 @@ const GLSL_STEM = `
 // Coverage must run before host depth-only shortcuts, which enter at the default order.
 const TREE_COVERAGE = {
   name: 'treeCoverageFilter',
-  fs: 'in vec2 treeCoverage;\nin vec3 treeDitherPosition;\nin vec2 treeDitherTexCoord;',
-  inject: {
-    'fs:#main-start': {
+  module: {
+    name: 'treeCoverage',
+    fs: 'in vec2 treeCoverage;\nin vec3 treeDitherPosition;\nin vec2 treeDitherTexCoord;'
+  },
+  injections: [
+    {
+      stage: 'fragment',
+      target: '#main-start',
       order: -100,
-      injection: `if (treeCoverage.x > 0.0 || treeCoverage.y < 1.0) {
+      glsl: `if (treeCoverage.x > 0.0 || treeCoverage.y < 1.0) {
         float coverageNoise = fract(sin(dot(floor(treeDitherPosition * 96.0), vec3(12.9898,78.233,37.719))) * 43758.5453);
         if (coverageNoise < treeCoverage.x || coverageNoise >= treeCoverage.y) discard;
       }
@@ -110,12 +118,16 @@ const TREE_COVERAGE = {
     },
     // deck.gl 9.4's SimpleMeshLayer applies DECKGL_FILTER_COLOR before lighting, which would shade
     // the depth its shadow module packs into the color. Write the packed depth after lighting.
-    'fs:#main-end': `
+    {
+      stage: 'fragment',
+      target: '#main-end',
+      glsl: `
 #ifdef MODULE_SHADOW
   if (shadow.drawShadowMap) fragColor = shadow_filterShadowColor(vec4(0.0));
 #endif
 `
-  }
+    }
+  ]
 } as const;
 
 const WGSL_STEM = `
@@ -180,7 +192,7 @@ const WGSL_ANCHOR = `
 const GLSL_OFFSET_PROJECTION =
   'project_position_to_clipspace(instancePositions, instancePositions64Low, pos, position_commonspace)';
 const WGSL_OFFSET_PROJECTION =
-  'project_position_to_clipspace_and_commonspace(\n      attributes.instancePositions,\n      attributes.instancePositions64Low,\n      project_size_vec3(meshPosition)\n    )';
+  'project_position_to_clipspace_and_commonspace(\n      attributes.instancePositions,\n      attributes.instancePositions64Low,\n      meshPosition\n    )';
 
 /** Shared shader deformation for trunks, crowns and attached crops. */
 export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT>> {
@@ -274,6 +286,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       return {
         ...shaders,
         modules: [...shaders.modules, TREE_WIND],
+        plugins: [...(shaders.plugins || []), INSTANCE_COLOR_PLUGIN],
         source: `${SPLAT_DEFORMATION_WGSL}\n${SPLAT_GLOBE_WGSL}\n${shaders.source}`
           .replace(
             '  @location(10) instanceTranslation: vec3<f32>,',
@@ -299,7 +312,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
             'attributes.colors * attributes.instanceColors.rgb',
             'select(attributes.colors,vec3<f32>(1.0),treeWind.woodMorph > 0.5) * attributes.instanceColors.rgb'
           )
-          .replace('  let meshPosition =', `${WGSL_STEM}\n  var meshPosition =`)
+          .replace('  var meshPosition =', `${WGSL_STEM}\n  var meshPosition =`)
           .replace(
             '(instanceModelMatrix * attributes.positions)',
             '(instanceModelMatrix * treePosition)'
@@ -329,7 +342,8 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       throw new Error('Unsupported SimpleMeshLayer GLSL wind anchor.');
     return {
       ...shaders,
-      modules: [...shaders.modules, TREE_WIND, TREE_COVERAGE],
+      modules: [...shaders.modules, TREE_WIND],
+      plugins: [...(shaders.plugins || []), TREE_COVERAGE],
       fs: shaders.fs.replace(
         'vec3 lightColor =',
         'if (treeWind.twoSided > 0.5 && !gl_FrontFacing) normal = -normal;\nvec3 lightColor ='

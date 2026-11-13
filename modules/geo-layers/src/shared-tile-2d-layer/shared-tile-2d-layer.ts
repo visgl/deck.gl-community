@@ -18,7 +18,7 @@ import {
 } from '@deck.gl/core';
 import {GeoJsonLayer} from '@deck.gl/layers';
 import {Matrix4} from '@math.gl/core';
-import type {TileSource} from '@loaders.gl/loader-utils';
+import type {TileSource} from '@loaders.gl/core/loader-utils';
 
 import {
   SharedTileset2D,

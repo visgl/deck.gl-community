@@ -29,7 +29,7 @@ export class SymbolLayer extends ScatterplotLayer<SymbolMark, SymbolProps> {
   getShaders() {
     const shaders = super.getShaders();
     if (!shaders.fs.includes('length(unitPosition)')) {
-      throw new Error('SymbolLayer requires the deck.gl 9.4 ScatterplotLayer shader.');
+      throw new Error('SymbolLayer requires the deck.gl ScatterplotLayer shader.');
     }
     return {
       ...shaders,
@@ -38,17 +38,22 @@ export class SymbolLayer extends ScatterplotLayer<SymbolMark, SymbolProps> {
         'length(unitPosition)',
         'mix(length(unitPosition), max(abs(unitPosition.x), abs(unitPosition.y)), vSymbolShape)'
       ),
-      inject: {
-        ...shaders.inject,
-        'vs:#decl': 'in float instanceAngles; in float instanceShapes; out float vSymbolShape;',
-        'vs:#main-start': 'vSymbolShape = instanceShapes;',
-        'fs:#decl': 'in float vSymbolShape;',
-        'vs:DECKGL_FILTER_SIZE': `
+      plugins: [
+        ...(shaders.plugins || []),
+        {
+          name: 'symbol-shape',
+          injections: {
+            'vs:#decl': 'in float instanceAngles; in float instanceShapes; out float vSymbolShape;',
+            'vs:#main-start': 'vSymbolShape = instanceShapes;',
+            'fs:#decl': 'in float vSymbolShape;',
+            'vs:DECKGL_FILTER_SIZE': `
           float c = cos(instanceAngles);
           float s = sin(instanceAngles);
           size.xy = mat2(c, s, -s, c) * size.xy;
         `
-      }
+          }
+        }
+      ]
     };
   }
 }

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
+import {Deck, OrthographicView} from '@deck.gl/core';
 import {luma, type Device} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {describe, expect, it} from 'vitest';
 
 import {GlobalGridLayer, SharedTile2DHeader, TileGridLayer, type GlobalGrid} from '../src';
@@ -37,7 +37,7 @@ function createPortableGeoLayers() {
   return [
     new GlobalGridLayer({
       id: 'webgpu-global-grid',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [{cellId: 'test-cell'}],
       globalGrid: TEST_GRID,
       filled: true,
@@ -50,7 +50,7 @@ function createPortableGeoLayers() {
     }),
     new TileGridLayer({
       id: 'webgpu-tile-grid',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       tile,
       showLabel: true,
       borderColor: [245, 158, 11, 255],

@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 import {z} from 'zod';
+import {ColumnSourceSchema, ResourceSchema as RuntimeResourceSchema} from './common';
 import {
   CompositeLayerPropsSchema,
   Vector2Schema,
@@ -24,6 +25,13 @@ const colorProps = {
 };
 /** JSON-safe props for ScreenGridLayer; compose or extend with Zod. */
 export const ScreenGridLayerPropsSchema = CompositeLayerPropsSchema.extend({
+  aggregator: RuntimeResourceSchema.nullable().optional(),
+  dataBounds: z
+    .tuple([z.array(z.number()), z.array(z.number())])
+    .nullable()
+    .optional(),
+  positions: ColumnSourceSchema.optional(),
+  weights: ColumnSourceSchema.optional(),
   ...weightProps,
   ...colorProps,
   cellSizePixels: z.number().min(1).optional(),
@@ -34,6 +42,8 @@ export const ScreenGridLayerPropsSchema = CompositeLayerPropsSchema.extend({
 });
 /** JSON-safe props for HeatmapLayer; compose or extend with Zod. */
 export const HeatmapLayerPropsSchema = CompositeLayerPropsSchema.extend({
+  positions: ColumnSourceSchema.optional(),
+  weights: ColumnSourceSchema.optional(),
   ...weightProps,
   ...colorProps,
   radiusPixels: z.number().min(1).max(100).optional(),
@@ -51,6 +61,13 @@ export const ContourSchema = z.strictObject({
 });
 /** JSON-safe props for ContourLayer; compose or extend with Zod. */
 export const ContourLayerPropsSchema = CompositeLayerPropsSchema.extend({
+  aggregator: RuntimeResourceSchema.nullable().optional(),
+  dataBounds: z
+    .tuple([z.array(z.number()), z.array(z.number())])
+    .nullable()
+    .optional(),
+  positions: ColumnSourceSchema.optional(),
+  weights: ColumnSourceSchema.optional(),
   ...weightProps,
   cellSize: z.number().min(1).optional(),
   gridOrigin: Vector2Schema.optional(),
@@ -85,6 +102,13 @@ const extrudedProps = {
 };
 /** JSON-safe props for GridLayer; compose or extend with Zod. */
 export const GridLayerPropsSchema = CompositeLayerPropsSchema.extend({
+  aggregator: RuntimeResourceSchema.nullable().optional(),
+  dataBounds: z
+    .tuple([z.array(z.number()), z.array(z.number())])
+    .nullable()
+    .optional(),
+  positions: ColumnSourceSchema.optional(),
+  weights: ColumnSourceSchema.optional(),
   ...extrudedProps,
   cellSize: z.number().nonnegative().optional(),
   gridAggregator: CallbackSchema,
@@ -92,6 +116,13 @@ export const GridLayerPropsSchema = CompositeLayerPropsSchema.extend({
 });
 /** JSON-safe props for HexagonLayer; compose or extend with Zod. */
 export const HexagonLayerPropsSchema = CompositeLayerPropsSchema.extend({
+  aggregator: RuntimeResourceSchema.nullable().optional(),
+  dataBounds: z
+    .tuple([z.array(z.number()), z.array(z.number())])
+    .nullable()
+    .optional(),
+  positions: ColumnSourceSchema.optional(),
+  weights: ColumnSourceSchema.optional(),
   ...extrudedProps,
   radius: z.number().min(1).optional(),
   hexagonAggregator: CallbackSchema,

@@ -4,7 +4,7 @@
 
 import {CompositeLayer, type Color, type DefaultProps, type UpdateParameters} from '@deck.gl/core';
 import {LineLayer, ScatterplotLayer} from '@deck.gl/layers';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderPlugin} from '@luma.gl/shaders';
 
 import {GpuParticlePointLayer} from './gpu-particle-point-layer';
 import {GpuParticleSimulation} from './gpu-particle-simulation';
@@ -59,18 +59,18 @@ type BinaryParticleSegments = {
 /** GPU particle buffers contain float32 geographic positions, not split fp64 attributes. */
 const windParticleTrailClip = {
   name: 'windParticleTrailClip',
-  inject: {
+  injections: {
     'vs:DECKGL_FILTER_GL_POSITION': `
       if (distance(geometry.worldPosition.xy, geometry.worldPositionAlt.xy) > 0.75) {
         position = vec4(2.0, 2.0, 2.0, 1.0);
       }
     `
   }
-} as const satisfies ShaderModule;
+} as const satisfies ShaderPlugin;
 
 const windParticleAgeFade = {
   name: 'windParticleAgeFade',
-  inject: {
+  injections: {
     'vs:#decl': 'in float windParticleAges;',
     'vs:DECKGL_FILTER_COLOR': `
       float windFadeIn = smoothstep(0.0, 16.0, windParticleAges);
@@ -78,7 +78,7 @@ const windParticleAgeFade = {
       color.a *= windFadeIn * windFadeOut;
     `
   }
-} as const satisfies ShaderModule;
+} as const satisfies ShaderPlugin;
 
 const windParticleTrailInjectionsWGSL = {
   '  var vColor: vec4<f32> = vec4<f32>(instanceColors.rgb, instanceColors.a * layer.opacity);': /* wgsl */ `
@@ -149,7 +149,7 @@ class GpuParticleTrailLayer extends LineLayer {
     }
     return {
       ...shaders,
-      modules: [...shaders.modules, windParticleTrailClip, windParticleAgeFade]
+      plugins: [...(shaders.plugins || []), windParticleTrailClip, windParticleAgeFade]
     };
   }
 

@@ -462,7 +462,7 @@ it('bounds globe wood in its east-north-up frame and omits trees behind the glob
 it('projects tree mesh offsets and normals in the east-north-up globe frame', () => {
   for (const type of ['webgl', 'webgpu'] as const) {
     const layer = Object.assign(Object.create(TreeMeshLayer.prototype), {
-      context: {device: {type}, defaultShaderModules: []},
+      context: {viewport: {projectionMode: 1}, device: {type}, defaultShaderModules: []},
       props: {...TreeMeshLayer.defaultProps, extensions: []}
     });
     const {vs, source} = layer.getShaders();

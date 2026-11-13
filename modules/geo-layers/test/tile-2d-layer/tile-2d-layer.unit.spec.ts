@@ -5,7 +5,7 @@
 import {describe, expect, it} from 'vitest';
 import {OrthographicViewport, WebMercatorViewport} from '@deck.gl/core';
 import {_Tileset2D as Tileset2D} from '@deck.gl/geo-layers';
-import type {TileSource} from '@loaders.gl/loader-utils';
+import type {TileSource} from '@loaders.gl/core/loader-utils';
 import type {SharedTileset2DAdapter} from '../../src';
 import {SharedTile2DLayer, SharedTileset2D} from '../../src';
 import {SharedTile2DView} from '../../src/shared-tile-2d-layer/shared-tile-2d-view';

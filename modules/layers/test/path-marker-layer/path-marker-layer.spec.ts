@@ -6,7 +6,7 @@ import {describe, expect, it, vi} from 'vitest';
 
 import {PathMarkerLayer} from '../../src/path-marker-layer/path-marker-layer';
 
-import {COORDINATE_SYSTEM, type UpdateParameters} from '@deck.gl/core';
+import {type UpdateParameters} from '@deck.gl/core';
 
 type Datum = {
   path: [number, number][];
@@ -86,12 +86,7 @@ describe('PathMarkerLayer', () => {
     const layer = makeLayer(() => [0.5]);
 
     expect(
-      layer.projectFlat(
-        [10, 20],
-        layer.context.viewport,
-        COORDINATE_SYSTEM.METER_OFFSETS,
-        [100, 200]
-      )
+      layer.projectFlat([10, 20], layer.context.viewport, 'meter-offsets', [100, 200])
     ).toEqual([1100, 220]);
   });
 
@@ -100,12 +95,7 @@ describe('PathMarkerLayer', () => {
     layer.context.viewport.metersToLngLatDelta = ([x, y]) => [x / 100, y / 100];
 
     expect(
-      layer.projectFlat(
-        [10, 20],
-        layer.context.viewport,
-        COORDINATE_SYSTEM.METER_OFFSETS,
-        [100, 200]
-      )
+      layer.projectFlat([10, 20], layer.context.viewport, 'meter-offsets', [100, 200])
     ).toEqual([1001, 200.2]);
   });
 

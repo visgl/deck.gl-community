@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 import {z} from 'zod';
+import {ColumnSourceSchema} from './common';
 import {
   BaseLayerPropsSchema,
   ResourceSchema,
@@ -26,6 +27,8 @@ const instanceProps = {
 };
 /** JSON-safe props for SimpleMeshLayer; compose or extend with Zod. */
 export const SimpleMeshLayerPropsSchema = BaseLayerPropsSchema.extend({
+  colors: ColumnSourceSchema.optional(),
+  positions: ColumnSourceSchema.optional(),
   ...instanceProps,
   mesh: ResourceSchema.nullable(),
   texture: ResourceSchema.optional(),
@@ -41,6 +44,8 @@ export const AnimationSchema = z.strictObject({
 });
 /** JSON-safe props for ScenegraphLayer; compose or extend with Zod. */
 export const ScenegraphLayerPropsSchema = BaseLayerPropsSchema.extend({
+  colors: ColumnSourceSchema.optional(),
+  positions: ColumnSourceSchema.optional(),
   ...instanceProps,
   scenegraph: ResourceSchema.nullable(),
   getScene: FunctionSchema.optional(),
