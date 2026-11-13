@@ -1,4 +1,3 @@
-import type {Layer, View} from '@deck.gl/core';
 import {assert, log} from '@deck.gl/core';
 import {RENDERER_PACKAGE_NAME, RENDERER_VERSION, globalScope} from '../shared/constants';
 import {createContext} from 'react';
@@ -22,7 +21,7 @@ import type {
   UpdatePayload
 } from './types';
 import {
-  combineRootDescriptors,
+  prepareRootUpdate,
   flattenTree,
   isLayer,
   isView,
@@ -30,6 +29,7 @@ import {
   isWidget,
   organizeList
 } from './utils';
+import {getElementPath, withEffectId, withLayerId, withViewId, withWidgetId} from './element-ids';
 
 type EventPriority = number;
 
@@ -129,12 +129,13 @@ function describeValue(value: unknown): string {
   return (value as object | null | undefined)?.constructor?.name ?? String(value);
 }
 
-/** Warns, outside production builds, when a layer or view keeps a default id. */
-function warnIfDefaultId(descriptor: Layer | View): void {
-  if (process.env.NODE_ENV !== 'production' && (!descriptor.id || descriptor.id === 'unknown')) {
-    log.warn(`${descriptor.constructor.name} needs a stable id`)();
-  }
-}
+/** The prop that carries each element's descriptor. */
+const DESCRIPTOR_PROPS: Record<string, string> = {
+  deckEffect: 'effect',
+  deckLayer: 'layer',
+  deckView: 'view',
+  deckWidget: 'widget'
+};
 
 /**
  * Creates the supported native deck.gl elements.
@@ -144,14 +145,13 @@ function warnIfDefaultId(descriptor: Layer | View): void {
  * callers receive the same runtime contract as TypeScript callers. A wrong or missing
  * descriptor throws in every build.
  */
-function createDeckGLObject(type: Type, props: Props): Instance {
+function createDeckGLObject(type: Type, props: Props, path: string[]): Instance {
   if (type === 'deckView') {
     const view = props.view;
     if (!isView(view)) {
       throw new Error(`<deckView> needs a View, got ${describeValue(view)}`);
     }
-    warnIfDefaultId(view);
-    return {children: [], node: view};
+    return {children: [], node: withViewId(view, path), path};
   }
 
   if (type === 'deckLayer') {
@@ -159,8 +159,7 @@ function createDeckGLObject(type: Type, props: Props): Instance {
     if (!isLayer(layer)) {
       throw new Error(`<deckLayer> needs a Layer, got ${describeValue(layer)}`);
     }
-    warnIfDefaultId(layer);
-    return {children: [], node: layer};
+    return {children: [], node: withLayerId(layer, path), path};
   }
 
   if (type === 'deckWidget') {
@@ -168,7 +167,7 @@ function createDeckGLObject(type: Type, props: Props): Instance {
     if (!isWidget(widget)) {
       throw new Error(`<deckWidget> needs a Widget, got ${describeValue(widget)}`);
     }
-    return {children: [], node: widget};
+    return {children: [], node: withWidgetId(widget, path), path};
   }
 
   if (type === 'deckEffect') {
@@ -176,7 +175,7 @@ function createDeckGLObject(type: Type, props: Props): Instance {
     if (!isEffect(effect)) {
       throw new Error(`<deckEffect> needs a deck.gl effect, got ${describeValue(effect)}`);
     }
-    return {children: [], node: effect};
+    return {children: [], node: withEffectId(effect, path), path};
   }
 
   throw new Error(`Unsupported element <${type}>`);
@@ -239,7 +238,8 @@ export function createInstance(
   hostContext: HostContext,
   fiber: Fiber
 ): Instance {
-  return createDeckGLObject(type, props);
+  // Only createInstance sees the fiber, so the element's path is kept on its instance for clones.
+  return createDeckGLObject(type, props, getElementPath(fiber));
 }
 
 /**
@@ -350,7 +350,13 @@ export function cloneInstance(
     return undefined;
   }
 
-  const cloned = createDeckGLObject(type, newProps);
+  // When the element still renders the same descriptor, reuse the one given an id, so that a
+  // memoized layer or view reaches deck.gl as the same instance.
+  const descriptorProp = DESCRIPTOR_PROPS[type];
+  const cloned: Instance =
+    descriptorProp && newProps[descriptorProp] === oldProps[descriptorProp]
+      ? {children: [], node: instance.node, path: instance.path}
+      : createDeckGLObject(type, newProps, instance.path ?? []);
 
   // Handle children based on keepChildren flag
   // If we're not keeping children and there's a recyclable instance with children, use those
@@ -623,8 +629,7 @@ export function replaceContainerChildren(container: Container, newChildren: Chil
     // NOTE: keep the committed descriptors so a prop-only reconfigure can reapply them,
     // then combine them with the `layers` prop on `<DeckGL />` (JSX layers first)
     container.jsxDescriptors = types;
-    const propsUpdate = combineRootDescriptors(state, types, container.sentViews);
-    container.sentViews = Boolean(propsUpdate.views);
+    const propsUpdate = prepareRootUpdate(container, types);
 
     log.log(3, 'DeckGL commit', propsUpdate)();
 

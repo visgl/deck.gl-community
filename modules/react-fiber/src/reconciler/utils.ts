@@ -1,7 +1,8 @@
 import {Layer, View, Widget} from '@deck.gl/core';
 import type {DeckProps, Effect, LayersList} from '@deck.gl/core';
 
-import type {Instance, JsxDescriptors, ViewOrViews} from './types';
+import {getOwnId, warnOnDuplicateIds} from './element-ids';
+import type {Container, Instance, JsxDescriptors, ViewOrViews} from './types';
 
 /**
  * Type guard to check if a node is a View instance.
@@ -148,6 +149,54 @@ interface RootDescriptorProps {
 }
 
 /**
+ * Merges JSX descriptors with a prop's descriptors by id.
+ *
+ * JSX entries with one id collapse into the last of them, at the first one's place. A prop entry
+ * then replaces the JSX entries that have its id, either the id the renderer gave them or their
+ * own, so `effects={[new LightingEffect()]}` still replaces a JSX `LightingEffect` that has an id
+ * from its position. Other prop entries follow the JSX entries.
+ *
+ * Only JSX entries are matched by their own id. A widget or effect keeps the id the renderer gave
+ * it after it leaves JSX, so a prop entry is matched by its current id alone: otherwise a reused
+ * instance passed in a prop could be replaced by another prop entry with its original id, and
+ * which one survived would depend on prop order. Prop entries replace each other only when their
+ * ids are equal, as before.
+ */
+function mergeById<T extends {id: string}>(
+  jsxEntries: readonly T[],
+  passedEntries: readonly (T | null | undefined | false)[]
+): T[] {
+  const merged: {entry: T; fromJsx: boolean}[] = [];
+  for (const entry of jsxEntries) {
+    const index = merged.findIndex(other => other.entry.id === entry.id);
+    if (index < 0) {
+      merged.push({entry, fromJsx: true});
+    } else {
+      merged[index] = {entry, fromJsx: true};
+    }
+  }
+  for (const entry of passedEntries) {
+    if (!entry) {
+      continue;
+    }
+    const matches = (other: {entry: T; fromJsx: boolean}) =>
+      other.entry.id === entry.id || (other.fromJsx && getOwnId(other.entry) === entry.id);
+    const index = merged.findIndex(matches);
+    if (index < 0) {
+      merged.push({entry, fromJsx: false});
+      continue;
+    }
+    merged[index] = {entry, fromJsx: false};
+    for (let later = merged.length - 1; later > index; later--) {
+      if (matches(merged[later])) {
+        merged.splice(later, 1);
+      }
+    }
+  }
+  return merged.map(({entry}) => entry);
+}
+
+/**
  * Merges JSX views with the `views` prop as `@deck.gl/react` does.
  *
  * Without JSX views, the prop is used unchanged. When it is also absent, the result is
@@ -163,17 +212,7 @@ function mergeViews(jsxViews: View[], passedViews: ViewOrViews | undefined): Vie
   if (!passedViews) {
     return jsxViews;
   }
-
-  const viewsById = new Map<string, View>();
-  for (const view of jsxViews) {
-    viewsById.set(view.id, view);
-  }
-  for (const view of Array.isArray(passedViews) ? passedViews : [passedViews]) {
-    if (view) {
-      viewsById.set(view.id, view);
-    }
-  }
-  return [...viewsById.values()];
+  return mergeById(jsxViews, Array.isArray(passedViews) ? passedViews : [passedViews]);
 }
 
 /**
@@ -194,14 +233,7 @@ function mergeWidgets(
   if (!passedWidgets) {
     return jsxWidgets;
   }
-
-  const widgetsById = new Map<string, NonNullable<RootWidgets>[number]>();
-  for (const widget of [...jsxWidgets, ...passedWidgets]) {
-    if (widget) {
-      widgetsById.set(widget.id, widget);
-    }
-  }
-  return [...widgetsById.values()];
+  return mergeById<NonNullable<NonNullable<RootWidgets>[number]>>(jsxWidgets, passedWidgets);
 }
 
 /**
@@ -218,14 +250,7 @@ function mergeEffects(jsxEffects: Effect[], passedEffects: Effect[] | undefined)
   if (!passedEffects) {
     return jsxEffects;
   }
-
-  const effectsById = new Map<string, Effect>();
-  for (const effect of [...jsxEffects, ...passedEffects]) {
-    if (effect) {
-      effectsById.set(effect.id, effect);
-    }
-  }
-  return [...effectsById.values()];
+  return mergeById(jsxEffects, passedEffects);
 }
 
 /**
@@ -268,5 +293,24 @@ export function combineRootDescriptors(
     }
   }
 
+  return descriptors;
+}
+
+/**
+ * Builds the update a root sends to deck.gl from its JSX descriptors and its props, and checks
+ * it for duplicate ids. Commits and prop-only reconfigures both send their updates through it.
+ */
+export function prepareRootUpdate(
+  container: Container,
+  jsx: JsxDescriptors
+): ReturnType<typeof combineRootDescriptors> {
+  const state = container.store.getState();
+  container.duplicateIdWarnings = warnOnDuplicateIds(
+    jsx,
+    state._passedLayers,
+    container.duplicateIdWarnings
+  );
+  const descriptors = combineRootDescriptors(state, jsx, container.sentViews);
+  container.sentViews = Boolean(descriptors.views);
   return descriptors;
 }
