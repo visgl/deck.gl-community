@@ -99,7 +99,8 @@ export interface CreateDeckGLOptions<Props, Instance extends DeckGLRenderer, Map
    *
    * When any listed prop changes (compared with `Object.is`), the component finalizes the
    * current overlay and creates a new one with the full props. `onDeckChange` receives
-   * `null` for the old instance and then the new instance, which the app must attach.
+   * `null` for the old instance and then the new instance. With `attach`, the component attaches
+   * the new instance itself; without it, the app attaches it.
    */
   recreateOverlayOnChange?: readonly (keyof Props & string)[];
   /**
