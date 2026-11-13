@@ -221,16 +221,16 @@ function flattenLayers(layers: LayersList, result: Layer[] = []): Layer[] {
 
 type Described = {id: string; source: string; descriptor: object};
 
-function warnOnDuplicates(kind: string, entries: Described[]): void {
+function findDuplicates(kind: string, entries: Described[], messages: Set<string>): void {
   const seen = new Map<string, Described>();
   for (const entry of entries) {
     const first = seen.get(entry.id);
     if (first) {
       const describe = ({descriptor, source}: Described) =>
         `${getClass(descriptor).name} from ${source}`;
-      log.warn(
+      messages.add(
         `Two ${kind} share the id "${entry.id}": ${describe(first)} and ${describe(entry)}`
-      )();
+      );
     } else {
       seen.set(entry.id, entry);
     }
@@ -243,28 +243,46 @@ function warnOnDuplicates(kind: string, entries: Described[]): void {
  * id, and the `layers` prop is added to the JSX layers without merging. Views, widgets and
  * effects from props replace JSX elements with the same id by design, so only JSX elements are
  * compared for those.
+ *
+ * Every update sent to deck.gl is checked, whether a commit or a prop-only `configure` sends it.
+ * One render can send both, so a collision is reported only when the previous update, whose
+ * messages are passed as `reported`, did not have it.
+ *
+ * @returns The messages for this update, to pass as `reported` next time
  */
 export function warnOnDuplicateIds(
   jsx: {effects: Effect[]; layers: Layer[]; views: View[]; widgets: Widget[]},
-  passedLayers: LayersList
-): void {
+  passedLayers: LayersList,
+  reported: ReadonlySet<string> = new Set()
+): ReadonlySet<string> {
+  const messages = new Set<string>();
   if (process.env.NODE_ENV === 'production') {
-    return;
+    return messages;
   }
   const fromJsx = (element: string) => (descriptor: {id: string}) => ({
     descriptor,
     id: descriptor.id,
     source: `<${element}>`
   });
-  warnOnDuplicates('layers', [
-    ...jsx.layers.map(fromJsx('deckLayer')),
-    ...flattenLayers(passedLayers).map(layer => ({
-      descriptor: layer,
-      id: layer.id,
-      source: 'the layers prop'
-    }))
-  ]);
-  warnOnDuplicates('views', jsx.views.map(fromJsx('deckView')));
-  warnOnDuplicates('widgets', jsx.widgets.map(fromJsx('deckWidget')));
-  warnOnDuplicates('effects', jsx.effects.map(fromJsx('deckEffect')));
+  findDuplicates(
+    'layers',
+    [
+      ...jsx.layers.map(fromJsx('deckLayer')),
+      ...flattenLayers(passedLayers).map(layer => ({
+        descriptor: layer,
+        id: layer.id,
+        source: 'the layers prop'
+      }))
+    ],
+    messages
+  );
+  findDuplicates('views', jsx.views.map(fromJsx('deckView')), messages);
+  findDuplicates('widgets', jsx.widgets.map(fromJsx('deckWidget')), messages);
+  findDuplicates('effects', jsx.effects.map(fromJsx('deckEffect')), messages);
+  for (const message of messages) {
+    if (!reported.has(message)) {
+      log.warn(message)();
+    }
+  }
+  return messages;
 }

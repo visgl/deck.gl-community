@@ -1,8 +1,8 @@
 import {Layer, View, Widget} from '@deck.gl/core';
 import type {DeckProps, Effect, LayersList} from '@deck.gl/core';
 
-import {getOwnId} from './element-ids';
-import type {Instance, JsxDescriptors, ViewOrViews} from './types';
+import {getOwnId, warnOnDuplicateIds} from './element-ids';
+import type {Container, Instance, JsxDescriptors, ViewOrViews} from './types';
 
 /**
  * Type guard to check if a node is a View instance.
@@ -293,5 +293,24 @@ export function combineRootDescriptors(
     }
   }
 
+  return descriptors;
+}
+
+/**
+ * Builds the update a root sends to deck.gl from its JSX descriptors and its props, and checks
+ * it for duplicate ids. Commits and prop-only reconfigures both send their updates through it.
+ */
+export function prepareRootUpdate(
+  container: Container,
+  jsx: JsxDescriptors
+): ReturnType<typeof combineRootDescriptors> {
+  const state = container.store.getState();
+  container.duplicateIdWarnings = warnOnDuplicateIds(
+    jsx,
+    state._passedLayers,
+    container.duplicateIdWarnings
+  );
+  const descriptors = combineRootDescriptors(state, jsx, container.sentViews);
+  container.sentViews = Boolean(descriptors.views);
   return descriptors;
 }

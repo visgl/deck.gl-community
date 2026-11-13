@@ -318,6 +318,44 @@ describe('duplicate id warnings', () => {
     ]);
   });
 
+  it('names a layers prop entry that a later configure adds beside a JSX layer', async () => {
+    const warnSpy = vi.spyOn(log, 'warn').mockReturnValue(() => {});
+    const {root, deck, unmount} = createTestRoot();
+    const warnings = () => warnSpy.mock.calls.map(([message]) => String(message));
+    const message =
+      'Two layers share the id "points": ScatterplotLayer from <deckLayer> and ScatterplotLayer ' +
+      'from the layers prop';
+    const jsx = React.createElement('deckLayer', {
+      layer: new ScatterplotLayer({data: [], id: 'points'})
+    });
+
+    try {
+      await React.act(async () => {
+        root.render(jsx);
+      });
+      expect(warnings()).toEqual([]);
+
+      // A prop-only update sends the committed JSX layers again, with the new prop layer.
+      root.configure({layers: [new ScatterplotLayer({data: [], id: 'points'})]});
+      expect(deck.getLayerIds()).toEqual(['points', 'points']);
+      expect(warnings()).toEqual([message]);
+
+      // The same collision, sent again by a configure and a commit, is reported once.
+      root.configure({layers: [new ScatterplotLayer({data: [], id: 'points'})]});
+      await React.act(async () => {
+        root.render(jsx);
+      });
+      expect(warnings()).toEqual([message]);
+
+      // Once it is gone, it is reported again if it comes back.
+      root.configure({layers: []});
+      root.configure({layers: [new ScatterplotLayer({data: [], id: 'points'})]});
+      expect(warnings()).toEqual([message, message]);
+    } finally {
+      React.act(() => unmount());
+    }
+  });
+
   it('stays quiet in production builds', async () => {
     const env = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';

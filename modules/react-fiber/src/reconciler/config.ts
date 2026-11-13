@@ -21,7 +21,7 @@ import type {
   UpdatePayload
 } from './types';
 import {
-  combineRootDescriptors,
+  prepareRootUpdate,
   flattenTree,
   isLayer,
   isView,
@@ -29,14 +29,7 @@ import {
   isWidget,
   organizeList
 } from './utils';
-import {
-  getElementPath,
-  warnOnDuplicateIds,
-  withEffectId,
-  withLayerId,
-  withViewId,
-  withWidgetId
-} from './element-ids';
+import {getElementPath, withEffectId, withLayerId, withViewId, withWidgetId} from './element-ids';
 
 type EventPriority = number;
 
@@ -636,9 +629,7 @@ export function replaceContainerChildren(container: Container, newChildren: Chil
     // NOTE: keep the committed descriptors so a prop-only reconfigure can reapply them,
     // then combine them with the `layers` prop on `<DeckGL />` (JSX layers first)
     container.jsxDescriptors = types;
-    warnOnDuplicateIds(types, state._passedLayers);
-    const propsUpdate = combineRootDescriptors(state, types, container.sentViews);
-    container.sentViews = Boolean(propsUpdate.views);
+    const propsUpdate = prepareRootUpdate(container, types);
 
     log.log(3, 'DeckGL commit', propsUpdate)();
 
