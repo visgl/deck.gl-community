@@ -20,6 +20,8 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
   The elements are now `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`.
   Every built-in deck.gl layer, view, widget and effect has a component, imported from a subpath named after its
   module, such as `<ScatterplotLayer>` from `/layers`, and `createLayerComponent` wraps custom classes.
+  The `/mapbox` and `/maplibre` roots take a `map` prop and attach their overlay to it, and `createDeckGL`
+  takes an `attach` option for custom overlays.
   See the [upgrade guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react).
 
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.

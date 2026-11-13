@@ -52,8 +52,9 @@ Both provider roots pass `interleaved?: boolean` to the overlay unchanged:
 
 Both overlays read `interleaved` only in their constructors. When the prop changes, `DeckGL`
 finalizes the current overlay, which removes it from the map, and creates a new one.
-`onDeckChange` receives `null` and then the new instance. The attachment effects in the provider
-guides handle the replacement because they depend on the overlay instance. The new overlay starts
+`onDeckChange` receives `null` and then the new instance. With the `map` prop, `DeckGL` attaches
+the new overlay itself; see [Attach the overlay to the host map](#attach-the-overlay-to-the-host-map).
+The new overlay starts
 without the old one's internal state, such as the hovered object. `interleaved` does not select the
 provider; select Mapbox or MapLibre through the import path.
 
@@ -85,19 +86,34 @@ import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
 
 ## Attach the overlay to the host map
 
-The lifecycle has four steps:
+Keep the host map in React state and pass it in `map`:
 
-1. Create the host map with its provider-specific options.
-2. Receive the matching overlay through `onDeckChange`.
-3. After the map is ready, attach that exact overlay once. Mapbox and MapLibre use
-   `map.addControl`.
-4. During cleanup, detach the overlay only if it was attached, then destroy the map if the
-   application created it. Mapbox and MapLibre use `map.removeControl`.
+```tsx
+const [map, setMap] = useState<MapRef | null>(null);
 
-The cleanup must handle React Strict Mode and unmount-before-load. Track both disposal and whether
-the overlay was attached, cancel the pending load callback, and never detach an overlay that was
-not attached. Each provider guide shows this pattern with React Map GL and with a manually created
-map.
+<Map ref={setMap} mapStyle={MAP_STYLE} initialViewState={INITIAL_VIEW_STATE}>
+  <DeckGL map={map} interleaved>
+    {/* Layer components, such as <ScatterplotLayer /> */}
+  </DeckGL>
+</Map>;
+```
+
+`map` takes a Mapbox or MapLibre `Map`, or a React Map GL `MapRef`. With it, `DeckGL`:
+
+- adds the overlay with `map.addControl` as soon as both exist. It does not wait for the map to
+  load; `MapboxOverlay` and `MapLibreOverlay` wait for the style before they add layers.
+- adds the new overlay when it recreates the overlay because `interleaved` changed.
+- moves the overlay when `map` changes, and removes it when `map` becomes `null` or `DeckGL`
+  unmounts.
+
+The state matters: `DeckGL` sees the map only when a render passes it. A map created in an effect,
+as in the provider guides' manual examples, is set in state there.
+
+Without `map`, attach the overlay yourself: keep the instance from `onDeckChange` in state, add it
+with `map.addControl` in an effect, and remove it with `map.removeControl` in the effect's cleanup.
+The effect must depend on the instance, because `onDeckChange` reports `null` and then a new
+instance when the overlay is recreated. React Map GL's `useControl` cannot do this; see the
+provider guides.
 
 ## Provider prop boundary
 

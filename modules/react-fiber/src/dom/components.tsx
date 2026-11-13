@@ -15,7 +15,7 @@ import {useInstanceRef} from './use-instance-ref';
 import type {DeckGLRootProps, DeckGLProps, OnDeckChange} from '../types/index';
 import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
-import {useCallback, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import type {CSSProperties, RefObject} from 'react';
 import {useIsomorphicLayoutEffect} from '../shared/use-isomorphic-layout-effect';
 
@@ -88,7 +88,7 @@ function getRootStyles(
 }
 
 /** Configuration for an externally owned deck.gl overlay root. */
-export interface CreateDeckGLOptions<Props, Instance extends DeckGLRenderer> {
+export interface CreateDeckGLOptions<Props, Instance extends DeckGLRenderer, MapT = never> {
   /** Creates the one external-overlay instance bound to the returned component. */
   createExternalOverlay: (props: Props) => Instance;
   /**
@@ -99,7 +99,8 @@ export interface CreateDeckGLOptions<Props, Instance extends DeckGLRenderer> {
    *
    * When any listed prop changes (compared with `Object.is`), the component finalizes the
    * current overlay and creates a new one with the full props. `onDeckChange` receives
-   * `null` for the old instance and then the new instance, which the app must attach.
+   * `null` for the old instance and then the new instance. With `attach`, the component attaches
+   * the new instance itself; without it, the app attaches it.
    */
   recreateOverlayOnChange?: readonly (keyof Props & string)[];
   /**
@@ -108,13 +109,30 @@ export interface CreateDeckGLOptions<Props, Instance extends DeckGLRenderer> {
    * and `MapLibreOverlay`. Without it the overlay receives only its `views` prop.
    */
   forwardViews?: boolean;
+  /**
+   * Attaches the overlay to the host map given in the root's `map` prop, and returns a function
+   * that detaches it. With this option the returned component accepts `map`; without it, the
+   * application attaches the instance it receives through `onDeckChange`.
+   *
+   * The component calls it after each overlay is created, while `map` is set, and calls the
+   * returned function before the overlay is replaced or finalized, when `map` changes or becomes
+   * `null`, and on unmount. A Strict Mode effect replay can call the pair twice for one overlay,
+   * so both steps must be safe to repeat. `map` itself is never passed to the overlay; without
+   * `attach`, a `map` prop is an ordinary prop that reaches the overlay like any other.
+   */
+  attach?: (map: MapT, overlay: Instance) => () => void;
 }
 
-type ComponentProps<Props, Instance extends DeckGLRenderer> = DeckGLRootProps<Instance, Props>;
+type ComponentProps<Props, Instance extends DeckGLRenderer, MapT = never> = DeckGLRootProps<
+  Instance,
+  Props,
+  MapT
+>;
 
-function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
-  options?: CreateDeckGLOptions<Props, Instance>
+function createDeckGLComponent<Props, Instance extends DeckGLRenderer, MapT = never>(
+  options?: CreateDeckGLOptions<Props, Instance, MapT>
 ) {
+  const attach = options?.attach;
   const overlayFactory = options?.createExternalOverlay;
   const isExternalOverlay = Boolean(overlayFactory);
 
@@ -134,8 +152,21 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
     return detachedRoot.current;
   }
 
-  function DeckGLComponent(props: ComponentProps<Props, Instance>) {
-    const {children, onDeckChange, ref, ...deckglProps} = props;
+  function DeckGLComponent(props: ComponentProps<Props, Instance, MapT>) {
+    const {children, onDeckChange, ref, ...rootProps} = props as ComponentProps<
+      Props,
+      Instance,
+      MapT
+    > & {map?: MapT | null};
+    // With `attach`, `map` is the host map and never reaches deck.gl. Without it, `map` is an
+    // ordinary prop that the overlay may declare and read itself.
+    let map: MapT | null | undefined;
+    let deckglProps: object = rootProps;
+    if (attach) {
+      const {map: hostMap, ...overlayProps} = rootProps;
+      map = hostMap;
+      deckglProps = overlayProps;
+    }
     const setInstanceRef = useInstanceRef(ref);
     const notifyDeckChange = useEffectEvent<Parameters<OnDeckChange<Instance>>, void>(deckgl => {
       setInstanceRef(deckgl);
@@ -154,6 +185,16 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
     const resolvedCanvas = useRef<ResolvedCanvas | null>(null);
     // The root and config last sent to `configure`, so a children-only commit skips it.
     const configured = useRef<{root: ReconcilerRoot; config: DeckGLConfiguration} | null>(null);
+    // The overlay the root created, for `attach`. A replay or a recreate gives a new one.
+    const overlay = useRef<Instance | null>(null);
+    // The map and overlay that `attach` last joined, and the function it returned. Cleared once
+    // the overlay is detached, so it is detached exactly once, and always before it is finalized.
+    const attached = useRef<{map: MapT; overlay: Instance; detach: () => void} | null>(null);
+    function detachOverlay() {
+      const current = attached.current;
+      attached.current = null;
+      current?.detach();
+    }
 
     // Object-rest creates a new config object each render. Preserve the committed
     // config while its values are unchanged so a lifecycle callback replacement is non-reactive.
@@ -198,7 +239,8 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
       if (configured.current?.root !== root || configured.current.config !== config) {
         configured.current = {config, root};
         root.configure(rootConfig);
-        notifyDeckChange(root.store.getState().deckgl as Instance | null);
+        overlay.current = root.store.getState().deckgl as Instance | null;
+        notifyDeckChange(overlay.current);
       }
       root.render(
         <Bridge>
@@ -216,11 +258,33 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
 
       if (rootElement) {
         return () => {
+          // Detach first: unmounting the root finalizes the overlay, and an overlay may need its
+          // resources to leave its host map.
+          detachOverlay();
           notifyDeckChange(null);
+          overlay.current = null;
           unmountAtNode(rootElement);
         };
       }
     }, [config.canvas]);
+
+    // Runs after every commit's layout effects, so it follows the overlay's lifetime as well as
+    // `map`: any new overlay, whether from a new root, a replay or a recreate, is attached, and
+    // an overlay is moved when `map` changes. The layout cleanup above detaches an overlay
+    // before it is finalized, so here only a `map` change or a `null` map detaches.
+    useEffect(() => {
+      const instance = overlay.current;
+      const current = attached.current;
+      if (current && current.map === map && current.overlay === instance) {
+        return;
+      }
+      detachOverlay();
+      if (attach && map && instance) {
+        attached.current = {map, overlay: instance, detach: attach(map, instance)};
+      }
+    });
+    // Detaches on unmount, and on a Strict Mode replay, before the effect above runs again.
+    useEffect(() => detachOverlay, []);
 
     if (rootError) {
       throw rootError.error;
@@ -242,7 +306,7 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
 
   const recreateOverlayOnChange: readonly PropertyKey[] = options?.recreateOverlayOnChange ?? [];
 
-  return function DeckGL(props: ComponentProps<Props, Instance>) {
+  return function DeckGL(props: ComponentProps<Props, Instance, MapT>) {
     const generation = useRecreateGeneration(props, recreateOverlayOnChange);
     return (
       <FiberProvider>
@@ -268,8 +332,8 @@ function useRecreateGeneration(props: object, keys: readonly PropertyKey[]): num
 const PlainDeckGLComponent = createDeckGLComponent<DeckGLProps, Deck>();
 
 /** Creates a native React Fiber component bound to a compatible external overlay factory. */
-export function createDeckGL<Props, Instance extends DeckGLRenderer>(
-  options: CreateDeckGLOptions<Props, Instance>
+export function createDeckGL<Props, Instance extends DeckGLRenderer, MapT = never>(
+  options: CreateDeckGLOptions<Props, Instance, MapT>
 ) {
   return createDeckGLComponent(options);
 }

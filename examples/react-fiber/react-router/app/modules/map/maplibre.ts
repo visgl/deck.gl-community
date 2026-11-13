@@ -1,4 +1,3 @@
-import type {MapLibreOverlay} from '@deck.gl-community/react-fiber/maplibre';
 import {Map as MaplibreMap, setWorkerUrl} from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -9,13 +8,14 @@ import {INITIAL_VIEW_STATE} from './constants';
 setWorkerUrl(workerUrl);
 
 /**
- * Connect deck.gl to a Maplibre map instance for interleaved rendering
+ * Creates the Maplibre map in `container`. deck.gl attaches to it through the `map` prop of
+ * `DeckGL`, so the map is created once and outlives any overlay the root recreates.
  */
-export function connect(deckgl: MapLibreOverlay) {
-  const map = new MaplibreMap({
+export function createMap(container: HTMLElement): MaplibreMap {
+  return new MaplibreMap({
     canvasContextAttributes: {antialias: true},
     center: [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
-    container: 'maplibre',
+    container,
     pixelRatio: window.devicePixelRatio,
     style: {
       layers: [
@@ -40,30 +40,4 @@ export function connect(deckgl: MapLibreOverlay) {
     },
     zoom: INITIAL_VIEW_STATE.zoom
   });
-  const mapControl = deckgl as unknown as Parameters<MaplibreMap['addControl']>[0];
-
-  let attached = false;
-  let disposed = false;
-
-  const attachOverlay = () => {
-    if (!disposed) {
-      map.addControl(mapControl);
-      attached = true;
-    }
-  };
-
-  if (map.loaded()) {
-    attachOverlay();
-  } else {
-    map.once('load', attachOverlay);
-  }
-
-  return () => {
-    disposed = true;
-    map.off('load', attachOverlay);
-    if (attached) {
-      map.removeControl(mapControl);
-    }
-    map.remove();
-  };
 }

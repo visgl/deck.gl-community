@@ -11,7 +11,7 @@ type ViewOrViews = View | View[] | null;
 export type OnDeckChange<Instance = Deck> = (instance: Instance | null) => void;
 
 /** Shared React-owned props for a concrete deck.gl renderer root. */
-export type DeckGLRootProps<Instance, Props> = Props & {
+export type DeckGLRootProps<Instance, Props, MapT = never> = Props & {
   children?: ReactNode;
   /** Lifecycle notification for the root-specific deck.gl instance and its cleanup. */
   onDeckChange?: OnDeckChange<Instance>;
@@ -21,6 +21,17 @@ export type DeckGLRootProps<Instance, Props> = Props & {
    * return a cleanup function, which runs instead of a `null` call.
    */
   ref?: Ref<Instance>;
+} & ([MapT] extends [never] ? unknown : MapProp<MapT>);
+
+/** The `map` prop of a root created with an `attach` option, such as `/mapbox` and `/maplibre`. */
+export type MapProp<MapT> = {
+  /**
+   * The host map to attach the overlay to. The root attaches each overlay it creates, and
+   * detaches it before replacing it, when `map` changes or becomes `null`, and on unmount.
+   * Keep the map in React state so the root sees it change. Without `map`, attach the instance
+   * from `onDeckChange` yourself.
+   */
+  map?: MapT | null;
 };
 
 /**
