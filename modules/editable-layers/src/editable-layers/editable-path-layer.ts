@@ -58,16 +58,18 @@ export class EditablePathLayer extends PathLayer<any, EditablePathLayerProps> {
        }
       `
     );
-    shaders.source = insertBefore(
-      shaders.source.replace('let widthPixels =', 'var widthPixels ='),
-      'if (path.billboard != 0.0) {',
-      `
+    if (typeof shaders.source === 'string') {
+      shaders.source = insertBefore(
+        shaders.source.replace('let widthPixels =', 'var widthPixels ='),
+        'if (path.billboard != 0.0) {',
+        `
   if (picking.isActive > 0.5) {
     widthPixels += pickingLineWidth.extraPixels;
   }
 
 `
-    );
+      );
+    }
 
     return {
       ...shaders,
