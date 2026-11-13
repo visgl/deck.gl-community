@@ -1,7 +1,7 @@
 # Migrate from `@deck.gl/react`
 
 React Fiber's `DeckGL` root takes the same deck.gl props as `@deck.gl/react`. Most of a migration
-is changing imports and rewriting JSX layers and views as `<layer>` and `<view>` elements. This
+is changing imports and rewriting JSX layers and views as `<deckLayer>` and `<deckView>` elements. This
 page lists each change. Apps that render HTML or function children inside `DeckGL` need the most
 work; see [Unsupported](#unsupported) first.
 
@@ -33,7 +33,7 @@ import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
 ## Rewrite JSX layers and views
 
 `@deck.gl/react` accepts layer classes as JSX children. React Fiber takes a layer instance on a
-`<layer>` element and a view instance on a `<view>` element. See
+`<deckLayer>` element and a view instance on a `<deckView>` element. See
 [Why layer instances](../README.md#why-layer-instances) for what this syntax buys.
 
 ```tsx
@@ -45,14 +45,14 @@ import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
 
 // After
 <DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
-  <view view={new MapView({id: 'main'})} />
-  <layer layer={new ScatterplotLayer({id: 'points', data, getPosition: d => d.position})} />
+  <deckView view={new MapView({id: 'main'})} />
+  <deckLayer layer={new ScatterplotLayer({id: 'points', data, getPosition: d => d.position})} />
 </DeckGL>
 ```
 
-`<layer>` elements can sit inside your own components at any depth.
+`<deckLayer>` elements can sit inside your own components at any depth.
 
-Nesting a `<layer>` inside a `<view>` does not assign it to that view. The renderer flattens the
+Nesting a `<deckLayer>` inside a `<deckView>` does not assign it to that view. The renderer flattens the
 tree into one `layers` list, and deck.gl draws every layer in every view, as it does for the
 `layers` prop. `@deck.gl/react` does not scope them either: it reads JSX layers only from the
 direct children of `DeckGL`. Use deck.gl's `layerFilter` for per-view layers:
@@ -93,7 +93,7 @@ or props instead.
 
 ## Keep the old JSX syntax
 
-Native `<layer>` elements are the recommended form. The `new` call shows where deck.gl builds the
+Native `<deckLayer>` elements are the recommended form. The `new` call shows where deck.gl builds the
 layer, matches the `layers` prop and deck.gl's examples, and works for any layer class without extra
 code. Wrapping layer classes as components keeps your existing JSX during a migration. The cost is
 one wrapper per layer class, plus JSX that looks like React components but follows deck.gl's layer
@@ -108,7 +108,7 @@ export function createLayerComponent<PropsT extends {id?: string}>(
   LayerClass: new (props: PropsT) => Layer
 ) {
   return function LayerComponent(props: PropsT) {
-    return <layer layer={new LayerClass(props)} />;
+    return <deckLayer layer={new LayerClass(props)} />;
   };
 }
 ```
@@ -146,14 +146,13 @@ For views, pass `children` through:
 
 ```tsx
 import {MapView as DeckMapView, type View} from '@deck.gl/core';
-import {createElement, type ReactNode} from 'react';
+import type {ReactNode} from 'react';
 
 export function createViewComponent<PropsT extends {id?: string}>(
   ViewClass: new (props: PropsT) => View
 ) {
   return function ViewComponent({children, ...props}: PropsT & {children?: ReactNode}) {
-    // `createElement` because @types/react's SVG `<view>` element type rejects the `view` prop.
-    return createElement('view', {view: new ViewClass(props as PropsT)}, children);
+    return <deckView view={new ViewClass(props as PropsT)}>{children}</deckView>;
   };
 }
 
@@ -164,11 +163,7 @@ const MapView = createViewComponent(DeckMapView);
 </MapView>;
 ```
 
-As with `<view>`, nesting keeps the tree readable but does not limit the layer to that view.
-
-In `.tsx` files, TypeScript resolves `<view>` to the SVG element from `@types/react`, so the helper
-creates the element with `createElement`. See
-[#1037](https://github.com/visgl/deck.gl-community/issues/1037).
+As with `<deckView>`, nesting keeps the tree readable but does not limit the layer to that view.
 
 ## Unsupported
 
@@ -179,7 +174,7 @@ creates the element with `createElement`. See
 - **react-map-gl `<Map>` as a child.** Create the map yourself and use a map root. See
   [Reverse-controlled maps](./using-with-maps.md#reverse-controlled-maps).
 - **JSX widgets and `useWidget`.** Render each widget as a
-  [`<widget>`](../api-reference/native-elements.md#widget) element, or pass instances in the
+  [`<deckWidget>`](../api-reference/native-elements.md#deckwidget) element, or pass instances in the
   `widgets` prop.
 - **A custom `Deck` class.** For a custom overlay, use
   [`createDeckGL`](../api-reference/deckgl.md#custom-compatible-overlays).

@@ -30,7 +30,7 @@ function createFakeOverlayRoot() {
   return {CustomDeckGL, createExternalOverlay, events, onDeckChange, overlays};
 }
 
-// A real layer: `<layer>` rejects anything that is not a deck.gl Layer.
+// A real layer: `<deckLayer>` rejects anything that is not a deck.gl Layer.
 const LAYER = new ScatterplotLayer({id: 'points', data: []});
 
 async function flush() {
@@ -45,14 +45,14 @@ describe('createDeckGL recreateOverlayOnChange', () => {
       createFakeOverlayRoot();
     const {rerender, unmount} = render(
       <CustomDeckGL enabled={false} onDeckChange={onDeckChange}>
-        <layer layer={LAYER} />
+        <deckLayer layer={LAYER} />
       </CustomDeckGL>
     );
     await flush();
 
     rerender(
       <CustomDeckGL enabled onDeckChange={onDeckChange}>
-        <layer layer={LAYER} />
+        <deckLayer layer={LAYER} />
       </CustomDeckGL>
     );
     await flush();
@@ -76,14 +76,14 @@ describe('createDeckGL recreateOverlayOnChange', () => {
     const {CustomDeckGL, createExternalOverlay, overlays} = createFakeOverlayRoot();
     const {rerender, unmount} = render(
       <CustomDeckGL enabled pickingRadius={1}>
-        <layer layer={LAYER} />
+        <deckLayer layer={LAYER} />
       </CustomDeckGL>
     );
     await flush();
 
     rerender(
       <CustomDeckGL enabled pickingRadius={5}>
-        <layer layer={LAYER} />
+        <deckLayer layer={LAYER} />
       </CustomDeckGL>
     );
     await flush();
@@ -106,7 +106,7 @@ describe('createDeckGL recreateOverlayOnChange', () => {
     const {rerender, unmount} = render(
       <StrictMode>
         <CustomDeckGL enabled={false} onDeckChange={onDeckChange}>
-          <layer layer={LAYER} />
+          <deckLayer layer={LAYER} />
         </CustomDeckGL>
       </StrictMode>
     );
@@ -116,7 +116,7 @@ describe('createDeckGL recreateOverlayOnChange', () => {
     rerender(
       <StrictMode>
         <CustomDeckGL enabled onDeckChange={onDeckChange}>
-          <layer layer={LAYER} />
+          <deckLayer layer={LAYER} />
         </CustomDeckGL>
       </StrictMode>
     );

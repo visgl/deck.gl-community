@@ -4,7 +4,7 @@ import {
   PolygonLayer as DeckPolygonLayer,
   ScatterplotLayer as DeckScatterplotLayer
 } from '@deck.gl/layers';
-import {createElement, type ReactNode} from 'react';
+import type {ReactNode} from 'react';
 import {describe, expect, it} from 'vitest';
 
 import '../jsx';
@@ -13,14 +13,13 @@ function createLayerComponent<PropsT extends {id?: string}>(
   LayerClass: new (props: PropsT) => Layer
 ) {
   return function LayerComponent(props: PropsT) {
-    return <layer layer={new LayerClass(props)} />;
+    return <deckLayer layer={new LayerClass(props)} />;
   };
 }
 
 function createViewComponent<PropsT extends {id?: string}>(ViewClass: new (props: PropsT) => View) {
   return function ViewComponent({children, ...props}: PropsT & {children?: ReactNode}) {
-    // `createElement` because @types/react's SVG `<view>` element type rejects the `view` prop.
-    return createElement('view', {view: new ViewClass(props as PropsT)}, children);
+    return <deckView view={new ViewClass(props as PropsT)}>{children}</deckView>;
   };
 }
 

@@ -58,7 +58,7 @@ webglTest(
               onDeckChange(deckgl);
             }}
           >
-            <layer layer={layer} />
+            <deckLayer layer={layer} />
           </DeckGL>
         );
       });
@@ -112,7 +112,7 @@ webglTest(
       await act(async () => {
         reactRoot.render(
           <DeckGL interleaved onDeckChange={onDeckChange}>
-            <layer layer={updatedLayer} />
+            <deckLayer layer={updatedLayer} />
           </DeckGL>
         );
       });
@@ -179,7 +179,7 @@ webglTest(
       act(async () => {
         reactRoot.render(
           <DeckGL interleaved={interleaved} onDeckChange={onDeckChange}>
-            <layer layer={layer} />
+            <deckLayer layer={layer} />
           </DeckGL>
         );
       });
@@ -264,7 +264,7 @@ for (const interleaved of [false, true]) {
         await act(async () => {
           reactRoot.render(
             <DeckGL interleaved={interleaved} onDeckChange={onDeckChange}>
-              <view view={inset} />
+              <deckView view={inset} />
             </DeckGL>
           );
         });

@@ -82,7 +82,7 @@ webglTest('the effects prop applies, keeps and removes deck.gl effects', async (
           deck = instance as Deck | null;
         }}
       >
-        <layer layer={createLayer(radius)} />
+        <deckLayer layer={createLayer(radius)} />
       </DeckGL>
     );
 
@@ -139,7 +139,7 @@ webglTest('the effects prop applies, keeps and removes deck.gl effects', async (
   }
 });
 
-webglTest('<effect> elements apply and remove effects alongside the effects prop', async () => {
+webglTest('<deckEffect> elements apply and remove effects alongside the effects prop', async () => {
   const container = document.createElement('div');
   Object.assign(container.style, {height: '300px', position: 'relative', width: '400px'});
   document.body.append(container);
@@ -172,8 +172,8 @@ webglTest('<effect> elements apply and remove effects alongside the effects prop
           deck = instance as Deck | null;
         }}
       >
-        <layer layer={createLayer()} />
-        {invertInJsx ? <effect effect={new PostProcessEffect(invert, {})} /> : null}
+        <deckLayer layer={createLayer()} />
+        {invertInJsx ? <deckEffect effect={new PostProcessEffect(invert, {})} /> : null}
       </DeckGL>
     );
 
@@ -190,7 +190,7 @@ webglTest('<effect> elements apply and remove effects alongside the effects prop
     expect(mounted).toBeDefined();
     expect(getEffects(deck)).toContain(lighting);
 
-    // A new <effect> instance with the same id keeps the mounted effect.
+    // A new <deckEffect> instance with the same id keeps the mounted effect.
     await renderAndWait(true);
     expect(center.join()).toBe('0,255,255,255');
     expect(getEffects(deck)).toContain(mounted);

@@ -8,7 +8,7 @@
 interactive maps from vector tiles. The `/maplibre` provider root creates a
 [`MapLibreOverlay`](https://deck.gl/docs/api-reference/maplibre/overview) from
 [`@deck.gl/maplibre`](https://deck.gl/docs/api-reference/maplibre/overview) and renders its JSX
-`<layer>` children into it. The application owns the MapLibre map and attaches the overlay to it.
+`<deckLayer>` children into it. The application owns the MapLibre map and attaches the overlay to it.
 [Using with maps](../using-with-maps.md) describes the shared provider-root behavior and lifecycle.
 
 deck.gl's [Using with MapLibre](https://deck.gl/docs/developer-guide/base-maps/using-with-maplibre)
@@ -122,7 +122,7 @@ export function MapLibreMap() {
       onLoad={() => setLoaded(true)}
     >
       <DeckGL interleaved onDeckChange={setOverlay}>
-        {/* React Fiber <layer> elements */}
+        {/* React Fiber <deckLayer> elements */}
       </DeckGL>
     </Map>
   );
@@ -182,7 +182,7 @@ export function ManualMapLibreMap() {
   return (
     <div ref={containerRef} style={{height: 500}}>
       <DeckGL interleaved onDeckChange={setOverlay}>
-        {/* React Fiber <layer> elements */}
+        {/* React Fiber <deckLayer> elements */}
       </DeckGL>
     </div>
   );

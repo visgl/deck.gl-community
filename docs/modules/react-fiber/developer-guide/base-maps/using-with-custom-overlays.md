@@ -18,7 +18,7 @@ this repository:
 The factory accepts any overlay that implements deck.gl's `setProps` and `finalize` lifecycle:
 
 - `setProps(props)` receives the root's deck.gl props on every change, including the `layers`
-  produced by JSX `<layer>` children. It can run before the overlay is attached to its host.
+  produced by JSX `<deckLayer>` children. It can run before the overlay is attached to its host.
 - `finalize()` runs when the root unmounts or recreates the overlay. It releases the overlay's
   deck.gl resources. `MapboxOverlay` and `MapLibreOverlay` also detach themselves from the map in
   `finalize`.
@@ -52,5 +52,5 @@ the host map is ready, and detach it in the effect's cleanup. The Mapbox and Map
 this pattern with `map.addControl` and `map.removeControl`.
 
 The host map owns the camera. Do not pass `viewState`, `initialViewState` or `controller` to a
-custom overlay root. JSX `<view>` descriptors reach the overlay only when the root sets
+custom overlay root. JSX `<deckView>` descriptors reach the overlay only when the root sets
 `forwardViews: true`, which suits an overlay that renders deck.gl views beside its map.

@@ -2,22 +2,37 @@
 
 ![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
 
-The native renderer accepts four deck.gl JSX elements: `<layer>`, `<view>`, `<widget>` and `<effect>`. They are available after importing the root package:
+The native renderer accepts four deck.gl JSX elements: `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`. They are available after importing the root package:
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';
 ```
 
-The import also provides the TypeScript JSX declarations. The elements are not DOM elements and they do not create DOM nodes. Each one carries a constructed deck.gl descriptor into the React Fiber renderer. Normal React components can organize the tree when they ultimately return these elements, but raw DOM nodes and text do not belong inside `DeckGL`: the custom renderer rejects any other host children. Each element also throws, in every build, when its prop is missing or holds another kind of descriptor, for example a `View` passed to `<layer>`.
+The `deck` prefix keeps the element names clear of DOM and SVG elements, such as SVG's `view`, and of other renderers' elements.
 
-## `<layer>`
+The import also provides the TypeScript JSX declarations. The elements are not DOM elements and they do not create DOM nodes. Each one carries a constructed deck.gl descriptor into the React Fiber renderer. Normal React components can organize the tree when they ultimately return these elements, but raw DOM nodes and text do not belong inside `DeckGL`: the custom renderer rejects any other host children. Each element also throws, in every build, when its prop is missing or holds another kind of descriptor, for example a `View` passed to `<deckLayer>`.
 
-`<layer>` requires one prop named `layer`. Its value must be a deck.gl `Layer` instance.
+## Linting
+
+eslint-plugin-react's `react/no-unknown-property` rule, in its recommended config, checks every lowercase tag as a DOM element. `layer`, `view`, `widget` and `effect` are not DOM attributes, so it reports them on the native tags. Allow them with the rule's `ignore` option, which applies to every lowercase tag, including DOM elements:
+
+```js
+// eslint.config.js
+rules: {
+  'react/no-unknown-property': ['error', {ignore: ['layer', 'view', 'widget', 'effect']}]
+}
+```
+
+Components made with the [migration guide's factories](../developer-guide/migrate-from-deckgl-react.md#keep-the-old-jsx-syntax), such as `<ScatterplotLayer>`, have capitalized tags, so the rule does not check them. The same goes for the built-in layer components proposed in [#1075](https://github.com/visgl/deck.gl-community/pull/1075).
+
+## `<deckLayer>`
+
+`<deckLayer>` requires one prop named `layer`. Its value must be a deck.gl `Layer` instance.
 
 ```tsx
 import {ScatterplotLayer} from '@deck.gl/layers';
 
-<layer
+<deckLayer
   layer={
     new ScatterplotLayer({
       id: 'airports',
@@ -33,34 +48,34 @@ Use a stable, unique `id` for every layer. deck.gl uses IDs to compare new descr
 
 The `layer` prop is intentionally an instance rather than a set of JSX props. Use the layer class from its deck.gl package for its full, typed property API. For example, import `ScatterplotLayer` from `@deck.gl/layers`, not from the native React Fiber package.
 
-## `<view>`
+## `<deckView>`
 
-`<view>` requires one prop named `view`. Its value must be a deck.gl `View` instance.
+`<deckView>` requires one prop named `view`. Its value must be a deck.gl `View` instance.
 
 ```tsx
 import {MapView} from '@deck.gl/core';
 
-<view view={new MapView({id: 'main-map'})} />;
+<deckView view={new MapView({id: 'main-map'})} />;
 ```
 
 Give every view an explicit ID. Outside production builds, the renderer warns when a view has no ID or uses deck.gl's default `unknown` ID.
 
-## `<widget>`
+## `<deckWidget>`
 
-`<widget>` requires one prop named `widget`. Its value must be a deck.gl `Widget` instance, such as one from `@deck.gl/widgets`.
+`<deckWidget>` requires one prop named `widget`. Its value must be a deck.gl `Widget` instance, such as one from `@deck.gl/widgets`.
 
 ```tsx
 import {CompassWidget, ZoomWidget} from '@deck.gl/widgets';
 
 <DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
-  <widget widget={new ZoomWidget({id: 'zoom'})} />
-  {showCompass && <widget widget={new CompassWidget({id: 'compass'})} />}
+  <deckWidget widget={new ZoomWidget({id: 'zoom'})} />
+  {showCompass && <deckWidget widget={new CompassWidget({id: 'compass'})} />}
 </DeckGL>;
 ```
 
-deck.gl matches widgets by ID, as it does layers. Rendering a new widget instance with the same ID updates the mounted widget's props instead of adding another one, so creating the instance during render is fine. A widget has no children. Like `<layer>`, nesting a `<widget>` inside a `<view>` does not attach it to that view; set the widget's `viewId` instead.
+deck.gl matches widgets by ID, as it does layers. Rendering a new widget instance with the same ID updates the mounted widget's props instead of adding another one, so creating the instance during render is fine. A widget has no children. Like `<deckLayer>`, nesting a `<deckWidget>` inside a `<deckView>` does not attach it to that view; set the widget's `viewId` instead.
 
-`SplitterWidget` from `@deck.gl/widgets` sets deck.gl's views itself. Without `<view>` children or a `views` prop, the root leaves them alone, so the split survives re-renders. To keep the views in React state instead, pass `onChange` and render the views it reports:
+`SplitterWidget` from `@deck.gl/widgets` sets deck.gl's views itself. Without `<deckView>` children or a `views` prop, the root leaves them alone, so the split survives re-renders. To keep the views in React state instead, pass `onChange` and render the views it reports:
 
 ```tsx
 import {_SplitterWidget as SplitterWidget} from '@deck.gl/widgets';
@@ -74,27 +89,27 @@ function App() {
   return (
     <DeckGL<MapView[]> initialViewState={INITIAL_VIEW_STATE} controller>
       {views.map(view => (
-        <view key={view.id} view={view} />
+        <deckView key={view.id} view={view} />
       ))}
-      <widget widget={splitter} />
+      <deckWidget widget={splitter} />
     </DeckGL>
   );
 }
 ```
 
-In TypeScript, the view state props are typed from the `views` prop, as in `@deck.gl/react`. For views from `<view>` children or a widget, name their type to pass one view state per view: `<DeckGL<MapView[]> initialViewState={{left: LEFT_VIEW_STATE, right: RIGHT_VIEW_STATE}}>`.
+In TypeScript, the view state props are typed from the `views` prop, as in `@deck.gl/react`. For views from `<deckView>` children or a widget, name their type to pass one view state per view: `<DeckGL<MapView[]> initialViewState={{left: LEFT_VIEW_STATE, right: RIGHT_VIEW_STATE}}>`.
 
-## `<effect>`
+## `<deckEffect>`
 
-`<effect>` requires one prop named `effect`. Its value must be a deck.gl effect, such as a `LightingEffect` or a `PostProcessEffect`.
+`<deckEffect>` requires one prop named `effect`. Its value must be a deck.gl effect, such as a `LightingEffect` or a `PostProcessEffect`.
 
 ```tsx
 import {AmbientLight, LightingEffect, PostProcessEffect} from '@deck.gl/core';
 import {vignette} from '@luma.gl/effects';
 
 <DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
-  <effect effect={new LightingEffect({ambient: new AmbientLight({intensity: 1})})} />
-  {showVignette && <effect effect={new PostProcessEffect(vignette, {radius: 0.8})} />}
+  <deckEffect effect={new LightingEffect({ambient: new AmbientLight({intensity: 1})})} />
+  {showVignette && <deckEffect effect={new PostProcessEffect(vignette, {radius: 0.8})} />}
 </DeckGL>;
 ```
 
@@ -107,9 +122,9 @@ React components may return, nest, or conditionally render these elements. At co
 This means that nesting is useful for React composition but does not create a parent-child deck.gl relationship. In this example, the layer is still placed in the root's flat layer list:
 
 ```tsx
-<view view={new MapView({id: 'main-map'})}>
-  <layer layer={new ScatterplotLayer({id: 'airports', data: airports})} />
-</view>;
+<deckView view={new MapView({id: 'main-map'})}>
+  <deckLayer layer={new ScatterplotLayer({id: 'airports', data: airports})} />
+</deckView>;
 ```
 
 Use deck.gl's normal view and layer configuration when an application needs view-specific rendering behavior. On the Mapbox and MapLibre roots, the overlay keeps its map's view and renders JSX views beside it; see [Views beside the map](../developer-guide/using-with-maps.md#views-beside-the-map).
@@ -120,7 +135,7 @@ Refs on these intrinsic elements resolve to their deck.gl instance, not an inter
 
 Each element has a matching `DeckGL` prop: `layers`, `views`, `widgets` and `effects`. The root combines the two, as `@deck.gl/react` does:
 
-- **Layers.** `<layer>` layers come first and `layers` prop layers after them, so prop layers draw on top. IDs must be unique across both lists.
+- **Layers.** `<deckLayer>` layers come first and `layers` prop layers after them, so prop layers draw on top. IDs must be unique across both lists.
 - **Views, widgets and effects.** The root merges them by ID. A prop entry replaces the element with the same ID, and other prop entries follow the elements.
 
 ```tsx
@@ -128,14 +143,14 @@ Each element has a matching `DeckGL` prop: `layers`, `views`, `widgets` and `eff
   layers={[new ScatterplotLayer({id: 'existing-layer', data: []})]}
   views={[new MapView({id: 'main-map', controller: true})]}
 >
-  <layer layer={new ScatterplotLayer({id: 'react-layer', data: []})} />
-  <view view={new MapView({id: 'main-map'})} />
-  <view view={new MapView({id: 'minimap', x: '75%', width: '25%', height: '25%'})} />
+  <deckLayer layer={new ScatterplotLayer({id: 'react-layer', data: []})} />
+  <deckView view={new MapView({id: 'main-map'})} />
+  <deckView view={new MapView({id: 'minimap', x: '75%', width: '25%', height: '25%'})} />
 </DeckGL>;
 ```
 
 Here deck.gl receives `react-layer` then `existing-layer`, and the prop's `main-map` view then `minimap`.
 
-Removing the last element of a kind leaves only the prop's entries; removing the last `<view>` with no `views` prop brings back deck.gl's default view. A root with neither leaves deck.gl's views alone, so a widget such as `SplitterWidget` can set them.
+Removing the last element of a kind leaves only the prop's entries; removing the last `<deckView>` with no `views` prop brings back deck.gl's default view. A root with neither leaves deck.gl's views alone, so a widget such as `SplitterWidget` can set them.
 
 The Mapbox and MapLibre roots merge views the same way; a custom overlay root does only with [`forwardViews`](./deckgl.md#custom-compatible-overlays). Widgets and effects are sent to every external-overlay root.

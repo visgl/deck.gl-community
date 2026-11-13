@@ -1,6 +1,6 @@
 # Get started
 
-`@deck.gl-community/react-fiber` renders deck.gl in a React client tree. The native package exports `DeckGL`; it also adds the `<layer>`, `<view>`, `<widget>` and `<effect>` JSX elements that pass already constructed deck.gl descriptors to the renderer. See [Why layer instances](../README.md#why-layer-instances) for what this syntax buys over `@deck.gl/react` JSX layers.
+`@deck.gl-community/react-fiber` renders deck.gl in a React client tree. The native package exports `DeckGL`; it also adds the `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>` JSX elements that pass already constructed deck.gl descriptors to the renderer. See [Why layer instances](../README.md#why-layer-instances) for what this syntax buys over `@deck.gl/react` JSX layers.
 
 ## 1. Install the packages you use
 
@@ -32,7 +32,7 @@ Without a `canvas` prop, `DeckGL` renders a wrapper and canvas like `@deck.gl/re
 
 ## 4. Create layers as React elements
 
-Pass a deck.gl `Layer` instance to the universal `<layer>` element. Layer instances are descriptors, so the renderer can pass the complete list to deck.gl on each committed React update. deck.gl matches the descriptors by `id`, making a stable, unique ID essential for correct and efficient updates.
+Pass a deck.gl `Layer` instance to the universal `<deckLayer>` element. Layer instances are descriptors, so the renderer can pass the complete list to deck.gl on each committed React update. deck.gl matches the descriptors by `id`, making a stable, unique ID essential for correct and efficient updates.
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';
@@ -41,7 +41,7 @@ import {ScatterplotLayer} from '@deck.gl/layers';
 export function App({data}: {data: Array<{coordinates: [number, number]}>) {
   return (
     <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}} controller>
-      <layer
+      <deckLayer
         layer={
           new ScatterplotLayer({
             id: 'points',
@@ -56,33 +56,33 @@ export function App({data}: {data: Array<{coordinates: [number, number]}>) {
 }
 ```
 
-Use ordinary React components to organize a map. A component may create its own descriptor and return one `<layer>` element. Use `useMemo` when the layer creation depends on expensive work or when the application needs a stable object for another reason; the renderer itself still reconciles the resulting descriptors by ID.
+Use ordinary React components to organize a map. A component may create its own descriptor and return one `<deckLayer>` element. Use `useMemo` when the layer creation depends on expensive work or when the application needs a stable object for another reason; the renderer itself still reconciles the resulting descriptors by ID.
 
 ## 5. Add views deliberately
 
-Pass a deck.gl `View` instance to `<view>`, also with an explicit ID:
+Pass a deck.gl `View` instance to `<deckView>`, also with an explicit ID:
 
 ```tsx
 import {MapView} from '@deck.gl/core';
 
 <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}} controller>
-  <view view={new MapView({id: 'main-map'})} />
-  <layer layer={/* a deck.gl Layer instance */} />
+  <deckView view={new MapView({id: 'main-map'})} />
+  <deckLayer layer={/* a deck.gl Layer instance */} />
 </DeckGL>;
 ```
 
-The React tree is flattened before deck.gl receives it. Therefore, a `<view>` can contain React children for application composition, but it does not scope its child layers to that view. The renderer supplies the flattened view list to `Deck`, or to a Mapbox or MapLibre overlay, which renders it beside the map's own view.
+The React tree is flattened before deck.gl receives it. Therefore, a `<deckView>` can contain React children for application composition, but it does not scope its child layers to that view. The renderer supplies the flattened view list to `Deck`, or to a Mapbox or MapLibre overlay, which renders it beside the map's own view.
 
 ## 6. Combine JSX and `layers` only when needed
 
-`DeckGL` accepts the normal deck.gl `layers` prop as well as `<layer>` children. As in `@deck.gl/react`, the renderer appends the `layers` prop after the layers produced by JSX, so prop layers draw on top. This is useful while incrementally moving an existing deck.gl configuration to React, but all layers across both sources must have unique IDs.
+`DeckGL` accepts the normal deck.gl `layers` prop as well as `<deckLayer>` children. As in `@deck.gl/react`, the renderer appends the `layers` prop after the layers produced by JSX, so prop layers draw on top. This is useful while incrementally moving an existing deck.gl configuration to React, but all layers across both sources must have unique IDs.
 
 ```tsx
 <DeckGL
   layers={[new ScatterplotLayer({id: 'existing-points', data: []})]}
   initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}}
 >
-  <layer layer={new ScatterplotLayer({id: 'react-points', data: []})} />
+  <deckLayer layer={new ScatterplotLayer({id: 'react-points', data: []})} />
 </DeckGL>;
 ```
 
@@ -108,7 +108,7 @@ function Map() {
 
   return (
     <DeckGL onDeckChange={setDeck}>
-      <layer layer={/* a deck.gl Layer instance */} />
+      <deckLayer layer={/* a deck.gl Layer instance */} />
     </DeckGL>
   );
 }
@@ -120,11 +120,11 @@ The notification receives `null` when its root is cleaned up. It is not a callba
 
 Provider selection is an import-path decision. Use `/mapbox` for `MapboxOverlay` or `/maplibre` for `MapLibreOverlay`; install the matching `@deck.gl` package and create/configure the host map in your application. Store the overlay from `onDeckChange` in state and attach it to the map in an effect, so it is attached once per instance and detached during cleanup. See [Attach the overlay to the host map](./using-with-maps.md#attach-the-overlay-to-the-host-map) for the lifecycle, and the [Mapbox](./base-maps/using-with-mapbox.md) and [MapLibre](./base-maps/using-with-maplibre.md) guides for complete examples.
 
-Deck callbacks such as `onClick` are deck.gl event handlers passed to the root, not React synthetic events on `<layer>` or `<view>`.
+Deck callbacks such as `onClick` are deck.gl event handlers passed to the root, not React synthetic events on `<deckLayer>` or `<deckView>`.
 
 ## Next steps
 
-Read the [DeckGL API](../api-reference/deckgl.md) for standalone and interleaved ownership details, [Using with maps](./using-with-maps.md) for host-map lifecycle and provider guides, and [Native elements](../api-reference/native-elements.md) for the exact `<layer>` and `<view>` contract.
+Read the [DeckGL API](../api-reference/deckgl.md) for standalone and interleaved ownership details, [Using with maps](./using-with-maps.md) for host-map lifecycle and provider guides, and [Native elements](../api-reference/native-elements.md) for the exact `<deckLayer>` and `<deckView>` contract.
 
 If you are migrating an existing `@deck.gl/react` application, see [Migrate from `@deck.gl/react`](./migrate-from-deckgl-react.md).
 
