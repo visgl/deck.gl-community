@@ -1,7 +1,7 @@
 import type {Effect, Layer, LayersList, View, Widget} from '@deck.gl/core';
 import {vi} from 'vitest';
 
-import {createRoot} from '../renderer';
+import {createRoot, unmountAtNode} from '../renderer';
 import type {RootElement} from '../types';
 
 /**
@@ -82,12 +82,17 @@ export class TestDeckRenderer {
  */
 export function createTestRoot() {
   const rootElement = document.createElement('div') as RootElement;
-  const root = createRoot(rootElement);
   const deck = new TestDeckRenderer();
+  // The root takes the test renderer from its overlay factory, so it never constructs a real
+  // `Deck`, whose animation loop would try to create a GPU device on the `div`. `forwardViews`
+  // keeps the standalone root's behavior of sending JSX views to the instance.
+  const root = createRoot(rootElement, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    createExternalOverlay: () => deck as any,
+    forwardViews: true
+  });
 
   root.configure({canvas: rootElement as unknown as HTMLCanvasElement});
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  root.store.setState({deckgl: deck as any});
 
   return {
     deck,
@@ -96,6 +101,10 @@ export function createTestRoot() {
       // eslint-disable-next-line @typescript-eslint/return-await
       return await Promise.resolve();
     },
-    root
+    root,
+    /** Unmounts the root and removes it from the root registry. */
+    unmount() {
+      unmountAtNode(rootElement);
+    }
   };
 }

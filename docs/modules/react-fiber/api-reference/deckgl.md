@@ -46,9 +46,9 @@ const deckRef = useRef<Deck>(null);
 
 On the standalone root, `canvas` accepts an `HTMLCanvasElement` or the id of a `<canvas>` element. An id is resolved with `document.getElementById` on the client after mount, so the canvas may be rendered in the same commit as `DeckGL`. An id that does not name a mounted `<canvas>` throws. Without `parent`, deck.gl uses the canvas's parent element. The root binds to the element found at mount; to bind a replacement element that reuses the id, pass that element as `canvas` or remount with a different React `key`.
 
-Deck event properties such as `onClick` remain deck.gl callbacks, not React synthetic events on `<deckLayer>` or `<deckView>`.
+Deck event properties such as `onClick` remain deck.gl callbacks, not React synthetic events.
 
-Effects such as `LightingEffect` and `PostProcessEffect` can be [`<deckEffect>`](./native-elements.md#deckeffect) children or the `effects` prop, as in `@deck.gl/react`. The root merges the two by ID. deck.gl matches effects by ID, as it does widgets, so a new instance with the same ID updates the mounted effect's props, and creating effects during render is fine.
+Effects such as `LightingEffect` and `PostProcessEffect` can be JSX children, as [components](./components.md#effects) or [`<deckEffect>`](./native-elements.md#deckeffect) elements, or the `effects` prop, as in `@deck.gl/react`. The root merges the two by ID. deck.gl matches effects by ID, as it does widgets, so a new instance with the same ID updates the mounted effect's props, and creating effects during render is fine.
 
 An error thrown while rendering inside a root, including one the renderer raises for an invalid element, is rethrown from the `DeckGL` component. The nearest [error boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary) around `DeckGL` handles it, as it would for any other component, and the framework's development error overlay shows it. An error boundary inside `DeckGL` catches errors from its own children first; its fallback can only render native elements or `null`. Errors that deck.gl raises at runtime, such as a layer whose data fails to load, never reach an error boundary; deck.gl passes them to its `onError` prop, as with `@deck.gl/react`.
 

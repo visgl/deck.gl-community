@@ -33,6 +33,13 @@ and loader utilities from `@loaders.gl/core/loader-utils`. Respect package expor
 when configuring bundler aliases. DOT loading for `ClassicGraph` must explicitly
 set `loadOptions: {dot: {shape: 'plain-graph-data'}}`.
 
+### React Fiber
+
+Import components for deck.gl's layers, views, widgets and effects from the React Fiber subpaths,
+such as `ScatterplotLayer` from `@deck.gl-community/react-fiber/layers`. The types need TypeScript
+5.3 or later. The [React Fiber upgrade guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react)
+lists the changes from `@deck.gl/react`.
+
 ### Consolidated sidebars
 
 `SidePanelContainer` and `SidePanelContainerProps` are removed without compatibility aliases.

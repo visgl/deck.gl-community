@@ -2,7 +2,7 @@
 
 ![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
 
-The native renderer accepts four deck.gl JSX elements: `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`. They are available after importing the root package:
+The native renderer accepts four deck.gl JSX elements: `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`. Each takes an instance you build. For deck.gl's own classes, the [components](./components.md) build the instance from props and render these elements for you; use the elements when you already have an instance, or for a class with no component. The elements are available after importing the root package:
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';
@@ -23,7 +23,7 @@ rules: {
 }
 ```
 
-Components made with the [migration guide's factories](../developer-guide/migrate-from-deckgl-react.md#keep-the-old-jsx-syntax), such as `<ScatterplotLayer>`, have capitalized tags, so the rule does not check them. The same goes for the built-in layer components proposed in [#1075](https://github.com/visgl/deck.gl-community/pull/1075).
+The [built-in components](./components.md), such as `<ScatterplotLayer>`, and components made with the [factories](./components.md#custom-classes) have capitalized tags, so the rule does not check them.
 
 ## `<deckLayer>`
 

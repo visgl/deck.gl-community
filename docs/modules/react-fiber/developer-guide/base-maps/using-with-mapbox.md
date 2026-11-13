@@ -8,7 +8,7 @@
 maps. The `/mapbox` provider root creates a
 [`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay) from
 [`@deck.gl/mapbox`](https://deck.gl/docs/api-reference/mapbox/overview) and renders its JSX
-`<deckLayer>` children into it. The application owns the Mapbox map and attaches the overlay to it.
+layers into it. The application owns the Mapbox map and attaches the overlay to it.
 [Using with maps](../using-with-maps.md) describes the shared provider-root behavior and lifecycle.
 
 deck.gl's [Using with Mapbox](https://deck.gl/docs/developer-guide/base-maps/using-with-mapbox)
@@ -79,7 +79,7 @@ export function MapboxMap() {
       onLoad={() => setLoaded(true)}
     >
       <DeckGL interleaved onDeckChange={setOverlay}>
-        {/* React Fiber <deckLayer> elements */}
+        {/* Layer components, such as <ScatterplotLayer /> */}
       </DeckGL>
     </Map>
   );
@@ -138,7 +138,7 @@ export function ManualMapboxMap() {
   return (
     <div ref={containerRef} style={{height: 500}}>
       <DeckGL interleaved onDeckChange={setOverlay}>
-        {/* React Fiber <deckLayer> elements */}
+        {/* Layer components, such as <ScatterplotLayer /> */}
       </DeckGL>
     </div>
   );

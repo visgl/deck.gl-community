@@ -18,7 +18,7 @@ this repository:
 The factory accepts any overlay that implements deck.gl's `setProps` and `finalize` lifecycle:
 
 - `setProps(props)` receives the root's deck.gl props on every change, including the `layers`
-  produced by JSX `<deckLayer>` children. It can run before the overlay is attached to its host.
+  produced by JSX layers. It can run before the overlay is attached to its host.
 - `finalize()` runs when the root unmounts or recreates the overlay. It releases the overlay's
   deck.gl resources. `MapboxOverlay` and `MapLibreOverlay` also detach themselves from the map in
   `finalize`.

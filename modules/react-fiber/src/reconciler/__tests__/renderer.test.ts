@@ -1,37 +1,14 @@
-import {
-  Deck,
-  type Layer,
-  LightingEffect,
-  log,
-  MapView,
-  PostProcessEffect,
-  type View
-} from '@deck.gl/core';
+import {Deck, LightingEffect, log, MapView, PostProcessEffect} from '@deck.gl/core';
 import {PolygonLayer, ScatterplotLayer} from '@deck.gl/layers';
 import * as fc from 'fast-check';
 import React from 'react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
+import {createLayerComponent, createViewComponent} from '../../wrappers/factories';
 import {createRoot, roots, unmountAtNode} from '../renderer';
 import type {ReconcilerRoot, RootElement} from '../types';
 import {createTestRoot} from './test-renderer';
 import {TestWidget} from './test-widget';
-
-// The "Keep the old JSX syntax" helpers from the migration guide, kept in sync here so that the
-// documented helpers stay working. The guide shows them in TSX.
-function createLayerComponent<PropsT extends {id?: string}>(
-  LayerClass: new (props: PropsT) => Layer
-) {
-  return function LayerComponent(props: PropsT) {
-    return React.createElement('deckLayer', {layer: new LayerClass(props)});
-  };
-}
-
-function createViewComponent<PropsT extends {id?: string}>(ViewClass: new (props: PropsT) => View) {
-  return function ViewComponent({children, ...props}: PropsT & {children?: React.ReactNode}) {
-    return React.createElement('deckView', {view: new ViewClass(props as PropsT)}, children);
-  };
-}
 
 /**
  * Creates a lightweight RootElement for testing renderer API
@@ -455,7 +432,7 @@ describe('renderer', () => {
       expect(second.deck.finalize).toHaveBeenCalledOnce();
     });
 
-    it('renders the migration guide layer component next to native layers', async () => {
+    it('renders a createLayerComponent component next to native layers', async () => {
       const {deck, flush, root} = createTestRoot();
       const JsxPolygonLayer = createLayerComponent(PolygonLayer);
       const nativePoints = new ScatterplotLayer({data: [], id: 'native-points'});
@@ -478,7 +455,7 @@ describe('renderer', () => {
       expect(deck.layers[1]?.id).toBe('jsx-polygons');
     });
 
-    it('keeps layers nested in the migration guide view component', async () => {
+    it('keeps layers nested in a createViewComponent component', async () => {
       const {deck, root} = createTestRoot();
       const JsxMapView = createViewComponent(MapView);
       const JsxScatterplotLayer = createLayerComponent(ScatterplotLayer);
