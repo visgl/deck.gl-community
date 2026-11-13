@@ -255,6 +255,24 @@ describe('TreeLayer timeline transitions', () => {
     expect(scene.row().crops[0].count).toBe(0);
   });
 
+  it('tweens a new crop after the previous kind has finished fading out', () => {
+    const scene = lifecycleScene();
+    const render = (crop: CropConfig | null) =>
+      scene.render([tree('citrus', {crop})], {transitions: {getCrop: 1000}});
+    render({...FRUIT, count: 0, droppedCount: 10});
+    render(null);
+    scene.tick(1500);
+    expect(scene.row().crops[0]).toMatchObject({count: 0, dropped: 5});
+    scene.tick(2000);
+    expect(scene.row().crops[0].dropped).toBe(0);
+
+    render({...FRUIT, kind: 'lemon', droppedCount: 8});
+    expect(scene.row().crops[0]).toMatchObject({count: 0, dropped: 0});
+    scene.tick(2500);
+    expect(scene.layer().state.cropKinds).toEqual(['lemon']);
+    expect(scene.row().crops[0]).toMatchObject({count: 10, dropped: 4});
+  });
+
   it('tweens deciduous foliage into winter and preserves its owner', () => {
     const scene = lifecycleScene();
     const render = (season: TreeSpec['season']) =>
