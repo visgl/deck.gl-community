@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {Deck, MapView, AmbientLight, DirectionalLight, LightingEffect} from '@deck.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {expect, it} from 'vitest';
 import {SplatLayer, createSplatHierarchy, type SplatSource} from '../../src';
 

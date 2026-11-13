@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer, createIterable, COORDINATE_SYSTEM} from '@deck.gl/core';
+import {CompositeLayer, createIterable} from '@deck.gl/core';
 import type {
   Color,
   Accessor,
@@ -793,9 +793,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   renderLayers() {
     const {modelMatrix, coordinateSystem} = this.props;
     const composesModelMatrix =
-      coordinateSystem === COORDINATE_SYSTEM.CARTESIAN ||
-      coordinateSystem === COORDINATE_SYSTEM.METER_OFFSETS ||
-      (coordinateSystem === COORDINATE_SYSTEM.DEFAULT && !this.context?.viewport?.isGeospatial);
+      coordinateSystem === 'cartesian' ||
+      coordinateSystem === 'meter-offsets' ||
+      (coordinateSystem === 'default' && !this.context?.viewport?.isGeospatial);
     if (
       modelMatrix &&
       composesModelMatrix &&

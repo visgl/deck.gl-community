@@ -6,7 +6,7 @@ import {
   PostProcessEffect
 } from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import type {ShaderPass} from '@luma.gl/shadertools';
+import type {ShaderPass} from '@luma.gl/shaders';
 import {act} from 'react';
 import {createRoot} from 'react-dom/client';
 import {expect, test} from 'vitest';

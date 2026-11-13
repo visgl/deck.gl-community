@@ -43,7 +43,7 @@
     "leaflet": "^1.9.4"
   },
   "peerDependencies": {
-    "@deck.gl/core": "~9.4.1",
+    "@deck.gl/core": "10.0.0-alpha.1",
     "leaflet": "^1.9.4"
   }
 }

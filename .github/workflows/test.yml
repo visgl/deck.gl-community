@@ -282,21 +282,8 @@ jobs:
         env:
           DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
 
-      - name: Check out the upstream WebGPU terrain port
-        if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: visgl/deck.gl
-          # Temporary integration pin until deck.gl#10751 is released.
-          ref: 98dbf01f74641c3d12283522bf2e9561fed00d82
-          path: .terrain-sdk
-
-      - name: Verify WebGPU terrain fitting against the upstream port
-        if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
-        run: yarn vitest run --project headless modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts -t webgpu
-        env:
-          DECK_GL_SOURCE: ${{ github.workspace }}/.terrain-sdk
-          DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
+      # TODO: Restore the FlameTrailLayer WebGPU terrain integration test when
+      # visgl/deck.gl#10751 can run with the luma.gl version pinned here.
 
   test-panels-fullscreen:
     runs-on: ubuntu-24.04

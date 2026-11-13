@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
+import {Deck, OrthographicView} from '@deck.gl/core';
 import {luma, type Device} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {describe, expect, inject, it} from 'vitest';
 import {requireWebGPUAdapter} from './webgpu-test-utils';
 
@@ -68,7 +68,7 @@ function createPortableLayers() {
   return [
     new FlameTrailLayer({
       id: 'webgpu-test-flame',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [
         {
           path: [
@@ -87,7 +87,7 @@ function createPortableLayers() {
     new SkyboxLayer({id: 'webgpu-test-skybox', cubemap: null}),
     new BlockLayer({
       id: 'webgpu-test-block',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [{position: [-20, -20, 0], size: [30, 20]}],
       sizeUnits: 'common',
       getPosition: datum => datum.position,
@@ -98,7 +98,7 @@ function createPortableLayers() {
     }),
     new FastTextLayer({
       id: 'webgpu-test-fast-text-bitmap',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [{text: 'GPU', position: [-20, -8]}],
       characterSet: 'GPU',
       fontSettings: {sdf: false, fontSize: 32},
@@ -107,7 +107,7 @@ function createPortableLayers() {
     }),
     new FastTextLayer({
       id: 'webgpu-test-fast-text-sdf',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [{text: 'SDF', position: [5, -8]}],
       characterSet: 'SDF',
       fontSettings: {sdf: true, fontSize: 32},
@@ -116,7 +116,7 @@ function createPortableLayers() {
     }),
     new GeometryLayer({
       id: 'webgpu-test-marker',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [{source: [-25, 10, 0], target: [25, 10, 0]}],
       getSourcePosition: datum => datum.source,
       getTargetPosition: datum => datum.target,
@@ -126,7 +126,7 @@ function createPortableLayers() {
     }),
     new TimeDeltaLayer({
       id: 'webgpu-test-time-delta',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       header: true,
       startTimeMs: -15,
       endTimeMs: 15,
@@ -135,7 +135,7 @@ function createPortableLayers() {
     }),
     new VerticalGridLayer({
       id: 'webgpu-test-vertical-grid',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       xMin: -30,
       xMax: 30,
       yMin: -30,
@@ -144,7 +144,7 @@ function createPortableLayers() {
     }),
     new PathOutlineLayer({
       id: 'webgpu-test-dashed-outline',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [
         {
           path: [
@@ -165,7 +165,7 @@ function createPortableLayers() {
     }),
     new PathMarkerLayer({
       id: 'webgpu-test-path-markers',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [
         {
           path: [
@@ -189,7 +189,7 @@ function createPortableLayers() {
     }),
     new DependencyArrowLayer({
       id: 'webgpu-test-path-dependency',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [
         {
           path: [
@@ -209,7 +209,7 @@ function createPortableLayers() {
     }),
     new DependencyArrowLayer({
       id: 'webgpu-test-arc-dependency',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [
         {
           path: [
@@ -228,7 +228,7 @@ function createPortableLayers() {
     }),
     new RoundedRectangleLayer({
       id: 'webgpu-test-rounded-graph-node',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [{position: [-12, -36, 0]}],
       getPosition: datum => datum.position,
       stylesheet: nodeStylesheet,
@@ -236,7 +236,7 @@ function createPortableLayers() {
     }),
     new PathEdgeLayer({
       id: 'webgpu-test-graph-path-edge',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [
         {
           layout: {
@@ -254,7 +254,7 @@ function createPortableLayers() {
     }),
     new EdgeArrowLayer({
       id: 'webgpu-test-graph-edge-arrow',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [
         {
           directed: true,
@@ -270,7 +270,7 @@ function createPortableLayers() {
     }),
     new TimelineLayer({
       id: 'webgpu-test-timeline',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [
         {
           id: 'track',
@@ -306,7 +306,7 @@ function createPortableLayers() {
     }),
     new EditableGeoJsonLayer({
       id: 'webgpu-test-editable-geojson',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: {
         type: 'FeatureCollection',
         features: [
@@ -351,7 +351,7 @@ function createPortableLayers() {
     }),
     new HorizonGraphLayer({
       id: 'webgpu-test-horizon',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: new Float32Array([0, 25, -25, 50, -50, 100]),
       x: -30,
       y: 15,
@@ -362,7 +362,7 @@ function createPortableLayers() {
     }),
     new MultiHorizonGraphLayer({
       id: 'webgpu-test-multi-horizon',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [
         {values: new Float32Array([0, 25, -25, 50]), scale: 100},
         {values: new Float32Array([50, -50, 25, 0]), scale: 100}

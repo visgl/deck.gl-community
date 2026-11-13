@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {getShaderAssembler, picking, project32, shadow} from '@deck.gl/core';
-import {phongMaterial} from '@luma.gl/shadertools';
+import {phongMaterial, resolveShaderPlugins} from '@luma.gl/shaders';
 import {describe, expect, it, vi} from 'vitest';
 import {SplatPrimitiveLayer} from '../../src/splat-layer/splat-primitive-layer';
 import {SPLAT_FRAGMENT, SPLAT_VERTEX, splatUniforms} from '../../src/splat-layer/splat-shaders';
@@ -17,11 +17,13 @@ const GLSL_PLATFORM = {
   features: new Set<string>()
 } as const;
 
-function assembleGLSL(vs: string, fs: string, modules: any[]) {
+function assembleGLSL(vs: string, fs: string, modules: any[], plugins: any[] = []) {
+  const resolved = resolveShaderPlugins(plugins, 'glsl');
   return getShaderAssembler('glsl').assembleGLSLShaderPair({
     vs,
     fs,
-    modules,
+    modules: [...modules, ...resolved.modules],
+    pluginInjections: resolved.injections,
     platformInfo: GLSL_PLATFORM as any
   });
 }
@@ -62,7 +64,11 @@ describe('SplatPrimitiveLayer shadow pass', () => {
   function makeLayer(type: 'webgl' | 'webgpu') {
     const model = {shaderInputs: {setProps: vi.fn()}, setInstanceCount: vi.fn(), draw: vi.fn()};
     const layer = Object.assign(Object.create(SplatPrimitiveLayer.prototype), {
-      context: {device: {type, setParametersWebGL: vi.fn()}, timeline: {getTime: () => 0}},
+      context: {
+        viewport: {projectionMode: 1},
+        device: {type, setParametersWebGL: vi.fn()},
+        timeline: {getTime: () => 0}
+      },
       state: {model, effect: {resolve: vi.fn()}},
       props: {...SplatPrimitiveLayer.defaultProps, source: {}, deformationTime: 0},
       getNumInstances: () => 3,
@@ -111,6 +117,7 @@ describe('TreeMeshLayer shadow pass', () => {
     const setProps = vi.fn();
     const layer = Object.assign(Object.create(TreeMeshLayer.prototype), {
       context: {
+        viewport: {projectionMode: 1},
         device: {type, setParametersWebGL: vi.fn()},
         defaultShaderModules: [shadow],
         timeline: {getTime: () => 0}
@@ -123,8 +130,8 @@ describe('TreeMeshLayer shadow pass', () => {
   }
 
   it('writes the packed shadow depth after SimpleMeshLayer lighting', () => {
-    const {vs, fs, modules} = makeLayer('webgl').layer.getShaders();
-    expect(assembleGLSL(vs, fs, modules).fs).toMatch(
+    const {vs, fs, modules, plugins} = makeLayer('webgl').layer.getShaders();
+    expect(assembleGLSL(vs, fs, modules, plugins).fs).toMatch(
       /fragColor = vec4\(lightColor, color\.a \* layer\.opacity\);\s*#ifdef MODULE_SHADOW\n {2}if \(shadow\.drawShadowMap\) fragColor = shadow_filterShadowColor\(vec4\(0\.0\)\);/
     );
   });

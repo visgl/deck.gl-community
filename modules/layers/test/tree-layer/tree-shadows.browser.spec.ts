@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: MIT
 import {
   AmbientLight,
-  COORDINATE_SYSTEM,
   Deck,
   DirectionalLight,
   LightingEffect,
   MapView,
+  type CoordinateSystem,
   type Layer
 } from '@deck.gl/core';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {SolidPolygonLayer} from '@deck.gl/layers';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {CubeGeometry} from '@luma.gl/engine';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import 'maplibre-gl';
 import {describe, expect, it} from 'vitest';
 import {SelectionPulseExtension, SplatLayer, TreeLayer, type TreeSpec} from '../../src';
@@ -50,7 +50,7 @@ function lighting(shadow: boolean) {
 }
 
 /** A lit SimpleMeshLayer ground plane that receives shadows. */
-function ground(coordinateSystem: number = COORDINATE_SYSTEM.METER_OFFSETS) {
+function ground(coordinateSystem: CoordinateSystem = 'meter-offsets') {
   return new SimpleMeshLayer({
     id: 'ground',
     data: [{}],
@@ -73,7 +73,7 @@ function occluder(shadowEnabled: boolean) {
     id: 'occluder',
     data: [{}],
     mesh: CUBE,
-    coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+    coordinateSystem: 'meter-offsets',
     coordinateOrigin: [0, 0, 0],
     getPosition: [-10, 0, 17],
     getScale: [5, 8, 0.2],
@@ -101,7 +101,7 @@ function trees(props: Record<string, unknown> = {}, Type: typeof TreeLayer = Tre
     id: 'trees',
     data: [OAK],
     getTree: (row: TreeSpec) => row,
-    coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+    coordinateSystem: 'meter-offsets',
     coordinateOrigin: [0, 0, 0],
     windStrength: 0,
     pickable: true,
@@ -180,8 +180,8 @@ function countDarkened(shadowed: Uint8Array, lit: Uint8Array, {x0, y0, x1, y1}: 
 
 describe('TreeLayer deck.gl shadows (WebGL2)', () => {
   it.each([
-    ['metre offsets', COORDINATE_SYSTEM.METER_OFFSETS],
-    ['longitude/latitude', COORDINATE_SYSTEM.LNGLAT]
+    ['metre offsets', 'meter-offsets'],
+    ['longitude/latitude', 'lnglat']
   ] as const)(
     'casts a tree shadow onto a SimpleMeshLayer ground in %s',
     async (_, coordinateSystem) => {
@@ -276,7 +276,7 @@ describe('TreeLayer deck.gl shadows (WebGL2)', () => {
     try {
       const all = {x0: 0, y0: 0, x1: SIZE, y1: SIZE};
       const make = (shadowEnabled: boolean) =>
-        trees({data: grove, coordinateSystem: COORDINATE_SYSTEM.LNGLAT, shadowEnabled});
+        trees({data: grove, coordinateSystem: 'lnglat', shadowEnabled});
       const casting = await scene.render([make(true)]);
       const receiving = await scene.render([make(false)]);
       expect(scene.errors).toEqual([]);
@@ -401,7 +401,7 @@ describe('TreeLayer deck.gl shadows (WebGL2)', () => {
           data: [owner],
           getSource: source,
           transparency,
-          coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+          coordinateSystem: 'meter-offsets',
           coordinateOrigin: [0, 0, 0],
           getTranslation: [0, 0, 6],
           pickable: true,
@@ -439,7 +439,7 @@ function shadowCatcher() {
 }
 
 it.each([
-  ['a SimpleMeshLayer ground', () => ground(COORDINATE_SYSTEM.LNGLAT)],
+  ['a SimpleMeshLayer ground', () => ground('lnglat')],
   ['a transparent shadow catcher over the basemap', shadowCatcher]
 ] as const)(
   'casts tree shadows onto %s in an interleaved MapLibre map',
@@ -476,7 +476,7 @@ it.each([
     const render = async (shadowEnabled: boolean) => {
       // deck.gl draws shadow maps per interleaved layer group; the ground shares the trees' group.
       overlay.setProps({
-        layers: [receiver(), trees({coordinateSystem: COORDINATE_SYSTEM.LNGLAT, shadowEnabled})]
+        layers: [receiver(), trees({coordinateSystem: 'lnglat', shadowEnabled})]
       });
       const before = frames;
       await expect
