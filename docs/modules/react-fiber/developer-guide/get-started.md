@@ -161,6 +161,6 @@ Deck callbacks such as `onClick` are deck.gl event handlers, passed to the root 
 
 Read the [DeckGL API](../api-reference/deckgl.md) for standalone and interleaved ownership details, [Using with maps](./using-with-maps.md) for host-map lifecycle and provider guides, [Components](../api-reference/components.md) for every component subpath, and [Native elements](../api-reference/native-elements.md) for the `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>` contract.
 
-If you are upgrading from `@deck.gl/react` or `@deckgl-fiber-renderer/dom`, see the [upgrade guide](./migrate-from-deckgl-react.md).
+If you are upgrading from `@deck.gl/react`, see the [upgrade guide](./migrate-from-deckgl-react.md).
 
 For framework-specific project layouts, see the [React Fiber examples](/examples/react-fiber/overview).
