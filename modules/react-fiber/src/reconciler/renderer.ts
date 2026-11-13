@@ -1,5 +1,5 @@
 import type {Layer, View} from '@deck.gl/core';
-import {Deck, assert, log} from '@deck.gl/core';
+import {Deck, _deepEqual, assert, log} from '@deck.gl/core';
 import {RENDERER_PACKAGE_NAME, RENDERER_VERSION} from '../shared/constants';
 import {createStore, noop} from '../shared/index';
 import type {ReactNode} from 'react';
@@ -107,31 +107,65 @@ export const roots = new Map<RootElement, ReconcilerRoot>();
 
 const EMPTY_JSX_DESCRIPTORS: JsxDescriptors = {effects: [], layers: [], views: [], widgets: []};
 
+/** Props the root merges with JSX children, which handles their removal. */
+const DESCRIPTOR_PROPS = new Set(['effects', 'layers', 'views', 'widgets']);
+
 /**
- * Props a removal never resets:
- * - `effects`, `layers`, `views` and `widgets` are merged with JSX children, which handles their
- *   removal.
- * - The rest only take effect when deck.gl creates its device, canvas or event manager. Sending
- *   them later does nothing, or, for `_canvases`, asserts. The `DeckGL` component sets `canvas` and
- *   `parent` itself, and a new canvas gets a new root.
+ * Props the root manages itself. The `DeckGL` component sets `canvas` and `parent`, a new canvas
+ * gets a new root, and a provider root makes a new overlay when `interleaved` changes. deck.gl
+ * reads `id` only to name a canvas it creates, and the root always passes its own canvas.
  */
-const NOT_RESET_ON_REMOVAL = new Set([
-  'effects',
-  'layers',
-  'views',
-  'widgets',
+const ROOT_MANAGED_PROPS = new Set(['canvas', 'id', 'interleaved', 'parent']);
+
+/**
+ * Props that deck.gl reads only when it creates its device, canvas or event manager. Changing
+ * them later has no effect, so the root leaves them alone and warns in development builds. See
+ * the "Props that only apply at creation" section of the `DeckGL` docs.
+ */
+const CREATION_ONLY_PROPS: ReadonlySet<string> = new Set([
   '_canvases',
   '_typedArrayManagerProps',
-  'canvas',
   'debug',
   'deviceProps',
   'eventRecognizerOptions',
   'gl',
-  'id',
-  'interleaved',
-  'parent',
   'touchAction'
 ]);
+
+const CREATION_ONLY_DOCS =
+  'https://visgl.github.io/deck.gl-community/docs/modules/react-fiber/api-reference/deckgl#props-that-only-apply-at-creation';
+
+function isResetOnRemoval(key: string): boolean {
+  return (
+    !DESCRIPTOR_PROPS.has(key) && !ROOT_MANAGED_PROPS.has(key) && !CREATION_ONLY_PROPS.has(key)
+  );
+}
+
+/**
+ * Warns, in development builds, about each creation-only prop that changed since the last
+ * configure, once per prop per root. Values are compared deeply, so a new object literal with the
+ * same contents, such as `deviceProps={{type: 'webgl'}}`, is not a change.
+ */
+function warnOnCreationOnlyChanges(
+  previous: DeckGLConfiguration,
+  next: DeckGLConfiguration,
+  warned: Set<string>
+): void {
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+  const previousRecord = previous as Record<string, unknown>;
+  const nextRecord = next as Record<string, unknown>;
+  for (const key of CREATION_ONLY_PROPS) {
+    if (!warned.has(key) && !_deepEqual(previousRecord[key], nextRecord[key], 3)) {
+      warned.add(key);
+      log.warn(
+        `DeckGL: \`${key}\` only applies when deck.gl is created, so this change has no effect. ` +
+          `Remount the root with a new React \`key\` to apply it. See ${CREATION_ONLY_DOCS}`
+      )();
+    }
+  }
+}
 
 /**
  * Drops props whose value is `undefined`. React treats `prop={undefined}` as an absent prop, but
@@ -161,7 +195,7 @@ function getRemovedProps(
   const defaults = Deck.defaultProps as Record<string, unknown>;
   const removed: Record<string, unknown> = {};
   for (const key of Object.keys(previous)) {
-    if (!NOT_RESET_ON_REMOVAL.has(key) && !Object.hasOwn(next, key)) {
+    if (isResetOnRemoval(key) && !Object.hasOwn(next, key)) {
       removed[key] = defaults[key];
     }
   }
@@ -318,6 +352,8 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   let configured = false;
   // The props of the last configure, to find the ones a later configure removes.
   let previousProps: DeckGLConfiguration = {};
+  // Creation-only props this root has already warned about.
+  const warnedCreationOnlyProps = new Set<string>();
 
   function configure(passedProps: DeckGLConfiguration) {
     log.log(4, 'DeckGL configure', passedProps)();
@@ -343,6 +379,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
           containerInfo.sentViews
         );
         containerInfo.sentViews = Boolean(descriptors.views);
+        warnOnCreationOnlyChanges(previousProps, props, warnedCreationOnlyProps);
         deckgl.setProps({...getRemovedProps(previousProps, props), ...props, ...descriptors});
       }
       previousProps = props;
