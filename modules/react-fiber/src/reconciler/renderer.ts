@@ -107,6 +107,67 @@ export const roots = new Map<RootElement, ReconcilerRoot>();
 
 const EMPTY_JSX_DESCRIPTORS: JsxDescriptors = {effects: [], layers: [], views: [], widgets: []};
 
+/**
+ * Props a removal never resets:
+ * - `effects`, `layers`, `views` and `widgets` are merged with JSX children, which handles their
+ *   removal.
+ * - The rest only take effect when deck.gl creates its device, canvas or event manager. Sending
+ *   them later does nothing, or, for `_canvases`, asserts. The `DeckGL` component sets `canvas` and
+ *   `parent` itself, and a new canvas gets a new root.
+ */
+const NOT_RESET_ON_REMOVAL = new Set([
+  'effects',
+  'layers',
+  'views',
+  'widgets',
+  '_canvases',
+  '_typedArrayManagerProps',
+  'canvas',
+  'debug',
+  'deviceProps',
+  'eventRecognizerOptions',
+  'gl',
+  'id',
+  'interleaved',
+  'parent',
+  'touchAction'
+]);
+
+/**
+ * Drops props whose value is `undefined`. React treats `prop={undefined}` as an absent prop, but
+ * deck.gl would store the `undefined` over its default, and it calls some callbacks, such as
+ * `onLoad`, without checking for them.
+ */
+function omitUndefinedProps(props: DeckGLConfiguration): DeckGLConfiguration {
+  let defined: Record<string, unknown> | null = null;
+  for (const [key, value] of Object.entries(props)) {
+    if (value === undefined) {
+      defined ??= {...props};
+      delete defined[key];
+    }
+  }
+  return (defined ?? props) as DeckGLConfiguration;
+}
+
+/**
+ * Returns the props that `previous` had and `next` no longer has, each set to its deck.gl
+ * default. `Deck.setProps` merges into the props it already holds, so a prop that a React
+ * render stops passing would otherwise keep its old value.
+ */
+function getRemovedProps(
+  previous: DeckGLConfiguration,
+  next: DeckGLConfiguration
+): Record<string, unknown> {
+  const defaults = Deck.defaultProps as Record<string, unknown>;
+  const removed: Record<string, unknown> = {};
+  for (const key of Object.keys(previous)) {
+    if (!NOT_RESET_ON_REMOVAL.has(key) && !Object.hasOwn(next, key)) {
+      removed[key] = defaults[key];
+    }
+  }
+  return removed;
+}
+
 function reportError(error: unknown): void {
   log.error('DeckGL error', error)();
 }
@@ -255,9 +316,12 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   );
 
   let configured = false;
+  // The props of the last configure, to find the ones a later configure removes.
+  let previousProps: DeckGLConfiguration = {};
 
-  function configure(props: DeckGLConfiguration) {
-    log.log(4, 'DeckGL configure', props)();
+  function configure(passedProps: DeckGLConfiguration) {
+    log.log(4, 'DeckGL configure', passedProps)();
+    const props = omitUndefinedProps(passedProps);
 
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
@@ -279,10 +343,13 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
           containerInfo.sentViews
         );
         containerInfo.sentViews = Boolean(descriptors.views);
-        deckgl.setProps({...props, ...descriptors});
+        deckgl.setProps({...getRemovedProps(previousProps, props), ...props, ...descriptors});
       }
+      previousProps = props;
       return;
     }
+
+    previousProps = props;
 
     const state = store.getState();
     const deckgl = createExternalOverlay
