@@ -111,8 +111,9 @@ and depth occlusion work on both backends.
 For source integration tests, set `DECK_GL_SOURCE` to a checkout containing the
 upstream port and run `yarn vitest run --project headless
 modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts`.
-CI tests both the published dependency and the pinned upstream port; its required
-software WebGPU adapter must run the terrain checks without skipping them.
+CI runs FlameTrailLayer tests with the published dependency and a required software
+WebGPU adapter. WebGPU height-map fitting is temporarily excluded from CI until
+the upstream port works with the pinned luma.gl version.
 
 ## Rendering notes
 
