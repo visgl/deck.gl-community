@@ -178,6 +178,14 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer, MapT = ne
     const configured = useRef<{root: ReconcilerRoot; config: DeckGLConfiguration} | null>(null);
     // The overlay the root created, for `attach`. A replay or a recreate gives a new one.
     const overlay = useRef<Instance | null>(null);
+    // The function `attach` returned for the attached overlay. Cleared once it has run, so the
+    // overlay is detached exactly once, and always before it is finalized.
+    const detach = useRef<(() => void) | null>(null);
+    function detachOverlay() {
+      const detachCurrent = detach.current;
+      detach.current = null;
+      detachCurrent?.();
+    }
 
     // Object-rest creates a new config object each render. Preserve the committed
     // config while its values are unchanged so a lifecycle callback replacement is non-reactive.
@@ -241,6 +249,9 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer, MapT = ne
 
       if (rootElement) {
         return () => {
+          // Detach first: unmounting the root finalizes the overlay, and an overlay may need its
+          // resources to leave its host map.
+          detachOverlay();
           notifyDeckChange(null);
           overlay.current = null;
           unmountAtNode(rootElement);
@@ -249,13 +260,15 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer, MapT = ne
     }, [config.canvas]);
 
     // Runs after the layout effects above, so it attaches the overlay of this commit. Recreating
-    // the overlay remounts this component under a new key, which detaches the old overlay first.
+    // the overlay remounts this component under a new key; on unmount, the layout cleanup above
+    // detaches the overlay before finalizing it, so this cleanup only detaches when `map` changes.
     useEffect(() => {
       const instance = overlay.current;
       if (!attach || !map || !instance) {
         return;
       }
-      return attach(map, instance);
+      detach.current = attach(map, instance);
+      return detachOverlay;
     }, [map]);
 
     if (rootError) {

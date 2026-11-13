@@ -105,8 +105,10 @@ for (const {name, Root, createMap} of PROVIDERS) {
             {interval: 100, timeout: 15_000}
           );
 
+          // onDeckChange sets `overlay` to null during unmount, so keep the attached instance.
+          const attachedOverlay = overlay;
           await act(async () => reactRoot.unmount());
-          expect(map.hasControl(overlay as never)).toBe(false);
+          expect(map.hasControl(attachedOverlay as never)).toBe(false);
         } finally {
           reactRoot.unmount();
           map.remove();

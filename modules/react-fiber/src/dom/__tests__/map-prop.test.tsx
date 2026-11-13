@@ -89,8 +89,8 @@ describe('the map prop', () => {
 
     unmount();
     expect(map.controls.size).toBe(0);
-    // Finalizing removes the overlay, so the root's own detach has nothing left to remove.
-    expect(events).toEqual(['create:0', 'add:a:0', 'finalize:0', 'remove:a:0']);
+    // The root detaches the overlay before finalizing it.
+    expect(events).toEqual(['create:0', 'add:a:0', 'remove:a:0', 'finalize:0']);
   });
 
   it('never passes map to the overlay', async () => {
@@ -143,8 +143,8 @@ describe('the map prop', () => {
     expect(events).toEqual([
       'create:0',
       'add:a:0',
-      'finalize:0',
       'remove:a:0',
+      'finalize:0',
       'create:1',
       'add:a:1'
     ]);
@@ -180,6 +180,88 @@ describe('the map prop', () => {
     expect(onDeckChange).toHaveBeenCalledWith(overlays[0]);
     expect(overlays[0].map).toBeNull();
     unmount();
+  });
+});
+
+describe('a custom attach', () => {
+  // An overlay whose detach needs it alive, as Google Maps' `setMap(null)` or Leaflet's `remove()`
+  // do. It does not remove itself in `finalize`, so the order of the two calls is visible.
+  function createRecordingRoot() {
+    const events: string[] = [];
+    let count = 0;
+    const CustomDeckGL = createDeckGL<
+      FakeOverlayProps,
+      {index: number; finalized: boolean; finalize: () => void; setProps: () => void},
+      string
+    >({
+      attach: (map, overlay) => {
+        events.push(`attach:${map}:${overlay.index}`);
+        return () => {
+          events.push(`detach:${map}:${overlay.index}${overlay.finalized ? ':finalized' : ''}`);
+        };
+      },
+      createExternalOverlay: () => {
+        const overlay = {
+          index: count++,
+          finalized: false,
+          finalize: () => {
+            overlay.finalized = true;
+            events.push(`finalize:${overlay.index}`);
+          },
+          setProps: () => undefined
+        };
+        return overlay;
+      },
+      recreateOverlayOnChange: ['interleaved']
+    });
+    return {CustomDeckGL, events};
+  }
+
+  it('detaches before finalizing, on unmount and when interleaved recreates the overlay', async () => {
+    const {CustomDeckGL, events} = createRecordingRoot();
+    const {rerender, unmount} = render(<CustomDeckGL map="a" interleaved={false} />);
+    await flush();
+    rerender(<CustomDeckGL map="a" interleaved />);
+    await flush();
+    unmount();
+
+    expect(events).toEqual([
+      'attach:a:0',
+      'detach:a:0',
+      'finalize:0',
+      'attach:a:1',
+      'detach:a:1',
+      'finalize:1'
+    ]);
+  });
+
+  it('detaches from the old map, without finalizing, when map changes', async () => {
+    const {CustomDeckGL, events} = createRecordingRoot();
+    const {rerender, unmount} = render(<CustomDeckGL map="a" />);
+    await flush();
+    rerender(<CustomDeckGL map="b" />);
+    await flush();
+    rerender(<CustomDeckGL map={null} />);
+    await flush();
+    unmount();
+
+    expect(events).toEqual(['attach:a:0', 'detach:a:0', 'attach:b:0', 'detach:b:0', 'finalize:0']);
+  });
+
+  it('never detaches a finalized overlay in a Strict Mode replay', async () => {
+    const {CustomDeckGL, events} = createRecordingRoot();
+    const {unmount} = render(
+      <StrictMode>
+        <CustomDeckGL map="a" />
+      </StrictMode>
+    );
+    await flush();
+    unmount();
+
+    expect(events.some(event => event.endsWith(':finalized'))).toBe(false);
+    const attaches = events.filter(event => event.startsWith('attach:')).length;
+    const detaches = events.filter(event => event.startsWith('detach:')).length;
+    expect(attaches).toBe(detaches);
   });
 });
 
