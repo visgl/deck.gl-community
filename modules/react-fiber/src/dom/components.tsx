@@ -117,7 +117,8 @@ export interface CreateDeckGLOptions<Props, Instance extends DeckGLRenderer, Map
    * The component calls it after each overlay is created, while `map` is set, and calls the
    * returned function before the overlay is replaced or finalized, when `map` changes or becomes
    * `null`, and on unmount. A Strict Mode effect replay can call the pair twice for one overlay,
-   * so both steps must be safe to repeat. `map` itself is never passed to the overlay.
+   * so both steps must be safe to repeat. `map` itself is never passed to the overlay; without
+   * `attach`, a `map` prop is an ordinary prop that reaches the overlay like any other.
    */
   attach?: (map: MapT, overlay: Instance) => () => void;
 }
@@ -152,12 +153,20 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer, MapT = ne
   }
 
   function DeckGLComponent(props: ComponentProps<Props, Instance, MapT>) {
-    // `map` is for `attach` only and never reaches deck.gl.
-    const {children, onDeckChange, ref, map, ...deckglProps} = props as ComponentProps<
+    const {children, onDeckChange, ref, ...rootProps} = props as ComponentProps<
       Props,
       Instance,
       MapT
     > & {map?: MapT | null};
+    // With `attach`, `map` is the host map and never reaches deck.gl. Without it, `map` is an
+    // ordinary prop that the overlay may declare and read itself.
+    let map: MapT | null | undefined;
+    let deckglProps: object = rootProps;
+    if (attach) {
+      const {map: hostMap, ...overlayProps} = rootProps;
+      map = hostMap;
+      deckglProps = overlayProps;
+    }
     const setInstanceRef = useInstanceRef(ref);
     const notifyDeckChange = useEffectEvent<Parameters<OnDeckChange<Instance>>, void>(deckgl => {
       setInstanceRef(deckgl);
@@ -178,13 +187,13 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer, MapT = ne
     const configured = useRef<{root: ReconcilerRoot; config: DeckGLConfiguration} | null>(null);
     // The overlay the root created, for `attach`. A replay or a recreate gives a new one.
     const overlay = useRef<Instance | null>(null);
-    // The function `attach` returned for the attached overlay. Cleared once it has run, so the
-    // overlay is detached exactly once, and always before it is finalized.
-    const detach = useRef<(() => void) | null>(null);
+    // The map and overlay that `attach` last joined, and the function it returned. Cleared once
+    // the overlay is detached, so it is detached exactly once, and always before it is finalized.
+    const attached = useRef<{map: MapT; overlay: Instance; detach: () => void} | null>(null);
     function detachOverlay() {
-      const detachCurrent = detach.current;
-      detach.current = null;
-      detachCurrent?.();
+      const current = attached.current;
+      attached.current = null;
+      current?.detach();
     }
 
     // Object-rest creates a new config object each render. Preserve the committed
@@ -259,17 +268,23 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer, MapT = ne
       }
     }, [config.canvas]);
 
-    // Runs after the layout effects above, so it attaches the overlay of this commit. Recreating
-    // the overlay remounts this component under a new key; on unmount, the layout cleanup above
-    // detaches the overlay before finalizing it, so this cleanup only detaches when `map` changes.
+    // Runs after every commit's layout effects, so it follows the overlay's lifetime as well as
+    // `map`: any new overlay, whether from a new root, a replay or a recreate, is attached, and
+    // an overlay is moved when `map` changes. The layout cleanup above detaches an overlay
+    // before it is finalized, so here only a `map` change or a `null` map detaches.
     useEffect(() => {
       const instance = overlay.current;
-      if (!attach || !map || !instance) {
+      const current = attached.current;
+      if (current && current.map === map && current.overlay === instance) {
         return;
       }
-      detach.current = attach(map, instance);
-      return detachOverlay;
-    }, [map]);
+      detachOverlay();
+      if (attach && map && instance) {
+        attached.current = {map, overlay: instance, detach: attach(map, instance)};
+      }
+    });
+    // Detaches on unmount, and on a Strict Mode replay, before the effect above runs again.
+    useEffect(() => detachOverlay, []);
 
     if (rootError) {
       throw rootError.error;

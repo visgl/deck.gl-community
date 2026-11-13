@@ -183,6 +183,75 @@ describe('the map prop', () => {
   });
 });
 
+describe('a custom root without attach', () => {
+  // An overlay that takes its host map as a prop of its own, as some community overlays do.
+  type OwnMapProps = {map?: string | null; pickingRadius?: number};
+  type OwnMapOverlay = {
+    props: OwnMapProps;
+    finalize: () => void;
+    setProps: (props: OwnMapProps) => void;
+  };
+
+  it('passes its own map prop to the overlay', async () => {
+    const overlays: OwnMapOverlay[] = [];
+    const CustomDeckGL = createDeckGL<OwnMapProps, OwnMapOverlay>({
+      createExternalOverlay: props => {
+        const overlay = {props, finalize: vi.fn(), setProps: vi.fn()};
+        overlays.push(overlay);
+        return overlay;
+      }
+    });
+    const {rerender, unmount} = render(<CustomDeckGL map="a" pickingRadius={1} />);
+    await flush();
+    expect(overlays).toHaveLength(1);
+    expect(overlays[0].props).toEqual(expect.objectContaining({map: 'a'}));
+
+    rerender(<CustomDeckGL map="b" pickingRadius={1} />);
+    await flush();
+    expect(overlays[0].setProps).toHaveBeenLastCalledWith(expect.objectContaining({map: 'b'}));
+    unmount();
+  });
+});
+
+describe('a recreated overlay', () => {
+  it('is attached to the same map when a new canvas recreates the root', async () => {
+    const events: string[] = [];
+    let count = 0;
+    const CustomDeckGL = createDeckGL<
+      {canvas?: string},
+      {index: number; finalize: () => void; setProps: () => void},
+      string
+    >({
+      attach: (map, overlay) => {
+        events.push(`attach:${map}:${overlay.index}`);
+        return () => events.push(`detach:${map}:${overlay.index}`);
+      },
+      createExternalOverlay: () => {
+        const overlay = {
+          index: count++,
+          finalize: () => events.push(`finalize:${overlay.index}`),
+          setProps: () => undefined
+        };
+        return overlay;
+      }
+    });
+    const {rerender, unmount} = render(<CustomDeckGL map="a" canvas="first" />);
+    await flush();
+    rerender(<CustomDeckGL map="a" canvas="second" />);
+    await flush();
+    unmount();
+
+    expect(events).toEqual([
+      'attach:a:0',
+      'detach:a:0',
+      'finalize:0',
+      'attach:a:1',
+      'detach:a:1',
+      'finalize:1'
+    ]);
+  });
+});
+
 describe('a custom attach', () => {
   // An overlay whose detach needs it alive, as Google Maps' `setMap(null)` or Leaflet's `remove()`
   // do. It does not remove itself in `finalize`, so the order of the two calls is visible.

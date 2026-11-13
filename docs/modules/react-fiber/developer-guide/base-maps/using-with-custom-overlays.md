@@ -70,6 +70,8 @@ overlay that a host attaches with `setMap`, such as `GoogleMapsOverlay`, would u
 
 Without `attach`, the application attaches the instance it receives through `onDeckChange`, as in
 [Attach the overlay to the host map](../using-with-maps.md#attach-the-overlay-to-the-host-map).
+The root then treats `map` like any other prop: if the overlay declares its own `map` prop, the
+root passes it to the constructor and to `setProps`.
 
 The host map owns the camera. Do not pass `viewState`, `initialViewState` or `controller` to a
 custom overlay root. JSX `<deckView>` descriptors reach the overlay only when the root sets
