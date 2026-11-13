@@ -13,7 +13,7 @@ import type {} from 'react/jsx-dev-runtime';
  * A deck.gl widget for any views, including one typed for several views, such as
  * `SplitterWidget`.
  */
-type AnyWidget = Widget<WidgetProps, View | View[] | null>;
+export type AnyWidget = Widget<WidgetProps, View | View[] | null>;
 
 /**
  * JSX intrinsic elements supported by the deck.gl React Fiber renderer.
