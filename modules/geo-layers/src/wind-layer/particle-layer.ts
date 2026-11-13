@@ -144,7 +144,9 @@ class GpuParticleTrailLayer extends LineLayer {
           'var target_world_64low: vec3<f32> = instanceTargetPositions64Low;',
           'var target_world_64low = vec3<f32>(0.0);'
         );
-      shaders.inject = windParticleTrailInjectionsWGSL;
+      for (const [anchor, snippet] of Object.entries(windParticleTrailInjectionsWGSL)) {
+        shaders.source = shaders.source.replace(anchor, anchor + snippet);
+      }
       return shaders;
     }
     return {
