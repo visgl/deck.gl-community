@@ -64,7 +64,7 @@ type Scene = {
   cleanup(): void;
 };
 
-const scenes: Scene[] = [];
+const scenes = new Set<Scene>();
 
 function mount({
   effects,
@@ -110,16 +110,17 @@ function mount({
       return settle(frames);
     },
     cleanup() {
+      if (!scenes.delete(scene)) return;
       deck.finalize();
       parent.remove();
     }
   };
-  scenes.push(scene);
+  scenes.add(scene);
   return scene;
 }
 
 afterEach(() => {
-  for (const scene of scenes.splice(0)) scene.cleanup();
+  for (const scene of scenes) scene.cleanup();
 });
 
 /** One tree whose crops are in `tree.crop`. CI renders in software, and a coarse mesh tests the same. */
@@ -416,7 +417,8 @@ describe('TreeLayer photoreal crops', () => {
           windTime
         }
       );
-    const scene = mount({viewState: near});
+    // Sample only the frames used by assertions and release each software GPU context before the next.
+    const scene = mount({viewState: near, staticFrames: true});
     expect(countPatch(await scene.render([make(0, 100)]))).toBeLessThan(20);
     const atRest = await scene.render([make(240, 200)]);
     const meshes = cropLayers(scene).filter(
@@ -430,6 +432,7 @@ describe('TreeLayer photoreal crops', () => {
     // Far away it is still there, under the point that draws each.
     scene.setViewState({...near, zoom: 5.4});
     expect(countPatch(await scene.settle())).toBeGreaterThan(20);
+    scene.cleanup();
 
     // In the sun it reaches away from the light.
     const meanPatchX = (pixels: Uint8Array) => {
@@ -446,6 +449,7 @@ describe('TreeLayer photoreal crops', () => {
     };
     const inSun = async (toward: number) => {
       const lit = mount({
+        staticFrames: true,
         viewState: {...near, target: [0, 0, 0], rotationOrbit: 0, zoom: 5.4},
         effects: [
           new LightingEffect({
@@ -456,6 +460,7 @@ describe('TreeLayer photoreal crops', () => {
       });
       const pixels = await lit.render([make(240, 300)]);
       expect(lit.errors).toEqual([]);
+      lit.cleanup();
       return meanPatchX(pixels);
     };
     expect(await inSun(1)).toBeGreaterThan((await inSun(-1)) + 3);
