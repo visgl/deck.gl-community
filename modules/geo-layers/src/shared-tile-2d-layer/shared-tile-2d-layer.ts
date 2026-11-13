@@ -693,7 +693,16 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
 
   private _usesViewport(viewport: Viewport): boolean {
     const filter = this.context?.deck?.props?.layerFilter;
-    return !filter || filter({layer: this.root, viewport, isPicking: false, renderPass: 'screen'});
+    const context = {layer: this.root, viewport};
+    if (!filter || filter({...context, isPicking: false, renderPass: 'screen'})) {
+      return true;
+    }
+    return (
+      Boolean(this.props.pickable) &&
+      ['picking:query', 'picking:hover', 'picking:query:z', 'picking:hover:z'].some(renderPass =>
+        filter({...context, isPicking: true, renderPass})
+      )
+    );
   }
 
   /** Drops the bootstrap placeholder viewport after a real viewport is known. */

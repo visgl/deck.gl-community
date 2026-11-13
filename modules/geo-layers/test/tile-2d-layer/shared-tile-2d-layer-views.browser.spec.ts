@@ -32,7 +32,8 @@ afterEach(() => {
 
 function createDeck(
   views = [MAIN, MINI],
-  layerFilter?: Deck['props']['layerFilter']
+  layerFilter?: Deck['props']['layerFilter'],
+  pickable = false
 ): SharedTileset2D {
   tileset = new SharedTileset2D({getTileData: () => [], maxZoom: 6});
   parent = document.createElement('div');
@@ -46,7 +47,7 @@ function createDeck(
     layerFilter,
     viewState: VIEW_STATE as any,
     // The default sublayers, so that deck.gl also filters them per viewport.
-    layers: [new SharedTile2DLayer({id: 'tiles', data: tileset})]
+    layers: [new SharedTile2DLayer({id: 'tiles', data: tileset, pickable})]
   });
   return tileset;
 }
@@ -81,6 +82,12 @@ describe('SharedTile2DLayer views', () => {
     expect(viewIds()).toEqual(['main']);
     expect(selectedZooms()).toEqual([3]);
     expect(shared.stats.get('Consumers').count).toBe(1);
+  });
+
+  test('selects tiles for a viewport used only for picking', async () => {
+    createDeck([MAIN, MINI], ({viewport, isPicking}) => viewport.id === 'main' || isPicking, true);
+    await waitFor(() => selectedZooms().join() === '3,5', 'expected both views to select tiles');
+    expect(viewIds()).toEqual(['main', 'mini']);
   });
 
   test('detaches a view the deck stops rendering', async () => {
