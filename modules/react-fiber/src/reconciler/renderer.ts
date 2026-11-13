@@ -107,7 +107,7 @@ export const roots = new Map<RootElement, ReconcilerRoot>();
 
 const EMPTY_JSX_DESCRIPTORS: JsxDescriptors = {effects: [], layers: [], views: [], widgets: []};
 
-/** Props the root merges with JSX children, which handles their removal. */
+/** Props the root merges with JSX children. `combineRootDescriptors` handles their removal. */
 const DESCRIPTOR_PROPS = new Set(['effects', 'layers', 'views', 'widgets']);
 
 /**
@@ -123,7 +123,6 @@ const ROOT_MANAGED_PROPS = new Set(['canvas', 'id', 'interleaved', 'parent']);
  * the "Props that only apply at creation" section of the `DeckGL` docs.
  */
 const CREATION_ONLY_PROPS: ReadonlySet<string> = new Set([
-  '_canvases',
   '_typedArrayManagerProps',
   'debug',
   'deviceProps',

@@ -48,7 +48,7 @@ On the standalone root, `canvas` accepts an `HTMLCanvasElement` or the id of a `
 
 Deck event properties such as `onClick` remain deck.gl callbacks, not React synthetic events.
 
-Removing a prop resets it to deck.gl's default, as React expects: a removed `onError` stops being called, removed `parameters` stop applying, and a removed `viewState` returns the camera to deck.gl's own view state. A prop set to `undefined` counts as removed. The exceptions are the [props that only apply at creation](#props-that-only-apply-at-creation).
+Removing a prop resets it to deck.gl's default, as React expects: a removed `onError` stops being called, removed `parameters` stop applying, and a removed `viewState` returns the camera to deck.gl's own view state. A prop set to `undefined` counts as removed. The `layers`, `widgets` and `effects` props are merged with JSX children, so removing one leaves only the JSX elements. Removing `views` when the tree has no `<deckView>` restores deck.gl's default view, after which the root leaves deck.gl's views alone, so a widget such as `SplitterWidget` can set them. The exceptions are the [props that only apply at creation](#props-that-only-apply-at-creation).
 
 Effects such as `LightingEffect` and `PostProcessEffect` can be JSX children, as [components](./components.md#effects) or [`<deckEffect>`](./native-elements.md#deckeffect) elements, or the `effects` prop, as in `@deck.gl/react`. The root merges the two by ID. deck.gl matches effects by ID, as it does widgets, so a new instance with the same ID updates the mounted effect's props, and creating effects during render is fine.
 
@@ -69,8 +69,9 @@ deck.gl reads some props only when it creates its device, canvas or event manage
 | `deviceProps`, `gl` | Its GPU device | No effect; dev warning |
 | `debug` | Its GPU device | No effect; dev warning |
 | `touchAction`, `eventRecognizerOptions` | Its event manager | No effect; dev warning |
-| `_canvases` | Its canvases, for [`DeckCanvas`](./deck-canvas.md) | No effect; dev warning |
 | `_typedArrayManagerProps` | The instance | No effect; dev warning |
+
+`device` and `_canvases` are not in the table, because deck.gl applies changes to them after creation. A new `device` replaces the GPU device, and `_canvases` updates the canvases of a `Deck` created in multi-canvas mode. A `DeckGL` root always renders to its own canvas, which multi-canvas mode does not allow, so to draw one `Deck` into several canvases, create it with `_canvases: []` and use [`DeckCanvas`](./deck-canvas.md).
 
 `id` names a canvas that deck.gl creates. The standalone root renders its own canvas, whose id follows `id`, as [Root DOM and sizing](#root-dom-and-sizing) describes.
 

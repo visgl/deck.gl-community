@@ -84,9 +84,20 @@ describe('creation-only props', () => {
   });
 
   it('does not warn for props that update after creation', () => {
-    const {root} = setup({pickingRadius: 1, useDevicePixels: true});
+    const {root} = setup({
+      _canvases: ['a'],
+      device: {id: 'first'} as never,
+      pickingRadius: 1,
+      useDevicePixels: true
+    });
 
-    root.configure({pickingRadius: 5, useDevicePixels: false});
+    // deck.gl replaces the device and updates the canvases of a multi-canvas Deck in setProps.
+    root.configure({
+      _canvases: ['a', 'b'],
+      device: {id: 'second'} as never,
+      pickingRadius: 5,
+      useDevicePixels: false
+    });
 
     expect(warnings()).toEqual([]);
   });

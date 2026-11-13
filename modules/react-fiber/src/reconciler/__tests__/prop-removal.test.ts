@@ -1,8 +1,8 @@
-import {Deck} from '@deck.gl/core';
+import {Deck, MapView} from '@deck.gl/core';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {createRoot, unmountAtNode} from '../renderer';
-import type {DeckGLConfiguration} from '../types';
+import type {DeckGLConfiguration, RootElement} from '../types';
 import {createTestRoot} from './test-renderer';
 
 /**
@@ -138,6 +138,19 @@ describe('removing a prop', () => {
     }
   });
 
+  it('resets device and _canvases, which deck.gl applies after creation', () => {
+    const device = {id: 'device'};
+    const {deck, root} = setup({_canvases: [], device: device as never});
+
+    root.configure({});
+
+    const props = lastSetProps(deck);
+    expect(Object.hasOwn(props, 'device')).toBe(true);
+    expect(props.device).toBe(Deck.defaultProps.device);
+    expect(Object.hasOwn(props, '_canvases')).toBe(true);
+    expect(props._canvases).toBe(Deck.defaultProps._canvases);
+  });
+
   it('does not reset the layers, views, widgets or effects props, which the root merges with JSX', () => {
     const {deck, root} = setup({effects: [], layers: [], widgets: []});
 
@@ -148,4 +161,85 @@ describe('removing a prop', () => {
     expect(props.widgets).toStrictEqual([]);
     expect(props.effects).toStrictEqual([]);
   });
+});
+
+/**
+ * Removing the `views` prop when the tree has no JSX views sends `null` once, which restores
+ * deck.gl's default view. Later updates leave deck.gl's views alone, so a widget such as
+ * `SplitterWidget` can set them, and a root that never had views never sends any.
+ */
+describe('removing the views prop with no JSX views', () => {
+  const nodes: RootElement[] = [];
+
+  afterEach(() => {
+    for (const node of nodes.splice(0)) {
+      unmountAtNode(node);
+    }
+  });
+
+  function setup(forwardViews: boolean, initial: DeckGLConfiguration) {
+    const node = document.createElement('div') as RootElement;
+    nodes.push(node);
+    const deck = {finalize: vi.fn(), setProps: vi.fn()};
+    const root = createRoot(node, {createExternalOverlay: () => deck as never, forwardViews});
+    root.configure(initial);
+    return {deck, root};
+  }
+
+  function sentViews(deck: {setProps: ReturnType<typeof vi.fn>}): unknown[] {
+    return deck.setProps.mock.calls
+      .map(([props]) => props as Record<string, unknown>)
+      .filter(props => Object.hasOwn(props, 'views'))
+      .map(props => props.views);
+  }
+
+  for (const forwardViews of [true, false]) {
+    describe(
+      forwardViews ? 'a root that forwards JSX views' : 'an overlay that keeps only its views prop',
+      () => {
+        it('sends null once when the views prop is removed', () => {
+          const view = new MapView({id: 'map'});
+          const {deck, root} = setup(forwardViews, {views: [view]});
+
+          root.configure({views: [view]});
+          root.configure({});
+          root.configure({});
+
+          expect(sentViews(deck)).toEqual([[view], null]);
+        });
+
+        it('sends null when the views prop is set to undefined', () => {
+          const {deck, root} = setup(forwardViews, {views: new MapView({id: 'map'})});
+
+          root.configure({views: undefined});
+
+          expect(sentViews(deck)).toEqual([null]);
+        });
+
+        it('sends empty layers, widgets and effects when those props are removed', () => {
+          const {deck, root} = setup(forwardViews, {
+            effects: [{id: 'effect'} as never],
+            layers: [{id: 'layer'} as never],
+            widgets: [{id: 'widget'} as never]
+          });
+
+          root.configure({});
+
+          const props = deck.setProps.mock.calls.at(-1)![0] as Record<string, unknown>;
+          expect(props.layers).toEqual([]);
+          expect(props.widgets).toEqual([]);
+          expect(props.effects).toEqual([]);
+        });
+
+        it('never sends views when the root has never had any', () => {
+          const {deck, root} = setup(forwardViews, {});
+
+          root.configure({pickingRadius: 2});
+          root.configure({});
+
+          expect(sentViews(deck)).toEqual([]);
+        });
+      }
+    );
+  }
 });

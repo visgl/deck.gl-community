@@ -132,3 +132,19 @@ webglTest(
     }
   }
 );
+
+webglTest('removing the views prop with no JSX views restores the default view', async () => {
+  const test = await mount();
+  try {
+    await test.render({initialViewState: START});
+    await waitFor(() => Boolean(test.deck?.isInitialized));
+    expect(test.deck!.getViewports().map(viewport => viewport.id)).toEqual(['map']);
+
+    await test.render({initialViewState: START, views: undefined});
+    await waitFor(() => test.deck!.getViewports()[0]?.id !== 'map');
+    expect(test.deck!.props.views).toBeNull();
+    expect(test.deck!.getViewports()).toHaveLength(1);
+  } finally {
+    test.unmount();
+  }
+});
