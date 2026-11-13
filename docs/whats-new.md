@@ -2,7 +2,7 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
-## Unreleased
+## v10.0.0-alpha.1
 
 - **Breaking:** adopt deck.gl `10.0.0-alpha.1`, luma.gl `10.0.0-alpha.14`,
   loaders.gl and math.gl `5.0.0-beta.8`, and probe.gl `5.0.0`.
