@@ -52,15 +52,11 @@ properties. Picking, `autoHighlight` and `highlightedObjectIndex` use the source
 | `characteristics` | `{}` | Shared template characteristics. See [Characteristics](#characteristics). |
 | `sizeScale` | `1` | Multiplier for all tree and crop dimensions. |
 | `lodBias` | `0` | Positive values switch to simpler crown detail closer to the camera. Negative values retain individual detail farther away. |
-| `wetness` | `0` | Wet surface response, from 0 to 1. |
-| `frost` | `0` | Frost on exposed foliage and twigs, from 0 to 1. |
-| `fog` | `null` | Optional sRGB `color` and exponential `density` per metre. |
 | `windStrength` | `0` | Wind bend as a fraction of tree height. `0.025` is a gentle breeze, and `1` a hurricane. |
 | `windDirection` | `null` | Compass bearing in degrees, clockwise from +y (north), that the wind blows toward. Gusts then travel across the grove. `null` sways trees in no particular direction. |
 | `windTime` | `null` | Wind clock in seconds. `null` follows deck.gl's animation timeline. |
-| `windGustTime` | `null` | The clock gust fronts run on, so that a host can time a gust. `null` runs them on `windTime`. See [Wind](#wind). |
 | `getCoverageWeight` | `1` | Per-tree optical coverage, for fading trees in and out. |
-| `transitions` | `null` | Deck.gl transition settings keyed by a TreeLayer accessor. |
+| `transitions` | `null` | Interpolation settings keyed by a TreeLayer accessor. Pass a duration in milliseconds or an object with `duration` and optional `easing`. |
 | `woodMaterial`, `foliageMaterial`, `cropMaterial` | `null` | Optional Phong material overrides. |
 
 ### Per-field accessors
@@ -104,12 +100,12 @@ crown radius in metres, set `crownRadius` in `getTree` instead.
 | `trunkHeightFraction` | Fraction of height below the crown, `0`–`1`. |
 | `elevation` | Base elevation in metres. |
 | `season` | `spring`, `summer`, `autumn` or `winter`. |
-| `crop` | One or two [`CropConfig`](#cropconfig) values. |
+| `crop` | A [`CropConfig`](#cropconfig) value or `null`. |
 | `growth` | Fraction of the tree's development, from 0 to 1. Defaults to 1. |
 | `health` | Foliage health, from 0 to 1. Defaults to 1. |
 | `foliage` | Leaf coverage, from 0 to 1. Defaults to the season. |
 | `flush` | Amount of new growth color, from 0 to 1. Defaults to 0. |
-| `lean` | Tuple of tilt and compass bearing in degrees. |
+| `lean` | Tuple of tilt and compass bearing in degrees. Broadleaf templates show a root plate when a tree leans far enough to lift it. |
 | `damage` | Limb damage, from 0 to 1. Defaults to 0. |
 | `decay` | Wood and leaf decay, from 0 to 1. Defaults to 0. |
 | `wind` | `true`, `false` or a bend fraction from 0 to 1. Defaults to `windStrength`. |
@@ -128,10 +124,7 @@ birch and cherry lose their leaves in winter; the others are evergreen.
 | `color` | RGBA crop color. |
 | `count` | Crops attached inside the crown. |
 | `radius` | Enclosing radius in metres. |
-| `unripeColor` | Optional RGBA color of unripe crops. |
-| `ripeness` | Ripeness from 0 to 1. Defaults to 1. |
-| `fallen` | Fraction of attached crops that have fallen, from 0 to 1. |
-| `droppedCount` | Additional crops scattered on the ground. |
+| `droppedCount` | Crops scattered on the ground, in addition to `count`. |
 | `kind` | `fruit` (default), `lemon`, `cone`, `acorn`, `catkin`, `flower` or `propagule`. |
 
 ### Characteristics
@@ -156,36 +149,8 @@ shared templates, so keep the number of distinct combinations small.
 
 ## Wind
 
-With `windDirection`, gust fronts travel downwind across a grove. The fronts run on
-`windGustTime`, which defaults to `windTime`. Sway, flutter and falling leaves use `windTime`.
-Use `windStrength` to control bend and gust intensity.
-
-`getTreeWindGust` reads the same gust on the CPU, from 0 to 1, so that grass, water, spray, a
-camera shake or a sound can move with the trees:
-
-```ts
-import {getTreeWindGust} from '@deck.gl-community/layers';
-
-const gust = getTreeWindGust({
-  position: [-18, 3.8], // metres from the layer's first tree
-  time: windGustTime,
-  direction: 15, // as windDirection
-  strength: 0.72, // as windStrength, or a tree's own TreeSpec.wind
-  phase: 0 // 0 for a point in the open
-});
-```
-
-The experimental `_treeWindGust` GLSL shader module gives a layer's own shaders the same gust as
-`float treeWind_getGust(vec2 metres, float time, vec2 direction, float force, float phase)`. Its
-`direction` is the unit vector the wind blows toward, `[sin(bearing), cos(bearing)]`.
-
-`position` is in metres from the layer's gust origin, which is the position of its first tree,
-along x and y. The GPU computes in 32-bit floats, so the two agree to about `1e-4` with clocks of
-a few hundred seconds.
-
-Broadleaf templates show a root plate when a tree leans far enough to lift it. Wetness and
-frost affect both backends. The WebGL2 leaf material includes individual water-bead glints at
-close range.
+With `windDirection`, gust fronts travel downwind across a grove. `windStrength` controls bend
+and gust intensity. Gusts, sway, flutter and falling leaves all follow `windTime`.
 
 ## Shadows
 
