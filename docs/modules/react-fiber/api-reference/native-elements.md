@@ -157,4 +157,4 @@ The Mapbox and MapLibre roots merge views the same way; a custom overlay root do
 
 ## Ids
 
-An element without an `id` gets one from its place in the React tree, exactly as a [component](./components.md#ids) does, so `<DeckGL.Layer key="roads" layer={new ScatterplotLayer({data})} />` gives `ScatterplotLayer/roads`. See [Ids](./components.md#ids) for the format and for when you still need an explicit `id`.
+An element without an `id` gets one from its place in the React tree, exactly as a [component](./components.md#ids) does, so `<deckLayer key="roads" layer={new ScatterplotLayer({data})} />` gives `ScatterplotLayer/roads`. See [Ids](./components.md#ids) for the format and for when you still need an explicit `id`.

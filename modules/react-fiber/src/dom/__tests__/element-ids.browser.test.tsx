@@ -1,5 +1,5 @@
 import {type Deck, type Effect, MapView, PostProcessEffect} from '@deck.gl/core';
-import type {ShaderPass} from '@luma.gl/shadertools';
+import type {ShaderPass} from '@luma.gl/shaders';
 import {ZoomWidget} from '@deck.gl/widgets';
 import {act, type ReactNode} from 'react';
 import {createRoot} from 'react-dom/client';

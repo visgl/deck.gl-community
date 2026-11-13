@@ -47,6 +47,11 @@ function Points({radius}: {radius: number}) {
   return <deckLayer layer={createLayer(radius)} />;
 }
 
+/** Renders a lone unkeyed `<deckLayer>`, as the built-in layer components do. */
+function LayerElement({layer}: {layer: Layer}) {
+  return <deckLayer layer={layer} />;
+}
+
 /** Renders a layer under the same key as every other `KeyedPoints`. */
 function KeyedPoints({radius}: {radius: number}) {
   return [<deckLayer key="points" layer={createLayer(radius)} />];
@@ -67,8 +72,8 @@ const LAYOUTS: Record<string, [(radius: number) => ReactNode, string[]]> = {
     radius => ['a', 'b'].map(key => <deckLayer key={key} layer={createLayer(radius)} />),
     ['CountingLayer/a', 'CountingLayer/b']
   ],
-  'keyed DeckGL.Layer components': [
-    radius => ['a', 'b'].map(key => <DeckGL.Layer key={key} layer={createLayer(radius)} />),
+  'keyed components that render a lone <deckLayer>': [
+    radius => ['a', 'b'].map(key => <LayerElement key={key} layer={createLayer(radius)} />),
     ['CountingLayer/a', 'CountingLayer/b']
   ],
   'a keyed component per layer': [
@@ -217,7 +222,7 @@ webglTest('a layer with an id, or a lone layer, keeps its id', async () => {
     expect(getLayerIds(root.deck)).toEqual(['points', 'more-points']);
 
     // A lone top-level layer keeps deck.gl's default id, as it would without React.
-    await root.render(<DeckGL.Layer layer={createLayer(1e5)} />);
+    await root.render(<deckLayer layer={createLayer(1e5)} />);
     await waitFor(() => getLayerIds(root.deck).length === 1);
     expect(getLayerIds(root.deck)).toEqual(['CountingLayer']);
   } finally {

@@ -41,8 +41,8 @@ import {RootErrorBoundary} from './error-boundary';
  *    A key or an index never changes while its element stays mounted, so the list is computed
  *    once, when the element mounts.
  *
- * 3. One shortening keeps 1 and 2. A component that returns a lone unkeyed element, as
- *    `DeckGL.Layer` does, would add a final `#0` to every id. So final `#0` segments are dropped,
+ * 3. One shortening keeps 1 and 2. A component that returns a lone unkeyed element, as the
+ *    built-in layer components do, would add a final `#0` to every id. So final `#0` segments are dropped,
  *    from the element up, while the fiber they describe has no siblings and its parent is not a
  *    deck.gl element. The shortened list is then the list of an ancestor A that is a component,
  *    a fragment or the root, never a mounted deck.gl element, so no element keeps A's list
