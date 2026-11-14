@@ -694,10 +694,10 @@ type PhotorealRow<DataT> = {
   bounds: {
     center: number[];
     radius: number;
+    cullCenter: number[];
     cullRadius: number;
     crownSpan: number;
     margin: number;
-    wind: number;
     reach: number;
   } | null;
   leafPixels: number;
@@ -742,6 +742,10 @@ type PhotorealCropSlot = {
   nearFrom: [number, number, number] | null;
   /** The size on screen it allowed for, in metres times its focal scale. */
   nearScale: number;
+  /** Crown dimensions and yaw, or null when the lists include every attached crop. */
+  nearShape: readonly number[] | null;
+  /** Maximum local displacement the list allowed for. */
+  nearReach: number;
 };
 
 /** All the crop instances of one kind and level of detail, of one template. */
@@ -810,8 +814,8 @@ type PhotorealState<DataT> = {
 };
 
 type TreeState<DataT> = {
-  authoredWindStrength: number;
-  hasAuthoredWind: boolean;
+  /** Largest current bend, used for shared storm shading and scheduling redraws. */
+  currentWindStrength: number;
   hasDefaultWind: boolean;
   /** `windDirection` as a vector, whose identity sub-layers see as a prop of theirs. */
   windBearing: number | null | undefined;
@@ -1060,7 +1064,9 @@ function createPhotorealCropSlot(): PhotorealCropSlot {
     dropped: 0,
     near: [[], []],
     nearFrom: null,
-    nearScale: 0
+    nearScale: 0,
+    nearShape: null,
+    nearReach: 0
   };
 }
 
@@ -1139,8 +1145,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
 
   initializeState() {
     this.state = {
-      authoredWindStrength: 0,
-      hasAuthoredWind: false,
+      currentWindStrength: 0,
       hasDefaultWind: true,
       windBearing: null,
       windVector: null,
@@ -1184,15 +1189,14 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       dataChanged ||
         GEOMETRY_PROPS.some(accessorChanged) ||
         STORE_ONLY_PROPS.some(accessorChanged) ||
-        !this.state.store ||
-        (this.state.hasAuthoredWind && props.windStrength !== oldProps.windStrength),
+        !this.state.store,
       Boolean(changeFlags.viewportChanged) ||
         props.lodBias !== oldProps.lodBias ||
         props._leafCulling !== oldProps._leafCulling ||
         props._cropOnly !== oldProps._cropOnly ||
-        props.windStrength !== oldProps.windStrength ||
         props.shadowEnabled !== oldProps.shadowEnabled,
-      placementChanged
+      placementChanged,
+      this.state.hasDefaultWind && props.windStrength !== oldProps.windStrength
     );
   }
 
@@ -1360,7 +1364,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     props,
     accessorsChanged: boolean,
     viewChanged: boolean,
-    placementChanged: boolean
+    placementChanged: boolean,
+    windChanged: boolean
   ): void {
     const timeline = this.context?.timeline;
     const now = timeline ? timeline.getTime() : 0;
@@ -1381,15 +1386,36 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         for (const source of sources) source.seed = previous[source.stateRow]?.seed ?? source.seed;
       }
       this.state.sources = sources;
+    }
+    if (accessorsChanged || firstRead || windChanged) {
       this.writeStateRows(props, sources, store, now, clock);
+    }
+    if (accessorsChanged || firstRead) {
       regrouped = this.groupPhotorealRows(props, sources);
     }
 
     const {photoreal} = this.state;
     const {changed, active} = store.tick(now, clock);
+    if (store.isDirty || accessorsChanged) {
+      let strength = 0;
+      const data = store.data;
+      for (let row = 0; row < store.rowCount; row++) {
+        strength = Math.max(
+          strength,
+          data[row * LOD_FLOATS_PER_ROW + TREE_STATE_TEXEL.MISC * 4 + 1]
+        );
+      }
+      this.state.currentWindStrength = strength;
+    }
     if (
       photoreal &&
-      (viewChanged || placementChanged || accessorsChanged || regrouped || firstRead || changed)
+      (viewChanged ||
+        placementChanged ||
+        accessorsChanged ||
+        regrouped ||
+        firstRead ||
+        windChanged ||
+        changed)
     ) {
       this.updatePhotorealDetail(props, photoreal, store, placementChanged);
     }
@@ -1411,18 +1437,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     store.resize(sources.length);
     this.state.cropKinds.length = sources.length;
     const getCoverageWeight = props.getCoverageWeight;
-    let maxWind = 0,
-      defaultWind = false;
-    for (const source of sources) {
-      if (source.windStrength === undefined) defaultWind = true;
-      else maxWind = Math.max(maxWind, source.windStrength);
-    }
-    this.state.authoredWindStrength = maxWind;
-    this.state.hasAuthoredWind = sources.some(source => source.windStrength !== undefined);
-    this.state.hasDefaultWind = defaultWind;
+    this.state.hasDefaultWind = sources.some(source => source.windStrength === undefined);
     const models = new Map<string, TreeGrowthModel>();
-    const layerWind = getFiniteDimension(props.windStrength, 0);
-    const windStrength = Math.max(defaultWind ? layerWind : 0, maxWind);
+    const layerWind = getUnitValue(props.windStrength, 0);
     const update = this.rowUpdate;
     const options = this.rowOptions;
     options.now = now;
@@ -1473,7 +1490,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           : getTreeAccessorValue(props.getTrunkColor, source.object, objectInfo)) ??
         DEFAULT_TRUNK_COLORS[type];
       update.trunkRadius = source.trunkRadius;
-      update.windFlex = windStrength > 0 ? (source.windStrength ?? layerWind) / windStrength : 1;
+      update.windFlex = source.windStrength ?? layerWind;
       update.coverage = getUnitValue(
         getTreeAccessorValue(getCoverageWeight, source.object, objectInfo) as number,
         1
@@ -1724,7 +1741,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const nearReference = SHELL_NEAR_REFERENCE_METRES / biasScale;
     const focals = views.map(getLeafFocalPixels);
     const focal = views.length === 1 ? focals[0] : 0;
-    const layerWind = getFiniteDimension(props.windStrength, 0);
     const finePixels = focal > 0 ? Math.max(LOD_FINE_PIXELS * biasScale, LOD_FINE_FLOOR_PIXELS) : 0;
     const macroPixels =
       focal > 0 ? Math.max(LOD_MACRO_PIXELS * biasScale, LOD_MACRO_FLOOR_PIXELS) : 0;
@@ -1766,7 +1782,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         const leafScale = data[base + MISC * 4 + 3];
         const foliage = data[base + LIFE * 4 + 2];
         const unit = Math.max(row.units[0], row.units[1], row.units[2]);
-        if (!row.bounds || shapeChanged || projectionChanged || row.bounds.wind !== layerWind) {
+        if (!row.bounds || shapeChanged || projectionChanged) {
           const heightFraction = getTreeHeightFraction(growth);
           const trunkHeight = data[base + SIZE * 4 + 3];
           const {forkZ} = group.model;
@@ -1780,37 +1796,39 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
                 : trunkHeight + ((heightFraction - forkZ) / (1 - forkZ)) * (height - trunkHeight);
           }
           const crown = Math.max(crownX, crownY) * getTreeCrownFraction(growth);
-          // Upright trees are tight around the crown; others need room for what they threw on the ground.
-          const upright = lean === 0 && damage === 0 && foliage === 1;
+          // Keep LOD stable while an upright tree sheds. Its visibility bound still includes fallen leaves.
+          const upright = lean === 0 && damage === 0;
           const lift = upright ? liveHeight * 0.5 : 0;
-          const windReach = layerWind * windFlex * liveHeight;
-          const metres =
-            (upright ? Math.hypot(crown, liveHeight * 0.5) * 1.1 : (liveHeight + crown) * 1.25) +
-            windReach;
+          const windReach = windFlex * liveHeight;
+          const groundRadius = (liveHeight + crown) * 1.25 + windReach;
+          const radius =
+            (upright ? Math.hypot(crown, lift) * 1.1 + windReach : groundRadius) * unit;
           center[2] = lift;
-          const radius = metres * unit;
+          const middle = offsetSplatCommonPosition(row.common, center, row.units, row.frame);
+          const cullLift = foliage === 1 ? lift : 0;
           const {envelope} = group;
           const blade = envelope.blade * leafScale;
           const cullRadius = Math.max(
-            radius,
-            (Math.hypot(crown * envelope.crown, liveHeight * envelope.height - lift) +
+            foliage === 1 ? radius : groundRadius * unit,
+            (Math.hypot(crown * envelope.crown, liveHeight * envelope.height - cullLift) +
               blade +
               windReach * 2) *
               unit
           );
           row.bounds = {
-            center: offsetSplatCommonPosition(row.common, center, row.units, row.frame),
+            center: middle,
             radius,
+            cullCenter: cullLift === lift ? middle : row.common,
             cullRadius,
             crownSpan: Math.max(crown * 2, liveHeight - trunkHeight),
             margin: cullRadius + liveHeight * SHADOW_CULL_MARGIN_HEIGHTS * unit,
-            wind: layerWind,
             reach: windReach
           };
         }
         const {
           center: middle,
           radius,
+          cullCenter,
           cullRadius,
           crownSpan,
           margin,
@@ -1831,12 +1849,12 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         let inside = 0;
         for (let i = 0; i < views.length; i++) {
           const horizon = horizons[i];
-          if (horizon && classifySplatHorizon(middle, cullRadius, horizon) < 0) continue;
-          if (!intersectsSplatFrustum(middle, cullRadius, frusta[i])) {
+          if (horizon && classifySplatHorizon(cullCenter, cullRadius, horizon) < 0) continue;
+          if (!intersectsSplatFrustum(cullCenter, cullRadius, frusta[i])) {
             if (
               !near &&
               props.shadowEnabled !== false &&
-              intersectsSplatFrustum(middle, margin, frusta[i])
+              intersectsSplatFrustum(cullCenter, margin, frusta[i])
             )
               near = true;
             continue;
@@ -2202,11 +2220,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       const trunk = data[base + SIZE * 4 + 3];
       const yaw = data[base + ANCHOR * 4 + 3];
       const leafScale = data[base + MISC * 4 + 3];
-      const force =
-        Math.max(
-          this.state.hasDefaultWind ? getFiniteDimension(props.windStrength, 0) : 0,
-          this.state.authoredWindStrength
-        ) * data[base + MISC * 4 + 1];
+      const force = data[base + MISC * 4 + 1];
       const windReach = force * height;
       const unit = Math.max(...row.units);
       const {forkZ} = group.model;
@@ -2316,13 +2330,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const trunk = data[base + SIZE * 4 + 3];
     const liveHeight = height * getTreeHeightFraction(growth);
     const reachOver = Math.min(
-      Math.max(
-        this.state.hasDefaultWind ? getFiniteDimension(props.windStrength, 0) : 0,
-        this.state.authoredWindStrength
-      ) *
-        data[base + MISC * 4 + 1] *
-        liveHeight *
-        0.5,
+      data[base + MISC * 4 + 1] * liveHeight * 0.5,
       TREE_LEAF_BLADE_MARGIN_MOST
     );
     const mayDeform =
@@ -2569,6 +2577,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
 
   private clearNearCrops(group: PhotorealGroup<DataT>, entry: PhotorealCropSlot): void {
     entry.nearFrom = null;
+    entry.nearShape = null;
     for (let mesh = 0; mesh < 2; mesh++) {
       if (entry.near[mesh].length) {
         entry.near[mesh] = [];
@@ -2580,8 +2589,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   /**
    * Which of a tree's crops may be large enough on screen for a mesh. A camera in a crown has a few crops
    * right in front of it and hundreds a few pixels across, which is why this is by crop, not by tree. It is
-   * worked out afresh only when the camera has moved far enough to matter. The vertex stage decides what
-   * each crop draws from its true size, so a crop in these lists is drawn as a point or as a mesh, never both.
+   * worked out afresh when the tree changes or the camera has moved far enough to matter. The vertex stage
+   * decides what each crop draws from its true size, so a crop is drawn as a point or as a mesh, never both.
    */
   private updateNearCrops(
     group: PhotorealGroup<DataT>,
@@ -2595,7 +2604,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const kind = entry.kind as CropKind;
     const {model} = group;
     const [macroPixels, finePixels] = getTreeCropMeshPixels(kind);
-    const {ANCHOR, SIZE, POSE} = TREE_STATE_TEXEL;
+    const {ANCHOR, SIZE, POSE, MISC, CROP0} = TREE_STATE_TEXEL;
     const base = row.stateRow * LOD_FLOATS_PER_ROW;
     if (radius * row.pixelsPerMeter * pixelScale < finePixels * CROP_NEAR_MARGIN) {
       this.clearNearCrops(group, entry);
@@ -2604,10 +2613,34 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const {camera, focalPixels} = row;
     const focal = focalPixels * pixelScale;
     const scale = radius * focal;
+    const yaw = data[base + ANCHOR * 4 + 3];
+    const crownX = data[base + SIZE * 4];
+    const crownY = data[base + SIZE * 4 + 1];
+    const height = data[base + SIZE * 4 + 2];
+    const trunk = data[base + SIZE * 4 + 3];
+    // A deformed tree or a view with no one camera gets a mesh for every crop.
+    const anywhere =
+      !camera ||
+      !(focal > 0) ||
+      data[base + POSE * 4] > 0 ||
+      data[base + POSE * 4 + 2] > 0 ||
+      data[base + POSE * 4 + 3] > 0;
+    const margin = CROP_NEAR_REACH + data[base + MISC * 4 + 1] * height;
+    const mayFall = data[base + CROP0 * 4 + 3] > 0;
+    const {nearShape} = entry;
+    if (!changed && entry.nearFrom && anywhere && !nearShape) return;
     if (
       camera &&
       entry.nearFrom &&
       !changed &&
+      !anywhere &&
+      nearShape?.[0] === yaw &&
+      nearShape[1] === crownX &&
+      nearShape[2] === crownY &&
+      nearShape[3] === height &&
+      nearShape[4] === trunk &&
+      nearShape[5] === Number(mayFall) &&
+      entry.nearReach >= margin &&
       Math.abs(entry.nearScale - scale) <= entry.nearScale * CROP_NEAR_SIZE_HOLD
     ) {
       // The lists have a margin in size on screen, which holds until the camera has gone this far, from the
@@ -2618,18 +2651,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     }
     entry.nearFrom = camera;
     entry.nearScale = scale;
-
-    const yaw = data[base + ANCHOR * 4 + 3];
-    const crownX = data[base + SIZE * 4];
-    const crownY = data[base + SIZE * 4 + 1];
-    const height = data[base + SIZE * 4 + 2];
-    const trunk = data[base + SIZE * 4 + 3];
+    entry.nearShape = anywhere ? null : [yaw, crownX, crownY, height, trunk, Number(mayFall)];
+    entry.nearReach = margin;
     const cos = Math.cos(yaw);
     const sin = Math.sin(yaw);
-    // A tree that has moved from its template, or a view with no one camera, gets a mesh for every crop.
-    const anywhere =
-      !camera || !(focal > 0) || data[base + POSE * 4] > 0 || data[base + POSE * 4 + 2] > 0;
-    const margin = CROP_NEAR_REACH + getFiniteDimension(this.props.windStrength, 0) * height * 0.5;
     const macro: number[] = [];
     const fine: number[] = [];
     const table = getTreeCropTable(model);
@@ -2653,14 +2678,15 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             : trunk + ((heightZ - forkZ) / (1 - forkZ)) * (height - trunk);
         const across = Math.max(
           Math.hypot(
-            (camera as number[])[0] - (localX * cos - localY * sin),
-            (camera as number[])[1] - (localX * sin + localY * cos)
+            camera[0] - (localX * cos - localY * sin),
+            camera[1] - (localX * sin + localY * cos)
           ) - margin,
           0
         );
-        const cameraZ = (camera as number[])[2];
+        const cameraZ = camera[2];
         const above = cameraZ > z + margin ? cameraZ - z - margin : 0;
-        const below = cameraZ < z - margin ? z - margin - cameraZ : 0;
+        const bottom = (mayFall ? 0 : z) - margin;
+        const below = cameraZ < bottom ? bottom - cameraZ : 0;
         pixels =
           (radius * focal) / Math.max(Math.hypot(across, above + below), CROP_NEAREST_METRES);
       }
@@ -2871,15 +2897,11 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       );
     }
     const {windDirection} = this.props;
-    const windStrength = Math.max(
-      this.state.hasDefaultWind ? getFiniteDimension(this.props.windStrength, 0) : 0,
-      this.state.authoredWindStrength
-    );
     if (windDirection !== this.state.windBearing) {
       this.state.windBearing = windDirection;
       this.state.windVector = getWindVector(windDirection);
     }
-    return this.renderPhotorealLayers(windStrength);
+    return this.renderPhotorealLayers(this.state.currentWindStrength);
   }
 
   private renderPhotorealLayers(windStrength: number): Layer[] {
