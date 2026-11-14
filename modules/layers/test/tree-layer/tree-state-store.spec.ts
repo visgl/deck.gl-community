@@ -266,7 +266,7 @@ describe('TreeStateStore layout', () => {
       canopyColor: [255, 255, 255, 255],
       trunkColor: [255, 255, 255, 255],
       trunkRadius: 0.5,
-      windFlex: 1,
+      windFlex: 0,
       coverage: 1,
       leafScale: 1,
       leafDetail: 1,
