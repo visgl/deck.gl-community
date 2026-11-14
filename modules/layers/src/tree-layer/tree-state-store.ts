@@ -50,7 +50,7 @@ export type TreeTransitions = {
   [key in TreeTransitionKey]?: TreeTransitionSettings | null | false;
 };
 
-/** Current values of one crop slot. */
+/** Current crop values. */
 export type TreeStateCropValues = {
   /** Attached crops. Fractional while animating. @default 0 */
   count: number;
@@ -124,11 +124,11 @@ export type TreeStateValues = {
   leafDetail: number;
   /** 0-1. @default 0 */
   seed: number;
-  /** Up to two slots. Reads always return both, with `count` 0 for an empty slot. */
-  crops: TreeStateCropValues[];
+  /** Reads always return the crop values, with `count` 0 when empty. */
+  crop: TreeStateCropValues;
 };
 
-/** A crop slot passed to `setRow`. Absent or non-finite fields keep their previous value. */
+/** A crop passed to `setRow`. Absent or non-finite fields keep their previous value. */
 export type TreeStateCropUpdate = {
   [key in 'count' | 'radius' | 'ripeness' | 'fallen' | 'dropped']?: number;
 } & {
@@ -138,22 +138,20 @@ export type TreeStateCropUpdate = {
 
 /**
  * Values passed to `setRow`. Every field is optional: an absent or non-finite value keeps its
- * previous target, or its documented default on a new row. In `crops`, a missing or null slot means
- * no crop: its `count` goes to 0 and its other fields hold, and `crops: null` does that for both.
- * Leaving `crops` out keeps both slots. A null color keeps the previous color, and a
- * three-component color is opaque.
+ * previous target, or its documented default on a new row. Passing `crop: null` clears its counts
+ * and holds its appearance. A null color keeps the previous color, and a three-component color is opaque.
  */
 export type TreeStateUpdate = {
   [key in Exclude<
     keyof TreeStateValues,
-    'position' | 'positionLow' | 'canopyColor' | 'trunkColor' | 'crops'
+    'position' | 'positionLow' | 'canopyColor' | 'trunkColor' | 'crop'
   >]?: number;
 } & {
   position?: ArrayLike<number> | null;
   positionLow?: ArrayLike<number> | null;
   canopyColor?: ArrayLike<number> | null;
   trunkColor?: ArrayLike<number> | null;
-  crops?: readonly (TreeStateCropUpdate | null | undefined)[] | null;
+  crop?: TreeStateCropUpdate | null;
 };
 
 /** Timing of a `setRow` call. */
@@ -208,7 +206,7 @@ const RATE_SAMPLES = RATE_WINDOW_FRAMES + 1;
 const LEAN_UPRIGHT_DEGREES = 1e-3;
 /** Bearings closer than this, in degrees, are the same target. */
 const SAME_BEARING_DEGREES = 1e-9;
-/** At or below this count, a crop slot has nothing on the tree. */
+/** At or below this count, a crop has nothing on the tree. */
 const EMPTY_CROP_COUNT = 1e-6;
 
 // The row is a vector of channels in caller units, so a tween is plain arithmetic and a read returns
@@ -232,16 +230,15 @@ const CHANNEL_DECAY = 16;
 const CHANNEL_CANOPY = 17;
 const CHANNEL_BARK = 21;
 const CHANNEL_WIND_FLEX = 25;
-const CHANNEL_CROP0 = 26;
-const CHANNEL_CROP1 = 38;
-const CHANNEL_YAW = 50;
-const CHANNEL_WIND_PHASE = 51;
-const CHANNEL_COVERAGE = 52;
-const CHANNEL_LEAF_DETAIL = 53;
-const CHANNEL_SEED = 54;
-const CHANNEL_COUNT = 55;
+const CHANNEL_CROP = 26;
+const CHANNEL_YAW = 38;
+const CHANNEL_WIND_PHASE = 39;
+const CHANNEL_COVERAGE = 40;
+const CHANNEL_LEAF_DETAIL = 41;
+const CHANNEL_SEED = 42;
+const CHANNEL_COUNT = 43;
 
-// Channel offsets inside a crop slot.
+// Channel offsets inside the crop.
 const CROP_COUNT = 0;
 const CROP_RADIUS = 1;
 const CROP_RIPENESS = 2;
@@ -317,48 +314,24 @@ defineChannel(CHANNEL_LEAF_SCALE, MISC, 3, 1, 0);
 defineChannel(CHANNEL_LEAF_DETAIL, DETAIL, 0, 1, 0, 1);
 defineChannel(CHANNEL_SEED, DETAIL, 1, 0, 0, 1);
 
-const CROP_TEXELS = [
-  [
-    CHANNEL_CROP0,
-    TREE_STATE_TEXEL.CROP0,
-    TREE_STATE_TEXEL.CROP0_COLOR,
-    TREE_STATE_TEXEL.CROP0_UNRIPE,
-    0
-  ],
-  [
-    CHANNEL_CROP1,
-    TREE_STATE_TEXEL.CROP1,
-    TREE_STATE_TEXEL.CROP1_COLOR,
-    TREE_STATE_TEXEL.CROP1_UNRIPE,
-    1
-  ]
-] as const;
-for (const [channel, state, color, unripe, dropped] of CROP_TEXELS) {
-  defineChannel(channel + CROP_COUNT, state, 0, 0, 0);
-  defineChannel(channel + CROP_RADIUS, state, 1, 0, 0);
-  defineChannel(channel + CROP_RIPENESS, state, 2, 1, 0, 1);
-  defineChannel(channel + CROP_FALLEN, state, 3, 0, 0, 1);
-  defineColor(channel + CROP_COLOR, color, [255, 255, 255, 255]);
-  defineColor(channel + CROP_UNRIPE, unripe, DEFAULT_UNRIPE_COLOR);
-  defineChannel(channel + CROP_DROPPED, TREE_STATE_TEXEL.CROP_DROPPED, dropped, 0, 0);
-}
+defineChannel(CHANNEL_CROP + CROP_COUNT, TREE_STATE_TEXEL.CROP, 0, 0, 0);
+defineChannel(CHANNEL_CROP + CROP_RADIUS, TREE_STATE_TEXEL.CROP, 1, 0, 0);
+defineChannel(CHANNEL_CROP + CROP_RIPENESS, TREE_STATE_TEXEL.CROP, 2, 1, 0, 1);
+defineChannel(CHANNEL_CROP + CROP_FALLEN, TREE_STATE_TEXEL.CROP, 3, 0, 0, 1);
+defineColor(CHANNEL_CROP + CROP_COLOR, TREE_STATE_TEXEL.CROP_COLOR, [255, 255, 255, 255]);
+defineColor(CHANNEL_CROP + CROP_UNRIPE, TREE_STATE_TEXEL.CROP_UNRIPE, DEFAULT_UNRIPE_COLOR);
+defineChannel(CHANNEL_CROP + CROP_DROPPED, TREE_STATE_TEXEL.CROP_DROPPED, 0, 0, 0);
 
-// foliage, damage and each crop's fallen store a loss rate per second. Things fall when foliage falls,
+// Foliage, damage and the crop's fallen fraction store a loss rate per second. Things fall when foliage falls,
 // but when damage and fallen rise. Those two measure either way, so that a value going back down replays
 // its flights in reverse, as scrubbing does.
-const RATE_KINDS = 4;
 const RATE_FOLIAGE = 0;
-const RATE_CHANNELS = [
-  CHANNEL_FOLIAGE,
-  CHANNEL_DAMAGE,
-  CHANNEL_CROP0 + CROP_FALLEN,
-  CHANNEL_CROP1 + CROP_FALLEN
-] as const;
+const RATE_CHANNELS = [CHANNEL_FOLIAGE, CHANNEL_DAMAGE, CHANNEL_CROP + CROP_FALLEN] as const;
+const RATE_KINDS = RATE_CHANNELS.length;
 const RATE_OFFSETS = [
   DETAIL * FLOATS_PER_TEXEL + 2,
   DETAIL * FLOATS_PER_TEXEL + 3,
-  TREE_STATE_TEXEL.CROP0_UNRIPE * FLOATS_PER_TEXEL + 3,
-  TREE_STATE_TEXEL.CROP1_UNRIPE * FLOATS_PER_TEXEL + 3
+  TREE_STATE_TEXEL.CROP_UNRIPE * FLOATS_PER_TEXEL + 3
 ] as const;
 RATE_CHANNELS.forEach((channel, rate) => {
   CHANNEL_RATE[channel] = rate;
@@ -371,8 +344,7 @@ const GROUP_TRUNK_HEIGHT = 3;
 const GROUP_FOLIAGE = 8;
 const GROUP_LEAN = 10;
 const GROUP_DAMAGE = 11;
-const GROUP_CROP0 = 16;
-const GROUP_CROP1 = 17;
+const GROUP_CROP = 16;
 
 const GROUPS: readonly {
   /** Where settings come from, most specific first. */
@@ -414,13 +386,12 @@ const GROUPS: readonly {
   },
   {keys: ['getTrunkColor', 'getTree'], first: CHANNEL_BARK, count: 4},
   {keys: ['getTree'], first: CHANNEL_WIND_FLEX, count: 1},
-  {keys: ['getCrop', 'getTree'], first: CHANNEL_CROP0, count: CROP_CHANNELS},
-  {keys: ['getCrop', 'getTree'], first: CHANNEL_CROP1, count: CROP_CHANNELS}
+  {keys: ['getCrop', 'getTree'], first: CHANNEL_CROP, count: CROP_CHANNELS}
 ];
 const GROUP_COUNT = GROUPS.length;
 const GROUP_MAX_CHANNELS = CROP_CHANNELS;
 const GROUP_FIRST = Uint8Array.from(GROUPS, group => group.first);
-const RATE_GROUPS = [GROUP_FOLIAGE, GROUP_DAMAGE, GROUP_CROP0, GROUP_CROP1] as const;
+const RATE_GROUPS = [GROUP_FOLIAGE, GROUP_DAMAGE, GROUP_CROP] as const;
 
 const TICK_RESULTS: readonly TreeStateTickResult[] = [
   Object.freeze({changed: false, active: false}),
@@ -540,31 +511,19 @@ function fillValues(out: TreeStateValues, channels: Float64Array): TreeStateValu
   out.leafScale = channels[CHANNEL_LEAF_SCALE];
   out.leafDetail = channels[CHANNEL_LEAF_DETAIL];
   out.seed = channels[CHANNEL_SEED];
-  for (let slot = 0; slot < 2; slot++) {
-    const first = slot === 0 ? CHANNEL_CROP0 : CHANNEL_CROP1;
-    const crop = out.crops[slot];
-    crop.count = channels[first + CROP_COUNT];
-    crop.radius = channels[first + CROP_RADIUS];
-    crop.ripeness = channels[first + CROP_RIPENESS];
-    crop.fallen = channels[first + CROP_FALLEN];
-    for (let i = 0; i < 4; i++) crop.color[i] = channels[first + CROP_COLOR + i];
-    for (let i = 0; i < 3; i++) crop.unripeColor[i] = channels[first + CROP_UNRIPE + i];
-    crop.dropped = channels[first + CROP_DROPPED];
-  }
+  const {crop} = out;
+  crop.count = channels[CHANNEL_CROP + CROP_COUNT];
+  crop.radius = channels[CHANNEL_CROP + CROP_RADIUS];
+  crop.ripeness = channels[CHANNEL_CROP + CROP_RIPENESS];
+  crop.fallen = channels[CHANNEL_CROP + CROP_FALLEN];
+  for (let i = 0; i < 4; i++) crop.color[i] = channels[CHANNEL_CROP + CROP_COLOR + i];
+  for (let i = 0; i < 3; i++) crop.unripeColor[i] = channels[CHANNEL_CROP + CROP_UNRIPE + i];
+  crop.dropped = channels[CHANNEL_CROP + CROP_DROPPED];
   return out;
 }
 
 /** A values object holding the documented defaults, ready to pass to `getRowValues` as `out`. */
 export function createTreeStateValues(): TreeStateValues {
-  const createCrop = (): TreeStateCropValues => ({
-    count: 0,
-    radius: 0,
-    ripeness: 0,
-    fallen: 0,
-    color: [0, 0, 0, 0],
-    unripeColor: [0, 0, 0],
-    dropped: 0
-  });
   return fillValues(
     {
       position: [0, 0, 0],
@@ -590,7 +549,15 @@ export function createTreeStateValues(): TreeStateValues {
       leafScale: 0,
       leafDetail: 0,
       seed: 0,
-      crops: [createCrop(), createCrop()]
+      crop: {
+        count: 0,
+        radius: 0,
+        ripeness: 0,
+        fallen: 0,
+        color: [0, 0, 0, 0],
+        unripeColor: [0, 0, 0],
+        dropped: 0
+      }
     },
     DEFAULT_TARGETS
   );
@@ -701,7 +668,7 @@ function growArray(array: Float64Array, length: number) {
  * | `canopyColor` | `getCanopyColor`, then `getSeason` |
  * | `trunkColor` | `getTrunkColor` |
  * | `windFlex` | none |
- * | Each crop slot | `getCrop` |
+ * | Crop | `getCrop` |
  *
  * `yaw`, `windPhase`, `coverage`, `leafDetail` and `seed` identify a tree or are driven per frame by
  * the layer, and always jump.
@@ -711,7 +678,7 @@ function growArray(array: Float64Array, length: number) {
  *
  * Lean never swings a tree around while it is upright: a tree rising from upright goes straight to
  * its target bearing, and one returning upright holds its bearing on the way. Otherwise a bearing
- * takes the short way around. Likewise a crop slot with nothing on the tree takes its new radius,
+ * takes the short way around. Likewise a crop with nothing on the tree takes its new radius,
  * ripeness and colors at once, and only `count` tweens, so the first fruit is never the wrong color.
  */
 export class TreeStateStore {
@@ -904,7 +871,7 @@ export class TreeStateStore {
     for (let group = 0; group < GROUP_COUNT; group++) {
       const count = groupCounts[group];
       if (count === 0) continue;
-      if (group === GROUP_CROP0 && options.cropKindChanged) {
+      if (group === GROUP_CROP && options.cropKindChanged) {
         const slot = this.tweenIndex[row * GROUP_COUNT + group];
         if (slot >= 0) this.releaseTween(slot);
         this.jumpGroup(row, group, false);
@@ -1100,7 +1067,7 @@ export class TreeStateStore {
    */
   private readIncoming(values: TreeStateUpdate, base: number): void {
     const {incoming, targets} = this;
-    const {position, positionLow: low, crops} = values;
+    const {position, positionLow: low, crop} = values;
     for (let axis = 0; axis < 3; axis++) {
       const lowPart = low ? low[axis] : 0;
       incoming[CHANNEL_X + axis] =
@@ -1124,8 +1091,7 @@ export class TreeStateStore {
     this.readIncomingColor(values.canopyColor, CHANNEL_CANOPY, 4);
     this.readIncomingColor(values.trunkColor, CHANNEL_BARK, 4);
     incoming[CHANNEL_WIND_FLEX] = values.windFlex ?? NOT_SET;
-    this.readIncomingCrop(crops, 0, CHANNEL_CROP0);
-    this.readIncomingCrop(crops, 1, CHANNEL_CROP1);
+    this.readIncomingCrop(crop);
     incoming[CHANNEL_YAW] = values.yaw ?? NOT_SET;
     incoming[CHANNEL_WIND_PHASE] = values.windPhase ?? NOT_SET;
     incoming[CHANNEL_COVERAGE] = values.coverage ?? NOT_SET;
@@ -1153,25 +1119,16 @@ export class TreeStateStore {
       incoming[channel + i] = color ? (color[i] ?? (i === 3 ? 255 : NOT_SET)) : NOT_SET;
   }
 
-  private readIncomingCrop(crops: TreeStateUpdate['crops'], slot: number, channel: number): void {
+  private readIncomingCrop(crop: TreeStateUpdate['crop']): void {
     const {incoming} = this;
-    const crop = crops ? crops[slot] : null;
-    if (crop) {
-      incoming[channel + CROP_COUNT] = crop.count ?? NOT_SET;
-      incoming[channel + CROP_RADIUS] = crop.radius ?? NOT_SET;
-      incoming[channel + CROP_RIPENESS] = crop.ripeness ?? NOT_SET;
-      incoming[channel + CROP_FALLEN] = crop.fallen ?? NOT_SET;
-      incoming[channel + CROP_DROPPED] = crop.dropped ?? NOT_SET;
-    } else {
-      // A slot left out of a supplied array has no crop. Its appearance holds while it animates out.
-      incoming[channel + CROP_COUNT] = crops === undefined ? NOT_SET : 0;
-      incoming[channel + CROP_DROPPED] = crops === undefined ? NOT_SET : 0;
-      incoming[channel + CROP_RADIUS] = NOT_SET;
-      incoming[channel + CROP_RIPENESS] = NOT_SET;
-      incoming[channel + CROP_FALLEN] = NOT_SET;
-    }
-    this.readIncomingColor(crop?.color, channel + CROP_COLOR, 4);
-    this.readIncomingColor(crop?.unripeColor, channel + CROP_UNRIPE, 3);
+    const emptyCount = crop === null ? 0 : NOT_SET;
+    incoming[CHANNEL_CROP + CROP_COUNT] = crop?.count ?? emptyCount;
+    incoming[CHANNEL_CROP + CROP_RADIUS] = crop?.radius ?? NOT_SET;
+    incoming[CHANNEL_CROP + CROP_RIPENESS] = crop?.ripeness ?? NOT_SET;
+    incoming[CHANNEL_CROP + CROP_FALLEN] = crop?.fallen ?? NOT_SET;
+    incoming[CHANNEL_CROP + CROP_DROPPED] = crop?.dropped ?? emptyCount;
+    this.readIncomingColor(crop?.color, CHANNEL_CROP + CROP_COLOR, 4);
+    this.readIncomingColor(crop?.unripeColor, CHANNEL_CROP + CROP_UNRIPE, 3);
   }
 
   private allocateTween(): number {
@@ -1331,8 +1288,7 @@ export class TreeStateStore {
   /** Field semantics that plain per-channel arithmetic would get visibly wrong. */
   private applyGroupRules(slot: number, row: number, group: number, retargeting: boolean): void {
     if (group === GROUP_LEAN) this.applyLeanRule(slot, row, retargeting);
-    else if (group === GROUP_CROP0 || group === GROUP_CROP1)
-      this.applyEmptyCropRule(slot, row, group);
+    else if (group === GROUP_CROP) this.applyEmptyCropRule(slot, row);
   }
 
   /** Puts a tween's channel on its incoming value at once, for good. */
@@ -1375,8 +1331,7 @@ export class TreeStateStore {
     tweenStart[offset + 1] = turn === 0 ? -Infinity : this.now;
   }
 
-  private applyEmptyCropRule(slot: number, row: number, group: number): void {
-    const first = GROUP_FIRST[group];
+  private applyEmptyCropRule(slot: number, row: number): void {
     const offset = slot * GROUP_MAX_CHANNELS;
     if (
       this.tweenCurrent[offset + CROP_COUNT] > EMPTY_CROP_COUNT ||
@@ -1384,7 +1339,7 @@ export class TreeStateStore {
     )
       return;
     for (let c = CROP_RADIUS; c < CROP_DROPPED; c++)
-      this.snapTweenChannel(offset + c, row, first + c);
+      this.snapTweenChannel(offset + c, row, CHANNEL_CROP + c);
   }
 
   private advanceTweens(): void {

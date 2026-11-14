@@ -8,6 +8,7 @@ import {
   DirectionalLight,
   getShaderAssembler,
   LightingEffect,
+  MapView,
   OrbitView,
   OrthographicViewport
 } from '@deck.gl/core';
@@ -267,6 +268,19 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
             color: species === 'palm' ? ([244, 38, 213] as const) : ([242, 123, 24] as const)
           }
   }));
+  const readPixels = async () => {
+    device.submit();
+    const encoder = device.createCommandEncoder();
+    encoder.copyTextureToBuffer({
+      sourceTexture: color,
+      destinationBuffer: readback,
+      bytesPerRow: width * 4,
+      width,
+      height
+    });
+    device.submit(encoder.finish());
+    return new Uint8Array(await readback.readAsync());
+  };
   let drawCount = 0;
   let deck: Deck | undefined;
   try {
@@ -310,17 +324,7 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
           if (++drawCount !== 2) return;
           window.clearTimeout(timeout);
           deck?.setProps({_animate: false});
-          device.submit();
-          const encoder = device.createCommandEncoder();
-          encoder.copyTextureToBuffer({
-            sourceTexture: color,
-            destinationBuffer: readback,
-            bytesPerRow: width * 4,
-            width,
-            height
-          });
-          device.submit(encoder.finish());
-          readback.readAsync().then(data => resolve(new Uint8Array(data)), reject);
+          readPixels().then(resolve, reject);
         },
         onError(error) {
           window.clearTimeout(timeout);
@@ -384,6 +388,30 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
       expect(cropPick?.object).toEqual(row);
       expect(cropPick?.sourceLayer?.id).toContain('-photoreal-crops-');
     }
+    const mapDeck = deck!;
+    mapDeck.setProps({
+      views: new MapView(),
+      viewState: {longitude: 0, latitude: 0, zoom: 20, pitch: 45},
+      layers: [
+        new TreeLayer({
+          id: 'lifecycle-tree',
+          coordinateSystem: 'meter-offsets',
+          coordinateOrigin: [0, 0, 0],
+          data: [
+            {...rows[0], position: [-12, 0, 0], growth: 0.5, health: 0.6, flush: 0.4, damage: 0.3},
+            {...rows[1], lean: [40, 90], decay: 0.3},
+            {...rows[2], position: [12, 0, 0], foliage: 0.5}
+          ],
+          windStrength: 0.4,
+          windDirection: 60,
+          windTime: 1.25
+        })
+      ]
+    });
+    const mapStart = drawCount;
+    await expect.poll(() => drawCount, {timeout: 15_000}).toBeGreaterThan(mapStart);
+    const mapPixels = await readPixels();
+    expect(mapPixels.filter((value, i) => i % 4 === 3 && value > 0).length).toBeGreaterThan(100);
     expect(errors.slice(0, 2)).toEqual([]);
   } finally {
     deck?.finalize();
@@ -639,16 +667,19 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
         trunkHeight: 0.6,
         crownX: 1,
         crownY: 1,
-        crops: [
-          {count: dropped ? 0 : count, radius, color: [248, 136, 44], dropped: dropped ? count : 0}
-        ]
+        crop: {
+          count: dropped ? 0 : count,
+          radius,
+          color: [248, 136, 44],
+          dropped: dropped ? count : 0
+        }
       },
       {now: 0, clock: 0}
     );
     state.writeData(store.data);
     const refs = new Float32Array(count * 3);
     for (let index = 0; index < count; index++) {
-      refs.set([0, index, dropped ? 2 : 0], index * 3);
+      refs.set([0, index, dropped ? 1 : 0], index * 3);
     }
     const data: TreeCropData = {
       length: count,

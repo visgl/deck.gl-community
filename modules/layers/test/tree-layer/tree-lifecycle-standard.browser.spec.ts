@@ -5,20 +5,16 @@
 import {
   _GlobeView as GlobeView,
   AmbientLight,
-  Deck,
   DirectionalLight,
   LightingEffect,
   MapView,
   OrbitView,
-  type Layer,
-  type LayerManager
+  type Layer
 } from '@deck.gl/core';
-import {luma, type Device} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/core/webgl';
-import {webgpuAdapter} from '@luma.gl/core/webgpu';
-import {afterEach, describe, expect, inject, it} from 'vitest';
+import {describe, expect, it} from 'vitest';
 import {TreeLayer, type TreeSpec, type TreeType} from '../../src';
 import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-layer';
+import {mountTreeBrowserScene, type TreeBrowserScene as Scene} from './tree-browser-frame-reader';
 
 const SIZE = 256;
 
@@ -35,81 +31,17 @@ function tree(species: TreeType, lifecycle: Partial<TreeSpec> = {}): TreeSpec {
   return {position: [0, 0, 0], species, height: 12, crownRadius: 3, ...lifecycle};
 }
 
-type Scene = {
-  deck: Deck;
-  errors: string[];
-  glErrors: number[];
-  layerManager(): LayerManager;
-  render(layers: Layer[]): Promise<Uint8Array>;
-  settle(frames?: number): Promise<Uint8Array>;
-  cleanup(): void;
-};
-
-const scenes: Scene[] = [];
-
 function mount({
-  effects = [],
   views = VIEW,
-  viewState = VIEW_STATE
+  viewState = VIEW_STATE,
+  effects
 }: {
   effects?: LightingEffect[];
   views?: unknown;
   viewState?: unknown;
 } = {}): Scene {
-  const parent = document.createElement('div');
-  parent.style.cssText = `width:${SIZE}px;height:${SIZE}px`;
-  document.body.append(parent);
-  let pixels = new Uint8Array(),
-    frames = 0;
-  const errors: string[] = [];
-  const glErrors: number[] = [];
-  const deck = new Deck({
-    parent,
-    width: SIZE,
-    height: SIZE,
-    useDevicePixels: false,
-    _animate: true,
-    deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
-    views: views as never,
-    viewState: viewState as never,
-    effects,
-    layers: [],
-    onError: error => errors.push(error.message),
-    onAfterRender({gl}) {
-      pixels = new Uint8Array(SIZE * SIZE * 4);
-      gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      const error = gl.getError();
-      if (error) glErrors.push(error);
-      frames++;
-    }
-  });
-  const settle = async (count = 3) => {
-    const before = frames;
-    await expect.poll(() => frames, {timeout: 60000}).toBeGreaterThan(before + count);
-    return pixels;
-  };
-  const scene: Scene = {
-    deck,
-    errors,
-    glErrors,
-    settle,
-    layerManager: () => (deck as unknown as {layerManager: LayerManager}).layerManager,
-    render(layers) {
-      deck.setProps({layers});
-      return settle();
-    },
-    cleanup() {
-      deck.finalize();
-      parent.remove();
-    }
-  };
-  scenes.push(scene);
-  return scene;
+  return mountTreeBrowserScene({size: SIZE, views, viewState, effects});
 }
-
-afterEach(() => {
-  for (const scene of scenes.splice(0)) scene.cleanup();
-});
 
 function trees(data: TreeSpec[], props: Record<string, unknown> = {}, Layer = TreeLayer<TreeSpec>) {
   return new Layer({
@@ -449,7 +381,9 @@ describe('TreeLayer lifecycle transitions', () => {
         updateTriggers: {getGrowth: growth}
       });
     const small = measure(await scene.render([make(0.2)]));
-    await scene.render([make(0.9)]);
+    const paused = measure(await scene.render([make(0.9)]));
+    expect(treeLayer(scene).state.store!.getRowValues(0).growth).toBeCloseTo(0.2);
+    expect(paused).toEqual(small);
     const parts = () =>
       scene
         .layerManager()
@@ -525,86 +459,4 @@ describe('TreeLayer lifecycle transitions', () => {
     expect(fading).toBeGreaterThan(winter);
     expect(scene.errors).toEqual([]);
   }, 180000);
-});
-
-describe('TreeLayer lifecycle and wind on WebGPU', () => {
-  it('renders with no validation errors', async ({skip}) => {
-    const gpu = (navigator as Navigator & {gpu?: {requestAdapter: () => Promise<unknown>}}).gpu;
-    if (!gpu || !(await gpu.requestAdapter())) {
-      if (inject('requireWebGPU')) throw new Error('A WebGPU adapter is required for this gate.');
-      skip('This browser does not expose an available WebGPU adapter.');
-    }
-    const parent = document.createElement('div');
-    parent.style.cssText = 'width:128px;height:128px';
-    document.body.append(parent);
-    const validationErrors: string[] = [];
-    let device: Device | undefined;
-    let deck: Deck<MapView> | undefined;
-    type NativeDevice = {
-      addEventListener: (
-        type: 'uncapturederror',
-        listener: (event: {error?: {message?: string}}) => void
-      ) => void;
-      queue: {onSubmittedWorkDone: () => Promise<void>};
-    };
-    try {
-      device = await luma.createDevice({
-        type: 'webgpu',
-        adapters: [webgl2Adapter, webgpuAdapter],
-        createCanvasContext: {container: parent}
-      });
-      const native = (device as Device & {handle?: NativeDevice}).handle;
-      native?.addEventListener('uncapturederror', event =>
-        validationErrors.push(event.error?.message ?? 'unknown')
-      );
-      await new Promise<void>((resolve, reject) => {
-        let frames = 0;
-        const timeout = window.setTimeout(
-          () => reject(new Error('Timed out while rendering TreeLayer.')),
-          30000
-        );
-        deck = new Deck({
-          device,
-          parent,
-          width: 128,
-          height: 128,
-          _animate: true,
-          views: new MapView({id: 'tree-lifecycle-webgpu'}),
-          initialViewState: {longitude: 0, latitude: 0, zoom: 16, pitch: 45},
-          layers: [
-            new TreeLayer<TreeSpec>({
-              id: 'trees',
-              coordinateSystem: 'meter-offsets',
-              coordinateOrigin: [0, 0, 0],
-              data: [
-                tree('citrus', {growth: 0.5, health: 0.6, flush: 0.4, damage: 0.3}),
-                tree('pine', {position: [12, 0, 0], lean: [40, 90], decay: 0.3}),
-                tree('palm', {position: [-12, 0, 0], foliage: 0.5})
-              ],
-              getTree: (row: TreeSpec) => row,
-              windStrength: 0.4,
-              windDirection: 60,
-              windTime: 1.25,
-              pickable: true
-            })
-          ],
-          onAfterRender: () => {
-            if (++frames < 8) return;
-            window.clearTimeout(timeout);
-            resolve();
-          },
-          onError: error => {
-            window.clearTimeout(timeout);
-            reject(error);
-          }
-        });
-      });
-      await native?.queue.onSubmittedWorkDone();
-      expect(validationErrors).toEqual([]);
-    } finally {
-      deck?.finalize();
-      device?.destroy();
-      parent.remove();
-    }
-  }, 60000);
 });

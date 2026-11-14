@@ -180,7 +180,7 @@ class SharedCropGeometry extends GPUGeometry {
 }
 
 /**
- * The instances of one bucket, as deck.gl binary attribute data: `[tree row, crop index, slot code]` for
+ * The instances of one bucket, as deck.gl binary attribute data: `[tree row, crop index, dropped]` for
  * each. Iterating gives the source row of each crop, as a color extension's accessors expect.
  */
 export type TreeCropData<RowT = unknown> = {

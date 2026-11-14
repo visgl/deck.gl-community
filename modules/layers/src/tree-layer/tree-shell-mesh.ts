@@ -20,7 +20,6 @@ export type TreeShellMesh = {
   height: number;
   indices: Uint16Array;
   vertexCount: number;
-  verticesPerHull: number;
 };
 
 const meshes = new WeakMap<TreeGrowthModel, Map<number, TreeShellMesh>>();
@@ -56,8 +55,7 @@ export function getTreeShellMesh(
     width: lineTexels,
     height: SHELL_STAGES.length,
     indices: Uint16Array.from(indices),
-    vertexCount,
-    verticesPerHull: vertexCount
+    vertexCount
   };
   cached.set(key, mesh);
   return mesh;

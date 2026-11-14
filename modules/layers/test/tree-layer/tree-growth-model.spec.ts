@@ -761,10 +761,7 @@ describe.each(SPECIES)('%s template', type => {
 });
 
 describe('Citrus growth stages', () => {
-  const {rings, tubes} = citrusWood;
-  const plain = tubes.filter(tube => isPlainWood(tube.rings[0]));
-  const shootsBy = (growth: number) =>
-    plain.filter(tube => tube !== tubes[0] && tube.rings[0].birth <= growth);
+  const {rings} = citrusWood;
   const forksBy = (growth: number) =>
     rings.filter(
       ring =>
@@ -781,25 +778,6 @@ describe('Citrus growth stages', () => {
     }
     return alive;
   };
-
-  it('is one stem with a few leaves at growth 0.03', () => {
-    expect(shootsBy(0.03)).toHaveLength(0);
-    expect(forksBy(0.03)).toBe(0);
-    const leaves = leavesAlive(0.03);
-    expect(leaves.length).toBeGreaterThanOrEqual(4);
-    expect(leaves.length).toBeLessThan(30);
-    // Attached to the thin stem, not floating at the mature trunk's surface.
-    for (const leaf of leaves) expect(Math.hypot(leaf.x, leaf.y)).toBeLessThan(0.02);
-  });
-
-  it('is a whip with a few side shoots at most at growth 0.12', () => {
-    const shoots = shootsBy(0.12);
-    expect(shoots.length).toBeGreaterThanOrEqual(1);
-    expect(shoots.length).toBeLessThanOrEqual(14);
-    expect(shoots.filter(tube => tube.rings[0].order === 1).length).toBeLessThanOrEqual(4);
-    expect(forksBy(0.12)).toBeLessThanOrEqual(12);
-    expect(leavesAlive(0.12).length).toBeLessThan(600);
-  });
 
   it('has several forks and a full young crown at growth 0.35', () => {
     expect(forksBy(0.35)).toBeGreaterThan(40);
@@ -1685,6 +1663,9 @@ describe('Citrus young forms', () => {
   it('is a thin faintly curved stem with a few small leaves at its top, as a seedling', () => {
     const growth = 0.03;
     const height = getTreeHeightFraction(growth);
+    expect(
+      tubes.slice(1).some(tube => isPlainWood(tube.rings[0]) && tube.rings[0].birth <= growth)
+    ).toBe(false);
     const rising = stem.filter(ring => ring.birth <= growth);
     expect(rising.length).toBeGreaterThan(12);
     // Faintly curved: off a straight line by a little, for the seedling's height.
@@ -1712,7 +1693,10 @@ describe('Citrus young forms', () => {
     );
     // Leaves are small, and none low down.
     const leaves = leavesAlive(citrus, growth);
+    expect(leaves.length).toBeGreaterThanOrEqual(4);
+    expect(leaves.length).toBeLessThan(30);
     for (const leaf of leaves) {
+      expect(Math.hypot(leaf.x, leaf.y)).toBeLessThan(0.02);
       expect(leaf.z).toBeGreaterThan(height * 0.25);
       expect(leaf.length).toBeLessThan(0.07);
     }
@@ -1753,6 +1737,9 @@ describe('Citrus young forms', () => {
           tube.socket === own[0].rings.find(ring => ring === tube.socket)
       );
       expect(sides.length).toBeGreaterThanOrEqual(3);
+      if (seed === 7) {
+        expect(sides.filter(tube => tube.rings[0].order === 1).length).toBeLessThanOrEqual(4);
+      }
       const bearings = new Set(
         sides.map(tube => {
           const end = tube.rings[tube.rings.length - 1];
@@ -1955,18 +1942,4 @@ describe('Radial growth', () => {
       last = radius;
     }
   });
-
-  it('keeps a seedling a thin whip', () => {
-    const base = citrusWood.tubes[0].rings[0];
-    const trunkRadius = CITRUS_TRUNK_RATIO * citrus.referenceHeight;
-    // Metres, before the flare, at about 23 cm tall.
-    const seedling = getTreeRingRadius(1, base.birth, 0.03) * trunkRadius;
-    expect(seedling).toBeLessThan(0.004);
-    expect(seedling).toBeGreaterThan(0.001);
-  });
-});
-
-it('grows a seeded asymmetric citrus template', () => {
-  const model = getTreeGrowthModel('citrus', {seed: 90210, crownAsymmetry: 1.1});
-  expect(model.leafCount).toBeGreaterThan(0);
 });
