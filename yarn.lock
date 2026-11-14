@@ -934,6 +934,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/example-grass-layer@workspace:examples/layers/grass-layer":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-grass-layer@workspace:examples/layers/grass-layer"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:~9.4.1"
+    "@deck.gl/layers": "npm:~9.4.1"
+    "@loaders.gl/core": "npm:^4.5.3"
+    "@luma.gl/core": "npm:~9.4.2"
+    "@luma.gl/engine": "npm:~9.4.2"
+    "@luma.gl/shadertools": "npm:~9.4.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/example-volumetric-video@workspace:examples/layers/volumetric-video":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/example-volumetric-video@workspace:examples/layers/volumetric-video"
