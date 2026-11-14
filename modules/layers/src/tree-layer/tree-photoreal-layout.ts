@@ -15,7 +15,7 @@
  */
 
 /** Texels per tree in the RGBA32F state texture. */
-export const TREE_STATE_TEXELS_PER_ROW = 16;
+export const TREE_STATE_TEXELS_PER_ROW = 13;
 export const TREE_STATE_ROWS_PER_LINE = 64;
 export const TREE_STATE_TEXTURE_WIDTH = TREE_STATE_TEXELS_PER_ROW * TREE_STATE_ROWS_PER_LINE;
 
@@ -39,20 +39,14 @@ export const TREE_STATE_TEXEL = {
   MISC: 7,
   /** leaf detail (0-1, fraction of this LOD's leaves), seed (0-1), foliage loss rate (/s), damage rate (/s). */
   DETAIL: 8,
-  /** Crop slot 0: count, radius (metres), ripeness (0-1), fallen (0-1). */
-  CROP0: 9,
-  /** Crop slot 0 ripe tint: sRGB 0-1 RGBA. */
-  CROP0_COLOR: 10,
-  /** Crop slot 0 unripe tint: sRGB 0-1 RGB; alpha is the fallen rate (/s). */
-  CROP0_UNRIPE: 11,
-  /** Crop slot 1: count, radius (metres), ripeness (0-1), fallen (0-1). */
-  CROP1: 12,
-  /** Crop slot 1 ripe tint: sRGB 0-1 RGBA. */
-  CROP1_COLOR: 13,
-  /** Crop slot 1 unripe tint: sRGB 0-1 RGB; alpha is the fallen rate (/s). */
-  CROP1_UNRIPE: 14,
-  /** Dropped crops on the ground: slot 0 count, slot 1 count, canopy shell retention, unused. */
-  CROP_DROPPED: 15
+  /** Crop count, radius (metres), ripeness (0-1), fallen (0-1). */
+  CROP: 9,
+  /** Ripe crop tint: sRGB 0-1 RGBA. */
+  CROP_COLOR: 10,
+  /** Unripe crop tint: sRGB 0-1 RGB; alpha is the fallen rate (/s). */
+  CROP_UNRIPE: 11,
+  /** Dropped crop count, unused, canopy shell retention, unused. */
+  CROP_DROPPED: 12
 } as const;
 
 /** Column count of the RGBA32F template textures (leaves, crop anchors and limbs). */
@@ -73,7 +67,7 @@ export const TREE_LIMB_STRIDE = 8;
 /**
  * Growth levels of the crop rank table. Entry `anchor * levels + level` counts the anchors before this
  * one, in the stable order, that are born by growth `level / (levels - 1)`: a crop is drawn while that
- * rank is below its slot's `count`. See `getTreeCropTable`.
+ * rank is below the crop's `count`. See `getTreeCropTable`.
  */
 export const TREE_CROP_RANK_LEVELS = 33;
 

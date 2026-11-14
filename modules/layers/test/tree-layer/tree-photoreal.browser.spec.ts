@@ -5,24 +5,21 @@
 import {
   _GlobeView as GlobeView,
   AmbientLight,
-  Deck,
   DirectionalLight,
   LayerExtension,
   LightingEffect,
   MapView,
   OrbitView,
-  type Layer,
-  type LayerManager
+  type Layer
 } from '@deck.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {CubeGeometry, type Model} from '@luma.gl/engine';
-import {webgl2Adapter} from '@luma.gl/core/webgl';
-import {afterEach, describe, expect, it, vi} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {SelectionPulseExtension, TreeLayer, type TreeSpec} from '../../src';
 import {TreePhotorealLeafLayer} from '../../src/tree-layer/tree-photoreal-leaf-layer';
 import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-layer';
 import {TreeShellLayer} from '../../src/tree-layer/tree-shell-layer';
-import {createTreeFrameReader} from './tree-browser-frame-reader';
+import {mountTreeBrowserScene, type TreeBrowserScene as Scene} from './tree-browser-frame-reader';
 import {getTreeRenderTiers} from './tree-grove-test-utils';
 
 const SIZE = 256;
@@ -44,76 +41,18 @@ const CITRUS: TreeSpec = {
   crownRadius: 2.6
 };
 
-type Scene = {
-  deck: Deck;
-  errors: string[];
-  glErrors: number[];
-  /** deck.gl keeps it protected, and this suite reads the layers it renders. */
-  layerManager(): LayerManager;
-  setViewState(viewState: unknown): void;
-  render(layers: Layer[], frames?: number): Promise<Uint8Array>;
-  /** Layers are in place; frames keep drawing. */
-  settle(frames?: number): Promise<Uint8Array>;
-  cleanup(): void;
-};
-
-const scenes: Scene[] = [];
-
 function mount({
-  effects,
   views = ORBIT_VIEW,
   viewState = ORBIT_STATE,
-  staticFrames = false
+  ...options
 }: {
   effects?: LightingEffect[];
   views?: unknown;
   viewState?: unknown;
   staticFrames?: boolean;
 } = {}): Scene {
-  const parent = document.createElement('div');
-  parent.style.cssText = `width:${SIZE}px;height:${SIZE}px`;
-  document.body.append(parent);
-  const errors: string[] = [];
-  const glErrors: number[] = [];
-  const frameReader = createTreeFrameReader(SIZE, glErrors, staticFrames);
-  const deck = new Deck({
-    parent,
-    width: SIZE,
-    height: SIZE,
-    useDevicePixels: false,
-    _animate: true,
-    deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
-    views: views as never,
-    viewState: viewState as never,
-    effects: effects ?? [],
-    layers: [],
-    onError: error => errors.push(error.message),
-    onAfterRender: frameReader.onAfterRender
-  });
-  const settle = (count?: number) => frameReader.settle(deck, count);
-  const scene: Scene = {
-    deck,
-    errors,
-    glErrors,
-    settle,
-    layerManager: () => (deck as unknown as {layerManager: LayerManager}).layerManager,
-    setViewState: state => deck.setProps({viewState: state as never}),
-    render(layers, frames) {
-      deck.setProps({layers});
-      return settle(frames);
-    },
-    cleanup() {
-      deck.finalize();
-      parent.remove();
-    }
-  };
-  scenes.push(scene);
-  return scene;
+  return mountTreeBrowserScene({size: SIZE, views, viewState, ...options});
 }
-
-afterEach(() => {
-  for (const scene of scenes.splice(0)) scene.cleanup();
-});
 
 function trees(props: Record<string, unknown> = {}, data: TreeSpec[] = [CITRUS]) {
   return new TreeLayer<TreeSpec>({
@@ -245,26 +184,6 @@ class ShiftShadowReceivers extends LayerExtension<{pixels: number}> {
 }
 
 describe('TreeLayer photoreal rendering', () => {
-  it('draws nothing at growth 0, and more as growth rises', async () => {
-    const scene = mount();
-    const counts: number[] = [];
-    for (const growth of [0, 0.05, 0.1, 0.3, 0.6, 1]) {
-      const pixels = await scene.render([
-        trees({
-          getGrowth: () => growth,
-          updateTriggers: {getGrowth: growth}
-        })
-      ]);
-      counts.push(countPixels(pixels));
-    }
-    expect(scene.errors).toEqual([]);
-    expect(scene.glErrors).toEqual([]);
-    expect(counts[0]).toBe(0);
-    for (let i = 1; i < counts.length; i++) expect(counts[i]).toBeGreaterThan(counts[i - 1]);
-    expect(counts[2]).toBeLessThan(counts[5] * 0.5);
-    expect(counts[5]).toBeGreaterThan(5000);
-  }, 120000);
-
   it.each([
     'citrus',
     'oak',
@@ -420,33 +339,17 @@ describe('TreeLayer photoreal rendering', () => {
     expect(scene.glErrors).toEqual([]);
   }, 120000);
 
-  it.each([
-    ['coverage 0', {getCoverageWeight: 0}],
-    ['decay 1', {getDecay: () => 1, updateTriggers: {getDecay: 'gone'}}]
-  ])(
-    'draws and picks nothing at %s',
-    async (_, props) => {
-      const scene = mount();
-      expect(countPixels(await scene.render([trees()]))).toBeGreaterThan(1000);
-      const pixels = await scene.render([trees(props)]);
-      expect(countPixels(pixels)).toBe(0);
-      expect(scene.deck.pickObjects({x: 0, y: 0, width: SIZE, height: SIZE}).length).toBe(0);
-      expect(scene.errors).toEqual([]);
-    },
-    120000
-  );
-
-  it('thins and rots progressively', async () => {
+  it('thins optical coverage, then leaves nothing to draw or pick at zero', async () => {
     const scene = mount();
-    const count = async (props: Record<string, unknown>) =>
-      countPixels(await scene.render([trees(props)]));
-    const full = await count({});
-    const half = await count({getCoverageWeight: 0.5, updateTriggers: {getCoverageWeight: 0.5}});
-    const rotting = await count({getDecay: () => 0.7, updateTriggers: {getDecay: 0.7}});
+    const coverage = async (weight: number) =>
+      countPixels(await scene.render([trees({getCoverageWeight: weight})]));
+    const full = await coverage(1);
+    expect(full).toBeGreaterThan(1000);
+    const half = await coverage(0.5);
     expect(half).toBeGreaterThan(0);
     expect(half).toBeLessThan(full);
-    expect(rotting).toBeLessThan(full);
-    expect(rotting).toBeGreaterThan(0);
+    expect(await coverage(0)).toBe(0);
+    expect(scene.deck.pickObjects({x: 0, y: 0, width: SIZE, height: SIZE})).toEqual([]);
     expect(scene.errors).toEqual([]);
   }, 120000);
 
@@ -845,39 +748,6 @@ describe('TreeLayer photoreal rendering', () => {
     expect(scene.glErrors).toEqual([]);
   }, 120000);
 
-  it('tweens growth through the transitions prop on a stepped timeline', async () => {
-    const scene = mount();
-    await scene.render([]);
-    const timeline = scene.layerManager().context.timeline;
-    timeline.pause();
-    timeline.setTime(1000);
-    const make = (growth: number) =>
-      trees({
-        getGrowth: () => growth,
-        updateTriggers: {getGrowth: growth},
-        transitions: {getGrowth: 2000}
-      });
-    const before = countPixels(await scene.render([make(0.15)]));
-    expect(treeLayer(scene).state.store!.getRowValues(0).growth).toBeCloseTo(0.15);
-    // The target changes while the clock stands still: nothing moves yet.
-    const still = countPixels(await scene.render([make(0.95)]));
-    expect(treeLayer(scene).state.store!.getRowValues(0).growth).toBeCloseTo(0.15);
-    expect(still).toBe(before);
-    // Halfway through.
-    timeline.setTime(2000);
-    const middle = countPixels(await scene.settle());
-    expect(treeLayer(scene).state.store!.getRowValues(0).growth).toBeCloseTo(0.55);
-    expect(treeLayer(scene).state.ticking).toBe(true);
-    expect(middle).toBeGreaterThan(before);
-    // The end.
-    timeline.setTime(3000);
-    const final = countPixels(await scene.settle());
-    expect(treeLayer(scene).state.store!.getRowValues(0).growth).toBeCloseTo(0.95);
-    expect(treeLayer(scene).state.ticking).toBe(false);
-    expect(final).toBeGreaterThan(middle);
-    expect(scene.errors).toEqual([]);
-  }, 120000);
-
   it('sends falling leaves through the air when foliage falls between consecutive frames', async () => {
     const scene = mount();
     const make = (foliage: number, windTime: number) =>
@@ -1065,83 +935,6 @@ describe('TreeLayer photoreal rendering', () => {
     await scene.render([]);
     expect(destroy.mock.contexts.includes(texture)).toBe(true);
     destroy.mockRestore();
-    expect(scene.errors).toEqual([]);
-  }, 120000);
-});
-
-describe('TreeLayer lifecycle geometry', () => {
-  it('draws larger trees as they grow and draws nothing at zero', async () => {
-    const scene = mount();
-    const counts: number[] = [];
-    for (const growth of [0, 0.2, 1]) {
-      counts.push(
-        countPixels(
-          await scene.render([
-            trees({getGrowth: () => growth, updateTriggers: {getGrowth: growth}})
-          ])
-        )
-      );
-    }
-    expect(scene.errors).toEqual([]);
-    expect(counts[0]).toBe(0);
-    expect(counts[1]).toBeGreaterThan(0);
-    expect(counts[2]).toBeGreaterThan(counts[1]);
-  }, 120000);
-
-  it('changes foliage, lean and decay in the rendered geometry', async () => {
-    const scene = mount();
-    const count = async (props: Record<string, unknown>) =>
-      countPixels(await scene.render([trees(props)]));
-    const full = await count({});
-    const bare = await count({getFoliage: () => 0, updateTriggers: {getFoliage: 0}});
-    expect(bare).toBeGreaterThan(0);
-    expect(bare).toBeLessThan(full);
-    const gone = await count({
-      getFoliage: () => 1,
-      getDecay: () => 1,
-      updateTriggers: {getFoliage: 1, getDecay: 1}
-    });
-    expect(gone).toBe(0);
-    const uprightTop = await scene.render([trees({updateTriggers: {getDecay: 0}})]);
-    const leaning = await scene.render([
-      trees({getLean: () => [80, 90], updateTriggers: {getLean: 80}})
-    ]);
-    // The top of the view empties when the tree lies down.
-    const top = (pixels: Uint8Array) => {
-      let filled = 0;
-      for (let y = 0; y < 90; y++)
-        for (let x = 0; x < SIZE; x++)
-          if (pixels[((SIZE - 1 - y) * SIZE + x) * 4 + 3] > 0) filled++;
-      return filled;
-    };
-    expect(top(leaning)).toBeLessThan(top(uprightTop));
-    expect(scene.errors).toEqual([]);
-  }, 120000);
-
-  it('tweens through the same transitions prop', async () => {
-    const scene = mount();
-    await scene.render([]);
-    const timeline = scene.layerManager().context.timeline;
-    timeline.pause();
-    timeline.setTime(1000);
-    const make = (growth: number) =>
-      trees({
-        getGrowth: () => growth,
-        updateTriggers: {getGrowth: growth},
-        transitions: {getGrowth: 2000}
-      });
-    const small = countPixels(await scene.render([make(0.1)]));
-    await scene.render([make(1)]);
-    timeline.setTime(2000);
-    await scene.settle();
-    expect(treeLayer(scene).state.store!.getRowValues(0).growth).toBeCloseTo(0.55);
-    const middle = countPixels(await scene.settle());
-    timeline.setTime(3000);
-    await scene.settle();
-    const final = countPixels(await scene.settle());
-    expect(middle).toBeGreaterThan(small);
-    expect(final).toBeGreaterThan(middle);
-    expect(treeLayer(scene).state.ticking).toBe(false);
     expect(scene.errors).toEqual([]);
   }, 120000);
 });

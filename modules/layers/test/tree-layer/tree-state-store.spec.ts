@@ -59,8 +59,7 @@ function read(store: TreeStateStore, row = 0): TreeStateValues {
 const RATE_TEXELS = {
   foliage: [TEXEL.DETAIL, 2],
   damage: [TEXEL.DETAIL, 3],
-  fallen0: [TEXEL.CROP0_UNRIPE, 3],
-  fallen1: [TEXEL.CROP1_UNRIPE, 3]
+  fallen: [TEXEL.CROP_UNRIPE, 3]
 } as const;
 
 function readRate(store: TreeStateStore, kind: keyof typeof RATE_TEXELS, row = 0): number {
@@ -92,24 +91,14 @@ const FULL_VALUES: TreeStateUpdate = {
   leafScale: 1.5,
   leafDetail: 0.375,
   seed: 0.3125,
-  crops: [
-    {
-      count: 12,
-      radius: 0.02,
-      ripeness: 0.5,
-      fallen: 0.25,
-      color: [255, 252, 240, 128],
-      unripeColor: [86, 128, 44]
-    },
-    {
-      count: 30,
-      radius: 0.04,
-      ripeness: 0.75,
-      fallen: 0.125,
-      color: [244, 140, 24, 255],
-      unripeColor: [20, 40, 60, 255]
-    }
-  ]
+  crop: {
+    count: 12,
+    radius: 0.02,
+    ripeness: 0.5,
+    fallen: 0.25,
+    color: [255, 252, 240, 128],
+    unripeColor: [86, 128, 44]
+  }
 };
 
 describe('TreeStateStore layout', () => {
@@ -169,31 +158,20 @@ describe('TreeStateStore layout', () => {
     expect(float(TEXEL.DETAIL, 1)).toBe(0.3125);
     expect(float(TEXEL.DETAIL, 2)).toBe(0);
     expect(float(TEXEL.DETAIL, 3)).toBe(0);
-    expect(float(TEXEL.CROP0, 0)).toBe(12);
-    expect(float(TEXEL.CROP0, 1)).toBeCloseTo(0.02, 6);
-    expect(float(TEXEL.CROP0, 2)).toBe(0.5);
-    expect(float(TEXEL.CROP0, 3)).toBe(0.25);
+    expect(float(TEXEL.CROP, 0)).toBe(12);
+    expect(float(TEXEL.CROP, 1)).toBeCloseTo(0.02, 6);
+    expect(float(TEXEL.CROP, 2)).toBe(0.5);
+    expect(float(TEXEL.CROP, 3)).toBe(0.25);
     [255, 252, 240, 128].forEach((value, i) =>
-      expect(float(TEXEL.CROP0_COLOR, i)).toBeCloseTo(value / 255, 6)
+      expect(float(TEXEL.CROP_COLOR, i)).toBeCloseTo(value / 255, 6)
     );
     [86, 128, 44].forEach((value, i) =>
-      expect(float(TEXEL.CROP0_UNRIPE, i)).toBeCloseTo(value / 255, 6)
+      expect(float(TEXEL.CROP_UNRIPE, i)).toBeCloseTo(value / 255, 6)
     );
-    expect(float(TEXEL.CROP0_UNRIPE, 3)).toBe(0);
-    expect(float(TEXEL.CROP1, 0)).toBe(30);
-    expect(float(TEXEL.CROP1, 1)).toBeCloseTo(0.04, 6);
-    expect(float(TEXEL.CROP1, 2)).toBe(0.75);
-    expect(float(TEXEL.CROP1, 3)).toBe(0.125);
-    [244, 140, 24, 255].forEach((value, i) =>
-      expect(float(TEXEL.CROP1_COLOR, i)).toBeCloseTo(value / 255, 6)
-    );
-    [20, 40, 60].forEach((value, i) =>
-      expect(float(TEXEL.CROP1_UNRIPE, i)).toBeCloseTo(value / 255, 6)
-    );
-    expect(float(TEXEL.CROP1_UNRIPE, 3)).toBe(0);
+    expect(float(TEXEL.CROP_UNRIPE, 3)).toBe(0);
     expect([0, 1, 2, 3].map(i => float(TEXEL.CROP_DROPPED, i))).toEqual([0, 0, 0, 0]);
-    set(store, {crops: [{dropped: 7}, {dropped: 9}]});
-    expect([0, 1, 2, 3].map(i => float(TEXEL.CROP_DROPPED, i))).toEqual([7, 9, 0, 0]);
+    set(store, {crop: {dropped: 7}});
+    expect([0, 1, 2, 3].map(i => float(TEXEL.CROP_DROPPED, i))).toEqual([7, 0, 0, 0]);
   });
 
   it('stores the lean direction as the math angle atan2(y, x) of a clockwise compass bearing', () => {
@@ -225,6 +203,24 @@ describe('TreeStateStore layout', () => {
     };
     expect(fetch(TEXEL.LIFE, 0)).toBe(0.25);
     expect(fetch(TEXEL.MISC, 0)).toBe(0.75);
+  });
+
+  it('keeps dropped fruit and shell retention independent across a packed texture line', () => {
+    const nextLine = TREE_STATE_ROWS_PER_LINE;
+    const store = new TreeStateStore(nextLine + 1);
+    set(store, {crop: {dropped: 7}}, 0, 0, nextLine - 1);
+    store.setShellRetention(nextLine - 1, 0.75);
+    set(store, {crop: {count: 3, dropped: 5}}, 0, 0, nextLine);
+    expect(readFloat(store, nextLine - 1, TEXEL.CROP_DROPPED, 0)).toBe(7);
+    expect(readFloat(store, nextLine - 1, TEXEL.CROP_DROPPED, 2)).toBe(0.75);
+    expect(readFloat(store, nextLine, TEXEL.CROP, 0)).toBe(3);
+    expect(readFloat(store, nextLine, TEXEL.CROP_DROPPED, 0)).toBe(5);
+    expect(readFloat(store, nextLine, TEXEL.CROP_DROPPED, 2)).toBe(0);
+
+    set(store, {crop: null}, 0, 0, nextLine - 1);
+    expect(readFloat(store, nextLine - 1, TEXEL.CROP_DROPPED, 0)).toBe(0);
+    expect(readFloat(store, nextLine - 1, TEXEL.CROP_DROPPED, 2)).toBe(0.75);
+    expect(readFloat(store, nextLine, TEXEL.CROP_DROPPED, 0)).toBe(5);
   });
 
   it('splits a position into high and low parts that keep its double precision', () => {
@@ -271,7 +267,7 @@ describe('TreeStateStore layout', () => {
       leafScale: 1,
       leafDetail: 1,
       seed: 0,
-      crops: [0, 1].map(() => ({
+      crop: {
         count: 0,
         radius: 0,
         ripeness: 1,
@@ -279,27 +275,19 @@ describe('TreeStateStore layout', () => {
         color: [255, 255, 255, 255],
         unripeColor: [86, 128, 44],
         dropped: 0
-      }))
+      }
     };
     expect(read(store)).toEqual(expected);
     expect(createTreeStateValues()).toEqual(expected);
     expect(readFloat(store, 0, TEXEL.LIFE, 0)).toBe(1);
-    expect(readFloat(store, 0, TEXEL.CROP0_UNRIPE, 0)).toBeCloseTo(86 / 255, 6);
+    expect(readFloat(store, 0, TEXEL.CROP_UNRIPE, 0)).toBeCloseTo(86 / 255, 6);
 
     set(store, FULL_VALUES);
     const values = read(store);
     expect(values.position).toEqual([-122.4194, 37.7749, 12.5]);
     expect(values.trunkRadius).toBe(0.2);
     expect(values.canopyColor).toEqual([51, 102, 153, 204]);
-    expect(values.crops[1]).toEqual({
-      count: 30,
-      radius: 0.04,
-      ripeness: 0.75,
-      fallen: 0.125,
-      color: [244, 140, 24, 255],
-      unripeColor: [20, 40, 60],
-      dropped: 0
-    });
+    expect(values.crop).toEqual({...FULL_VALUES.crop, dropped: 0});
   });
 
   it('reuses `out` when reading, and a read does not disturb the row', () => {
@@ -308,11 +296,11 @@ describe('TreeStateStore layout', () => {
     store.tick(250, 0.25);
     store.clearDirty();
     const out = createTreeStateValues();
-    const {position, canopyColor, crops} = out;
+    const {position, canopyColor, crop} = out;
     expect(store.getRowValues(0, out)).toBe(out);
     expect(out.position).toBe(position);
     expect(out.canopyColor).toBe(canopyColor);
-    expect(out.crops).toBe(crops);
+    expect(out.crop).toBe(crop);
     expect(out.growth).toBeCloseTo(0.25, 12);
     expect(store.isDirty).toBe(false);
     expect(store.activeTweenCount).toBe(1);
@@ -637,27 +625,27 @@ describe('TreeStateStore interpolation', () => {
       color: [255, 255, 255, 255],
       unripeColor: [0, 0, 0]
     });
-    const store = createStore({getCrop: {duration: 1000, easing}}, {crops: [crop(0, 0)]});
-    set(store, {crops: [crop(0, 1)]});
+    const store = createStore({getCrop: {duration: 1000, easing}}, {crop: crop(0, 0)});
+    set(store, {crop: crop(0, 1)});
     for (let frame = 1; frame * FRAME_MS < 1000; frame++) {
       const now = frame * FRAME_MS;
-      set(store, {crops: [crop(frame * 0.001, 1)]}, now);
+      set(store, {crop: crop(frame * 0.001, 1)}, now);
       store.tick(now, now / 1000);
-      expect(read(store).crops[0].fallen).toBeCloseTo(easing(now / 1000), 9);
+      expect(read(store).crop.fallen).toBeCloseTo(easing(now / 1000), 9);
     }
   });
 
   it('does not restart the rest of a group for an easing written inline in layer props', () => {
     const easing = (t: number) => t * t * (3 - 2 * t);
     const crop = (ripeness: number, fallen: number) => ({count: 10, radius: 0.1, ripeness, fallen});
-    const store = createStore({getCrop: {duration: 1000, easing}}, {crops: [crop(0, 0)]});
-    set(store, {crops: [crop(0, 1)]});
+    const store = createStore({getCrop: {duration: 1000, easing}}, {crop: crop(0, 0)});
+    set(store, {crop: crop(0, 1)});
     for (let frame = 1; frame * FRAME_MS < 1000; frame++) {
       const now = frame * FRAME_MS;
       store.setTransitions({getCrop: {duration: 1000, easing: t => easing(t)}});
-      set(store, {crops: [crop(frame * 0.001, 1)]}, now);
+      set(store, {crop: crop(frame * 0.001, 1)}, now);
       store.tick(now, now / 1000);
-      expect(read(store).crops[0].fallen).toBeCloseTo(easing(now / 1000), 9);
+      expect(read(store).crop.fallen).toBeCloseTo(easing(now / 1000), 9);
     }
   });
 
@@ -729,10 +717,14 @@ describe('TreeStateStore field groups', () => {
     trunkColor: [0, 0, 0, 0],
     windFlex: 0,
     leafScale: 1,
-    crops: [
-      {count: 2, radius: 0.2, ripeness: 0, fallen: 0, color: [0, 0, 0, 0], unripeColor: [0, 0, 0]},
-      {count: 2, radius: 0.2, ripeness: 0, fallen: 0, color: [0, 0, 0, 0], unripeColor: [0, 0, 0]}
-    ]
+    crop: {
+      count: 2,
+      radius: 0.2,
+      ripeness: 0,
+      fallen: 0,
+      color: [0, 0, 0, 0],
+      unripeColor: [0, 0, 0]
+    }
   };
   const END: TreeStateUpdate = {
     position: [10, 20, 30],
@@ -753,26 +745,15 @@ describe('TreeStateStore field groups', () => {
     trunkColor: [100, 100, 100, 100],
     windFlex: 2,
     leafScale: 2,
-    crops: [
-      {
-        count: 4,
-        radius: 0.4,
-        ripeness: 1,
-        fallen: 1,
-        color: [100, 100, 100, 100],
-        unripeColor: [100, 100, 100],
-        dropped: 6
-      },
-      {
-        count: 4,
-        radius: 0.4,
-        ripeness: 1,
-        fallen: 1,
-        color: [100, 100, 100, 100],
-        unripeColor: [100, 100, 100],
-        dropped: 6
-      }
-    ]
+    crop: {
+      count: 4,
+      radius: 0.4,
+      ripeness: 1,
+      fallen: 1,
+      color: [100, 100, 100, 100],
+      unripeColor: [100, 100, 100],
+      dropped: 6
+    }
   };
 
   type Probe = (values: TreeStateValues) => number;
@@ -799,20 +780,13 @@ describe('TreeStateStore field groups', () => {
     trunkR: v => v.trunkColor[0],
     trunkA: v => v.trunkColor[3],
     windFlex: v => v.windFlex,
-    crop0Count: v => v.crops[0].count,
-    crop0Radius: v => v.crops[0].radius,
-    crop0Ripeness: v => v.crops[0].ripeness,
-    crop0Fallen: v => v.crops[0].fallen,
-    crop0Color: v => v.crops[0].color[1],
-    crop0Unripe: v => v.crops[0].unripeColor[2],
-    crop1Count: v => v.crops[1].count,
-    crop1Radius: v => v.crops[1].radius,
-    crop1Ripeness: v => v.crops[1].ripeness,
-    crop1Fallen: v => v.crops[1].fallen,
-    crop1Color: v => v.crops[1].color[1],
-    crop1Unripe: v => v.crops[1].unripeColor[2],
-    crop0Dropped: v => v.crops[0].dropped,
-    crop1Dropped: v => v.crops[1].dropped
+    cropCount: v => v.crop.count,
+    cropRadius: v => v.crop.radius,
+    cropRipeness: v => v.crop.ripeness,
+    cropFallen: v => v.crop.fallen,
+    cropColor: v => v.crop.color[1],
+    cropUnripe: v => v.crop.unripeColor[2],
+    cropDropped: v => v.crop.dropped
   };
   const ALL = Object.keys(probes);
   const CROP = ALL.filter(name => name.startsWith('crop') && name !== 'crownX');
@@ -1008,19 +982,6 @@ describe('TreeStateStore field groups', () => {
     expect(read(store).canopyColor[0]).toBeCloseTo(50, 9);
   });
 
-  it('tweens crop slots independently of each other', () => {
-    const crop = (count: number) => ({count, radius: 0.1});
-    const store = createStore({getCrop: {duration: 1000}}, {crops: [crop(10), crop(10)]});
-    set(store, {crops: [crop(20), crop(10)]});
-
-    store.tick(500, 0.5);
-    set(store, {crops: [crop(20), crop(30)]}, 500);
-
-    store.tick(1000, 1);
-    expect(read(store).crops[0].count).toBe(20);
-    expect(read(store).crops[1].count).toBeCloseTo(20, 9);
-  });
-
   describe('setTransitions', () => {
     it('keeps a running tween on the settings it started with, as deck.gl does', () => {
       const store = createStore({getGrowth: 1000}, {growth: 0});
@@ -1036,15 +997,15 @@ describe('TreeStateStore field groups', () => {
 
     it('moves everything still running to new settings on a retarget', () => {
       const crop = (count: number, ripeness: number) => ({count, ripeness});
-      const store = createStore({getCrop: 1000}, {crops: [crop(0.5, 0)]});
-      set(store, {crops: [crop(1.5, 0)]});
+      const store = createStore({getCrop: 1000}, {crop: crop(0.5, 0)});
+      set(store, {crop: crop(1.5, 0)});
       store.tick(500, 0.5);
       store.setTransitions({getCrop: 100});
-      set(store, {crops: [crop(1.5, 1)]}, 500);
-      expect(read(store).crops[0].count).toBeCloseTo(1, 9);
+      set(store, {crop: crop(1.5, 1)}, 500);
+      expect(read(store).crop.count).toBeCloseTo(1, 9);
       store.tick(550, 0.55);
-      expect(read(store).crops[0].count).toBeCloseTo(1.25, 9);
-      expect(read(store).crops[0].ripeness).toBeCloseTo(0.5, 9);
+      expect(read(store).crop.count).toBeCloseTo(1.25, 9);
+      expect(read(store).crop.ripeness).toBeCloseTo(0.5, 9);
     });
 
     it('interrupts and finishes a group whose settings are removed', () => {
@@ -1550,67 +1511,64 @@ describe('TreeStateStore loss rates', () => {
     expect(readRate(store, 'foliage')).toBe(0);
   });
 
-  it("tracks foliage, damage and both crops' fallen separately, each in its own texel", () => {
+  it("tracks foliage, damage and the crop's fallen fraction separately, each in its own texel", () => {
     const crop = (fallen: number) => ({count: 5, radius: 0.1, fallen});
-    const store = createStore(null, {foliage: 1, damage: 1, crops: [crop(1), crop(1)]});
+    const store = createStore(null, {foliage: 1, damage: 1, crop: crop(1)});
     for (let frame = 1; frame <= 8; frame++) {
       frameOf(
         store,
         {
           foliage: 1 - frame * 0.01,
           damage: 1 - frame * 0.02,
-          crops: [crop(1 - frame * 0.03), crop(1 - frame * 0.04)]
+          crop: crop(1 - frame * 0.03)
         },
         frame
       );
     }
     expect(readRate(store, 'foliage')).toBeCloseTo(0.6, 4);
     expect(readRate(store, 'damage')).toBeCloseTo(1.2, 4);
-    expect(readRate(store, 'fallen0')).toBeCloseTo(1.8, 4);
-    expect(readRate(store, 'fallen1')).toBeCloseTo(2.4, 4);
+    expect(readRate(store, 'fallen')).toBeCloseTo(1.8, 4);
     for (const i of [0, 1, 2])
-      expect(readFloat(store, 0, TEXEL.CROP0_UNRIPE, i)).toBeCloseTo([86, 128, 44][i] / 255, 6);
+      expect(readFloat(store, 0, TEXEL.CROP_UNRIPE, i)).toBeCloseTo([86, 128, 44][i] / 255, 6);
     // A color update does not touch the rate sharing its texel.
     frameOf(
       store,
       {
         foliage: 1 - 9 * 0.01,
         damage: 1 - 9 * 0.02,
-        crops: [{...crop(1 - 9 * 0.03), unripeColor: [1, 2, 3, 255]}, crop(1 - 9 * 0.04)]
+        crop: {...crop(1 - 9 * 0.03), unripeColor: [1, 2, 3, 255]}
       },
       9
     );
-    expect(readRate(store, 'fallen0')).toBeCloseTo(1.8, 4);
-    expect(readFloat(store, 0, TEXEL.CROP0_UNRIPE, 0)).toBeCloseTo(1 / 255, 6);
+    expect(readRate(store, 'fallen')).toBeCloseTo(1.8, 4);
+    expect(readFloat(store, 0, TEXEL.CROP_UNRIPE, 0)).toBeCloseTo(1 / 255, 6);
   });
 
   it('measures a crop tween', () => {
     const crop = (fallen: number) => ({count: 5, radius: 0.1, fallen});
-    const store = createStore({getCrop: 1000}, {crops: [crop(0), crop(1)]});
-    set(store, {crops: [crop(0), crop(0)]});
+    const store = createStore({getCrop: 1000}, {crop: crop(1)});
+    set(store, {crop: crop(0)});
     for (let frame = 1; frame < 50; frame++) {
       store.tick(frame * FRAME_MS, frame * FRAME_SECONDS);
-      expect(readRate(store, 'fallen1')).toBeCloseTo(1, 4);
-      expect(readRate(store, 'fallen0')).toBe(0);
+      expect(readRate(store, 'fallen')).toBeCloseTo(1, 4);
     }
   });
 
   it('measures fallen and damage as they rise, since that is when things fall', () => {
     const crop = (fallen: number) => ({count: 5, radius: 0.1, fallen});
-    const store = createStore(null, {damage: 0, foliage: 0.1, crops: [crop(0), crop(0)]});
+    const store = createStore(null, {damage: 0, foliage: 0.1, crop: crop(0)});
     for (let frame = 1; frame <= 8; frame++) {
       frameOf(
         store,
         {
           damage: frame * 0.02,
           foliage: 0.1 + frame * 0.01,
-          crops: [crop(frame * 0.03), crop(frame * 0.04)]
+          crop: crop(frame * 0.03)
         },
         frame
       );
       expect(readRate(store, 'damage')).toBeCloseTo(1.2, 4);
-      expect(readRate(store, 'fallen0')).toBeCloseTo(1.8, 4);
-      expect(readRate(store, 'fallen1')).toBeCloseTo(2.4, 4);
+      expect(readRate(store, 'fallen')).toBeCloseTo(1.8, 4);
       // Falling is what foliage loses by; a rise grows leaves in place.
       expect(readRate(store, 'foliage')).toBe(0);
     }
@@ -1618,34 +1576,32 @@ describe('TreeStateStore loss rates', () => {
 
   it('brings a rising fallen to rest, and measures a tween of it', () => {
     const crop = (fallen: number) => ({count: 5, radius: 0.1, fallen});
-    const held = createStore(null, {crops: [crop(0), crop(0)]});
-    for (let frame = 1; frame <= 8; frame++)
-      frameOf(held, {crops: [crop(frame * 0.03), crop(0)]}, frame);
+    const held = createStore(null, {crop: crop(0)});
+    for (let frame = 1; frame <= 8; frame++) frameOf(held, {crop: crop(frame * 0.03)}, frame);
     let frame = 9;
-    while (frameOf(held, {crops: [crop(8 * 0.03), crop(0)]}, frame).active) frame++;
+    while (frameOf(held, {crop: crop(8 * 0.03)}, frame).active) frame++;
     expect(frame).toBeLessThanOrEqual(13);
-    expect(readRate(held, 'fallen0')).toBe(0);
+    expect(readRate(held, 'fallen')).toBe(0);
 
-    const tween = createStore({getCrop: 1000}, {crops: [crop(0), crop(1)]});
-    set(tween, {crops: [crop(1), crop(1)]});
+    const tween = createStore({getCrop: 1000}, {crop: crop(0)});
+    set(tween, {crop: crop(1)});
     for (let step = 1; step < 50; step++) {
       tween.tick(step * FRAME_MS, step * FRAME_SECONDS);
-      expect(readRate(tween, 'fallen0')).toBeCloseTo(1, 4);
-      expect(readRate(tween, 'fallen1')).toBe(0);
+      expect(readRate(tween, 'fallen')).toBeCloseTo(1, 4);
     }
   });
 
   it('gives the same rate scrubbing back through a rise of fallen', () => {
     const crop = (fallen: number) => ({count: 5, radius: 0.1, fallen});
     const getFallen = (t: number) => 0.6 * t;
-    const store = createStore(null, {crops: [crop(getFallen(1)), crop(0)]});
+    const store = createStore(null, {crop: crop(getFallen(1))});
     store.setRow(0, {}, {now: 0, clock: 1});
     store.tick(0, 1);
     for (let frame = 1; frame <= 6; frame++) {
       const clock = 1 - frame * FRAME_SECONDS;
-      store.setRow(0, {crops: [crop(getFallen(clock)), crop(0)]}, {now: 0, clock});
+      store.setRow(0, {crop: crop(getFallen(clock))}, {now: 0, clock});
       store.tick(0, clock);
-      expect(readRate(store, 'fallen0')).toBeCloseTo(0.6, 4);
+      expect(readRate(store, 'fallen')).toBeCloseTo(0.6, 4);
     }
   });
 
@@ -1779,7 +1735,7 @@ describe('TreeStateStore input checks', () => {
     const bad = {
       position: [Number.NaN, Number.NaN, Number.NaN],
       canopyColor: [Number.NaN, Number.NaN, Number.NaN, Number.NaN],
-      crops: [{count: Number.NaN, radius: Number.NaN, ripeness: Number.NaN, fallen: Number.NaN}]
+      crop: {count: Number.NaN, radius: Number.NaN, ripeness: Number.NaN, fallen: Number.NaN}
     };
     store.setRow(0, bad, {now: Number.NaN, clock: Number.NaN, isNew: true});
     store.tick(Number.NaN, Number.NaN);
@@ -1866,16 +1822,14 @@ describe('TreeStateStore input checks', () => {
       leafScale: -1,
       leanDegrees: 120,
       canopyColor: [-5, 300, 128, 1000],
-      crops: [
-        {
-          count: -3,
-          radius: -1,
-          ripeness: 2,
-          fallen: -1,
-          color: [999, -1, 0, 0],
-          unripeColor: [300, -1, 7]
-        }
-      ]
+      crop: {
+        count: -3,
+        radius: -1,
+        ripeness: 2,
+        fallen: -1,
+        color: [999, -1, 0, 0],
+        unripeColor: [300, -1, 7]
+      }
     });
     expect(read(store)).toMatchObject({
       height: 0,
@@ -1888,7 +1842,7 @@ describe('TreeStateStore input checks', () => {
       leanDegrees: 90,
       canopyColor: [0, 255, 128, 255]
     });
-    expect(read(store).crops[0]).toMatchObject({
+    expect(read(store).crop).toMatchObject({
       count: 0,
       radius: 0,
       ripeness: 1,
@@ -1919,103 +1873,96 @@ describe('TreeStateStore crops', () => {
     dropped: 0
   };
 
-  it('keeps both slots when crops is left out', () => {
-    const store = createStore({getCrop: 1000}, {crops: [FRUIT, FRUIT]});
+  it('keeps the crop when it is left out', () => {
+    const store = createStore({getCrop: 1000}, {crop: FRUIT});
     set(store, {growth: 0.5});
     expect(store.activeTweenCount).toBe(0);
-    expect(read(store).crops[0].count).toBe(10);
-    expect(read(store).crops[1].count).toBe(10);
+    expect(read(store).crop).toEqual(FRUIT);
   });
 
-  it('empties a slot that is missing from the array, holding its appearance as it goes', () => {
-    for (const crops of [[], [null], [undefined], null]) {
-      const store = createStore({getCrop: 1000}, {crops: [FRUIT]});
-      set(store, {crops: crops as TreeStateUpdate['crops']});
-      store.tick(500, 0.5);
-      expect(read(store).crops[0]).toEqual({...FRUIT, count: 5});
-      store.tick(1000, 1);
-      expect(read(store).crops[0]).toEqual({...FRUIT, count: 0});
-    }
-  });
-
-  it('empties without transitions at once, and ignores a third slot', () => {
-    const store = createStore(null, {crops: [FRUIT, FRUIT]});
-    set(store, {crops: [null, FRUIT, FRUIT]});
-    expect(read(store).crops[0].count).toBe(0);
-    expect(read(store).crops[1].count).toBe(10);
-    expect(read(store).crops.length).toBe(2);
-    expect(readFloat(store, 0, TEXEL.CROP0, 0)).toBe(0);
-    expect(readFloat(store, 0, TEXEL.CROP1, 0)).toBe(10);
-  });
-
-  it('gives a slot with nothing on the tree its new look at once, so only count tweens', () => {
-    const store = createStore({getCrop: {duration: 1000}}, {});
-    set(store, {crops: [FRUIT]});
-
-    expect(read(store).crops[0]).toEqual({...FRUIT, count: 0});
-    expect(readFloat(store, 0, TEXEL.CROP0, 1)).toBeCloseTo(0.05, 6);
+  it('clears a null crop, holding its appearance as it goes', () => {
+    const store = createStore({getCrop: 1000}, {crop: FRUIT});
+    set(store, {crop: null});
     store.tick(500, 0.5);
-    expect(read(store).crops[0]).toEqual({...FRUIT, count: 5});
-  });
-
-  it('tweens dropped crops, and a slot holding only those is not empty', () => {
-    const store = createStore({getCrop: 1000}, {crops: [{...FRUIT, count: 0, dropped: 8}]});
-    set(store, {crops: [{...FRUIT, count: 0, dropped: 16, radius: 0.15}]});
-    store.tick(500, 0.5);
-    expect(read(store).crops[0].dropped).toBeCloseTo(12, 9);
-    expect(read(store).crops[0].radius).toBeCloseTo(0.1, 9);
-    expect(readFloat(store, 0, TEXEL.CROP_DROPPED, 0)).toBeCloseTo(12, 5);
-    // Dropping them, and the crop slot that held them, animates out.
-    set(store, {crops: []}, 500);
+    expect(read(store).crop).toEqual({...FRUIT, count: 5});
     store.tick(1000, 1);
-    expect(read(store).crops[0].dropped).toBeCloseTo(6, 9);
-    store.tick(1500, 1.5);
-    expect(read(store).crops[0].dropped).toBe(0);
+    expect(read(store).crop).toEqual({...FRUIT, count: 0});
   });
 
-  it('starts no tween when a slot stays empty', () => {
+  it('clears both crop counts at once when no transition is configured', () => {
+    const store = createStore(null, {crop: {...FRUIT, dropped: 4}});
+    set(store, {crop: null});
+    expect(read(store).crop).toMatchObject({count: 0, dropped: 0});
+    expect(readFloat(store, 0, TEXEL.CROP, 0)).toBe(0);
+    expect(readFloat(store, 0, TEXEL.CROP_DROPPED, 0)).toBe(0);
+  });
+
+  it('gives a crop with nothing on the tree its new look at once, so only count tweens', () => {
     const store = createStore({getCrop: {duration: 1000}}, {});
-    set(store, {crops: [{...FRUIT, count: 0}]});
+    set(store, {crop: FRUIT});
+
+    expect(read(store).crop).toEqual({...FRUIT, count: 0});
+    expect(readFloat(store, 0, TEXEL.CROP, 1)).toBeCloseTo(0.05, 6);
+    store.tick(500, 0.5);
+    expect(read(store).crop).toEqual({...FRUIT, count: 5});
+  });
+
+  it('tweens dropped crops, and a crop holding only those is not empty', () => {
+    const store = createStore({getCrop: 1000}, {crop: {...FRUIT, count: 0, dropped: 8}});
+    set(store, {crop: {...FRUIT, count: 0, dropped: 16, radius: 0.15}});
+    store.tick(500, 0.5);
+    expect(read(store).crop.dropped).toBeCloseTo(12, 9);
+    expect(read(store).crop.radius).toBeCloseTo(0.1, 9);
+    expect(readFloat(store, 0, TEXEL.CROP_DROPPED, 0)).toBeCloseTo(12, 5);
+    // Ground fruit animates out along with attached fruit.
+    set(store, {crop: null}, 500);
+    store.tick(1000, 1);
+    expect(read(store).crop.dropped).toBeCloseTo(6, 9);
+    store.tick(1500, 1.5);
+    expect(read(store).crop.dropped).toBe(0);
+  });
+
+  it('starts no tween when a crop stays empty', () => {
+    const store = createStore({getCrop: {duration: 1000}}, {});
+    set(store, {crop: {...FRUIT, count: 0}});
 
     expect(store.activeTweenCount).toBe(0);
-    expect(read(store).crops[0].radius).toBe(0.05);
+    expect(read(store).crop.radius).toBe(0.05);
   });
 
-  it('tweens every field of a slot that has something on the tree', () => {
-    const store = createStore({getCrop: 1000}, {crops: [FRUIT]});
+  it('tweens every field of a crop that has something on the tree', () => {
+    const store = createStore({getCrop: 1000}, {crop: FRUIT});
     set(store, {
-      crops: [
-        {
-          count: 20,
-          radius: 0.15,
-          ripeness: 1,
-          fallen: 0.75,
-          color: [0, 0, 0, 0],
-          unripeColor: [0, 0, 0]
-        }
-      ]
+      crop: {
+        count: 20,
+        radius: 0.15,
+        ripeness: 1,
+        fallen: 0.75,
+        color: [0, 0, 0, 0],
+        unripeColor: [0, 0, 0]
+      }
     });
     store.tick(500, 0.5);
-    expect(read(store).crops[0].count).toBeCloseTo(15, 9);
-    expect(read(store).crops[0].radius).toBeCloseTo(0.1, 9);
-    expect(read(store).crops[0].ripeness).toBeCloseTo(0.75, 9);
-    expect(read(store).crops[0].fallen).toBeCloseTo(0.5, 9);
-    expect(read(store).crops[0].color).toEqual([120, 70, 10, 127.5]);
-    expect(read(store).crops[0].unripeColor).toEqual([40, 60, 20]);
-    expect(readFloat(store, 0, TEXEL.CROP0_COLOR, 0)).toBeCloseTo(120 / 255, 6);
+    expect(read(store).crop.count).toBeCloseTo(15, 9);
+    expect(read(store).crop.radius).toBeCloseTo(0.1, 9);
+    expect(read(store).crop.ripeness).toBeCloseTo(0.75, 9);
+    expect(read(store).crop.fallen).toBeCloseTo(0.5, 9);
+    expect(read(store).crop.color).toEqual([120, 70, 10, 127.5]);
+    expect(read(store).crop.unripeColor).toEqual([40, 60, 20]);
+    expect(readFloat(store, 0, TEXEL.CROP_COLOR, 0)).toBeCloseTo(120 / 255, 6);
   });
 
   it('keeps a crop field that is left out, and treats a three-part color as opaque', () => {
-    const store = createStore(null, {crops: [FRUIT]});
-    set(store, {crops: [{count: 3}]});
-    expect(read(store).crops[0]).toEqual({...FRUIT, count: 3});
-    set(store, {crops: [{color: [1, 2, 3, 100]}]});
-    expect(read(store).crops[0].color).toEqual([1, 2, 3, 100]);
-    set(store, {crops: [{color: [1, 2, 3]}]});
-    expect(read(store).crops[0].color).toEqual([1, 2, 3, 255]);
-    set(store, {crops: [{color: [1, 2, 3, 9], unripeColor: [4, 5, 6, 7]}]});
-    expect(read(store).crops[0].color).toEqual([1, 2, 3, 9]);
-    expect(read(store).crops[0].unripeColor).toEqual([4, 5, 6]);
+    const store = createStore(null, {crop: FRUIT});
+    set(store, {crop: {count: 3}});
+    expect(read(store).crop).toEqual({...FRUIT, count: 3});
+    set(store, {crop: {color: [1, 2, 3, 100]}});
+    expect(read(store).crop.color).toEqual([1, 2, 3, 100]);
+    set(store, {crop: {color: [1, 2, 3]}});
+    expect(read(store).crop.color).toEqual([1, 2, 3, 255]);
+    set(store, {crop: {color: [1, 2, 3, 9], unripeColor: [4, 5, 6, 7]}});
+    expect(read(store).crop.color).toEqual([1, 2, 3, 9]);
+    expect(read(store).crop.unripeColor).toEqual([4, 5, 6]);
   });
 });
 

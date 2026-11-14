@@ -162,11 +162,11 @@ describe('updateTreeCropCapacity', () => {
     expect(capacity.byBirth).toBe(true);
     expect(capacity.capacity).toBeLessThan(600);
     const refs = new Float32Array(capacity.capacity * 3);
-    writeTreeCropRefs(refs, 0, 7, 1, capacity, table, 1);
+    writeTreeCropRefs(refs, 0, 7, capacity, table, 1);
     const anchors = new Set<number>();
     for (let i = 0; i < capacity.capacity; i++) {
       expect(refs[i * 3]).toBe(7);
-      expect(refs[i * 3 + 2]).toBe(1);
+      expect(refs[i * 3 + 2]).toBe(0);
       anchors.add(refs[i * 3 + 1]);
     }
     expect(getFirstBorn(growth, count).every(anchor => anchors.has(anchor))).toBe(true);
@@ -178,7 +178,7 @@ describe('updateTreeCropCapacity', () => {
     for (let growth = 0.2; growth <= 1; growth += 0.002) {
       if (updateTreeCropCapacity(capacity, table, growth, 300, 1)) changes++;
       const refs = new Float32Array(capacity.capacity * 3);
-      writeTreeCropRefs(refs, 0, 0, 0, capacity, table, 1);
+      writeTreeCropRefs(refs, 0, 0, capacity, table, 1);
       const anchors = new Set<number>();
       for (let i = 0; i < capacity.capacity; i++) anchors.add(refs[i * 3 + 1]);
       // Between levels a shader's rank is what the level below says at most.
@@ -194,7 +194,7 @@ describe('updateTreeCropCapacity', () => {
     updateTreeCropCapacity(capacity, table, 1, 2000, 5);
     expect(capacity.capacity).toBe(2048);
     const refs = new Float32Array(capacity.capacity * 3);
-    writeTreeCropRefs(refs, 0, 0, 0, capacity, table, 5);
+    writeTreeCropRefs(refs, 0, 0, capacity, table, 5);
     for (let blossom = 0; blossom < 15; blossom++) {
       expect(Math.floor(refs[blossom * 3 + 1] / 5)).toBe(table.order[Math.floor(blossom / 5)]);
       expect(refs[blossom * 3 + 1] % 5).toBe(blossom % 5);

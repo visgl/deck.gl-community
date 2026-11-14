@@ -61,13 +61,11 @@ void main() {
     if (tree.growth > stages[i]) first = i;
   }
   float t = clamp((tree.growth - stages[first]) / (stages[first + 1] - stages[first]), 0.0, 1.0);
-  int count = int(treePhotoreal.look.x);
   int index = int(hullVertex);
-  int clump = index / count;
-  int x = 2 + 2 * (index % count);
-  int y = clump * ${STAGE_COUNT} + first;
-  vec4 info = mix(texelFetch(treeHull, ivec2(0, y), 0), texelFetch(treeHull, ivec2(0, y + 1), 0), t);
-  if (info.x <= 0.0) return;
+  int x = 1 + 2 * index;
+  int y = first;
+  float liveLeaves = mix(texelFetch(treeHull, ivec2(0, y), 0).x, texelFetch(treeHull, ivec2(0, y + 1), 0).x, t);
+  if (liveLeaves <= 0.0) return;
   vec4 samplePoint = mix(texelFetch(treeHull, ivec2(x, y), 0), texelFetch(treeHull, ivec2(x, y + 1), 0), t);
   treeLoadPlace(row);
   vec3 local = treeToMetres(samplePoint.xyz);
@@ -80,7 +78,7 @@ void main() {
   float alive = (1.0 - smoothstep(samplePoint.w - 0.05, samplePoint.w + 0.15, tree.damage)) * (1.0 - 0.33 * tree.damage);
   vec4 tint = treeStateTexel(row, ${CANOPY});
   float coverage = tint.a * tree.coverage * tree.foliage * alive *
-    smoothstep(0.0, 0.16, info.x) * (1.0 - smoothstep(0.0, 0.5, tree.decay));
+    smoothstep(0.0, 0.16, liveLeaves) * (1.0 - smoothstep(0.0, 0.5, tree.decay));
 #ifdef TREE_SHELL_SHADOW_ONLY
   vTint.a = coverage;
 #else
@@ -248,12 +246,11 @@ struct HullVaryings {
     if (life.growth > stages[i]) { first = i; }
   }
   let t = clamp((life.growth - stages[first]) / (stages[first + 1] - stages[first]), 0.0, 1.0);
-  let count = i32(treePhotoreal.look.x);
   let index = i32(hullVertex);
-  let x = 2 + 2 * (index % count);
-  let y = (index / count) * ${STAGE_COUNT} + first;
-  let info = mix(textureLoad(treeHull, vec2<i32>(0, y), 0), textureLoad(treeHull, vec2<i32>(0, y + 1), 0), t);
-  if (info.x <= 0.0) { return output; }
+  let x = 1 + 2 * index;
+  let y = first;
+  let liveLeaves = mix(textureLoad(treeHull, vec2<i32>(0, y), 0).x, textureLoad(treeHull, vec2<i32>(0, y + 1), 0).x, t);
+  if (liveLeaves <= 0.0) { return output; }
   let samplePoint = mix(textureLoad(treeHull, vec2<i32>(x, y), 0), textureLoad(treeHull, vec2<i32>(x, y + 1), 0), t);
   let sampleNormal = mix(textureLoad(treeHull, vec2<i32>(x + 1, y), 0), textureLoad(treeHull, vec2<i32>(x + 1, y + 1), 0), t);
   let place = treeReadPlace(treeState, row, life.growth);
@@ -272,7 +269,7 @@ struct HullVaryings {
   let tint = treeStateTexel(treeState, row, ${CANOPY}u);
   let alive = (1.0 - smoothstep(samplePoint.w - 0.05, samplePoint.w + 0.15, life.damage)) * (1.0 - 0.33 * life.damage);
   let tintWithCoverage = vec4<f32>(pow(tint.rgb, vec3<f32>(2.2)), tint.a * life.coverage * life.foliage * alive *
-    smoothstep(0.0, 0.16, info.x) * (1.0 - smoothstep(0.0, 0.5, life.decay)));
+    smoothstep(0.0, 0.16, liveLeaves) * (1.0 - smoothstep(0.0, 0.5, life.decay)));
   output.tint = treeFilterVertexColor(tintWithCoverage, instanceIndex);
   output.life = vec3<f32>(life.health, life.flush, sampleNormal.w);
   output.pickColor = picking_getPickingColorFromIndex(instanceIndex);
@@ -372,15 +369,9 @@ export class TreeShellLayer<DataT> extends TreePhotorealPrimitiveLayer<DataT> {
   }
 
   protected prepareDraw(): Pick<TreePhotorealUniforms, 'shape' | 'look'> {
-    const {template, lod} = this.props;
     return {
-      shape: [template.forkZ, template.referenceHeight, 0, 0],
-      look: [
-        getTreeShellMesh(template, lod, this.props._shadowPass === 'only').verticesPerHull,
-        lod,
-        this.state.shadowStrength,
-        0
-      ]
+      shape: [this.props.template.forkZ, 0, 0, 0],
+      look: [0, 0, this.state.shadowStrength, 0]
     };
   }
 }

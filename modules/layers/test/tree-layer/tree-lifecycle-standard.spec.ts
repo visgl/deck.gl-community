@@ -81,7 +81,7 @@ describe('TreeLayer lifecycle state', () => {
         trunkRadius: adult.trunkRadius,
         crownX: adult.crownX,
         crownY: adult.crownY,
-        crops: adult.crops,
+        crop: adult.crop,
         seed: adult.seed,
         yaw: adult.yaw
       });
@@ -240,19 +240,19 @@ describe('TreeLayer timeline transitions', () => {
     render(FRUIT);
     render({...FRUIT, count: 30, droppedCount: 10});
     scene.tick(1500);
-    expect(scene.row().crops[0]).toMatchObject({count: 25, dropped: 5});
+    expect(scene.row().crop).toMatchObject({count: 25, dropped: 5});
 
     render({...FRUIT, kind: 'lemon'});
     expect(scene.layer().state.cropKinds).toEqual(['lemon']);
-    expect(scene.row().crops[0]).toMatchObject({count: 20, dropped: 0});
+    expect(scene.row().crop).toMatchObject({count: 20, dropped: 0});
     expect(scene.layer().state.store!.activeTweenCount).toBe(0);
 
     render(null);
     scene.tick(2000);
     expect(scene.layer().state.cropKinds).toEqual(['lemon']);
-    expect(scene.row().crops[0].count).toBe(10);
+    expect(scene.row().crop.count).toBe(10);
     scene.tick(2500);
-    expect(scene.row().crops[0].count).toBe(0);
+    expect(scene.row().crop.count).toBe(0);
   });
 
   it('tweens a new crop after the previous kind has finished fading out', () => {
@@ -262,15 +262,15 @@ describe('TreeLayer timeline transitions', () => {
     render({...FRUIT, count: 0, droppedCount: 10});
     render(null);
     scene.tick(1500);
-    expect(scene.row().crops[0]).toMatchObject({count: 0, dropped: 5});
+    expect(scene.row().crop).toMatchObject({count: 0, dropped: 5});
     scene.tick(2000);
-    expect(scene.row().crops[0].dropped).toBe(0);
+    expect(scene.row().crop.dropped).toBe(0);
 
     render({...FRUIT, kind: 'lemon', droppedCount: 8});
-    expect(scene.row().crops[0]).toMatchObject({count: 0, dropped: 0});
+    expect(scene.row().crop).toMatchObject({count: 0, dropped: 0});
     scene.tick(2500);
     expect(scene.layer().state.cropKinds).toEqual(['lemon']);
-    expect(scene.row().crops[0]).toMatchObject({count: 10, dropped: 4});
+    expect(scene.row().crop).toMatchObject({count: 10, dropped: 4});
   });
 
   it('tweens deciduous foliage into winter and preserves its owner', () => {

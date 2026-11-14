@@ -163,7 +163,7 @@ describe('TreeLayer species and attributes', () => {
     expect(row.canopyColor).toEqual([30, 100, 40, 255]);
     expect(row.trunkColor).toEqual([90, 70, 40, 255]);
     expect(row.foliage).toBe(1);
-    expect(row.crops[0]).toMatchObject({count: CROP.count, radius: CROP.radius});
+    expect(row.crop).toMatchObject({count: CROP.count, radius: CROP.radius});
     expect(scene.layer().state.sources[0].type).toBe('citrus');
   });
 
@@ -229,8 +229,7 @@ describe('TreeLayer species and attributes', () => {
     });
     expect(scene.row(0).coverage).toBe(0);
     expect(scene.row(1).coverage).toBe(0.25);
-    for (const index of [0, 1])
-      expect(scene.row(index).crops[0]).toMatchObject({count: 3, dropped: 2});
+    for (const index of [0, 1]) expect(scene.row(index).crop).toMatchObject({count: 3, dropped: 2});
   });
 });
 

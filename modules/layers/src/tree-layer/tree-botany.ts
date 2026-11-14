@@ -8,7 +8,7 @@ export type TreePoint = [number, number, number];
 /** Transport a frame along a tube without the discontinuous vertical-axis switch. */
 export function getTreeFrames(path: TreePoint[]) {
   let previous: Vector3 | undefined;
-  return path.map((point, index) => {
+  return path.map((_, index) => {
     const tangent = new Vector3(path[Math.min(path.length - 1, index + 1)])
       .subtract(path[Math.max(0, index - 1)])
       .normalize();

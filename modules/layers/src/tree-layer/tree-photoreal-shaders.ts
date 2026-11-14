@@ -315,8 +315,9 @@ const {
   TRUNK,
   MISC,
   DETAIL,
-  CROP0,
-  CROP1,
+  CROP,
+  CROP_COLOR,
+  CROP_UNRIPE,
   CROP_DROPPED
 } = TREE_STATE_TEXEL;
 
@@ -3855,9 +3856,8 @@ vec3 treeRindColor(vec3 unripe, vec3 ripe, float ripeness, float edge) {
 }`;
 
 /**
- * Everything a crop's vertex stage reads. A crop is the instance `[tree row, crop index, slot code]`, and
- * the code is the slot, plus 2 for a crop supplied as dropped. All that can animate comes from the state
- * row, so a frame that changes a count, a ripeness or a fall writes no attribute at all.
+ * Everything a crop's vertex stage reads. A crop is the instance `[tree row, crop index, dropped]`, and
+ * the last component is 1 for fruit supplied as dropped. Animated values stay in the state row.
  *
  * `treePhotoreal.shape` is the template's `forkZ`, the crop's top and resting height in radii, and crops
  * per twig attachment. `treePhotoreal.look` is the fraction of crops this level of detail draws, how much
@@ -3920,15 +3920,12 @@ out vec3 vNormal;
 out vec3 vLocal;
 #endif
 
-// The slot: count, radius, ripeness, fallen.
-vec4 cropSlot;
+// Crop count, radius, ripeness, and fallen fraction.
+vec4 crop;
 // The ripe tint, sRGB with coverage in alpha, and the unripe tint with the fallen rate in alpha.
 vec4 cropColor;
 vec4 cropUnripe;
-int cropFirstTexel;
 bool cropDropped;
-// The second of two crops that share their anchors and would overlap: it takes the next twig along.
-bool cropOffTwig;
 // A blossom whose twig is still to grow.
 bool cropUnborn = false;
 // Twig attachment in template space, limbs, stable seed, how far out in the crown.
@@ -3995,7 +3992,7 @@ bool treeCropInLevel(vec3 point) {
   // Light sees all of them, whatever their size in its map.
   if (shadow.drawShadowMap) return true;
 #endif
-  float pixels = cropSlot.y * treeCropPixelsPerMetre(treeCropClipW(point));
+  float pixels = crop.y * treeCropPixelsPerMetre(treeCropClipW(point));
   return pixels >= treePhotoreal.clock.y && pixels < treePhotoreal.clock.z;
 }
 
@@ -4003,14 +4000,10 @@ bool treeCropInLevel(vec3 point) {
 // born by its growth, and a crop near the end of them is still swelling. Most instances of a tree are not
 // drawn by this level, so this looks at what decides that first.
 bool treeCropLoad(int row) {
-  int code = int(instanceCropRef.z + 0.5);
-  int slot = code % 2;
-  cropDropped = (code & 2) != 0;
-  cropOffTwig = (code & 4) != 0;
-  int first = ${CROP0} + slot * ${CROP1 - CROP0};
-  cropSlot = treeStateTexel(row, first);
-  if (cropSlot.y <= 0.0) return false;
-  float total = cropDropped ? treeStateTexel(row, ${CROP_DROPPED})[slot] : cropSlot.x;
+  cropDropped = instanceCropRef.z > 0.5;
+  crop = treeStateTexel(row, ${CROP});
+  if (crop.y <= 0.0) return false;
+  float total = cropDropped ? treeStateTexel(row, ${CROP_DROPPED}).x : crop.x;
   total *= treePhotoreal.look.x;
   if (total <= 0.0) return false;
   float g = treeStateTexel(row, ${LIFE}).x;
@@ -4057,7 +4050,7 @@ bool treeCropLoad(int row) {
   cropAnchorCommon = project_position(tree.anchor, tree.anchorLow);
   cropFrame = splatTangentFrame(cropAnchorCommon);
   tree.frame = cropFrame;
-  if (!cropDropped && cropSlot.w <= 0.0 && !treeCropInLevel(treeTurnYaw(treeToMetres(cropTwig)))) {
+  if (!cropDropped && crop.w <= 0.0 && !treeCropInLevel(treeTurnYaw(treeToMetres(cropTwig)))) {
     return false;
   }
 
@@ -4077,7 +4070,7 @@ bool treeCropLoad(int row) {
   tree.worldDown = vec3(tree.leanDirection * tree.leanSin, -tree.leanCos);
 
   if (cropDropped) {
-    cropSeed = fract(index * 0.61803399 + float(slot) * 0.37 + tree.seed);
+    cropSeed = fract(index * 0.61803399 + tree.seed);
     cropShell = 1.0;
     cropOuterLimb = 0;
     cropInnerLimb = 0;
@@ -4098,7 +4091,6 @@ bool treeCropLoad(int row) {
 #endif
   }
   if (fract(cropSeed * 61.73 + tree.seed) >= tree.coverage) return false;
-  cropFirstTexel = first;
 
   // The last few are still swelling, so a count going up or down never pops, and rest at any size.
   float window = max(1.0, 0.06 * total);
@@ -4110,9 +4102,9 @@ bool treeCropLoad(int row) {
 
 // What a crop that is to be drawn also reads: false if its color has it hidden.
 bool treeCropLoadColor(int row) {
-  cropColor = treeStateTexel(row, cropFirstTexel + 1);
+  cropColor = treeStateTexel(row, ${CROP_COLOR});
   if (fract(cropSeed * 71.37 + tree.seed) >= cropColor.a) return false;
-  cropUnripe = treeStateTexel(row, cropFirstTexel + 2);
+  cropUnripe = treeStateTexel(row, ${CROP_UNRIPE});
   return true;
 }
 
@@ -4153,16 +4145,6 @@ vec4 treeCropProject(vec3 point) {
   gl_Position = splatProjectOffset(cropAnchorCommon, cropFrame, project_size(point), commonPosition);
   geometry.position = commonPosition;
   return commonPosition;
-}
-
-// Where on the tree a crop's twig is, in tree-local metres.
-vec3 treeCropTwig(float hash, float radius) {
-  vec3 twig = treeTurnYaw(treeToMetres(cropTwig));
-  if (cropOffTwig) {
-    float angle = hash * TREE_TWO_PI * 3.0;
-    twig += vec3(cos(angle), sin(angle), 0.4) * radius * 2.6;
-  }
-  return twig;
 }
 
 // Which way is out of the crown from a twig.
@@ -4431,10 +4413,10 @@ void main(void) {
 
   float top = treePhotoreal.shape.y;
   float restHeight = treePhotoreal.shape.z;
-  float full = cropSlot.y * (0.84 + 0.16 * hashA) * treePhotoreal.look.y;
+  float full = crop.y * (0.84 + 0.16 * hashA) * treePhotoreal.look.y;
   float swell = pow(cropSwell, 0.34);
   float radius = full * swell;
-  vec3 twig = cropDropped ? vec3(0.0) : treeCropTwig(hashE, full);
+  vec3 twig = cropDropped ? vec3(0.0) : treeTurnYaw(treeToMetres(cropTwig));
 
   // Where it comes to rest: below its twig, scattered, and rolled a little, away from the trunk, as the
   // ground falls away from a tree's planting berm, and a little anywhere.
@@ -4455,7 +4437,7 @@ void main(void) {
 
   // The fall. Time since it let go runs out at rest whatever the rate does, so nothing hangs in the air.
   float threshold = 0.02 + 0.96 * hashB;
-  float passed = cropDropped ? 1.0 : cropSlot.w - threshold;
+  float passed = cropDropped ? 1.0 : crop.w - threshold;
   if (!treeCropLoadColor(row)) return;
   float rate = cropDropped ? 0.0 : cropUnripe.a;
   float settled = 1.0 - smoothstep(0.0, 0.02, rate);
@@ -4470,7 +4452,7 @@ void main(void) {
   float flightTime = max(fallTime * 1.72, fallTime + rollTime) + 0.02;
   float progress = cropDropped ? 1.0 : treeEventProgress(passed, rate, flightTime);
   float time = progress * flightTime;
-  if ((cropDropped || cropSlot.w > 0.0) && !treeCropInLevel(mix(twig, vec3(land, 0.0), progress))) return;
+  if ((cropDropped || crop.w > 0.0) && !treeCropInLevel(mix(twig, vec3(land, 0.0), progress))) return;
 
 #ifdef TREE_CROP_DOT
   // A fruit still on the far side of a full crown cannot be seen, and most of a tree's work is here. The
@@ -4692,7 +4674,7 @@ void main(void) {
   float grounded = smoothstep(0.95, 1.0, progress);
   // Ripening goes fruit by fruit, and is done for all of them at either end.
   float early = hashE * 0.38;
-  float ripeness = smoothstep(early, early + 0.62, cropSlot.z);
+  float ripeness = smoothstep(early, early + 0.62, crop.z);
   treeCropTints();
   // No two fruit quite one color: some a deeper orange, some yellower.
   cropRipe *= mix(vec3(1.05, 0.92, 0.9), vec3(0.97, 1.09, 1.1), hashD);
@@ -4794,19 +4776,19 @@ void main(void) {
   // A few of each cluster are still buds. Others open as they swell.
   float budding = hashE < 0.24 ? 1.0 : 0.0;
   float open = (1.0 - 0.9 * budding) * smoothstep(0.2, 1.0, cropSwell);
-  float full = cropSlot.y * (0.84 + 0.16 * hashA) * treePhotoreal.look.y;
+  float full = crop.y * (0.84 + 0.16 * hashA) * treePhotoreal.look.y;
   float radius = full * pow(cropSwell, 0.34) * mix(1.0, 0.62, budding);
   if (radius <= 0.0) return;
 
   // Each petal lets go in its own time.
   float threshold = 0.02 + 0.92 * hashB + petal * 0.012;
-  float fallen = cropDropped ? 2.0 : cropSlot.w;
+  float fallen = cropDropped ? 2.0 : crop.w;
   float passed = fallen - threshold;
 #ifdef TREE_CROP_DOT
   // The first point is the whole blossom. The others wait to be petals.
   if (petal > 0.5 && passed <= 0.0) return;
 #endif
-  vec3 twig = cropDropped ? vec3(0.0) : treeCropOnSkin(treeCropTwig(hashE, full));
+  vec3 twig = cropDropped ? vec3(0.0) : treeCropOnSkin(treeTurnYaw(treeToMetres(cropTwig)));
   float crownNow = max(tree.size.x, tree.size.y) * (1.0 - pow(1.0 - tree.growth, 1.9));
   if (cropDropped) {
     float angle = hashC * TREE_TWO_PI;
@@ -4848,7 +4830,7 @@ void main(void) {
     flightTime = max(height / (0.5 + 0.45 * hashC), 0.6) + hashD * 0.6;
     progress = cropDropped ? 1.0 : treeEventProgress(passed, rate, flightTime);
   }
-  if ((cropDropped || cropSlot.w > 0.0) && !treeCropInLevel(mix(twig, vec3(twig.xy, 0.0), progress))) return;
+  if ((cropDropped || crop.w > 0.0) && !treeCropInLevel(mix(twig, vec3(twig.xy, 0.0), progress))) return;
   bool skipAttach = progress >= 1.0;
   if (!skipAttach) {
     attach = treeCropAttach(twig, turn);
@@ -5004,7 +4986,7 @@ void main(void) {
   vec4 crown = treeCrownLight(mix(twig, path, progress), mix(cropShell, 1.0, progress));
   float among = treeCropAmong(crown, hashC, progress);
   float early = hashE * 0.38;
-  float ripeness = smoothstep(early, early + 0.62, cropSlot.z);
+  float ripeness = smoothstep(early, early + 0.62, crop.z);
   treeCropTints();
 #ifdef TREE_CROP_LIT
   {

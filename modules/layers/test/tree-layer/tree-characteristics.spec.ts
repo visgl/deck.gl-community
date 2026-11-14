@@ -62,7 +62,7 @@ describe('Shared tree characteristics', () => {
       {count: 10, droppedCount: 10, radius: Infinity}
     ]) {
       scene.render({data, lodBias: -2, getCrop: () => ({...crop, color: [255, 150, 20]})});
-      expect(scene.row().crops[0]).toMatchObject({count: 0, dropped: 0});
+      expect(scene.row().crop).toMatchObject({count: 0, dropped: 0});
       expect(
         scene
           .children()

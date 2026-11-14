@@ -23,11 +23,10 @@ export const PALM_SHAFT_SCAR_FREQUENCY =
   (PALM_SHAFT_SCARS * (PALM_SPEAR_TOP + 1)) / (PALM_LEADER_TOP + 1);
 
 /** Keep the authored frond bases on the same crownshaft surface as the wood mesh. */
-export function getPalmTrunkRadius(z: number, aggregate = false): number {
+export function getPalmTrunkRadius(z: number): number {
   const progress = Math.max(0, Math.min(1, (z + 1) / (PALM_LEADER_TOP + 1)));
-  const scar = aggregate
-    ? 0
-    : Math.pow((1 + Math.cos(progress * Math.PI * (PALM_SHAFT_SCARS * 2))) / 2, 10) * 0.012;
+  const scar =
+    Math.pow((1 + Math.cos(progress * Math.PI * (PALM_SHAFT_SCARS * 2))) / 2, 10) * 0.012;
   const baseRadius = 0.074 - progress * 0.018 + scar;
   const crownProgress = Math.max(0, Math.min(1, (z - 0.48) / (PALM_LEADER_TOP - 0.48)));
   const crownTaper = crownProgress ** 2 * (3 - 2 * crownProgress);
