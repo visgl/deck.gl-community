@@ -3,7 +3,9 @@
 // Copyright (c) vis.gl contributors
 
 import {
+  AmbientLight,
   Deck,
+  DirectionalLight,
   MapView,
   MapController,
   WebMercatorViewport,
@@ -30,6 +32,8 @@ import {
   type FarmTree,
   type FarmPlot
 } from './farm-data';
+import {FarmGroundLayer} from './farm-ground-layer';
+import {FARM_GROUND, FarmLightingEffect} from './farm-lighting';
 import {DEFAULT_FARM_SETTINGS, SETTINGS_SCHEMA, type FarmSettings} from './settings';
 import '@deck.gl/widgets/stylesheet.css';
 import './style.css';
@@ -127,6 +131,16 @@ export function mountSeasonalFarmExample(
       }
     })
   });
+  const lighting = new FarmLightingEffect({
+    ambient: new AmbientLight({color: [210, 224, 242], intensity: 1}),
+    sun: new DirectionalLight({
+      color: [255, 246, 225],
+      direction: [1, -0.5, -1.3],
+      intensity: 1.7,
+      _shadow: true
+    })
+  });
+  lighting.shadowColor = [0, 0, 0, 0.42];
   const deck = new Deck({
     parent: root,
     device: options.device,
@@ -135,6 +149,7 @@ export function mountSeasonalFarmExample(
       ...(options.showControlsWidget === false ? [] : [controls])
     ],
     views: new MapView({id: 'farm'}),
+    effects: [lighting],
     initialViewState: currentView,
     controller: {type: MapController, touchRotate: true},
     onViewStateChange(params) {
@@ -208,16 +223,7 @@ export function mountSeasonalFarmExample(
   }
 
   function createLayers() {
-    const {
-      season,
-      crops,
-      windStrength,
-      sizeScale,
-      characteristics,
-      maxCanopySplats,
-      maxCanopyPixels,
-      foveationStrength
-    } = settings;
+    const {season, crops, windStrength, sizeScale, characteristics, lodBias} = settings;
     return [
       new PolygonLayer<FarmPlot>({
         id: 'farm-plots',
@@ -226,7 +232,23 @@ export function mountSeasonalFarmExample(
         getFillColor: season === 'winter' ? [234, 235, 222, 255] : [224, 231, 204, 255],
         getLineColor: [128, 145, 107, 255],
         getLineWidth: 1.5,
-        lineWidthUnits: 'pixels'
+        lineWidthUnits: 'pixels',
+        // Keep the original WebGL depth offsets when the plots draw one layer earlier.
+        getPolygonOffset: ({layerIndex}) => [0, -(layerIndex + 1) * 100],
+        _subLayerProps: {
+          fill: {type: FarmGroundLayer, shadowEnabled: false},
+          stroke: {shadowEnabled: false}
+        }
+      }),
+      new FarmGroundLayer<typeof FARM_GROUND>({
+        id: 'farm-ground',
+        data: [FARM_GROUND],
+        getPolygon: ground => ground,
+        getFillColor: [246, 247, 240, 255],
+        shadowEnabled: false,
+        // Test before shading and keep the plot color when its depth ties the ground.
+        getPolygonOffset: () => [0, 0],
+        parameters: {depthCompare: 'less'}
       }),
       new TreeLayer<FarmTree>({
         id: 'farm-trees',
@@ -245,9 +267,7 @@ export function mountSeasonalFarmExample(
         sizeScale,
         characteristics,
         windStrength,
-        maxCanopySplats,
-        maxCanopyPixels,
-        foveationStrength,
+        lodBias,
         parameters: {cullMode: 'none'},
         updateTriggers: {
           getCanopyRadius: season,

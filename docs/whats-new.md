@@ -8,6 +8,11 @@ This page lists module additions and major changes in each release. For detailed
   loaders.gl and math.gl `5.0.0-beta.8`, and probe.gl `5.0.0`.
   Applications must update their peer dependencies together. See the [upgrade guide](./upgrade-guide.md).
 
+- **Breaking:** [TreeLayer](./modules/layers/api-reference/tree-layer.md) uses botanical wood,
+  foliage and crop templates for all eight species. Crown detail follows camera distance and projected
+  size, with a smooth handoff between shells and individual leaves. Replace
+  the Gaussian canopy controls with `lodBias` as described in the [upgrade guide](./upgrade-guide.md#treelayer-renderer).
+
 Gallery pages, inline documentation examples, and all 37 standalone HTML examples now share an iPhone-compatible fullscreen button.
 
 - **panels:** `FullScreenComponent` and `FullScreenController` add native fullscreen with a

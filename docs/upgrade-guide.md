@@ -40,6 +40,15 @@ such as `ScatterplotLayer` from `@deck.gl-community/react-fiber/layers`. The typ
 5.3 or later. The [React Fiber upgrade guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react)
 lists the changes from `@deck.gl/react`.
 
+### TreeLayer renderer
+
+Remove `maxCanopySplats`, `maxCanopyPixels` and `foveationStrength` from `TreeLayer`.
+If you used a preview build, remove its `quality` switch as well. Use `lodBias` to tune how
+far individual leaves remain visible before switching to fitted canopy shells. Replace custom
+Gaussian-canopy overrides with TreeLayer materials and accessors. Use standalone `SplatLayer`
+for Gaussian data. See the
+[TreeLayer reference](./modules/layers/api-reference/tree-layer.md#migrating-from-the-gaussian-canopy-renderer).
+
 ### Consolidated sidebars
 
 `SidePanelContainer` and `SidePanelContainerProps` are removed without compatibility aliases.
@@ -100,9 +109,6 @@ new SplatLayer({data: rows, source, hierarchy});
 // After
 new SplatLayer({data: rows, getSource: {type: 'prepared-splats', source, hierarchy}});
 ```
-
-TreeLayer canopy overrides follow the same rule: set `getSource` in `_subLayerProps` instead of
-`source` or `hierarchy`.
 
 ## v9.4.7
 
