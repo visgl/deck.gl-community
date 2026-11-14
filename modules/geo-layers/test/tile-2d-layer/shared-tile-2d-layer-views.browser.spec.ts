@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, MapView} from '@deck.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {afterEach, describe, expect, test} from 'vitest';
 import {SharedTile2DLayer, SharedTileset2D} from '../../src';
 
@@ -30,7 +30,11 @@ afterEach(() => {
   tileset = null;
 });
 
-function createDeck(views = [MAIN, MINI]): SharedTileset2D {
+function createDeck(
+  views = [MAIN, MINI],
+  layerFilter?: Deck['props']['layerFilter'],
+  pickable = false
+): SharedTileset2D {
   tileset = new SharedTileset2D({getTileData: () => [], maxZoom: 6});
   parent = document.createElement('div');
   document.body.append(parent);
@@ -40,9 +44,10 @@ function createDeck(views = [MAIN, MINI]): SharedTileset2D {
     height: 128,
     deviceProps: {adapters: [webgl2Adapter]},
     views,
+    layerFilter,
     viewState: VIEW_STATE as any,
     // The default sublayers, so that deck.gl also filters them per viewport.
-    layers: [new SharedTile2DLayer({id: 'tiles', data: tileset})]
+    layers: [new SharedTile2DLayer({id: 'tiles', data: tileset, pickable})]
   });
   return tileset;
 }
@@ -71,6 +76,20 @@ async function waitFor(condition: () => boolean, message: string): Promise<void>
 }
 
 describe('SharedTile2DLayer views', () => {
+  test('selects tiles only for views accepted by the deck layer filter', async () => {
+    const shared = createDeck([MAIN, MINI], ({viewport}) => viewport.id === 'main');
+    await waitFor(() => selectedZooms().includes(3), 'expected the main view to select tiles');
+    expect(viewIds()).toEqual(['main']);
+    expect(selectedZooms()).toEqual([3]);
+    expect(shared.stats.get('Consumers').count).toBe(1);
+  });
+
+  test('selects tiles for a viewport used only for picking', async () => {
+    createDeck([MAIN, MINI], ({viewport, isPicking}) => viewport.id === 'main' || isPicking, true);
+    await waitFor(() => selectedZooms().join() === '3,5', 'expected both views to select tiles');
+    expect(viewIds()).toEqual(['main', 'mini']);
+  });
+
   test('detaches a view the deck stops rendering', async () => {
     const shared = createDeck();
     await waitFor(

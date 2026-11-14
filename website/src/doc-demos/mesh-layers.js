@@ -1,6 +1,6 @@
 /* eslint-disable no-template-curly-in-string */
 import {ScenegraphLayer, SimpleMeshLayer} from '@deck.gl/mesh-layers';
-import {OBJLoader} from '@loaders.gl/obj';
+import {OBJLoader} from '@loaders.gl/scene';
 
 import {makeLayerDemo} from './demo-base';
 import {DATA_URI} from '../constants/defaults';
@@ -24,7 +24,7 @@ export const ScenegraphLayerDemo = makeLayerDemo({
 
 export const SimpleMeshLayerDemo = makeLayerDemo({
   Layer: SimpleMeshLayer,
-  dependencies: ['https://unpkg.com/@loaders.gl/obj@beta/dist/dist.min.js'],
+  dependencies: ['https://unpkg.com/@loaders.gl/scene@beta/dist/dist.min.js'],
   imports: {OBJLoader},
   getTooltip: '({object}) => object && `${object.name}\n${object.address}`',
   props: `{

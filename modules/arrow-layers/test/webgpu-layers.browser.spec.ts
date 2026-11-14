@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
+import {Deck, OrthographicView} from '@deck.gl/core';
 import {luma, type Device} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {
   Field,
   FixedSizeList,
@@ -85,7 +85,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
 
   const pathLayer = new GeoArrowPathLayer({
     id: `geoarrow-path-${type}`,
-    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     data: table,
     getPath: lineStrings,
     getColor: [14, 165, 233, 255],
@@ -95,7 +95,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
   });
   const polygonLayer = new GeoArrowSolidPolygonLayer({
     id: `geoarrow-polygon-${type}`,
-    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     data: table,
     getPolygon: polygons,
     getFillColor: [168, 85, 247, 180],
@@ -107,7 +107,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
   const layers = [
     new GeoArrowArcLayer({
       id: `geoarrow-arc-${type}`,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: table,
       getSourcePosition: sourcePoints,
       getTargetPosition: targetPoints,
@@ -119,7 +119,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     }),
     new GeoArrowColumnLayer({
       id: `geoarrow-column-${type}`,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: table,
       getPosition: points,
       getFillColor: [16, 185, 129, 180],
@@ -131,7 +131,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     }),
     new GeoArrowHeatmapLayer({
       id: `geoarrow-heatmap-${type}`,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: table,
       getPosition: points,
       getWeight: 1,
@@ -149,7 +149,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     }),
     new GeoArrowPointCloudLayer({
       id: `geoarrow-point-cloud-${type}`,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: table,
       getPosition: pointCloudPoints,
       getColor: [244, 63, 94, 255],
@@ -159,7 +159,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     }),
     new GeoArrowPolygonLayer({
       id: `geoarrow-composite-polygon-${type}`,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: table,
       getPolygon: polygons,
       getFillColor: [168, 85, 247, 90],
@@ -172,7 +172,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     }),
     new GeoArrowScatterplotLayer({
       id: `geoarrow-scatterplot-${type}`,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: table,
       getPosition: points,
       getRadius: 7,
@@ -186,7 +186,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     pathLayer,
     new GeoArrowTextLayer({
       id: `geoarrow-text-${type}`,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: table,
       getPosition: points,
       getText: text,
@@ -197,7 +197,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     }),
     new GeoArrowTripsLayer({
       id: `geoarrow-trips-${type}`,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: table,
       getPath: lineStrings,
       getTimestamps: timestamps,

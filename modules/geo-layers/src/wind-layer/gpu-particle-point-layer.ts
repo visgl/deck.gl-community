@@ -12,7 +12,7 @@ import {
   type UpdateParameters
 } from '@deck.gl/core';
 import {Model} from '@luma.gl/engine';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 
 import type {GpuParticleSimulation} from './gpu-particle-simulation';
 

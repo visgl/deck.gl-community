@@ -94,14 +94,14 @@ describe('errors inside DeckGL', () => {
     const {unmount} = render(
       <AppBoundary onError={onError}>
         <CustomDeckGL>
-          <layer layer={undefined as never} />
+          <deckLayer layer={undefined as never} />
         </CustomDeckGL>
       </AppBoundary>
     );
     await flush();
 
     expect(onError).toHaveBeenCalledTimes(1);
-    expect(String((onError.mock.calls[0][0] as Error).message)).toMatch(/<layer>/);
+    expect(String((onError.mock.calls[0][0] as Error).message)).toMatch(/<deckLayer>/);
     unmount();
   });
 

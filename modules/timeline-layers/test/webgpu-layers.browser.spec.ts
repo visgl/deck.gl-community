@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
+import {Deck, OrthographicView} from '@deck.gl/core';
 import {luma, type Device} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {describe, expect, it} from 'vitest';
 
 import {TimeAxisLayer, TimelineLayer} from '../src';
@@ -22,7 +22,7 @@ function createTimelineLayers() {
   return [
     new TimeAxisLayer({
       id: 'time-axis',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       startTimeMs: -30,
       endTimeMs: 30,
       tickCount: 4,
@@ -31,7 +31,7 @@ function createTimelineLayers() {
     }),
     new TimelineLayer({
       id: 'timeline',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [
         {
           id: 'track',

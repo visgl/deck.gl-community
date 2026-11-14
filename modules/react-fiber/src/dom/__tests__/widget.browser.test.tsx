@@ -25,7 +25,7 @@ async function waitFor(condition: () => boolean): Promise<void> {
   expect(condition()).toBe(true);
 }
 
-webglTest('<widget> adds, updates and removes a widget on a real Deck', async () => {
+webglTest('<deckWidget> adds, updates and removes a widget on a real Deck', async () => {
   const container = document.createElement('div');
   Object.assign(container.style, {height: '300px', position: 'relative', width: '400px'});
   document.body.append(container);
@@ -35,7 +35,7 @@ webglTest('<widget> adds, updates and removes a widget on a real Deck', async ()
   function App({label, show}: {label: string; show: boolean}) {
     return (
       <DeckGL initialViewState={{latitude: 0, longitude: 0, zoom: 1}}>
-        {show ? <widget widget={new LabelWidget({id: 'label', label})} /> : null}
+        {show ? <deckWidget widget={new LabelWidget({id: 'label', label})} /> : null}
       </DeckGL>
     );
   }

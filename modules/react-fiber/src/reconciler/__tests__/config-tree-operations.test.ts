@@ -166,7 +166,13 @@ describe('config-tree-operations', () => {
       const instance = createMockInstance(layer);
 
       // Act
-      const result = finalizeInitialChildren(instance, 'layer', {layer}, {} as never, {} as never);
+      const result = finalizeInitialChildren(
+        instance,
+        'deckLayer',
+        {layer},
+        {} as never,
+        {} as never
+      );
 
       // Assert
       expect(result).toBeFalsy();

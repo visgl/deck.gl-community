@@ -1,26 +1,54 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
+// The optional peers: each subpath that needs one loads it, and the root loads none of them.
+const OPTIONAL_PEERS = [
+  '@deck.gl/aggregation-layers',
+  '@deck.gl/geo-layers',
+  '@deck.gl/layers',
+  '@deck.gl/mapbox',
+  '@deck.gl/maplibre',
+  '@deck.gl/mesh-layers',
+  '@deck.gl/widgets'
+];
+
 afterEach(() => {
-  vi.doUnmock('@deck.gl/mapbox');
-  vi.doUnmock('@deck.gl/maplibre');
+  for (const name of OPTIONAL_PEERS) {
+    vi.doUnmock(name);
+  }
   vi.resetModules();
 });
 
-function blockProviderImports() {
-  vi.doMock('@deck.gl/mapbox', () => {
-    throw new Error('The plain entrypoint must not load @deck.gl/mapbox.');
-  });
-  vi.doMock('@deck.gl/maplibre', () => {
-    throw new Error('The plain entrypoint must not load @deck.gl/maplibre.');
-  });
+function blockImports(names: string[]) {
+  for (const name of names) {
+    vi.doMock(name, () => {
+      throw new Error(`This entrypoint must not load ${name}.`);
+    });
+  }
 }
 
-describe('plain entrypoint provider isolation', () => {
-  it('loads the native root without either provider package', async () => {
-    blockProviderImports();
+describe('plain entrypoint isolation', () => {
+  it('loads the native root and the factories without any optional peer', async () => {
+    blockImports(OPTIONAL_PEERS);
 
     const dom = await import('../index');
 
-    expect(Object.keys(dom).sort()).toEqual(['DeckCanvas', 'DeckGL', 'createDeckGL']);
+    expect(dom.DeckGL).toBeDefined();
+    expect(dom.createLayerComponent).toBeDefined();
+  });
+
+  it('loads /layers without the other layer packages', async () => {
+    blockImports(OPTIONAL_PEERS.filter(name => name !== '@deck.gl/layers'));
+
+    const layers = await import('../../wrappers/layers');
+
+    expect(layers.ScatterplotLayer).toBeDefined();
+  });
+
+  it('loads /core without any optional peer', async () => {
+    blockImports(OPTIONAL_PEERS);
+
+    const core = await import('../../wrappers/core');
+
+    expect(core.MapView).toBeDefined();
   });
 });

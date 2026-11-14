@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/layers",
-  "version": "9.4.10",
+  "version": "10.0.0-alpha.1",
   "description": "Add-on layers for deck.gl",
   "license": "MIT",
   "repository": {
@@ -37,34 +37,31 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@loaders.gl/textures": "^4.5.1",
-    "@luma.gl/constants": "~9.4.2",
-    "@luma.gl/shadertools": "~9.4.2",
-    "@math.gl/core": "^4.0.0",
+    "@loaders.gl/images": "5.0.0-beta.8",
+    "@luma.gl/shaders": "10.0.0-alpha.14",
+    "@math.gl/core": "5.0.0-beta.8",
     "mediabunny": "^1.61.3"
   },
   "peerDependencies": {
-    "@deck.gl/core": "~9.4.1",
-    "@deck.gl/extensions": "~9.4.1",
-    "@deck.gl/geo-layers": "~9.4.1",
-    "@deck.gl/layers": "~9.4.1",
-    "@deck.gl/mesh-layers": "~9.4.1",
-    "@loaders.gl/core": "^4.5.1",
-    "@luma.gl/core": "~9.4.2",
-    "@luma.gl/engine": "~9.4.2"
+    "@deck.gl/core": "10.0.0-alpha.1",
+    "@deck.gl/extensions": "10.0.0-alpha.1",
+    "@deck.gl/geo-layers": "10.0.0-alpha.1",
+    "@deck.gl/layers": "10.0.0-alpha.1",
+    "@deck.gl/mesh-layers": "10.0.0-alpha.1",
+    "@loaders.gl/core": "5.0.0-beta.8",
+    "@luma.gl/core": "10.0.0-alpha.14",
+    "@luma.gl/engine": "10.0.0-alpha.14"
   },
   "devDependencies": {
-    "@deck.gl/core": "~9.4.1",
-    "@deck.gl/extensions": "~9.4.1",
-    "@deck.gl/geo-layers": "~9.4.1",
-    "@deck.gl/layers": "~9.4.1",
-    "@deck.gl/mesh-layers": "~9.4.1",
-    "@deck.gl/test-utils": "~9.4.1",
-    "@loaders.gl/core": "^4.5.1",
-    "@luma.gl/core": "~9.4.2",
-    "@luma.gl/engine": "~9.4.2",
-    "@luma.gl/webgpu": "~9.4.2",
-    "@probe.gl/test-utils": "^4.1.1",
-    "esbuild": "^0.28.1"
+    "@deck.gl/core": "10.0.0-alpha.1",
+    "@deck.gl/extensions": "10.0.0-alpha.1",
+    "@deck.gl/geo-layers": "10.0.0-alpha.1",
+    "@deck.gl/layers": "10.0.0-alpha.1",
+    "@deck.gl/mesh-layers": "10.0.0-alpha.1",
+    "@deck.gl/test-utils": "10.0.0-alpha.1",
+    "@loaders.gl/core": "5.0.0-beta.8",
+    "@luma.gl/core": "10.0.0-alpha.14",
+    "@luma.gl/engine": "10.0.0-alpha.14",
+    "probe.gl": "^5.0.0"
   }
 }

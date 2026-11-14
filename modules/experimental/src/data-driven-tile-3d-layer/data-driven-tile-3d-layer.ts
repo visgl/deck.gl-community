@@ -4,8 +4,8 @@
 
 import {Tile3DLayer, Tile3DLayerProps} from '@deck.gl/geo-layers';
 import {UpdateParameters, Viewport, DefaultProps} from '@deck.gl/core';
-import {TILE_TYPE, Tile3D, Tileset3D} from '@loaders.gl/tiles';
-import {load} from '@loaders.gl/core';
+import {TILE_TYPE, Tile3D, Tileset3D, I3SSource, Tiles3DSource} from '@loaders.gl/tiles-3d';
+import {coreApi} from '@loaders.gl/core';
 
 const defaultProps: DefaultProps<DataDrivenTile3DLayerProps> = {
   colorsByAttribute: null,
@@ -116,35 +116,32 @@ export class DataDrivenTile3DLayer<
     const {loadOptions = {}} = this.props;
 
     // TODO: deprecate `loader` in v9.0
-    let loader: any = this.props.loader || this.props.loaders;
+    let loader: any = this.props.loaders?.length ? this.props.loaders : this.props.loader;
     if (Array.isArray(loader)) {
       loader = loader[0];
     }
 
-    const options = {loadOptions: {...loadOptions}};
-    if (loader.preload) {
-      const preloadOptions = await loader.preload(tilesetUrl, loadOptions);
+    const {tileset: tilesetOptions, ...remainingLoadOptions} = loadOptions;
+    const options = {loadOptions: {...remainingLoadOptions}, ...tilesetOptions};
+    const sourceInput = {url: tilesetUrl, loader, coreApi};
+    const source =
+      loader.id === 'i3s'
+        ? new I3SSource(sourceInput, options.loadOptions)
+        : new Tiles3DSource(sourceInput, options.loadOptions);
 
-      if (preloadOptions.headers) {
-        options.loadOptions.fetch = {
-          ...options.loadOptions.fetch,
-          headers: preloadOptions.headers
-        };
-      }
-      Object.assign(options, preloadOptions);
-    }
-    const tilesetJson = await load(tilesetUrl, loader, options.loadOptions);
-
-    const tileset3d = new Tileset3D(tilesetJson, {
+    const tileset3d = new Tileset3D(source, {
       onTileLoad: this._onTileLoad.bind(this),
       // @ts-expect-error call of private method of the base class
       onTileUnload: super._onTileUnload.bind(this),
       onTileError: this.props.onTileError,
+      onUpdate: () => this.setNeedsUpdate(),
       // New code ------------------
       onTraversalComplete: this._onTraversalComplete.bind(this),
       // ---------------------------
       ...options
     });
+
+    await tileset3d.tilesetInitializationPromise;
 
     this.setState({
       tileset3d,

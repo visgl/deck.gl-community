@@ -39,7 +39,7 @@ import {Deck} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {SharedTile2DLayer} from '@deck.gl-community/geo-layers';
 import {SharedTileset2D} from '@deck.gl-community/geo-layers/tileset';
-import type {TileSource} from '@loaders.gl/loader-utils';
+import type {TileSource} from '@loaders.gl/core/loader-utils';
 
 const tileSource: TileSource = {
   getMetadata: async () => ({

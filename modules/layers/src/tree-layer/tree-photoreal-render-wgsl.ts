@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {picking} from '@deck.gl/core';
-import {phongMaterial, type ShaderModule} from '@luma.gl/shadertools';
+import {phongMaterial, type ShaderModule} from '@luma.gl/shaders';
 import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
 import {TREE_ROOT_PLATE_RADII} from './tree-growth-model';
 import {treePhotorealWgsl} from './tree-photoreal-wgsl';

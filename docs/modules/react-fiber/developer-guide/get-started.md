@@ -1,6 +1,6 @@
 # Get started
 
-`@deck.gl-community/react-fiber` renders deck.gl in a React client tree. The native package exports `DeckGL`; it also adds the `<layer>`, `<view>`, `<widget>` and `<effect>` JSX elements that pass already constructed deck.gl descriptors to the renderer. See [Why layer instances](../README.md#why-layer-instances) for what this syntax buys over `@deck.gl/react` JSX layers.
+`@deck.gl-community/react-fiber` renders deck.gl in a React client tree. The root exports `DeckGL`, and subpaths named after deck.gl's modules export a component for each built-in layer, view, widget and effect.
 
 ## 1. Install the packages you use
 
@@ -10,7 +10,7 @@ Install React, the renderer, and the deck.gl packages used by the application:
 npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers
 ```
 
-The renderer requires React 19 or later and is built for the deck.gl 9.4 package family. The standalone root imports no provider package. Add the matching deck.gl provider and host-map SDK only when using a provider root:
+The renderer requires React 19 or later, and TypeScript 5.3 or later for its types. It is built for the deck.gl 10 prerelease packages, `10.0.0-alpha.1`. Each component subpath needs its deck.gl package, such as `@deck.gl/layers` for `/layers`. The standalone root imports no provider package. Add the matching deck.gl provider and host-map SDK only when using a provider root:
 
 ```bash
 # Mapbox provider root
@@ -30,63 +30,98 @@ The native root creates a browser renderer. In an application that uses React Se
 
 Without a `canvas` prop, `DeckGL` renders a wrapper and canvas like `@deck.gl/react`: the wrapper is absolutely positioned with `width` and `height` of `100%` by default, so it fills the nearest positioned ancestor. Give that container a size in application CSS, or set `width`, `height`, or `style` on `DeckGL`. See [Root DOM and sizing](../api-reference/deckgl.md#root-dom-and-sizing). Supplying `canvas` tells the component to use a canvas you render and size yourself; it then renders no wrapper or canvas.
 
-## 4. Create layers as React elements
+## 4. Add layers
 
-Pass a deck.gl `Layer` instance to the universal `<layer>` element. Layer instances are descriptors, so the renderer can pass the complete list to deck.gl on each committed React update. deck.gl matches the descriptors by `id`, making a stable, unique ID essential for correct and efficient updates.
+Import a layer component from the subpath named after its deck.gl module, and pass it the layer's
+props. deck.gl matches layers by `id`, so give each one a stable, unique ID.
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';
-import {ScatterplotLayer} from '@deck.gl/layers';
+import {ScatterplotLayer} from '@deck.gl-community/react-fiber/layers';
 
-export function App({data}: {data: Array<{coordinates: [number, number]}>) {
+type Point = {coordinates: [number, number]};
+
+export function App({data}: {data: Point[]}) {
   return (
     <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}} controller>
-      <layer
-        layer={
-          new ScatterplotLayer({
-            id: 'points',
-            data,
-            getPosition: point => point.coordinates,
-            getRadius: 100
-          })
-        }
-      />
+      <ScatterplotLayer id="points" data={data} getPosition={d => d.coordinates} getRadius={100} />
     </DeckGL>
   );
 }
 ```
 
-Use ordinary React components to organize a map. A component may create its own descriptor and return one `<layer>` element. Use `useMemo` when the layer creation depends on expensive work or when the application needs a stable object for another reason; the renderer itself still reconciles the resulting descriptors by ID.
+Props are checked against `ScatterplotLayerProps`, and the accessors are typed by the data type,
+which is inferred from `data` or passed as `<ScatterplotLayer<Point>>`. The component builds a new
+layer on every render, and deck.gl updates only what changed.
 
-## 5. Add views deliberately
-
-Pass a deck.gl `View` instance to `<view>`, also with an explicit ID:
+Use ordinary React components to organize a map. A component can load its own data with hooks and
+return one or more layers:
 
 ```tsx
-import {MapView} from '@deck.gl/core';
+function Airports() {
+  const airports = useAirports();
+  return <ScatterplotLayer id="airports" data={airports} getPosition={d => d.coordinates} />;
+}
 
-<DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}} controller>
-  <view view={new MapView({id: 'main-map'})} />
-  <layer layer={/* a deck.gl Layer instance */} />
+<DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
+  <Airports />
 </DeckGL>;
 ```
 
-The React tree is flattened before deck.gl receives it. Therefore, a `<view>` can contain React children for application composition, but it does not scope its child layers to that view. The renderer supplies the flattened view list to `Deck`, or to a Mapbox or MapLibre overlay, which renders it beside the map's own view.
+## 5. Add views, widgets and effects
 
-## 6. Combine JSX and `layers` only when needed
-
-`DeckGL` accepts the normal deck.gl `layers` prop as well as `<layer>` children. As in `@deck.gl/react`, the renderer appends the `layers` prop after the layers produced by JSX, so prop layers draw on top. This is useful while incrementally moving an existing deck.gl configuration to React, but all layers across both sources must have unique IDs.
+Views and effects come from `/core`, and widgets from `/widgets`:
 
 ```tsx
+import {LightingEffect, MapView} from '@deck.gl-community/react-fiber/core';
+import {ZoomWidget} from '@deck.gl-community/react-fiber/widgets';
+
+<DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
+  <MapView id="main-map" />
+  <ZoomWidget id="zoom" />
+  <LightingEffect ambient={ambientLight} />
+  <Airports />
+</DeckGL>;
+```
+
+The React tree is flattened before deck.gl receives it. A view can contain React children for
+composition, but it does not scope its child layers to that view; use deck.gl's `layerFilter`. The
+renderer supplies the flattened view list to `Deck`, or to a Mapbox or MapLibre overlay, which
+renders it beside the map's own view.
+
+## 6. Wrap your own classes
+
+For a custom layer, view, widget or effect, make a component once with `createLayerComponent`,
+`createViewComponent`, `createWidgetComponent` or `createEffectComponent`. No registration is
+needed:
+
+```tsx
+import {createLayerComponent} from '@deck.gl-community/react-fiber';
+import {FlowLayer as DeckFlowLayer} from './flow-layer';
+
+export const FlowLayer = createLayerComponent(DeckFlowLayer);
+```
+
+When you already have an instance, for example from `useMemo`, pass it to a native element:
+`<deckLayer layer={layer} />`, `<deckView>`, `<deckWidget>` or `<deckEffect>`. See
+[Native elements](../api-reference/native-elements.md).
+
+## 7. Combine JSX and `layers` only when needed
+
+`DeckGL` accepts the normal deck.gl `layers` prop as well as JSX layers. As in `@deck.gl/react`, the renderer appends the `layers` prop after the layers produced by JSX, so prop layers draw on top. This is useful while incrementally moving an existing deck.gl configuration to React, but all layers across both sources must have unique IDs.
+
+```tsx
+import {ScatterplotLayer as DeckScatterplotLayer} from '@deck.gl/layers';
+
 <DeckGL
-  layers={[new ScatterplotLayer({id: 'existing-points', data: []})]}
+  layers={[new DeckScatterplotLayer({id: 'existing-points', data: []})]}
   initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}}
 >
-  <layer layer={new ScatterplotLayer({id: 'react-points', data: []})} />
+  <ScatterplotLayer id="react-points" data={[]} />
 </DeckGL>;
 ```
 
-## 7. Access the root instance when necessary
+## 8. Access the root instance when necessary
 
 Use `onDeckChange` to receive the root-specific `Deck` instance. Store it in React state if another component needs to react to the instance becoming available:
 
@@ -108,7 +143,7 @@ function Map() {
 
   return (
     <DeckGL onDeckChange={setDeck}>
-      <layer layer={/* a deck.gl Layer instance */} />
+      <Airports />
     </DeckGL>
   );
 }
@@ -120,12 +155,12 @@ The notification receives `null` when its root is cleaned up. It is not a callba
 
 Provider selection is an import-path decision. Use `/mapbox` for `MapboxOverlay` or `/maplibre` for `MapLibreOverlay`; install the matching `@deck.gl` package and create/configure the host map in your application. Store the overlay from `onDeckChange` in state and attach it to the map in an effect, so it is attached once per instance and detached during cleanup. See [Attach the overlay to the host map](./using-with-maps.md#attach-the-overlay-to-the-host-map) for the lifecycle, and the [Mapbox](./base-maps/using-with-mapbox.md) and [MapLibre](./base-maps/using-with-maplibre.md) guides for complete examples.
 
-Deck callbacks such as `onClick` are deck.gl event handlers passed to the root, not React synthetic events on `<layer>` or `<view>`.
+Deck callbacks such as `onClick` are deck.gl event handlers, passed to the root or a layer, not React synthetic events.
 
 ## Next steps
 
-Read the [DeckGL API](../api-reference/deckgl.md) for standalone and interleaved ownership details, [Using with maps](./using-with-maps.md) for host-map lifecycle and provider guides, and [Native elements](../api-reference/native-elements.md) for the exact `<layer>` and `<view>` contract.
+Read the [DeckGL API](../api-reference/deckgl.md) for standalone and interleaved ownership details, [Using with maps](./using-with-maps.md) for host-map lifecycle and provider guides, [Components](../api-reference/components.md) for every component subpath, and [Native elements](../api-reference/native-elements.md) for the `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>` contract.
 
-If you are migrating an existing `@deck.gl/react` application, see [Migrate from `@deck.gl/react`](./migrate-from-deckgl-react.md).
+If you are upgrading from `@deck.gl/react`, see the [upgrade guide](./migrate-from-deckgl-react.md).
 
 For framework-specific project layouts, see the [React Fiber examples](/examples/react-fiber/overview).

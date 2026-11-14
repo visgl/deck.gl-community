@@ -7,7 +7,7 @@ import {
   TextureCubeLoader,
   type TextureCubeLoaderOptions,
   type TextureCubeManifest
-} from '@loaders.gl/textures';
+} from '@loaders.gl/images';
 import {Layer} from '@deck.gl/core';
 import type {
   DefaultProps,
@@ -20,7 +20,7 @@ import {Matrix4} from '@math.gl/core';
 import type {Device, RenderPipelineParameters} from '@luma.gl/core';
 import {CubeGeometry, DynamicTexture, Model, ShaderInputs} from '@luma.gl/engine';
 import type {TextureCubeData} from '@luma.gl/engine';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 import {convertLoadedCubemapToTextureData, createCubemapLoadOptions} from './cubemap-utils';
 
 type AppUniforms = {
@@ -238,10 +238,9 @@ async function loadCubemapSource(
     return (await load(cubemap, TextureCubeLoader, normalizedLoadOptions)) as LoadedCubemapTexture;
   }
 
-  return (await TextureCubeLoader.parseText(
-    JSON.stringify(cubemap),
-    normalizedLoadOptions
-  )) as LoadedCubemapTexture;
+  return (await (
+    await TextureCubeLoader.preload()
+  ).parseText(JSON.stringify(cubemap), normalizedLoadOptions)) as LoadedCubemapTexture;
 }
 
 /** Creates the runtime `DynamicTexture` instance used by the skybox model. */

@@ -22,6 +22,7 @@ test('deck.gl resolves graph URLs and replaces them with loaded graphs without a
     id: 'graph-url',
     data: `data:text/vnd.graphviz,${encodeURIComponent(karateDot)}`,
     loaders: [DOTLoaderWithParser],
+    loadOptions: {dot: {shape: 'plain-graph-data'}},
     graphLoader,
     layout: new SimpleLayout(),
     onDataLoad

@@ -2,13 +2,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {TREE_LEAF_STRIDE, type TreeGrowthModel} from './tree-photoreal-layout';
+import {
+  isMatureLeafRejected,
+  TREE_LEAF_STRIDE,
+  type TreeGrowthModel
+} from './tree-photoreal-layout';
 
 /** Bounds in template coordinates, containing the resting bases of a small spatial group of leaves. */
 export type TreeLeafCluster = {
   bounds: readonly [number, number, number, number, number, number];
   length: number;
   leaves: Uint32Array;
+  matureLeaves: Uint32Array;
 };
 
 export type TreeLeafSelection = {
@@ -16,6 +21,9 @@ export type TreeLeafSelection = {
   visible: Uint8Array;
   /** Leaves in camera-visible clusters, retaining original template indices. */
   visibleLeaves: Uint32Array;
+  /** Unfiltered count used to decide whether spatial clustering is worthwhile. */
+  visibleLeafCount: number;
+  matureOnly: boolean;
 };
 
 const CLUSTERS = new WeakMap<TreeGrowthModel, TreeLeafCluster[]>();
@@ -105,11 +113,16 @@ export function getTreeLeafClusters(template: TreeGrowthModel): TreeLeafCluster[
     bin.length = Math.max(bin.length, leaves[offset + 3]);
     bin.leaves.push(leaf);
   }
-  const clusters = [...bins.values()].map(bin => ({
-    bounds: bin.bounds as unknown as TreeLeafCluster['bounds'],
-    length: bin.length,
-    leaves: Uint32Array.from(bin.leaves)
-  }));
+  const clusters = [...bins.values()].map(bin => {
+    const indices = Uint32Array.from(bin.leaves);
+    const matureLeaves = indices.filter(leaf => !isMatureLeafRejected(leaves, leaf));
+    return {
+      bounds: bin.bounds as unknown as TreeLeafCluster['bounds'],
+      length: bin.length,
+      leaves: indices,
+      matureLeaves: matureLeaves.length === indices.length ? indices : matureLeaves
+    };
+  });
   CLUSTERS.set(template, clusters);
   return clusters;
 }
@@ -118,15 +131,19 @@ export function getTreeLeafClusters(template: TreeGrowthModel): TreeLeafCluster[
 export function selectTreeLeafClusters(
   clusters: readonly TreeLeafCluster[],
   intersects: (cluster: TreeLeafCluster) => boolean,
-  previous: TreeLeafSelection | null
+  previous: TreeLeafSelection | null,
+  matureOnly = false
 ): TreeLeafSelection {
   const visible = new Uint8Array(clusters.length);
-  let unchanged = previous !== null;
+  let unchanged = previous?.matureOnly === matureOnly;
   let count = 0;
+  let visibleLeafCount = 0;
   for (let index = 0; index < clusters.length; index++) {
-    if (intersects(clusters[index])) {
+    const cluster = clusters[index];
+    if (intersects(cluster)) {
       visible[index] = 1;
-      count += clusters[index].leaves.length;
+      visibleLeafCount += cluster.leaves.length;
+      count += matureOnly ? cluster.matureLeaves.length : cluster.leaves.length;
     }
     if (visible[index] !== previous?.visible[index]) unchanged = false;
   }
@@ -136,9 +153,10 @@ export function selectTreeLeafClusters(
   let offset = 0;
   for (let index = 0; index < clusters.length; index++) {
     if (!visible[index]) continue;
-    const {leaves} = clusters[index];
+    const cluster = clusters[index];
+    const leaves = matureOnly ? cluster.matureLeaves : cluster.leaves;
     visibleLeaves.set(leaves, offset);
     offset += leaves.length;
   }
-  return {visible, visibleLeaves};
+  return {visible, visibleLeaves, visibleLeafCount, matureOnly};
 }

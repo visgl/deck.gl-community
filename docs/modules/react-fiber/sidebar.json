@@ -28,6 +28,7 @@
       "items": [
         "modules/react-fiber/api-reference/deckgl",
         "modules/react-fiber/api-reference/deck-canvas",
+        "modules/react-fiber/api-reference/components",
         "modules/react-fiber/api-reference/native-elements"
       ]
     }

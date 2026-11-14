@@ -9,6 +9,7 @@ import {
   getTreeLeafBladeCorners,
   TREE_LEAF_BLADE_MARGIN_MACRO,
   TREE_LEAF_BLADE_MARGIN_MOST,
+  TREE_SHELL_COVERAGE_WGSL,
   type TreeLeafBlade
 } from './tree-photoreal-shaders';
 import {treePhotorealRenderWgsl} from './tree-photoreal-render-wgsl';
@@ -19,8 +20,10 @@ export function getTreeLeafWgslShaders(
   blade: TreeLeafBlade,
   air: 'blend' | 'depth' | null | undefined,
   listed: boolean,
-  species: TreeType
+  species: TreeType,
+  shellTransition = false
 ) {
+  const mask = shellTransition && !air;
   const usesReferences = listed || blade === 'fine' || blade === 'macro';
   const fine = blade === 'fine' || blade === 'macro';
   const corners = air
@@ -39,6 +42,7 @@ export function getTreeLeafWgslShaders(
     shaderLayout: bindings.shaderLayout,
     source: /* wgsl */ `
 ${bindings.source}
+${mask ? TREE_SHELL_COVERAGE_WGSL : ''}
 
 const LEAF_OUTLINE = array<vec3<f32>, ${corners.length}>(
   ${corners.map(corner => `vec3<f32>(${corner.join(', ')})`).join(',\n  ')}
@@ -58,6 +62,7 @@ struct LeafVaryings {
   @location(3) blade: vec3<f32>,
   @location(4) optics: vec3<f32>,
   @location(5) @interpolate(flat) pickingColor: vec3<f32>,
+  ${mask ? '@location(6) @interpolate(flat) shellRetention: f32,' : ''}
 };
 
 @vertex fn vertexMain(input: LeafInput) -> LeafVaryings {
@@ -192,6 +197,7 @@ struct LeafVaryings {
   output.optics = vec3<f32>(mix(0.62 + 0.38 * timing.w, 1.0, flight), seed,
     presence * select(1.0 - smoothstep(0.86, 1.0, flight), 1.0, litter));
   output.pickingColor = picking_getPickingColorFromIndex(${usesReferences ? 'row' : 'input.instanceIndex'});
+  ${mask ? `output.shellRetention = treeStateTexel(treeState, row, ${TREE_STATE_TEXEL.CROP_DROPPED}u).z;` : ''}
   return output;
 }
 
@@ -205,6 +211,7 @@ struct LeafVaryings {
   let vein = (1.0 - smoothstep(0.012, 0.13, abs(input.blade.y))) * detail;
   let modulation = 1.0 + vein * 0.14 + detail * 0.035 * sin(95.0 * t + input.optics.y * 21.0);`
   }
+  ${mask ? 'if (input.shellRetention > 0.0 && treeShellCoversPixel(input.position.xy, input.shellRetention)) { discard; }' : ''}
   let normal = normalize(input.normal) * select(-1.0, 1.0, front);
   ${
     air

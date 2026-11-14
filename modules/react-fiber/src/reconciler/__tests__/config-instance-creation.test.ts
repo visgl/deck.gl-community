@@ -28,10 +28,10 @@ describe('config-instance-creation', () => {
   });
 
   describe('createInstance()', () => {
-    it('should create instance for <layer> element', () => {
+    it('should create instance for <deckLayer> element', () => {
       // Arrange
       const layer = new ScatterplotLayer({data: [], id: 'test-layer'});
-      const type: Type = 'layer';
+      const type: Type = 'deckLayer';
       const props: Props = {layer};
       const hostContext = createMockHostContext();
 
@@ -45,10 +45,10 @@ describe('config-instance-creation', () => {
       expect(instance.children).toStrictEqual([]);
     });
 
-    it('should create instance for <view> element', () => {
+    it('should create instance for <deckView> element', () => {
       // Arrange
       const view = new MapView({id: 'test-view'});
-      const type: Type = 'view';
+      const type: Type = 'deckView';
       const props: Props = {view};
       const hostContext = createMockHostContext();
 
@@ -62,11 +62,11 @@ describe('config-instance-creation', () => {
       expect(instance.children).toStrictEqual([]);
     });
 
-    it('should create instance for <widget> element', () => {
+    it('should create instance for <deckWidget> element', () => {
       const widget = new TestWidget({id: 'test-widget'});
 
       const instance = createInstance(
-        'widget',
+        'deckWidget',
         {widget},
         {} as never,
         createMockHostContext(),
@@ -77,11 +77,11 @@ describe('config-instance-creation', () => {
       expect(instance.children).toStrictEqual([]);
     });
 
-    it('should create instance for <effect> element', () => {
+    it('should create instance for <deckEffect> element', () => {
       const effect = new LightingEffect();
 
       const instance = createInstance(
-        'effect',
+        'deckEffect',
         {effect},
         {} as never,
         createMockHostContext(),
@@ -98,28 +98,46 @@ describe('config-instance-creation', () => {
       const view = new MapView({id: 'main'});
       const widget = new TestWidget({id: 'widget'});
       const cases: [Type, Props, string][] = [
-        ['layer', {}, '<layer> needs a Layer, got undefined'],
-        ['layer', {layer: null as never}, '<layer> needs a Layer, got null'],
-        ['layer', {layer: view as never}, '<layer> needs a Layer, got MapView'],
-        ['layer', {layer: widget as never}, '<layer> needs a Layer, got TestWidget'],
-        ['layer', {layer: {id: 'plain'} as never}, '<layer> needs a Layer, got Object'],
-        ['view', {}, '<view> needs a View, got undefined'],
-        ['view', {view: layer as never}, '<view> needs a View, got ScatterplotLayer'],
-        ['widget', {}, '<widget> needs a Widget, got undefined'],
-        ['widget', {widget: layer as never}, '<widget> needs a Widget, got ScatterplotLayer'],
-        ['effect', {}, '<effect> needs a deck.gl effect, got undefined'],
+        ['deckLayer', {}, '<deckLayer> needs a Layer, got undefined'],
+        ['deckLayer', {layer: null as never}, '<deckLayer> needs a Layer, got null'],
+        ['deckLayer', {layer: view as never}, '<deckLayer> needs a Layer, got MapView'],
+        ['deckLayer', {layer: widget as never}, '<deckLayer> needs a Layer, got TestWidget'],
+        ['deckLayer', {layer: {id: 'plain'} as never}, '<deckLayer> needs a Layer, got Object'],
+        ['deckView', {}, '<deckView> needs a View, got undefined'],
+        ['deckView', {view: layer as never}, '<deckView> needs a View, got ScatterplotLayer'],
+        ['deckWidget', {}, '<deckWidget> needs a Widget, got undefined'],
         [
-          'effect',
-          {effect: layer as never},
-          '<effect> needs a deck.gl effect, got ScatterplotLayer'
+          'deckWidget',
+          {widget: layer as never},
+          '<deckWidget> needs a Widget, got ScatterplotLayer'
         ],
-        ['effect', {effect: widget as never}, '<effect> needs a deck.gl effect, got TestWidget'],
-        ['effect', {effect: {id: 'plain'} as never}, '<effect> needs a deck.gl effect, got Object'],
+        ['deckEffect', {}, '<deckEffect> needs a deck.gl effect, got undefined'],
         [
-          'layer',
+          'deckEffect',
+          {effect: layer as never},
+          '<deckEffect> needs a deck.gl effect, got ScatterplotLayer'
+        ],
+        [
+          'deckEffect',
+          {effect: widget as never},
+          '<deckEffect> needs a deck.gl effect, got TestWidget'
+        ],
+        [
+          'deckEffect',
+          {effect: {id: 'plain'} as never},
+          '<deckEffect> needs a deck.gl effect, got Object'
+        ],
+        [
+          'deckLayer',
           {layer: new LightingEffect() as never},
-          '<layer> needs a Layer, got LightingEffect'
-        ]
+          '<deckLayer> needs a Layer, got LightingEffect'
+        ],
+        // Only the deck-prefixed names are elements; the unprefixed names are unknown.
+        ['layer', {layer}, 'Unsupported element <layer>'],
+        ['view', {view}, 'Unsupported element <view>'],
+        ['widget', {widget}, 'Unsupported element <widget>'],
+        ['effect', {effect: new LightingEffect()}, 'Unsupported element <effect>'],
+        ['div', {}, 'Unsupported element <div>']
       ];
 
       // The check runs in every build, not only in development.
@@ -137,7 +155,7 @@ describe('config-instance-creation', () => {
       const layer = new ScatterplotLayer({data: [], id: 'points'});
       const view = new MapView({id: 'main'});
       const instance = createInstance(
-        'layer',
+        'deckLayer',
         {layer},
         {} as never,
         createMockHostContext(),
@@ -145,8 +163,8 @@ describe('config-instance-creation', () => {
       );
 
       expect(() =>
-        cloneInstance(instance, 'layer', {layer}, {layer: view as never}, false, null)
-      ).toThrow('<layer> needs a Layer, got MapView');
+        cloneInstance(instance, 'deckLayer', {layer}, {layer: view as never}, false, null)
+      ).toThrow('<deckLayer> needs a Layer, got MapView');
     });
 
     it('should reject unsupported element types', () => {
@@ -163,7 +181,7 @@ describe('config-instance-creation', () => {
       const {warnSpy} = setupLogSpy();
 
       const layer = new ScatterplotLayer({data: [], id: 'unknown'}); // "unknown" ID triggers warning
-      const type: Type = 'layer';
+      const type: Type = 'deckLayer';
       const props: Props = {layer};
       const hostContext = createMockHostContext();
 
@@ -180,7 +198,7 @@ describe('config-instance-creation', () => {
       const {warnSpy} = setupLogSpy();
 
       const view = new MapView({id: 'unknown'}); // "unknown" ID triggers warning
-      const type: Type = 'view';
+      const type: Type = 'deckView';
       const props: Props = {view};
       const hostContext = createMockHostContext();
 
@@ -199,7 +217,7 @@ describe('config-instance-creation', () => {
         process.env.NODE_ENV = env;
         warnSpy.mockClear();
         createInstance(
-          'layer',
+          'deckLayer',
           {layer: new ScatterplotLayer({data: [], id: 'unknown'})},
           {} as never,
           hostContext,
@@ -215,7 +233,7 @@ describe('config-instance-creation', () => {
       const {warnSpy} = setupLogSpy();
 
       const layer = new ScatterplotLayer({data: []}); // No ID
-      const type: Type = 'layer';
+      const type: Type = 'deckLayer';
       const props: Props = {layer};
       const hostContext = createMockHostContext();
 
@@ -229,7 +247,7 @@ describe('config-instance-creation', () => {
     it('should return instance with node and empty children array', () => {
       // Arrange
       const layer = new ScatterplotLayer({data: [], id: 'test'});
-      const type: Type = 'layer';
+      const type: Type = 'deckLayer';
       const props: Props = {layer};
       const hostContext = createMockHostContext();
 
@@ -255,7 +273,7 @@ describe('config-instance-creation', () => {
     it('should return undefined if instance is undefined', () => {
       // Arrange
       const instance = undefined;
-      const type = 'layer';
+      const type = 'deckLayer';
       const oldProps: Props = {};
       const newProps: Props = {};
 
@@ -282,7 +300,7 @@ describe('config-instance-creation', () => {
         children: [],
         node: oldLayer
       };
-      const type = 'layer';
+      const type = 'deckLayer';
       const oldProps: Props = {layer: oldLayer};
       const newProps: Props = {layer: newLayer};
 
@@ -307,7 +325,7 @@ describe('config-instance-creation', () => {
         children: [childInstance],
         node: layer
       };
-      const type = 'layer';
+      const type = 'deckLayer';
       const oldProps: Props = {layer};
       const newProps: Props = {layer: newLayer};
 
@@ -343,7 +361,7 @@ describe('config-instance-creation', () => {
         children: [],
         node: layer
       };
-      const type = 'layer';
+      const type = 'deckLayer';
       const oldProps: Props = {layer};
       const newProps: Props = {layer: newLayer};
 
@@ -375,7 +393,7 @@ describe('config-instance-creation', () => {
         children: [childInstance],
         node: layer
       };
-      const type = 'layer';
+      const type = 'deckLayer';
       const oldProps: Props = {layer};
       const newProps: Props = {layer: newLayer};
 
@@ -407,7 +425,7 @@ describe('config-instance-creation', () => {
         children: [childInstance],
         node: layer
       };
-      const type: Type = 'layer';
+      const type: Type = 'deckLayer';
       const props: Props = {layer};
 
       // Act

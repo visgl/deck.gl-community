@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Deck, FirstPersonView} from '@deck.gl/core';
+import {Deck, FirstPersonView} from '@deck.gl/core';
 import {SolidPolygonLayer} from '@deck.gl/layers';
 import {SkyboxLayer} from '@deck.gl-community/layers';
 import {PAPERMILL_CUBEMAP} from '../skybox-assets/cubemap';
@@ -44,7 +44,7 @@ export function mountSkyboxFirstPersonExample(container: HTMLElement): () => voi
       new SolidPolygonLayer({
         id: 'floor',
         data: FLOOR,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        coordinateSystem: 'cartesian',
         getPolygon: d => d,
         stroked: false,
         filled: true,

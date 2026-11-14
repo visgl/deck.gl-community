@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {Geometry} from '@luma.gl/engine';
 
@@ -87,7 +86,7 @@ export function createTerrainLayer(heightMap = true) {
     id: 'rugged-terrain',
     data: TERRAIN_DATA,
     mesh: TERRAIN_MESH,
-    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     _instanced: false,
     getPosition: (d: {position: [number, number, number]}) => d.position,
     getColor: [255, 255, 255] as [number, number, number],

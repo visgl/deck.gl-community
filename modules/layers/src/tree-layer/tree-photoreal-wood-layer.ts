@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {picking, project32, type DefaultProps, type Layer} from '@deck.gl/core';
+import {picking, project32, type DefaultProps, type Layer, type Viewport} from '@deck.gl/core';
 import {Buffer} from '@luma.gl/core';
 import {GPUGeometry, Model} from '@luma.gl/engine';
-import {phongMaterial} from '@luma.gl/shadertools';
+import {phongMaterial} from '@luma.gl/shaders';
 import {
   TreePhotorealPrimitiveLayer,
   type TreePhotorealLayerProps,
@@ -46,6 +46,7 @@ type WoodVisibility = {
   shape: number[];
   spheres: Float64Array;
   selection: TreeWoodSelection | null;
+  selectionPlanes?: Float64Array;
   buffer?: Buffer;
   instanceBuffer?: Buffer;
   capacity: number;
@@ -101,6 +102,7 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
 
   declare state: TreePhotorealPrimitiveLayer<DataT>['state'] & {
     opaqueModel?: Model;
+    woodFrustum?: {matrix: number[]; width: number; height: number; planes: Float64Array};
     woodVisibility?: Map<number, WoodVisibility>;
     woodCullingActive?: boolean;
     woodSubmittedIndices?: number;
@@ -211,6 +213,24 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
       entry.instanceBuffer?.destroy();
     }
     this.state.woodVisibility = undefined;
+    this.state.woodFrustum = undefined;
+  }
+
+  private getWoodFrustum(viewport: Viewport): Float64Array {
+    const {width, height, viewProjectionMatrix} = viewport;
+    const cached = this.state.woodFrustum;
+    if (
+      cached?.width === width &&
+      cached.height === height &&
+      cached.matrix.every((value, index) => value === viewProjectionMatrix[index])
+    ) {
+      return cached.planes;
+    }
+    // The viewport may expose a mutable matrix. Keep an independent snapshot of its values.
+    const matrix = Array.from(viewProjectionMatrix);
+    const planes = createSplatFrustum({matrix, center: [0, 0, 0, 0], width, height}, 2);
+    this.state.woodFrustum = {matrix, width, height, planes};
+    return planes;
   }
 
   protected drawPreparedModel(
@@ -270,15 +290,7 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
         return;
       }
     }
-    const planes = createSplatFrustum(
-      {
-        matrix: viewport.viewProjectionMatrix as number[],
-        center: [0, 0, 0, 0],
-        width: viewport.width,
-        height: viewport.height
-      },
-      2
-    );
+    const planes = this.getWoodFrustum(viewport);
     const clusters = getTreeWoodClusters(props.template, props.lod);
     this.state.woodVisibility ??= new Map();
     const cache = this.state.woodVisibility;
@@ -330,25 +342,29 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
         entry = {...entry, shape, spheres, selection: null, capacity: entry?.capacity ?? 0};
         cache.set(row.stateRow, entry);
       }
-      const {spheres} = entry;
-      const selection = selectTreeWoodClusters(
-        clusters,
-        (_cluster, index) => {
-          const offset = index * 4;
-          for (let plane = 0; plane < 24; plane += 4) {
-            if (
-              planes[plane] * spheres[offset] +
-                planes[plane + 1] * spheres[offset + 1] +
-                planes[plane + 2] * spheres[offset + 2] +
-                planes[plane + 3] <
-              -spheres[offset + 3]
-            )
-              return false;
-          }
-          return true;
-        },
-        entry.selection
-      );
+      let selection = entry.selection;
+      if (!selection || entry.selectionPlanes !== planes) {
+        const {spheres} = entry;
+        selection = selectTreeWoodClusters(
+          clusters,
+          (_cluster, index) => {
+            const offset = index * 4;
+            for (let plane = 0; plane < 24; plane += 4) {
+              if (
+                planes[plane] * spheres[offset] +
+                  planes[plane + 1] * spheres[offset + 1] +
+                  planes[plane + 2] * spheres[offset + 2] +
+                  planes[plane + 3] <
+                -spheres[offset + 3]
+              )
+                return false;
+            }
+            return true;
+          },
+          entry.selection
+        );
+        entry.selectionPlanes = planes;
+      }
       if (selection !== entry.selection && selection.indices.length) {
         if (!entry.buffer || entry.capacity < selection.indices.length) {
           entry.buffer?.destroy();
