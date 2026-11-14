@@ -10,7 +10,7 @@ yarn playwright:install
 yarn node dev/tree-field-bench/bench.mjs --out /tmp/tree-field.json
 ```
 
-Each path starts in a fresh page. The JSON records backend, renderer, physical canvas size, LOD bias, peak tree counts per species and detail tier, draw count, raw frame intervals, and optional GPU timer results. Frame intervals include presentation cadence. GPU timings sample every fourth draw and require `EXT_disjoint_timer_query_webgl2`. Check the renderer before comparing hardware results.
+Each path starts in a fresh page. The JSON records backend, renderer, physical canvas size, LOD bias, peak tree counts per species and detail tier, separate shell-to-leaf transition peaks, draw count, raw frame intervals, and optional GPU timer results. Frame intervals include presentation cadence. GPU timings sample every fourth draw and require `EXT_disjoint_timer_query_webgl2`. Check the renderer before comparing hardware results.
 
 Use the same viewport and frame counts for both revisions. Pass `--frame-timing-only` to measure presentation without GPU timer queries. For a larger canvas, pass `--width 2560 --height 1600`. For a smoke run, pass `--paths tree --frames 20 --warmup 20`. A 60 fps frame budget is 16.7 ms.
 
@@ -20,4 +20,4 @@ Use the same viewport and frame counts for both revisions. Pass `--frame-timing-
 yarn vite --config dev/tree-field-bench/vite.config.ts --port 4396 --strictPort
 ```
 
-Open [the field playground](http://127.0.0.1:4396/playground.html). The Tree view orbits the selected trunk base. Leaf uses a canopy pivot for inspection. Click a tree to select it, then change its height, crown radius or foliage. The playground keeps LOD bias at zero and reports color candidates and shadow casters separately. Add `?backend=webgpu` to compare the same field on WebGPU.
+Open [the field playground](http://127.0.0.1:4396/playground.html). The Tree view orbits the selected trunk base. Leaf uses a canopy pivot for inspection. Click a tree to select it, then change its height, crown radius or foliage. The playground keeps LOD bias at zero and reports color candidates, transitioning crowns, and shadow casters separately. Transitioning crowns also belong to a color-shell bucket. Add `?backend=webgpu` to compare the same field on WebGPU.

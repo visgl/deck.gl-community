@@ -4,7 +4,7 @@
 
 import {SolidPolygonLayer} from '@deck.gl/layers';
 import type {Model} from '@luma.gl/engine';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule, ShaderPlugin} from '@luma.gl/shaders';
 import {getTreeShadowWgsl} from '../../modules/layers/src/tree-layer/tree-photoreal-shadow-wgsl';
 import {FIELD_GROUND_SHADOW_WGSL} from './field-ground-shadow';
 
@@ -21,13 +21,14 @@ export class FieldGroundLayer<DataT> extends SolidPolygonLayer<DataT, {shadowEna
     if (
       this.context.device.type !== 'webgpu' ||
       type !== 'top' ||
-      !shaders.modules.some(isFieldShadow)
+      !shaders.plugins.some(plugin => plugin.module && isFieldShadow(plugin.module))
     )
       return shaders;
     return {
       ...shaders,
-      modules: shaders.modules.map((module: ShaderModule) => {
-        if (!isFieldShadow(module)) return module;
+      plugins: shaders.plugins.map((plugin: ShaderPlugin) => {
+        const module = plugin.module;
+        if (!module || !isFieldShadow(module)) return plugin;
         let receiver = modules.get(module);
         if (!receiver) {
           const wgsl = getTreeShadowWgsl(module);
@@ -37,16 +38,16 @@ export class FieldGroundLayer<DataT> extends SolidPolygonLayer<DataT, {shadowEna
           };
           modules.set(module, receiver);
         }
-        return receiver;
+        return {...plugin, module: receiver};
       }),
       source: shaders.source
         .replace(
-          '@location(2) clipCoordinates: vec2<f32>,',
-          '@location(2) clipCoordinates: vec2<f32>, @location(3) shadowPosition: vec3<f32>,'
+          '@location(1) pickingColor: vec3<f32>,',
+          '@location(1) pickingColor: vec3<f32>, @location(2) shadowPosition: vec3<f32>,'
         )
         .replace(
-          'outp.clipCoordinates = geometry.position.xy;',
-          'outp.clipCoordinates = geometry.position.xy; outp.shadowPosition = geometry.position.xyz;'
+          'geometry.position = projectedPosition.commonPosition;',
+          'geometry.position = projectedPosition.commonPosition; outp.shadowPosition = geometry.position.xyz;'
         )
         .replace(
           'var fragColor = inp.vColor;',

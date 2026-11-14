@@ -2,16 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {
-  AmbientLight,
-  COORDINATE_SYSTEM,
-  Deck,
-  DirectionalLight,
-  OrbitView,
-  type OrbitViewState
-} from '@deck.gl/core';
-import {webgpuAdapter} from '@luma.gl/webgpu';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {AmbientLight, Deck, DirectionalLight, OrbitView, type OrbitViewState} from '@deck.gl/core';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {
   TreeLayer,
   type TreeSpec,
@@ -103,7 +96,32 @@ let timer: Timer | null = null;
 let activeQuery: WebGLQuery | null = null;
 let sampleGpu = false;
 let measuredDraws = 0;
-let lodCounts: Partial<Record<TreeType, number[]>> = {};
+type LodCounts = Partial<Record<TreeType, number[]>>;
+let lodCounts: LodCounts = {};
+let transitionLodCounts: LodCounts = {};
+
+function addLodCounts(
+  counts: LodCounts,
+  species: TreeType,
+  buckets: readonly (readonly unknown[])[]
+): void {
+  counts[species] ??= buckets.map(() => 0);
+  const levels = counts[species];
+  buckets.forEach((bucket, level) => {
+    levels[level] += bucket.length;
+  });
+}
+
+function retainPeakLodCounts(peak: LodCounts, totals: LodCounts): void {
+  for (const [species, counts] of Object.entries(totals)) {
+    const type = species as TreeType;
+    peak[type] ??= counts.map(() => 0);
+    const maxima = peak[type];
+    counts.forEach((count, level) => {
+      maxima[level] = Math.max(maxima[level], count);
+    });
+  }
+}
 const errors: string[] = [];
 let updatePlayground: ((now: number) => void) | undefined;
 const adapter = backend === 'webgpu' ? await navigator.gpu.requestAdapter() : null;
@@ -142,7 +160,7 @@ const deck = new FieldDeck({
   layers: [
     new FieldGroundLayer<[number, number, number][]>({
       id: 'ground',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [
         [
           [-600, -600, groundZ],
@@ -159,7 +177,7 @@ const deck = new FieldDeck({
     }),
     new TreeLayer<TreeSpec>({
       id: 'field',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: trees,
       lodBias: LOD_BIAS,
       pickable: Boolean(interactive),
@@ -185,19 +203,14 @@ const deck = new FieldDeck({
       measuredDraws++;
       const tree = deck.trees;
       if (tree?.state.photoreal) {
-        const totals: Partial<Record<TreeType, number[]>> = {};
+        const totals: LodCounts = {};
+        const transitions: LodCounts = {};
         for (const group of tree.state.photoreal.groups.values()) {
-          totals[group.species] ??= group.buckets.map(() => 0);
-          const counts = totals[group.species];
-          group.buckets.forEach((bucket, level) => {
-            counts[level] += bucket.length;
-          });
-          lodCounts[group.species] ??= group.buckets.map(() => 0);
-          const maxima = lodCounts[group.species];
-          counts.forEach((count, level) => {
-            maxima[level] = Math.max(maxima[level], count);
-          });
+          addLodCounts(totals, group.species, group.buckets);
+          addLodCounts(transitions, group.species, group.transitionBuckets);
         }
+        retainPeakLodCounts(lodCounts, totals);
+        retainPeakLodCounts(transitionLodCounts, transitions);
       }
     }
     if (!gl) return;
@@ -244,6 +257,7 @@ async function measure(
         .filter(Boolean)
         .join(' ');
   lodCounts = {};
+  transitionLodCounts = {};
   const frameMs: number[] = [];
   measuredDraws = 0;
   if (path === 'dive') {
@@ -273,6 +287,7 @@ async function measure(
       ? !/swiftshader|llvmpipe|software rasterizer/i.test(renderer)
       : Boolean(adapterInfo && !adapterInfo.isFallbackAdapter),
     lodCounts,
+    transitionLodCounts,
     canvas: [canvas.width, canvas.height],
     trees: trees.length,
     lodBias: LOD_BIAS,

@@ -4,13 +4,12 @@
 
 import {
   AmbientLight,
-  COORDINATE_SYSTEM,
   DirectionalLight,
   OrbitViewport,
   project,
   type EffectContext
 } from '@deck.gl/core';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderPlugin} from '@luma.gl/shaders';
 import {Matrix4} from '@math.gl/core';
 import {describe, expect, it} from 'vitest';
 import {createFieldShadowModule, FieldLightingEffect} from '../field-lighting';
@@ -43,7 +42,7 @@ function view(
 
 function shaderOptions(viewport: OrbitViewport, drawToShadowMap: boolean) {
   return {
-    project: {viewport, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, devicePixelRatio: 1},
+    project: {viewport, coordinateSystem: 'cartesian', devicePixelRatio: 1},
     shadowMatrices: [LIGHT],
     drawToShadowMap
   };
@@ -216,12 +215,12 @@ describe('playground light-space shadow window', () => {
   });
 });
 
-it('registers the fitted module only while a shadow light is active', () => {
-  const modules = new Set<ShaderModule>();
+it('registers the fitted shadow plugin only while a shadow light is active', () => {
+  const plugins = new Map<string, ShaderPlugin>();
   const context = {
     deck: {
-      _addDefaultShaderModule: (module: ShaderModule) => modules.add(module),
-      _removeDefaultShaderModule: (module: ShaderModule) => modules.delete(module)
+      _addDefaultShaderPlugin: (plugin: ShaderPlugin) => plugins.set(plugin.name, plugin),
+      _removeDefaultShaderPlugin: (plugin: ShaderPlugin) => plugins.delete(plugin.name)
     },
     device: {
       createTexture: () => ({destroy() {}}),
@@ -232,13 +231,13 @@ it('registers the fitted module only while a shadow light is active', () => {
   const sun = new DirectionalLight({_shadow: true});
   const effect = new FieldLightingEffect({ambient});
   effect.setup(context);
-  expect(modules.size).toBe(0);
+  expect(plugins.size).toBe(0);
   effect.setProps({ambient, sun});
-  expect(modules.size).toBe(1);
-  expect([...modules][0].dependencies?.some(module => module.name === 'fieldShadowBlend')).toBe(
-    true
-  );
+  expect(plugins.size).toBe(1);
+  expect(
+    plugins.get('shadow')?.module?.dependencies?.some(module => module.name === 'fieldShadowBlend')
+  ).toBe(true);
   effect.setProps({ambient});
-  expect(modules.size).toBe(0);
+  expect(plugins.size).toBe(0);
   effect.cleanup(context);
 });

@@ -228,9 +228,11 @@ export function mountFieldPlayground({
     const groups = deck.trees?.state.photoreal?.groups.values() ?? [];
     let color = 0;
     let near = 0;
+    let transition = 0;
     let shadows = 0;
     for (const group of groups) {
       for (const bucket of group.buckets) color += bucket.length;
+      for (const bucket of group.transitionBuckets) transition += bucket.length;
       near += group.buckets[0].length;
       shadows += group.shadowBucket.length;
     }
@@ -239,6 +241,7 @@ export function mountFieldPlayground({
     status.textContent = `${numberFormat.format(data.length)} trees · ${backend} · ${fps.toFixed(0)} fps · LOD bias 0`;
     element('field-p95').textContent = `${p95.toFixed(1)} ms`;
     element('field-color-count').textContent = numberFormat.format(color);
+    element('field-transition-count').textContent = numberFormat.format(transition);
     element('field-near-count').textContent = numberFormat.format(near);
     element('field-shadow-count').textContent = numberFormat.format(shadows);
     element('field-texel').textContent = fit ? `${(fit.texelMetres * 100).toFixed(1)} cm` : '—';

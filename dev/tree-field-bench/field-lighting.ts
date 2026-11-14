@@ -7,6 +7,7 @@ import {
   OrbitViewport,
   project,
   shadow,
+  shadowPlugin,
   type EffectContext,
   type PreRenderOptions,
   type Viewport
@@ -345,6 +346,7 @@ export function createFieldShadowModule() {
 
 export class FieldLightingEffect extends LightingEffect {
   private fieldShadow = createFieldShadowModule();
+  private fieldShadowPlugin = {...shadowPlugin, module: this.fieldShadow.module};
   private shadowMap: Texture | undefined;
   private historyMap: Texture | undefined;
   private historyTarget: Framebuffer | undefined;
@@ -367,8 +369,8 @@ export class FieldLightingEffect extends LightingEffect {
   override setup(context: EffectContext): void {
     super.setup(context);
     if (Object.values(this.props).some(light => light.type === 'directional' && light.shadow)) {
-      context.deck._removeDefaultShaderModule(shadow);
-      context.deck._addDefaultShaderModule(this.fieldShadow.module);
+      context.deck._removeDefaultShaderPlugin(shadowPlugin);
+      context.deck._addDefaultShaderPlugin(this.fieldShadowPlugin);
     }
   }
 
@@ -465,7 +467,7 @@ export class FieldLightingEffect extends LightingEffect {
     this.historyMap?.destroy();
     this.historyMap = undefined;
     this.shadowMap = undefined;
-    context.deck._removeDefaultShaderModule(this.fieldShadow.module);
+    context.deck._removeDefaultShaderPlugin(this.fieldShadowPlugin);
     super.cleanup(context);
   }
 }
