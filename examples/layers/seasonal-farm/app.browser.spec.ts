@@ -54,6 +54,9 @@ describe('Seasonal Farm integration', () => {
       let instantCamera = false;
       const errors: Error[] = [];
       const frames = vi.fn(() => deck!.getViewports()[0] as WebMercatorViewport);
+      // WebGPU may compile a fresh batch after cycling a season for the first time.
+      // Wait for the requested season to render instead of racing three prop changes.
+      const renderedSeasons = new Set<string>();
       const mount = () =>
         mountSeasonalFarmExample(parent, {
           device,
@@ -72,7 +75,12 @@ describe('Seasonal Farm integration', () => {
             deck.setProps({
               useDevicePixels: 0.5,
               onError: error => errors.push(error),
-              onAfterRender: frames
+              onAfterRender: () => {
+                if (errors.length) return;
+                const season = root().dataset.season;
+                if (season) renderedSeasons.add(season);
+                frames();
+              }
             });
           }
         });
@@ -136,9 +144,18 @@ describe('Seasonal Farm integration', () => {
         const cherryTree = data.find(tree => tree.species === 'cherry')!;
         const corkOak = data.find(tree => tree.species === 'cork-oak')!;
         expect(getCrop(cherryTree)!.count).toBeGreaterThan(0);
-        frames.mockClear();
-        for (const season of ['summer', 'autumn', 'winter']) await select(season);
-        await expect.poll(() => frames.mock.calls.length, {timeout: 5000}).toBeGreaterThan(0);
+        for (const season of ['summer', 'autumn', 'winter']) {
+          await select(season);
+          await expect
+            .poll(
+              () => {
+                expect(errors.map(error => error.cause ?? error.message)).toEqual([]);
+                return renderedSeasons.has(season);
+              },
+              {timeout: 15_000}
+            )
+            .toBe(true);
+        }
         expect(trees().props.data).toBe(data);
         expect(getSeason(cherryTree)).toBe('winter');
         expect(getSeason(corkOak)).toBe('summer');
