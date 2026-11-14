@@ -452,7 +452,12 @@ export abstract class TreePhotorealPrimitiveLayer<DataT = unknown> extends Layer
         this.state.resourcesOf = this.props.template;
       }
       this.state.model = this.createModel(this.state.resources);
-      this.state.modelReadsShadows = this.readsShadowMaps();
+      this.state.modelReadsShadows =
+        this.context.device.type === 'webgpu'
+          ? this.state.model.pipeline.shaderLayout.bindings.some(
+              binding => binding.name === 'treeShadowMap0'
+            )
+          : this.readsShadowMaps();
       this.getAttributeManager()!.invalidateAll();
     }
   }
@@ -475,7 +480,7 @@ export abstract class TreePhotorealPrimitiveLayer<DataT = unknown> extends Layer
         merged.modules.find(module => module.name === 'shadow');
       const modules = [
         ...merged.modules.filter(module => module.name !== 'shadow'),
-        shadow ? getTreeShadowWgsl(shadow) : treeUnshadowedWgsl
+        shadow && this.readsShadowMaps() ? getTreeShadowWgsl(shadow) : treeUnshadowedWgsl
       ];
       return {
         ...merged,

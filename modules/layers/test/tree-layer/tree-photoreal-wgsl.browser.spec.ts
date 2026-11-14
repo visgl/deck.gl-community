@@ -467,16 +467,19 @@ it('casts and receives directional shadows on the highest-detail WebGPU tree', a
     await expect.poll(() => deck.isInitialized, {timeout: 30_000}).toBe(true);
     const loop = deck['animationLoop']!;
     loop.stop();
-    deck.setProps({
-      layers: [
-        new TreeLayer({
-          id: 'shadowed-tree',
-          coordinateSystem: 'cartesian',
-          data: [{position: [0, 0, 0], species: 'citrus', height: 4.8, crownRadius: 1.4}],
-          lodBias: -2
-        })
-      ]
-    });
+    const tree = (foliage: number) =>
+      new TreeLayer({
+        id: 'shadowed-tree',
+        coordinateSystem: 'cartesian',
+        data: [{position: [0, 0, 0], species: 'citrus', height: 4.8, crownRadius: 1.4}],
+        getFoliage: foliage,
+        lodBias: -2,
+        transitions: {getFoliage: 1000}
+      });
+    const {timeline} = deck.layerManager!.context;
+    timeline.pause();
+    timeline.setTime(1000);
+    deck.setProps({layers: [tree(1)]});
     // Initialize layer layout, then render only the two static samples. Queuing extra full
     // shadow and lighting passes makes SwiftShader process them before it reaches the readback.
     deck.layerManager!.updateLayers();
@@ -492,6 +495,17 @@ it('casts and receives directional shadows on the highest-detail WebGPU tree', a
       }
     }
     expect(dimmed).toBeGreaterThan(150);
+
+    deck.setProps({layers: [tree(0.2)], layerFilter: null});
+    deck.layerManager!.updateLayers();
+    timeline.setTime(1200);
+    deck.layerManager!.setNeedsUpdate('advance the foliage transition');
+    deck.layerManager!.updateLayers();
+    const shedding = deck.layerManager!.getLayers().find(layer => layer instanceof TreeLayer);
+    expect(shedding?.state.store?.getRowValues(0).foliage).toBeCloseTo(0.84);
+    await capture();
+    const air = deck.layerManager!.getLayers().find(layer => layer.id.endsWith('-air-depth'));
+    expect(air?.getNumInstances()).toBe(1);
     expect(errors).toEqual([]);
   } finally {
     deck.finalize();
