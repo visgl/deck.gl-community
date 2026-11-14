@@ -257,14 +257,15 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
     crownRadius: 1.4,
     growth: 1,
     crop:
-      species === 'citrus'
-        ? {
+      species === 'pine'
+        ? null
+        : {
             kind: 'fruit' as const,
-            count: 48,
-            radius: 0.14,
-            color: [242, 123, 24] as const
+            count: species === 'palm' ? 120 : 48,
+            radius: species === 'palm' ? 0.06 : 0.14,
+            // Use a distinct test color to tell palm fruit from the shaft in the readback.
+            color: species === 'palm' ? ([244, 38, 213] as const) : ([242, 123, 24] as const)
           }
-        : null
   }));
   let drawCount = 0;
   let deck: Deck | undefined;
@@ -358,6 +359,8 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
     const isWood = (r: number, g: number, b: number) => r > 12 && r > g * 1.2 && r > b * 2;
     const isOrange = (r: number, g: number, b: number) =>
       r > 125 && g > 45 && r > g * 1.2 && g > b * 2;
+    const isDate = (r: number, g: number, b: number) =>
+      r > 100 && b > 85 && r > g * 1.8 && b > g * 1.8;
     const leaf = score(isGreen, 55, 340);
     const wood = score(isWood, 390, 525);
     const crop = score(isOrange, 55, 340);
@@ -366,15 +369,21 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
     expect(crop.count).toBeGreaterThan(100);
     const palm = score(isGreen, 610, 835);
     expect(palm.count).toBeGreaterThan(100);
-    const cropPick = await deck!.pickObjectAsync({
-      x: crop.point.x,
-      // Native WebGPU readback and Deck picking both use top-left pixel coordinates.
-      y: crop.point.y,
-      radius: 2,
-      layerIds: ['photoreal-tree-photoreal-crops']
-    });
-    expect(cropPick?.object).toEqual(rows[0]);
-    expect(cropPick?.sourceLayer?.id).toContain('-photoreal-crops-');
+    const dates = score(isDate, 610, 835);
+    expect(dates.count).toBeGreaterThan(15);
+    for (const {point, row} of [
+      {point: crop.point, row: rows[0]},
+      {point: dates.point, row: rows[2]}
+    ]) {
+      const cropPick = await deck!.pickObjectAsync({
+        // Native WebGPU readback and Deck picking both use top-left pixel coordinates.
+        ...point,
+        radius: 2,
+        layerIds: ['photoreal-tree-photoreal-crops']
+      });
+      expect(cropPick?.object).toEqual(row);
+      expect(cropPick?.sourceLayer?.id).toContain('-photoreal-crops-');
+    }
     expect(errors.slice(0, 2)).toEqual([]);
   } finally {
     deck?.finalize();
@@ -601,7 +610,8 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
     lod: number,
     zoom: number,
     rotationX: number,
-    dropped = false
+    dropped = false,
+    count = 1
   ) => {
     const target: [number, number, number] = [0, 0, dropped ? 0 : 1];
     const radius = kind === 'flower' || lod === 1 ? 0.33 : 0.16;
@@ -614,16 +624,22 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
         trunkHeight: 0.6,
         crownX: 1,
         crownY: 1,
-        crops: [{count: dropped ? 0 : 1, radius, color: [248, 136, 44], dropped: dropped ? 1 : 0}]
+        crops: [
+          {count: dropped ? 0 : count, radius, color: [248, 136, 44], dropped: dropped ? count : 0}
+        ]
       },
       {now: 0, clock: 0}
     );
     state.writeData(store.data);
+    const refs = new Float32Array(count * 3);
+    for (let index = 0; index < count; index++) {
+      refs.set([0, index, dropped ? 2 : 0], index * 3);
+    }
     const data: TreeCropData = {
-      length: 1,
-      attributes: {instanceCropRef: {value: new Float32Array([0, 0, dropped ? 2 : 0]), size: 3}},
+      length: count,
+      attributes: {instanceCropRef: {value: refs, size: 3}},
       *[Symbol.iterator]() {
-        yield undefined;
+        for (let index = 0; index < count; index++) yield undefined;
       }
     };
     const layer = new TreePhotorealCropLayer({
@@ -669,6 +685,12 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
       expect.soft(petals.count, `flower mesh ${lod} pixels`).toBeGreaterThan(50);
       expect.soft(petals.height / petals.width, `flower mesh ${lod} aspect`).toBeGreaterThan(0.6);
       expect.soft(petals.height / petals.width, `flower mesh ${lod} aspect`).toBeLessThan(1.6);
+      const cluster = bounds(
+        (await capture('flower', lod, lod === 0 ? 8 : 6, 84, false, 5)).pixels
+      );
+      expect
+        .soft(cluster.count, `flower mesh ${lod} cluster pixels`)
+        .toBeGreaterThan(petals.count * 1.3);
     }
 
     const tilted = bounds((await capture('fruit', 2, 5.6, -8)).pixels);

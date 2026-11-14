@@ -284,7 +284,7 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
         data[base + POSE * 4] !== 0 ||
         data[base + POSE * 4 + 2] !== 0 ||
         data[base + POSE * 4 + 3] !== 0 ||
-        props.windStrength * data[base + MISC * 4 + 1] > TREE_WIND_STRONG_FROM
+        data[base + MISC * 4 + 1] > TREE_WIND_STRONG_FROM
       ) {
         super.drawPreparedModel(model, params, shadowPass);
         return;
@@ -308,7 +308,7 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
       const trunk = data[base + SIZE * 4 + 3];
       const trunkRadius = data[base + MISC * 4];
       const yaw = data[base + ANCHOR * 4 + 3];
-      const force = props.windStrength * data[base + MISC * 4 + 1];
+      const force = data[base + MISC * 4 + 1];
       const shape = [
         crownX,
         crownY,

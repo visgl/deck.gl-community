@@ -117,7 +117,7 @@ struct LeafVaryings {
   let hashC = fract(seed * 53.89);
   if (flight > 0.0) {
     let direction = select(vec2<f32>(cos(hashA * TREE_TWO_PI), sin(hashA * TREE_TWO_PI)), treePhotoreal.wind.yz, treePhotoreal.wind.w > 0.5);
-    let force = treePhotoreal.wind.x * life.windFlex;
+    let force = life.windFlex;
     let drift = (2.5 + 34.0 * force) * flightSeconds * pow(flight, 1.6) * (0.4 + 0.6 * hashB);
     let litterDrift = (0.15 + 1.3 * force) * sin(flight * TREE_PI) + hashC * smoothstep(0.0, 1.0, flight);
     let away = direction * select(drift, litterDrift, litter);
@@ -142,7 +142,7 @@ struct LeafVaryings {
     let nowDistance = length(project.cameraPosition - centre.commonPosition.xyz);
     let restCommon = treeProject(treeLeanPoint(rest, life, treeLeanMatrix(life)), place).commonPosition.xyz;
     let restDistance = select(length(project.cameraPosition - restCommon), nowDistance, lying >= 1.0);
-    let reach = min(treePhotoreal.wind.x * life.windFlex * place.liveHeight * 0.5, ${TREE_LEAF_BLADE_MARGIN_MOST}.0) * metre;
+    let reach = min(life.windFlex * place.liveHeight * 0.5, ${TREE_LEAF_BLADE_MARGIN_MOST}.0) * metre;
     let isFine = pixelsAtMetre >= finePixels * max(nowDistance, restDistance - reach);
     let isMacro = pixelsAtMetre >= treePhotoreal.leafBlades.y * max(nowDistance, restDistance - reach * ${TREE_LEAF_BLADE_MARGIN_MACRO});
     ${blade === 'macro' ? 'if (!isMacro) { return output; }' : blade === 'fine' ? 'if (!isFine || isMacro) { return output; }' : 'if (isFine) { return output; }'}

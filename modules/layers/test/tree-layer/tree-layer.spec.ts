@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {LayerExtension, WebMercatorViewport} from '@deck.gl/core';
+import {LayerExtension, OrbitViewport, WebMercatorViewport} from '@deck.gl/core';
 import {describe, expect, it, vi} from 'vitest';
 import {
   TreeLayer,
@@ -84,6 +84,49 @@ describe('TreeLayer species and attributes', () => {
     const leaves = fresh.leafSelection!.visibleLeaves;
     expect(leaves.length).toBeGreaterThan(0);
     expect(moved.leafSelection!.visibleLeaves).toEqual(leaves);
+  });
+
+  it('keeps foliage LOD stable while expanding culling bounds to cover shed leaves', () => {
+    const viewport = new OrbitViewport({
+      width: 256,
+      height: 256,
+      orbitAxis: 'Z',
+      fovy: 40,
+      target: [0, 0, 5.5],
+      rotationX: 3,
+      zoom: 3.2
+    });
+    const scene = mountTreeScene<TreeSpec>(viewport);
+    const render = (foliage: number) => {
+      const {state} = scene.render({
+        ...baseProps,
+        data: [{...OAK, height: 12, crownRadius: 3, foliage}],
+        coordinateSystem: 'cartesian',
+        windStrength: 0
+      });
+      const row = state.photoreal!.rows[0];
+      const group = state.photoreal!.groups.values().next().value!;
+      return {
+        anchor: row.common,
+        bounds: row.bounds!,
+        tier: group.buckets.findIndex(bucket => bucket.includes(row)),
+        leafPixels: row.leafPixels,
+        leafDetail: scene.row().leafDetail
+      };
+    };
+    const full = render(1);
+    expect(full.tier).toBeGreaterThanOrEqual(0);
+    expect(full.tier).toBeLessThan(4);
+    expect(full.bounds.cullCenter).toEqual(full.bounds.center);
+    expect(full.bounds.cullCenter[2]).toBeGreaterThan(full.anchor[2]);
+    for (const foliage of [0.5, 0.25, 0]) {
+      const shed = render(foliage);
+      expect(shed.tier).toBe(full.tier);
+      expect(shed.leafPixels).toBe(full.leafPixels);
+      expect(shed.leafDetail).toBe(full.leafDetail);
+      expect(shed.bounds.cullCenter).toEqual(shed.anchor);
+      expect(shed.bounds.cullRadius).toBeGreaterThan(full.bounds.cullRadius);
+    }
   });
 
   it.each(SPECIES)('composes wood and leaves from a dedicated %s template', species => {

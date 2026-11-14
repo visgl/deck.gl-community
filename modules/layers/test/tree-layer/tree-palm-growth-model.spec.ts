@@ -5,12 +5,18 @@
 import {Vector3} from '@math.gl/core';
 import {describe, expect, it} from 'vitest';
 import {
+  getTreeCropBornCount,
+  getTreeCropReach,
+  getTreeCropTable
+} from '../../src/tree-layer/tree-crop';
+import {
   getPalmFronds,
   getPalmTrunkRadius,
   PALM_LEAFLET_COUNT
 } from '../../src/tree-layer/tree-palm';
 import {createPalmGrowthModel} from '../../src/tree-layer/tree-palm-growth-model';
 import {
+  TREE_CROP_ANCHOR_STRIDE,
   TREE_LEAF_STRIDE,
   TREE_LIMB_STRIDE,
   type TreeGrowthModel
@@ -42,14 +48,45 @@ describe('photoreal palm template', () => {
     expect(leaves).toHaveLength(leafCount * TREE_LEAF_STRIDE);
     expect(limbCount).toBe(1 + fronds.length);
     expect(limbs).toHaveLength(limbCount * TREE_LIMB_STRIDE);
-    expect(model.cropAnchorCount).toBe(0);
-    expect(model.cropAnchors).toHaveLength(0);
     for (const stream of [wood.center, wood.previous, wood.radial, wood.bark, wood.shade]) {
       expect(stream).toHaveLength(wood.vertexCount * 4);
       expect(stream.every(Number.isFinite)).toBe(true);
     }
     expect(leaves.every(Number.isFinite)).toBe(true);
     expect(limbs.every(Number.isFinite)).toBe(true);
+  });
+
+  it('grows attached date bunches under mature frond axils', () => {
+    const {cropAnchors, cropAnchorCount, limbCount, limbs} = model;
+    const table = getTreeCropTable(model);
+    expect(cropAnchors).toHaveLength(cropAnchorCount * TREE_CROP_ANCHOR_STRIDE);
+    expect(cropAnchors.every(Number.isFinite)).toBe(true);
+    expect(createPalmGrowthModel(2).cropAnchors).not.toEqual(cropAnchors);
+    expect(getTreeCropBornCount(table, 0.62)).toBe(0);
+    expect(getTreeCropBornCount(table, 1)).toBe(cropAnchorCount);
+    expect(cropAnchorCount).toBeGreaterThanOrEqual(160);
+    expect(getTreeCropReach(table, 1, 160)).toBeGreaterThanOrEqual(160);
+
+    const bunches = new Map<number, number>();
+    for (let offset = 0; offset < cropAnchors.length; offset += TREE_CROP_ANCHOR_STRIDE) {
+      const [x, y, z, birth, outer, inner, seed] = cropAnchors.subarray(
+        offset,
+        offset + TREE_CROP_ANCHOR_STRIDE
+      );
+      expect(outer).toBe(0);
+      expect(inner).toBeGreaterThan(0);
+      expect(inner).toBeLessThan(limbCount);
+      expect(birth).toBeGreaterThan(z);
+      expect(seed).toBeGreaterThanOrEqual(0);
+      expect(seed).toBeLessThan(1);
+      const [socketX, socketY, socketZ] = limbs.subarray(inner * TREE_LIMB_STRIDE);
+      expect(x * socketX + y * socketY).toBeGreaterThan(0);
+      expect(Math.hypot(x, y)).toBeLessThan(0.3);
+      expect(Math.abs(z - socketZ)).toBeLessThan(0.08);
+      bunches.set(inner, (bunches.get(inner) ?? 0) + 1);
+    }
+    expect(bunches.size).toBe(limbCount - 1);
+    expect(new Set(bunches.values()).size).toBe(1);
   });
 
   it('fits frond sockets to the shaft with shaft growth before the fronds', () => {
