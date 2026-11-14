@@ -4,7 +4,8 @@
 import {Deck, _GlobeView as GlobeView, type Layer} from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {describe, expect, it} from 'vitest';
-import {SplatLayer, TreeLayer, type SplatSource} from '../../src';
+import {SplatLayer, TreeLayer, type SplatSource, type TreeSpec} from '../../src';
+import {getTreeRenderTiers} from '../tree-layer/tree-grove-test-utils';
 
 const EARTH_RADIUS = 6370972;
 const SCALE = 300000;
@@ -101,20 +102,19 @@ describe('Gaussian canopies on GlobeView', () => {
   });
 
   it('draws and picks trees on the near side only', async () => {
-    const near = {name: 'near', position: [0, 0, 0]};
-    const far = {name: 'far', position: [180, 0, 0]};
-    const {deck, errors, pixels, parent} = await renderGlobe([
-      new TreeLayer({
-        id: 'globe-trees',
-        data: [near, far],
-        getPosition: (row: typeof near) => row.position,
-        getTreeType: () => 'oak',
-        getHeight: () => 900000,
-        getCanopyRadius: () => 300000,
-        getTrunkRadius: () => 30000,
-        pickable: true
-      })
-    ]);
+    const near = {name: 'near', position: [0, 0, 0] as [number, number, number]};
+    const far = {name: 'far', position: [180, 0, 0] as [number, number, number]};
+    const trees = new TreeLayer<TreeSpec>({
+      id: 'globe-trees',
+      data: [near, far],
+      getPosition: row => row.position!,
+      getTreeType: () => 'oak',
+      getHeight: () => 900000,
+      getCanopyRadius: () => 300000,
+      getTrunkRadius: () => 30000,
+      pickable: true
+    });
+    const {deck, errors, pixels, parent} = await renderGlobe([trees]);
     try {
       expect(errors).toEqual([]);
       const image = pixels();
@@ -122,14 +122,9 @@ describe('Gaussian canopies on GlobeView', () => {
       for (let i = 0; i < 256 * 256; i++) if (image[i * 4 + 3] > 30) drawn++;
       expect(drawn).toBeGreaterThan(50);
       expect(deck.pickObject({x: 128, y: 128, radius: 4})?.object).toBe(near);
-      const canopies = deck.layerManager!.getLayers().filter(layer => layer instanceof SplatLayer);
-      const selected = canopies.flatMap(layer =>
-        (layer as SplatLayer<{object: unknown}>).state.candidates.map(
-          candidate => candidate.owner.row.object.object
-        )
-      );
-      expect(selected).toContain(near);
-      expect(selected).not.toContain(far);
+      const picked = deck.pickObjects({x: 0, y: 0, width: 256, height: 256});
+      expect(new Set(picked.map(info => info.object))).toEqual(new Set([near]));
+      expect(new Set(getTreeRenderTiers(trees).keys())).toEqual(new Set([near]));
     } finally {
       deck.finalize();
       parent.remove();

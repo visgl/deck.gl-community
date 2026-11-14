@@ -33,6 +33,17 @@ export class SplatRowSlots<T> {
    */
   update(next: readonly T[], keys: readonly number[], equal: (a: T, b: T) => boolean = Object.is) {
     const previous = this.rows;
+    if (next.length === previous.length) {
+      // A stable bucket can arrive in any order. Unique keys let us check its members
+      // against their existing slots without allocating the replacement arrays.
+      let i = 0;
+      for (; i < next.length; i++) {
+        const slot = this.slots[keys[i]] - 1;
+        if (!(slot >= 0) || !equal(previous[slot], next[i])) break;
+      }
+      if (i === next.length) return previous;
+    }
+
     const previousKeys = this.keys;
     const rows = new Array<T>(previous.length);
     const placed = new Array<number>(previous.length);

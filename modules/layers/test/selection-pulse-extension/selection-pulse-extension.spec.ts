@@ -6,7 +6,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {Attribute, LayerManager, WebMercatorViewport, type Layer} from '@deck.gl/core';
 import {ScatterplotLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {device} from '@deck.gl/test-utils/vitest';
-import {SelectionPulseExtension, TreeLayer} from '../../src';
+import {SelectionPulseExtension, type TreeSpec} from '../../src';
 import {getSelectionPulseAmount} from '../../src/selection-pulse-extension/selection-pulse-extension';
 import {WGSL_FILTER_COLOR_ANCHOR} from '../../src/selection-pulse-extension/selection-pulse-shaders';
 import {
@@ -15,7 +15,10 @@ import {
   SPLAT_WGSL
 } from '../../src/splat-layer/splat.wgsl';
 import {SplatPrimitiveLayer} from '../../src/splat-layer/splat-primitive-layer';
-import {TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
+import {TreePhotorealCropLayer} from '../../src/tree-layer/tree-photoreal-crop-layer';
+import {TreePhotorealLeafLayer} from '../../src/tree-layer/tree-photoreal-leaf-layer';
+import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-layer';
+import {mountTreeScene} from '../tree-layer/tree-layer-test-utils';
 
 type Point = {id: number; position: [number, number]; selected: boolean};
 const POINTS: Point[] = [
@@ -218,22 +221,12 @@ describe('SelectionPulseExtension on deck.gl layers', () => {
 });
 
 describe('SelectionPulseExtension WebGPU support', () => {
-  it('marks the splat and tree mesh WGSL vertex colors with the filter anchor', () => {
+  it('marks splat WGSL vertex colors with the filter anchor', () => {
     for (const source of [SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL, SPLAT_TRANSMISSION_WGSL])
       expect(source.split(WGSL_FILTER_COLOR_ANCHOR)).toHaveLength(2);
-    const mesh = Object.create(TreeMeshLayer.prototype);
-    Object.assign(mesh, {
-      context: {viewport: {projectionMode: 1}, device: {type: 'webgpu'}, defaultShaderModules: []},
-      props: {extensions: []}
-    });
-    const {source} = mesh.getShaders();
-    expect(source.split(WGSL_FILTER_COLOR_ANCHOR)).toHaveLength(2);
-    expect(source).toMatch(
-      /var vertexColor = varyings\.color;[\s\S]*varyings\.color = vertexColor;/
-    );
   });
 
-  it('reads weights by instance index in the splat and tree mesh layers on both backends', () => {
+  it('reads weights by instance index in the splat and tree wood layers on both backends', () => {
     const extension = new SelectionPulseExtension();
     const make = (Type: any, type: string) => {
       const layer = Object.create(Type.prototype);
@@ -246,7 +239,7 @@ describe('SelectionPulseExtension WebGPU support', () => {
         getAttributeManager: () => ({add: () => {}})
       });
     };
-    for (const Type of [SplatPrimitiveLayer, TreeMeshLayer]) {
+    for (const Type of [SplatPrimitiveLayer, TreePhotorealWoodLayer]) {
       const webgl = extension.getShaders.call(make(Type, 'webgl'), extension);
       expect(webgl.defines).toEqual({SELECTION_PULSE_INSTANCES: 1});
       expect(webgl.plugins[0].injections['vs:DECKGL_FILTER_COLOR']).toContain(
@@ -264,83 +257,68 @@ describe('SelectionPulseExtension WebGPU support', () => {
 });
 
 describe('TreeLayer with SelectionPulseExtension', () => {
-  type Tree = {id: string; position: [number, number]; species: 'oak' | 'citrus'};
-  const TREES: Tree[] = [
-    {id: 'a', position: [0, 0], species: 'oak'},
-    {id: 'b', position: [10, 0], species: 'citrus'},
-    {id: 'c', position: [20, 0], species: 'oak'}
+  type Tree = TreeSpec & {id: string};
+  const trees: Tree[] = [
+    {id: 'a', position: [-2e-5, 0], species: 'oak', height: 8},
+    {id: 'b', position: [0, 0], species: 'citrus', height: 8},
+    {id: 'c', position: [2e-5, 0], species: 'oak', height: 8}
   ];
+  const parts = [TreePhotorealWoodLayer, TreePhotorealLeafLayer, TreePhotorealCropLayer];
 
-  function render(selected: Set<string>, trigger: unknown) {
-    const layer = new TreeLayer<Tree>({
-      id: 'trees',
-      data: TREES,
-      getTree: d => d,
-      getCrop: () => ({count: 2, radius: 0.04, color: [200, 140, 40]}),
-      extensions: [new SelectionPulseExtension()],
-      getSelected: (d: Tree) => selected.has(d.id),
-      updateTriggers: {getSelected: trigger}
-    } as any);
-    layer.initializeState();
-    vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
-    layer.updateState({
-      props: layer.props,
-      oldProps: {},
-      changeFlags: {dataChanged: true}
-    } as any);
-    return layer.renderLayers() as Layer[];
+  function setup() {
+    const scene = mountTreeScene<Tree>();
+    const extensions = [new SelectionPulseExtension()];
+    const getSelected = vi.fn((row: Tree) => row.id === 'b');
+    const getCanopyColor = vi.fn((): [number, number, number, number] => [60, 170, 60, 255]);
+    const getCrop = (): TreeSpec['crop'] => ({count: 4, radius: 0.25, color: [200, 140, 40]});
+    const render = (pulseTime: number) => {
+      const props = {
+        data: trees,
+        extensions,
+        getSelected,
+        getCanopyColor,
+        getCrop,
+        lodBias: -2,
+        pulseTime,
+        updateTriggers: {getSelected: 'b'}
+      };
+      return scene.render(props);
+    };
+    return {...scene, render, getSelected, getCanopyColor};
   }
 
-  it('passes the extension, the selection and its trigger to every sub-layer', () => {
-    const children = render(new Set(['b']), 'b');
-    const ids = children.map(child => child.id);
-    expect(ids.some(id => id.includes('canopy'))).toBe(true);
-    expect(ids.some(id => id.includes('wood'))).toBe(true);
-    expect(ids.some(id => id.includes('crops'))).toBe(true);
+  it('passes the extension, selection and trigger to each rendered tree part', () => {
+    const scene = setup();
+    scene.render(0);
+    const children = scene.children().filter(child => child.props.visible);
+    for (const Part of parts) {
+      const draws = children.filter(child => child instanceof Part);
+      expect(draws.length, Part.layerName).toBeGreaterThan(0);
+      expect(draws.flatMap(weights), Part.layerName).toContain(1);
+    }
     for (const child of children) {
       expect(child.props.extensions[0]).toBeInstanceOf(SelectionPulseExtension);
       expect(child.props.updateTriggers.getSelected, child.id).toBe('b');
-      const rows = child.props.data as {__source: {index: number}}[];
-      const getSelected = child.props.getSelected as (row: unknown, info: unknown) => boolean;
-      // Each partition holds a subset of trees in its own order; rows map back to their tree.
-      for (const row of rows)
-        expect(getSelected(row, {index: -1})).toBe(TREES[row.__source.index].id === 'b');
+      const selection = weights(child);
+      const rows = Array.from(child.props.data as ArrayLike<{object: Tree}>);
+      for (const [index, row] of rows.entries()) {
+        expect(selection[index], child.id).toBe(Number(row.object.id === 'b'));
+      }
     }
-  });
+  }, 30_000);
 
-  it('reruns no sub-layer accessor when an unrelated prop changes', () => {
-    // Pulse frames driven by `pulseTime` re-render the TreeLayer: wood, crop and canopy data and
-    // triggers must keep their identity, or every visible tree would be rewritten per frame.
-    // (The browser test checks attribute uploads with a full Deck.)
-    const view = new WebMercatorViewport({width: 128, height: 128, zoom: 20});
-    const layerManager = new LayerManager(device, {
-      viewport: view,
-      deck: {getViewports: () => [view]}
-    } as any);
-    managers.push(layerManager);
-    const getSelected = vi.fn((d: Tree) => d.id === 'b');
-    const getCanopyColor = vi.fn(() => [60, 170, 60, 255]);
-    const trees = TREES.map(tree => ({...tree, position: [tree.position[0] * 1e-6, 0]}));
-    const render = (pulseTime: number) =>
-      layerManager.setLayers([
-        new TreeLayer<Tree>({
-          id: 'trees',
-          data: trees as Tree[],
-          getTree: d => d,
-          getCrop: () => ({count: 2, droppedCount: 2, radius: 0.04, color: [200, 140, 40]}),
-          maxCanopySplats: 0,
-          getCanopyColor,
-          extensions: [new SelectionPulseExtension()],
-          getSelected,
-          pulseTime
-        } as any)
-      ]);
-    for (let frame = 0; frame < 4; frame++) render(0);
-    const primitives = layerManager.getLayers().filter(layer => !layer.isComposite);
-    expect(primitives.map(layer => layer.id).join()).toMatch(/canopy.*refinement/);
-    expect(primitives.some(layer => layer.id.includes('crops'))).toBe(true);
-    const calls = [getSelected.mock.calls.length, getCanopyColor.mock.calls.length];
-    for (const pulseTime of [250, 500, 750]) render(pulseTime);
-    expect([getSelected.mock.calls.length, getCanopyColor.mock.calls.length]).toEqual(calls);
+  it('does not rerun selection or canopy accessors on pulse clock updates', () => {
+    const scene = setup();
+    const {stateTexture} = scene.render(0).state;
+    const children = new Map(scene.children().map(child => [child.id, child.props.data]));
+    const calls = [scene.getSelected.mock.calls.length, scene.getCanopyColor.mock.calls.length];
+    expect(calls.every(count => count > 0)).toBe(true);
+    for (const pulseTime of [250, 500, 750]) {
+      expect(scene.render(pulseTime).state.stateTexture).toBe(stateTexture);
+      for (const child of scene.children()) expect(child.props.data).toBe(children.get(child.id));
+    }
+    expect([scene.getSelected.mock.calls.length, scene.getCanopyColor.mock.calls.length]).toEqual(
+      calls
+    );
   });
 });

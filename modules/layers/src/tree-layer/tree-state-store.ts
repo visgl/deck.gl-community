@@ -1,0 +1,1612 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {
+  TREE_STATE_ROWS_PER_LINE,
+  TREE_STATE_TEXEL,
+  TREE_STATE_TEXELS_PER_ROW,
+  TREE_STATE_TEXTURE_WIDTH
+} from './tree-photoreal-layout';
+
+/** The accessor names `transitions` can key settings by. */
+export type TreeTransitionKey =
+  | 'getTree'
+  | 'getGrowth'
+  | 'getHealth'
+  | 'getFoliage'
+  | 'getFlush'
+  | 'getLean'
+  | 'getDamage'
+  | 'getDecay'
+  | 'getPosition'
+  | 'getElevation'
+  | 'getHeight'
+  | 'getCanopyRadius'
+  | 'getTrunkRadius'
+  | 'getTrunkHeightFraction'
+  | 'getCanopyColor'
+  | 'getSeason'
+  | 'getTrunkColor'
+  | 'getCrop';
+
+/** deck.gl's interpolation settings. */
+export type TreeInterpolationSettings = {
+  type?: 'interpolation';
+  /** Milliseconds. Zero, negative or non-finite durations jump. */
+  duration: number;
+  /** Maps elapsed fraction 0-1 to blend fraction. May overshoot. @default linear */
+  easing?: (t: number) => number;
+};
+
+/** A duration in milliseconds, or interpolation settings. */
+export type TreeTransitionSettings = number | TreeInterpolationSettings;
+
+/**
+ * The `transitions` prop. A key that is absent falls back to `getTree`. A key that is present but
+ * falsy, such as `getDamage: 0`, makes that group jump even when `getTree` has settings.
+ */
+export type TreeTransitions = {
+  [key in TreeTransitionKey]?: TreeTransitionSettings | null | false;
+};
+
+/** Current crop values. */
+export type TreeStateCropValues = {
+  /** Attached crops. Fractional while animating. @default 0 */
+  count: number;
+  /** Metres. @default 0 */
+  radius: number;
+  /** 0-1. @default 1 */
+  ripeness: number;
+  /** 0-1. @default 0 */
+  fallen: number;
+  /** Ripe tint, sRGB 0-255 RGBA. @default [255, 255, 255, 255] */
+  color: number[];
+  /** Unripe tint, sRGB 0-255 RGB. A fourth entry is accepted and ignored. @default [86, 128, 44] */
+  unripeColor: number[];
+  /** Crops supplied as already on the ground. Fractional while animating. @default 0 */
+  dropped: number;
+};
+
+/** Resolved values of one tree. Lean and colors use the units of `TreeSpec`, and yaw is radians. */
+export type TreeStateValues = {
+  /**
+   * Tree base, x, y and z in layer coordinates, at full double precision. The store splits it into
+   * the high and low parts of the state row. @default [0, 0, 0]
+   */
+  position: number[];
+  /**
+   * Low part of a position that a caller has already split; the full position is the sum. Reads
+   * leave this unset, since `position` is complete.
+   */
+  positionLow?: number[];
+  /** Radians. @default 0 */
+  yaw: number;
+  /** Radians. @default 0 */
+  windPhase: number;
+  /** Metres. @default 3 */
+  crownX: number;
+  /** Metres. @default 3 */
+  crownY: number;
+  /** Metres. @default 10 */
+  height: number;
+  /** Metres. @default 3.5 */
+  trunkHeight: number;
+  /** 0-1. @default 1 */
+  growth: number;
+  /** 0-1. @default 1 */
+  health: number;
+  /** 0-1. @default 1 */
+  foliage: number;
+  /** 0-1. @default 0 */
+  flush: number;
+  /** 0-90 degrees. @default 0 */
+  leanDegrees: number;
+  /** Degrees clockwise from +y. Reads are normalized to 0-360. @default 0 */
+  leanBearing: number;
+  /** 0-1. @default 0 */
+  damage: number;
+  /** 0-1. @default 0 */
+  decay: number;
+  /** sRGB 0-255 RGBA. @default [255, 255, 255, 255] */
+  canopyColor: number[];
+  /** sRGB 0-255 RGBA. @default [255, 255, 255, 255] */
+  trunkColor: number[];
+  /** Metres. @default 0.5 */
+  trunkRadius: number;
+  /** Effective wind bend as a fraction of tree height. @default 0 */
+  windFlex: number;
+  /** 0-1. @default 1 */
+  coverage: number;
+  /** Non-negative multiplier. @default 1 */
+  leafScale: number;
+  /** 0-1. @default 1 */
+  leafDetail: number;
+  /** 0-1. @default 0 */
+  seed: number;
+  /** Reads always return the crop values, with `count` 0 when empty. */
+  crop: TreeStateCropValues;
+};
+
+/** A crop passed to `setRow`. Absent or non-finite fields keep their previous value. */
+export type TreeStateCropUpdate = {
+  [key in 'count' | 'radius' | 'ripeness' | 'fallen' | 'dropped']?: number;
+} & {
+  color?: ArrayLike<number> | null;
+  unripeColor?: ArrayLike<number> | null;
+};
+
+/**
+ * Values passed to `setRow`. Every field is optional: an absent or non-finite value keeps its
+ * previous target, or its documented default on a new row. Passing `crop: null` clears its counts
+ * and holds its appearance. A null color keeps the previous color, and a three-component color is opaque.
+ */
+export type TreeStateUpdate = {
+  [key in Exclude<
+    keyof TreeStateValues,
+    'position' | 'positionLow' | 'canopyColor' | 'trunkColor' | 'crop'
+  >]?: number;
+} & {
+  position?: ArrayLike<number> | null;
+  positionLow?: ArrayLike<number> | null;
+  canopyColor?: ArrayLike<number> | null;
+  trunkColor?: ArrayLike<number> | null;
+  crop?: TreeStateCropUpdate | null;
+};
+
+/** Timing of a `setRow` call. */
+export type TreeStateRowOptions = {
+  /** Timeline time in milliseconds. Tweens start at this time. */
+  now: number;
+  /** Layer clock in seconds: `windTime` when numeric, else the timeline. Loss rates use this. */
+  clock: number;
+  /** The row now holds a newly added tree. @default false */
+  isNew?: boolean;
+  /** A replacement crop uses its own appearance immediately. */
+  cropKindChanged?: boolean;
+};
+
+/** Result of `tick`. These objects are shared and frozen, so they are safe to keep. */
+export type TreeStateTickResult = Readonly<{
+  /** Row data changed since the previous tick, by this tick or by `setRow`. */
+  changed: boolean;
+  /** Tweens are running or loss rates have not reached 0: keep ticking. */
+  active: boolean;
+}>;
+
+type ResolvedTreeTransition = {
+  /** The settings this came from, so an equal object in the next render can be recognized. */
+  readonly source: TreeTransitionSettings;
+  readonly duration: number;
+  readonly easing: ((t: number) => number) | null;
+};
+
+const FLOATS_PER_TEXEL = 4;
+const FLOATS_PER_ROW = TREE_STATE_TEXELS_PER_ROW * FLOATS_PER_TEXEL;
+const FLOATS_PER_LINE = TREE_STATE_TEXTURE_WIDTH * FLOATS_PER_TEXEL;
+
+/**
+ * Marks a value not given, in the typed array that raw values pass through. A double stored there
+ * stays unboxed, where a double passed to a function V8 does not inline allocates. Doing that once
+ * per field of every row is what would otherwise make garbage on each frame of animated data.
+ */
+const NOT_SET = Number.NaN;
+
+/** A larger clock step than this, in seconds, says nothing about how fast a value is falling. */
+const MAX_RATE_CLOCK_STEP = 0.25;
+/**
+ * Frames in the loss rate's moving secant. It reaches the true rate of a steady fall at once, and
+ * exactly 0 this many frames after the value stops. Four frames also keep a value that updates
+ * every second or fourth frame from flickering between 0 and a multiple of its rate.
+ */
+const RATE_WINDOW_FRAMES = 4;
+const RATE_SAMPLES = RATE_WINDOW_FRAMES + 1;
+
+/** Below this, in degrees, a tree is upright and its bearing cannot be seen. */
+const LEAN_UPRIGHT_DEGREES = 1e-3;
+/** Bearings closer than this, in degrees, are the same target. */
+const SAME_BEARING_DEGREES = 1e-9;
+/** At or below this count, a crop has nothing on the tree. */
+const EMPTY_CROP_COUNT = 1e-6;
+
+// The row is a vector of channels in caller units, so a tween is plain arithmetic and a read returns
+// exactly what was written. Channels of one group are contiguous. Trailing channels have no group.
+const CHANNEL_X = 0;
+const CHANNEL_Z = 2;
+const CHANNEL_CROWN_X = 3;
+const CHANNEL_CROWN_Y = 4;
+const CHANNEL_HEIGHT = 5;
+const CHANNEL_LEAF_SCALE = 6;
+const CHANNEL_TRUNK_HEIGHT = 7;
+const CHANNEL_TRUNK_RADIUS = 8;
+const CHANNEL_GROWTH = 9;
+const CHANNEL_HEALTH = 10;
+const CHANNEL_FOLIAGE = 11;
+const CHANNEL_FLUSH = 12;
+const CHANNEL_LEAN_DEGREES = 13;
+const CHANNEL_LEAN_BEARING = 14;
+const CHANNEL_DAMAGE = 15;
+const CHANNEL_DECAY = 16;
+const CHANNEL_CANOPY = 17;
+const CHANNEL_BARK = 21;
+const CHANNEL_WIND_FLEX = 25;
+const CHANNEL_CROP = 26;
+const CHANNEL_YAW = 38;
+const CHANNEL_WIND_PHASE = 39;
+const CHANNEL_COVERAGE = 40;
+const CHANNEL_LEAF_DETAIL = 41;
+const CHANNEL_SEED = 42;
+const CHANNEL_COUNT = 43;
+
+// Channel offsets inside the crop.
+const CROP_COUNT = 0;
+const CROP_RADIUS = 1;
+const CROP_RIPENESS = 2;
+const CROP_FALLEN = 3;
+const CROP_COLOR = 4;
+const CROP_UNRIPE = 8;
+const CROP_DROPPED = 11;
+const CROP_CHANNELS = 12;
+
+// How a channel encodes into the state row, other than by CHANNEL_SCALE.
+const KIND_POSITION = 1;
+const KIND_BEARING = 2;
+
+const CHANNEL_OFFSET = new Uint8Array(CHANNEL_COUNT);
+const CHANNEL_KIND = new Uint8Array(CHANNEL_COUNT);
+const CHANNEL_SCALE = new Float64Array(CHANNEL_COUNT).fill(1);
+const CHANNEL_MIN = new Float64Array(CHANNEL_COUNT).fill(-Infinity);
+const CHANNEL_MAX = new Float64Array(CHANNEL_COUNT).fill(Infinity);
+/** Index into the RATE_ tables of a channel that has a loss rate, else -1. */
+const CHANNEL_RATE = new Int8Array(CHANNEL_COUNT).fill(-1);
+const DEFAULT_TARGETS = new Float64Array(CHANNEL_COUNT);
+const DEGREES_TO_RADIANS = Math.PI / 180;
+const DEFAULT_UNRIPE_COLOR = [86, 128, 44] as const;
+
+function defineChannel(
+  channel: number,
+  texel: number,
+  component: number,
+  fallback: number,
+  min = -Infinity,
+  max = Infinity,
+  scale = 1
+): void {
+  CHANNEL_OFFSET[channel] = texel * FLOATS_PER_TEXEL + component;
+  DEFAULT_TARGETS[channel] = fallback;
+  CHANNEL_MIN[channel] = min;
+  CHANNEL_MAX[channel] = max;
+  CHANNEL_SCALE[channel] = scale;
+}
+
+function defineColor(channel: number, texel: number, fallback: readonly number[]): void {
+  for (let i = 0; i < fallback.length; i++)
+    defineChannel(channel + i, texel, i, fallback[i], 0, 255, 1 / 255);
+}
+
+const {ANCHOR, ANCHOR_LOW, SIZE, LIFE, POSE, CANOPY, TRUNK, MISC, DETAIL} = TREE_STATE_TEXEL;
+for (let axis = 0; axis < 3; axis++) {
+  defineChannel(CHANNEL_X + axis, ANCHOR, axis, 0);
+  CHANNEL_KIND[CHANNEL_X + axis] = KIND_POSITION;
+}
+const POSITION_LOW_OFFSET = (ANCHOR_LOW - ANCHOR) * FLOATS_PER_TEXEL;
+defineChannel(CHANNEL_YAW, ANCHOR, 3, 0);
+defineChannel(CHANNEL_WIND_PHASE, ANCHOR_LOW, 3, 0);
+defineChannel(CHANNEL_CROWN_X, SIZE, 0, 3, 0);
+defineChannel(CHANNEL_CROWN_Y, SIZE, 1, 3, 0);
+defineChannel(CHANNEL_HEIGHT, SIZE, 2, 10, 0);
+defineChannel(CHANNEL_TRUNK_HEIGHT, SIZE, 3, 3.5, 0);
+defineChannel(CHANNEL_GROWTH, LIFE, 0, 1, 0, 1);
+defineChannel(CHANNEL_HEALTH, LIFE, 1, 1, 0, 1);
+defineChannel(CHANNEL_FOLIAGE, LIFE, 2, 1, 0, 1);
+defineChannel(CHANNEL_FLUSH, LIFE, 3, 0, 0, 1);
+defineChannel(CHANNEL_LEAN_DEGREES, POSE, 0, 0, 0, 90, DEGREES_TO_RADIANS);
+defineChannel(CHANNEL_LEAN_BEARING, POSE, 1, 0);
+CHANNEL_KIND[CHANNEL_LEAN_BEARING] = KIND_BEARING;
+defineChannel(CHANNEL_DAMAGE, POSE, 2, 0, 0, 1);
+defineChannel(CHANNEL_DECAY, POSE, 3, 0, 0, 1);
+defineColor(CHANNEL_CANOPY, CANOPY, [255, 255, 255, 255]);
+defineColor(CHANNEL_BARK, TRUNK, [255, 255, 255, 255]);
+defineChannel(CHANNEL_TRUNK_RADIUS, MISC, 0, 0.5, 0);
+defineChannel(CHANNEL_WIND_FLEX, MISC, 1, 0, 0);
+defineChannel(CHANNEL_COVERAGE, MISC, 2, 1, 0, 1);
+defineChannel(CHANNEL_LEAF_SCALE, MISC, 3, 1, 0);
+defineChannel(CHANNEL_LEAF_DETAIL, DETAIL, 0, 1, 0, 1);
+defineChannel(CHANNEL_SEED, DETAIL, 1, 0, 0, 1);
+
+defineChannel(CHANNEL_CROP + CROP_COUNT, TREE_STATE_TEXEL.CROP, 0, 0, 0);
+defineChannel(CHANNEL_CROP + CROP_RADIUS, TREE_STATE_TEXEL.CROP, 1, 0, 0);
+defineChannel(CHANNEL_CROP + CROP_RIPENESS, TREE_STATE_TEXEL.CROP, 2, 1, 0, 1);
+defineChannel(CHANNEL_CROP + CROP_FALLEN, TREE_STATE_TEXEL.CROP, 3, 0, 0, 1);
+defineColor(CHANNEL_CROP + CROP_COLOR, TREE_STATE_TEXEL.CROP_COLOR, [255, 255, 255, 255]);
+defineColor(CHANNEL_CROP + CROP_UNRIPE, TREE_STATE_TEXEL.CROP_UNRIPE, DEFAULT_UNRIPE_COLOR);
+defineChannel(CHANNEL_CROP + CROP_DROPPED, TREE_STATE_TEXEL.CROP_DROPPED, 0, 0, 0);
+
+// Foliage, damage and the crop's fallen fraction store a loss rate per second. Things fall when foliage falls,
+// but when damage and fallen rise. Those two measure either way, so that a value going back down replays
+// its flights in reverse, as scrubbing does.
+const RATE_FOLIAGE = 0;
+const RATE_CHANNELS = [CHANNEL_FOLIAGE, CHANNEL_DAMAGE, CHANNEL_CROP + CROP_FALLEN] as const;
+const RATE_KINDS = RATE_CHANNELS.length;
+const RATE_OFFSETS = [
+  DETAIL * FLOATS_PER_TEXEL + 2,
+  DETAIL * FLOATS_PER_TEXEL + 3,
+  TREE_STATE_TEXEL.CROP_UNRIPE * FLOATS_PER_TEXEL + 3
+] as const;
+RATE_CHANNELS.forEach((channel, rate) => {
+  CHANNEL_RATE[channel] = rate;
+});
+
+const GROUP_POSITION = 0;
+const GROUP_ELEVATION = 1;
+const GROUP_HEIGHT = 2;
+const GROUP_TRUNK_HEIGHT = 3;
+const GROUP_FOLIAGE = 8;
+const GROUP_LEAN = 10;
+const GROUP_DAMAGE = 11;
+const GROUP_CROP = 16;
+
+const GROUPS: readonly {
+  /** Where settings come from, most specific first. */
+  keys: readonly TreeTransitionKey[];
+  first: number;
+  count: number;
+}[] = [
+  // Elevation and trunk height tween with position and height unless their own key is present,
+  // which is when these groups take over the trailing channel. See `setTransitions`.
+  {
+    keys: ['getPosition', 'getTree'],
+    first: CHANNEL_X,
+    count: 3
+  },
+  {keys: ['getElevation'], first: CHANNEL_Z, count: 1},
+  {keys: ['getHeight', 'getTree'], first: CHANNEL_HEIGHT, count: 3},
+  {
+    keys: ['getTrunkHeightFraction'],
+    first: CHANNEL_TRUNK_HEIGHT,
+    count: 1
+  },
+  {keys: ['getCanopyRadius', 'getTree'], first: CHANNEL_CROWN_X, count: 2},
+  {
+    keys: ['getTrunkRadius', 'getTree'],
+    first: CHANNEL_TRUNK_RADIUS,
+    count: 1
+  },
+  {keys: ['getGrowth', 'getTree'], first: CHANNEL_GROWTH, count: 1},
+  {keys: ['getHealth', 'getTree'], first: CHANNEL_HEALTH, count: 1},
+  {keys: ['getFoliage', 'getTree'], first: CHANNEL_FOLIAGE, count: 1},
+  {keys: ['getFlush', 'getTree'], first: CHANNEL_FLUSH, count: 1},
+  {keys: ['getLean', 'getTree'], first: CHANNEL_LEAN_DEGREES, count: 2},
+  {keys: ['getDamage', 'getTree'], first: CHANNEL_DAMAGE, count: 1},
+  {keys: ['getDecay', 'getTree'], first: CHANNEL_DECAY, count: 1},
+  {
+    keys: ['getCanopyColor', 'getSeason', 'getTree'],
+    first: CHANNEL_CANOPY,
+    count: 4
+  },
+  {keys: ['getTrunkColor', 'getTree'], first: CHANNEL_BARK, count: 4},
+  {keys: ['getTree'], first: CHANNEL_WIND_FLEX, count: 1},
+  {keys: ['getCrop', 'getTree'], first: CHANNEL_CROP, count: CROP_CHANNELS}
+];
+const GROUP_COUNT = GROUPS.length;
+const GROUP_MAX_CHANNELS = CROP_CHANNELS;
+const GROUP_FIRST = Uint8Array.from(GROUPS, group => group.first);
+const RATE_GROUPS = [GROUP_FOLIAGE, GROUP_DAMAGE, GROUP_CROP] as const;
+
+const TICK_RESULTS: readonly TreeStateTickResult[] = [
+  Object.freeze({changed: false, active: false}),
+  Object.freeze({changed: true, active: false}),
+  Object.freeze({changed: false, active: true}),
+  Object.freeze({changed: true, active: true})
+];
+
+/** Whether two settings mean the same transition, field by field. */
+function isSameTransition(a: TreeTransitionSettings, b: TreeTransitionSettings): boolean {
+  if (a === b) return true;
+  return (
+    typeof a === 'object' &&
+    typeof b === 'object' &&
+    a.duration === b.duration &&
+    a.easing === b.easing
+  );
+}
+
+/**
+ * Normalizes one key's settings as deck.gl's `normalizeTransitionSettings` does. Returns `previous`
+ * when nothing differs, because a layer typically passes a new but equal `transitions` every render.
+ */
+function resolveTreeTransition(
+  settings: TreeTransitionSettings | null | false | undefined,
+  previous: ResolvedTreeTransition | null
+): ResolvedTreeTransition | null {
+  if (!settings) return null;
+  const object = typeof settings === 'object' ? settings : null;
+  if (object?.type && object.type !== 'interpolation') return null;
+  if (previous && isSameTransition(settings, previous.source)) return previous;
+  const duration = typeof settings === 'number' ? settings : settings.duration;
+  if (!Number.isFinite(duration) || duration <= 0) return null;
+  return {
+    source: settings,
+    duration,
+    easing: typeof object?.easing === 'function' ? object.easing : null
+  };
+}
+
+const TREE_TRANSITION_KEYS = [...new Set(GROUPS.flatMap(group => group.keys))];
+const GROUP_KEY_INDEXES = GROUPS.map(group =>
+  group.keys.map(key => TREE_TRANSITION_KEYS.indexOf(key))
+);
+
+/** The signed turn, in -180 to 180 degrees, that takes bearing `from` to bearing `to`. */
+function getBearingTurn(from: number, to: number): number {
+  return ((((to - from) % 360) + 540) % 360) - 180;
+}
+
+/**
+ * Encodes one channel into a state row, and returns whether the row changed. The value comes from
+ * `source[index]`: see `TreeStateStore.nextValue` for why doubles do not travel as arguments here.
+ */
+function writeChannel(
+  data: Float32Array,
+  rowOffset: number,
+  channel: number,
+  source: Float64Array,
+  index: number
+): boolean {
+  const value = source[index];
+  const offset = rowOffset + CHANNEL_OFFSET[channel];
+  const kind = CHANNEL_KIND[channel];
+  let changed = false;
+  let encoded: number;
+  if (kind === KIND_POSITION) {
+    encoded = Math.fround(value);
+    const low = Math.fround(value - encoded);
+    if (data[offset + POSITION_LOW_OFFSET] !== low) {
+      data[offset + POSITION_LOW_OFFSET] = low;
+      changed = true;
+    }
+  } else if (kind === KIND_BEARING) {
+    const radians = value * DEGREES_TO_RADIANS;
+    encoded = Math.fround(Math.atan2(Math.cos(radians), Math.sin(radians)));
+  } else {
+    const clamped = Math.min(CHANNEL_MAX[channel], Math.max(CHANNEL_MIN[channel], value));
+    encoded = Math.fround(clamped * CHANNEL_SCALE[channel]);
+  }
+  if (data[offset] !== encoded) {
+    data[offset] = encoded;
+    changed = true;
+  }
+  return changed;
+}
+
+const DEFAULT_ROW_DATA = new Float32Array(FLOATS_PER_ROW);
+for (let channel = 0; channel < CHANNEL_COUNT; channel++)
+  writeChannel(DEFAULT_ROW_DATA, 0, channel, DEFAULT_TARGETS, channel);
+
+/** Copies channels into a values object. Reused by every read. */
+function fillValues(out: TreeStateValues, channels: Float64Array): TreeStateValues {
+  for (let axis = 0; axis < 3; axis++) out.position[axis] = channels[CHANNEL_X + axis];
+  out.positionLow = undefined;
+  out.yaw = channels[CHANNEL_YAW];
+  out.windPhase = channels[CHANNEL_WIND_PHASE];
+  out.crownX = channels[CHANNEL_CROWN_X];
+  out.crownY = channels[CHANNEL_CROWN_Y];
+  out.height = channels[CHANNEL_HEIGHT];
+  out.trunkHeight = channels[CHANNEL_TRUNK_HEIGHT];
+  out.growth = channels[CHANNEL_GROWTH];
+  out.health = channels[CHANNEL_HEALTH];
+  out.foliage = channels[CHANNEL_FOLIAGE];
+  out.flush = channels[CHANNEL_FLUSH];
+  out.leanDegrees = channels[CHANNEL_LEAN_DEGREES];
+  out.leanBearing = channels[CHANNEL_LEAN_BEARING];
+  out.damage = channels[CHANNEL_DAMAGE];
+  out.decay = channels[CHANNEL_DECAY];
+  for (let i = 0; i < 4; i++) {
+    out.canopyColor[i] = channels[CHANNEL_CANOPY + i];
+    out.trunkColor[i] = channels[CHANNEL_BARK + i];
+  }
+  out.trunkRadius = channels[CHANNEL_TRUNK_RADIUS];
+  out.windFlex = channels[CHANNEL_WIND_FLEX];
+  out.coverage = channels[CHANNEL_COVERAGE];
+  out.leafScale = channels[CHANNEL_LEAF_SCALE];
+  out.leafDetail = channels[CHANNEL_LEAF_DETAIL];
+  out.seed = channels[CHANNEL_SEED];
+  const {crop} = out;
+  crop.count = channels[CHANNEL_CROP + CROP_COUNT];
+  crop.radius = channels[CHANNEL_CROP + CROP_RADIUS];
+  crop.ripeness = channels[CHANNEL_CROP + CROP_RIPENESS];
+  crop.fallen = channels[CHANNEL_CROP + CROP_FALLEN];
+  for (let i = 0; i < 4; i++) crop.color[i] = channels[CHANNEL_CROP + CROP_COLOR + i];
+  for (let i = 0; i < 3; i++) crop.unripeColor[i] = channels[CHANNEL_CROP + CROP_UNRIPE + i];
+  crop.dropped = channels[CHANNEL_CROP + CROP_DROPPED];
+  return out;
+}
+
+/** A values object holding the documented defaults, ready to pass to `getRowValues` as `out`. */
+export function createTreeStateValues(): TreeStateValues {
+  return fillValues(
+    {
+      position: [0, 0, 0],
+      yaw: 0,
+      windPhase: 0,
+      crownX: 0,
+      crownY: 0,
+      height: 0,
+      trunkHeight: 0,
+      growth: 0,
+      health: 0,
+      foliage: 0,
+      flush: 0,
+      leanDegrees: 0,
+      leanBearing: 0,
+      damage: 0,
+      decay: 0,
+      canopyColor: [0, 0, 0, 0],
+      trunkColor: [0, 0, 0, 0],
+      trunkRadius: 0,
+      windFlex: 0,
+      coverage: 0,
+      leafScale: 0,
+      leafDetail: 0,
+      seed: 0,
+      crop: {
+        count: 0,
+        radius: 0,
+        ripeness: 0,
+        fallen: 0,
+        color: [0, 0, 0, 0],
+        unripeColor: [0, 0, 0],
+        dropped: 0
+      }
+    },
+    DEFAULT_TARGETS
+  );
+}
+
+/**
+ * Stable slot ids for records in struct-of-arrays pools. A released slot leaves
+ * `order` at the next pass.
+ */
+class TreeSlotList {
+  capacity = 16;
+  order = new Int32Array(this.capacity);
+  orderCount = 0;
+  alive = new Uint8Array(this.capacity);
+  aliveCount = 0;
+  private free = new Int32Array(this.capacity);
+  private freeCount = 0;
+  private highWater = 0;
+
+  allocate(): number {
+    if (this.freeCount === 0 && this.orderCount > this.aliveCount) this.compact();
+    let slot: number;
+    if (this.freeCount > 0) {
+      slot = this.free[--this.freeCount];
+    } else {
+      if (this.highWater === this.capacity) this.grow();
+      slot = this.highWater++;
+    }
+    this.alive[slot] = 1;
+    this.aliveCount++;
+    this.order[this.orderCount++] = slot;
+    return slot;
+  }
+
+  release(slot: number): void {
+    this.alive[slot] = 0;
+    this.aliveCount--;
+  }
+
+  recycle(slot: number): void {
+    this.free[this.freeCount++] = slot;
+  }
+
+  private compact(): void {
+    let kept = 0;
+    for (let i = 0; i < this.orderCount; i++) {
+      const slot = this.order[i];
+      if (this.alive[slot] === 1) this.order[kept++] = slot;
+      else this.recycle(slot);
+    }
+    this.orderCount = kept;
+  }
+
+  private grow(): void {
+    this.capacity *= 2;
+    const order = new Int32Array(this.capacity);
+    order.set(this.order);
+    this.order = order;
+    const alive = new Uint8Array(this.capacity);
+    alive.set(this.alive);
+    this.alive = alive;
+    const free = new Int32Array(this.capacity);
+    free.set(this.free);
+    this.free = free;
+  }
+}
+
+function growArray(array: Float64Array, length: number) {
+  const grown = new Float64Array(length);
+  grown.set(array);
+  return grown;
+}
+
+/**
+ * Per-tree state for `TreeLayer`: targets, tweens and loss rates, and the Float32Array that
+ * backs the RGBA32F state texture, laid out by `TREE_STATE_TEXEL`. It is pure, so wood, leaves and
+ * crops read one value per tree and can never disagree, whichever sub-layer or level of detail they
+ * are in.
+ *
+ * Call `setRow` for each row whose accessors ran, then `tick` once per frame. Upload what changed:
+ *
+ * ```ts
+ * const {active} = store.tick(timeline.getTime(), clock);
+ * if (store.isDirty) {
+ *   const {dirtyLineStart: y, dirtyLineEnd: end} = store;
+ *   const floatsPerLine = TREE_STATE_TEXTURE_WIDTH * 4;
+ *   texture.writeData(store.data.subarray(y * floatsPerLine, end * floatsPerLine), {
+ *     y,
+ *     height: end - y
+ *   });
+ *   store.clearDirty();
+ * }
+ * if (active) this.setNeedsUpdate();
+ * ```
+ *
+ * Each field group tweens independently, and takes its settings from its own key or else `getTree`:
+ *
+ * | Fields | Own keys |
+ * | --- | --- |
+ * | `position` | `getPosition` |
+ * | `position` z | `getElevation` when present, else with `getPosition` |
+ * | `height`, `leafScale` | `getHeight` |
+ * | `trunkHeight` | `getTrunkHeightFraction` when present, else with `getHeight` |
+ * | `crownX`, `crownY` | `getCanopyRadius` |
+ * | `trunkRadius` | `getTrunkRadius` |
+ * | `growth`, `health`, `foliage`, `flush`, `damage`, `decay` | `getGrowth` and so on |
+ * | `leanDegrees`, `leanBearing` | `getLean` |
+ * | `canopyColor` | `getCanopyColor`, then `getSeason` |
+ * | `trunkColor` | `getTrunkColor` |
+ * | `windFlex` | none |
+ * | Crop | `getCrop` |
+ *
+ * `yaw`, `windPhase`, `coverage`, `leafDetail` and `seed` identify a tree or are driven per frame by
+ * the layer, and always jump.
+ *
+ * Inside a group, each channel keeps its own timing, so a `ripeness` that changes every frame does
+ * not restart another channel that is still moving.
+ *
+ * Lean never swings a tree around while it is upright: a tree rising from upright goes straight to
+ * its target bearing, and one returning upright holds its bearing on the way. Otherwise a bearing
+ * takes the short way around. Likewise a crop with nothing on the tree takes its new radius,
+ * ripeness and colors at once, and only `count` tweens, so the first fruit is never the wrong color.
+ */
+export class TreeStateStore {
+  /**
+   * The state rows, `lineCount` lines of `TREE_STATE_TEXTURE_WIDTH` RGBA32F texels. Treat as
+   * read-only. Reallocated when `lineCount` changes, so read it again after `resize`.
+   */
+  data = new Float32Array(FLOATS_PER_LINE);
+  /** Rows that exist. */
+  rowCount = 0;
+  /** Texture height: lines needed to hold `rowCount`, and at least 1. */
+  lineCount = 1;
+
+  private dirtyStart = 1;
+  private dirtyEnd = 0;
+  private changedSinceTick = false;
+
+  /** Latest targets in caller units. Also the current value of any group not tweening. */
+  private targets = new Float64Array(TREE_STATE_ROWS_PER_LINE * CHANNEL_COUNT);
+  private rowSet = new Uint8Array(TREE_STATE_ROWS_PER_LINE);
+  /** Active tween slot of each row and group, or -1. */
+  private tweenIndex = new Int32Array(TREE_STATE_ROWS_PER_LINE * GROUP_COUNT);
+  /** Active rate slot of each row and rate kind, or -1. */
+  private rateIndex = new Int32Array(TREE_STATE_ROWS_PER_LINE * RATE_KINDS);
+
+  private incoming = new Float64Array(CHANNEL_COUNT);
+  private startValues = new Float64Array(GROUP_MAX_CHANNELS);
+  private readChannels = new Float64Array(CHANNEL_COUNT);
+
+  private transitions: TreeTransitions | null = null;
+  private keySettings: (ResolvedTreeTransition | null)[] = TREE_TRANSITION_KEYS.map(() => null);
+  private groupSettings: (ResolvedTreeTransition | null)[] = GROUPS.map(() => null);
+  private groupCounts = Uint8Array.from(GROUPS, ({count}) => count);
+
+  // Tween records. Channels of a record sit at slot * GROUP_MAX_CHANNELS.
+  private tweens = new TreeSlotList();
+  private tweenRow = new Int32Array(this.tweens.capacity);
+  private tweenGroup = new Uint8Array(this.tweens.capacity);
+  private tweenSettings: (ResolvedTreeTransition | null)[] = [];
+  private tweenFrom = new Float64Array(this.tweens.capacity * GROUP_MAX_CHANNELS);
+  /** Destination of each channel. Bearings are unwrapped, so they take the short way. */
+  private tweenTo = new Float64Array(this.tweens.capacity * GROUP_MAX_CHANNELS);
+  /** Current value of each channel. */
+  private tweenCurrent = new Float64Array(this.tweens.capacity * GROUP_MAX_CHANNELS);
+  /** Interpolation: start time of each channel, or -Infinity if it is not moving. */
+  private tweenStart = new Float64Array(this.tweens.capacity * GROUP_MAX_CHANNELS);
+
+  // Rate records, one per value still inside its loss-rate window. Rows at rest cost nothing.
+  private rates = new TreeSlotList();
+  private rateRow = new Int32Array(this.rates.capacity);
+  private rateKind = new Uint8Array(this.rates.capacity);
+  private rateHead = new Uint8Array(this.rates.capacity);
+  private rateSize = new Uint8Array(this.rates.capacity);
+  private rateTimes = new Float64Array(this.rates.capacity * RATE_SAMPLES);
+  private rateValues = new Float64Array(this.rates.capacity * RATE_SAMPLES);
+
+  /** The latest timeline time, in milliseconds. */
+  private now = 0;
+  /** The clock of this frame. */
+  private frameClock = Number.NaN;
+  /** The last different clock before `frameClock`. */
+  private previousClock = Number.NaN;
+  /** `tick` has finished for `frameClock`, so any later change at this clock took no time. */
+  private frameTicked = false;
+
+  /**
+   * Doubles travel between these methods by field or by array index, not as arguments. V8 allocates a
+   * box for a double passed to a call it does not inline, which at one per row per frame is the only
+   * garbage this path would make.
+   */
+  private nextValue = Number.NaN;
+  private rateBefore = Number.NaN;
+  private rateAfter = Number.NaN;
+
+  constructor(rowCount = 0) {
+    this.resize(rowCount);
+  }
+
+  /** Whether any line changed since `clearDirty`. */
+  get isDirty(): boolean {
+    return this.dirtyEnd > this.dirtyStart;
+  }
+
+  /** First line to upload, inclusive. Equals `dirtyLineEnd` when nothing changed. */
+  get dirtyLineStart(): number {
+    return this.isDirty ? this.dirtyStart : 0;
+  }
+
+  /** End of the lines to upload, exclusive. */
+  get dirtyLineEnd(): number {
+    return this.isDirty ? this.dirtyEnd : 0;
+  }
+
+  /** Forgets the dirty lines. Call after uploading them. */
+  clearDirty(): void {
+    this.dirtyStart = 1;
+    this.dirtyEnd = 0;
+  }
+
+  /** Tweens still running. */
+  get activeTweenCount(): number {
+    return this.tweens.aliveCount;
+  }
+
+  /**
+   * Sets the `transitions` prop. Passing the same object again costs nothing, and an equal new one
+   * costs a comparison. Running tweens keep the settings they started with, as in deck.gl. A group
+   * whose settings are removed stops: its tween is interrupted and it jumps to its target.
+   */
+  setTransitions(transitions: TreeTransitions | null | undefined): void {
+    const next = transitions ?? null;
+    if (next === this.transitions) return;
+    this.transitions = next;
+    const raw: TreeTransitions = next ?? {};
+    const {keySettings, groupSettings, groupCounts} = this;
+    for (let i = 0; i < TREE_TRANSITION_KEYS.length; i++)
+      keySettings[i] = resolveTreeTransition(raw[TREE_TRANSITION_KEYS[i]], keySettings[i]);
+
+    let stopping = false;
+    for (let group = 0; group < GROUP_COUNT; group++) {
+      const keyIndexes = GROUP_KEY_INDEXES[group];
+      let settings: ResolvedTreeTransition | null = null;
+      for (let i = 0; i < keyIndexes.length; i++) {
+        const keyIndex = keyIndexes[i];
+        if (raw[TREE_TRANSITION_KEYS[keyIndex]] !== undefined) {
+          settings = keySettings[keyIndex];
+          break;
+        }
+      }
+      if (groupSettings[group] && !settings) stopping = true;
+      groupSettings[group] = settings;
+    }
+    const splitElevation = raw.getElevation !== undefined;
+    const splitTrunkHeight = raw.getTrunkHeightFraction !== undefined;
+    const split =
+      splitElevation !== groupCounts[GROUP_ELEVATION] > 0 ||
+      splitTrunkHeight !== groupCounts[GROUP_TRUNK_HEIGHT] > 0;
+    if ((stopping || split) && this.tweens.aliveCount > 0) this.stopTweens(split);
+    groupCounts[GROUP_POSITION] = splitElevation ? 2 : 3;
+    groupCounts[GROUP_ELEVATION] = splitElevation ? 1 : 0;
+    groupCounts[GROUP_HEIGHT] = splitTrunkHeight ? 2 : 3;
+    groupCounts[GROUP_TRUNK_HEIGHT] = splitTrunkHeight ? 1 : 0;
+  }
+
+  /**
+   * Sets how many rows exist. Existing rows keep their state and running tweens. Removed rows have
+   * their tweens interrupted. Added rows hold the defaults until `setRow`. When `lineCount` changes
+   * `data` is reallocated and every line is dirty, since the texture must be recreated at that height.
+   */
+  resize(rowCount: number): void {
+    const count = Number.isFinite(rowCount) ? Math.max(0, Math.floor(rowCount)) : 0;
+    const previous = this.rowCount;
+    if (count === previous) return;
+    if (count < previous) this.dropRows(count);
+    const lineCount = Math.max(1, Math.ceil(count / TREE_STATE_ROWS_PER_LINE));
+    if (lineCount !== this.lineCount) this.reallocate(lineCount, Math.min(previous, count));
+    this.rowCount = count;
+    for (let row = previous; row < count; row++) this.resetRow(row);
+    if (count > previous) {
+      this.markLines(previous, count);
+      this.changedSinceTick = true;
+    }
+  }
+
+  /**
+   * Sets the targets of one row. Unchanged values do nothing, and a tween already running toward
+   * them carries on. A changed value starts or retargets its group's tween from the current value,
+   * or jumps if the group has no settings. A row's first `setRow` jumps. `isNew` means the
+   * row holds a different tree from now on: anything
+   * running on it is interrupted, and absent fields take their defaults rather than previous values.
+   *
+   * This allocates nothing as long as `values` objects keep one shape, and `options` objects keep
+   * another, so always pass `isNew`. V8 boxes the numbers of objects it has seen in several shapes.
+   */
+  setRow(row: number, values: TreeStateUpdate, options: TreeStateRowOptions): void {
+    this.checkRow(row);
+    if (Number.isFinite(options.now)) this.now = options.now;
+    this.noteClock(options.clock);
+
+    const isNew = options.isNew === true;
+    const wasSet = this.rowSet[row] === 1;
+    if (isNew && wasSet) this.clearRow(row);
+    this.rowSet[row] = 1;
+    const continuing = wasSet && !isNew;
+
+    const base = row * CHANNEL_COUNT;
+    this.readIncoming(values, base);
+
+    const {groupCounts, groupSettings, incoming, targets} = this;
+    for (let group = 0; group < GROUP_COUNT; group++) {
+      const count = groupCounts[group];
+      if (count === 0) continue;
+      if (group === GROUP_CROP && options.cropKindChanged) {
+        const slot = this.tweenIndex[row * GROUP_COUNT + group];
+        if (slot >= 0) this.releaseTween(slot);
+        this.jumpGroup(row, group, false);
+        continue;
+      }
+      const settings = groupSettings[group];
+      const first = GROUP_FIRST[group];
+      const end = first + count;
+      let changed = false;
+      for (let channel = first; channel < end; channel++) {
+        if (incoming[channel] !== targets[base + channel]) {
+          changed = true;
+          break;
+        }
+      }
+      if (!changed) continue;
+      if (settings && continuing) this.retargetGroup(row, group, settings);
+      else this.jumpGroup(row, group, continuing);
+    }
+    for (let channel = CHANNEL_YAW; channel < CHANNEL_COUNT; channel++) {
+      if (incoming[channel] !== targets[base + channel]) {
+        targets[base + channel] = incoming[channel];
+        this.writeRowChannel(row, channel, targets, base + channel);
+      }
+    }
+    this.sampleRowRates(row);
+  }
+
+  /** Write a camera-driven LOD change for upload without scheduling a lifecycle tick. */
+  setLeafDetail(row: number, detail: number): void {
+    const index = row * CHANNEL_COUNT + CHANNEL_LEAF_DETAIL;
+    this.targets[index] = detail;
+    if (writeChannel(this.data, row * FLOATS_PER_ROW, CHANNEL_LEAF_DETAIL, this.targets, index)) {
+      this.markLines(row, row + 1);
+    }
+  }
+
+  /** Write the color-only shell weight without invalidating lifecycle state. */
+  setShellRetention(row: number, retention: number): void {
+    const offset = row * FLOATS_PER_ROW + TREE_STATE_TEXEL.CROP_DROPPED * 4 + 2;
+    if (this.data[offset] === retention) return;
+    this.data[offset] = retention;
+    this.markLines(row, row + 1);
+  }
+
+  /**
+   * Advances every tween to `now` and every loss rate to `clock`. A paused timeline holds tweens, and
+   * a paused clock holds rates, so things in flight wait rather than land.
+   */
+  tick(now: number, clock: number): TreeStateTickResult {
+    if (Number.isFinite(now)) this.now = now;
+    this.noteClock(clock);
+    this.advanceTweens();
+    this.advanceRates();
+    this.frameTicked = true;
+    const changed = this.changedSinceTick;
+    this.changedSinceTick = false;
+    const active = this.tweens.aliveCount > 0 || this.rates.aliveCount > 0;
+    return TICK_RESULTS[(changed ? 1 : 0) + (active ? 2 : 0)];
+  }
+
+  /**
+   * Current values of a row, in the units of `TreeStateValues`. At rest they are exactly what
+   * `setRow` resolved. Pass `out` to reuse an object from `createTreeStateValues`.
+   */
+  getRowValues(row: number, out: TreeStateValues = createTreeStateValues()): TreeStateValues {
+    this.checkRow(row);
+    const {targets, readChannels, tweenIndex, groupCounts, tweenCurrent} = this;
+    const base = row * CHANNEL_COUNT;
+    for (let channel = 0; channel < CHANNEL_COUNT; channel++)
+      readChannels[channel] = targets[base + channel];
+    const indexBase = row * GROUP_COUNT;
+    for (let group = 0; group < GROUP_COUNT; group++) {
+      const slot = tweenIndex[indexBase + group];
+      if (slot < 0) continue;
+      const first = GROUP_FIRST[group];
+      const offset = slot * GROUP_MAX_CHANNELS;
+      for (let c = 0; c < groupCounts[group]; c++) {
+        const channel = first + c;
+        const value = tweenCurrent[offset + c];
+        readChannels[channel] = Math.min(
+          CHANNEL_MAX[channel],
+          Math.max(CHANNEL_MIN[channel], value)
+        );
+      }
+    }
+    const bearing = readChannels[CHANNEL_LEAN_BEARING];
+    if (!(bearing >= 0 && bearing < 360))
+      readChannels[CHANNEL_LEAN_BEARING] = ((bearing % 360) + 360) % 360;
+    return fillValues(out, readChannels);
+  }
+
+  private checkRow(row: number): void {
+    if (!(row >= 0 && row < this.rowCount) || !Number.isInteger(row))
+      throw new RangeError(`TreeStateStore has ${this.rowCount} rows, so row ${row} is invalid.`);
+  }
+
+  private noteClock(clock: number): void {
+    if (Number.isFinite(clock) && clock !== this.frameClock) {
+      this.previousClock = this.frameClock;
+      this.frameClock = clock;
+      this.frameTicked = false;
+    }
+  }
+
+  private markLines(startRow: number, endRow: number): void {
+    const start = Math.floor(startRow / TREE_STATE_ROWS_PER_LINE);
+    const end = Math.floor((endRow - 1) / TREE_STATE_ROWS_PER_LINE) + 1;
+    if (this.isDirty) {
+      if (start < this.dirtyStart) this.dirtyStart = start;
+      if (end > this.dirtyEnd) this.dirtyEnd = end;
+    } else {
+      this.dirtyStart = start;
+      this.dirtyEnd = end;
+    }
+  }
+
+  private writeRowChannel(row: number, channel: number, source: Float64Array, index: number): void {
+    if (writeChannel(this.data, row * FLOATS_PER_ROW, channel, source, index))
+      this.markRowChanged(row);
+  }
+
+  private markRowChanged(row: number): void {
+    this.markLines(row, row + 1);
+    this.changedSinceTick = true;
+  }
+
+  private reallocate(lineCount: number, keepRows: number): void {
+    const rows = lineCount * TREE_STATE_ROWS_PER_LINE;
+    const data = new Float32Array(lineCount * FLOATS_PER_LINE);
+    data.set(this.data.subarray(0, keepRows * FLOATS_PER_ROW));
+    this.data = data;
+    const targets = new Float64Array(rows * CHANNEL_COUNT);
+    targets.set(this.targets.subarray(0, keepRows * CHANNEL_COUNT));
+    this.targets = targets;
+    const rowSet = new Uint8Array(rows);
+    rowSet.set(this.rowSet.subarray(0, keepRows));
+    this.rowSet = rowSet;
+    const tweenIndex = new Int32Array(rows * GROUP_COUNT);
+    tweenIndex.set(this.tweenIndex.subarray(0, keepRows * GROUP_COUNT));
+    this.tweenIndex = tweenIndex;
+    const rateIndex = new Int32Array(rows * RATE_KINDS);
+    rateIndex.set(this.rateIndex.subarray(0, keepRows * RATE_KINDS));
+    this.rateIndex = rateIndex;
+    this.lineCount = lineCount;
+    this.dirtyStart = 0;
+    this.dirtyEnd = lineCount;
+    this.changedSinceTick = true;
+  }
+
+  private resetRow(row: number): void {
+    this.targets.set(DEFAULT_TARGETS, row * CHANNEL_COUNT);
+    this.data.set(DEFAULT_ROW_DATA, row * FLOATS_PER_ROW);
+    this.rowSet[row] = 0;
+    this.tweenIndex.fill(-1, row * GROUP_COUNT, (row + 1) * GROUP_COUNT);
+    this.rateIndex.fill(-1, row * RATE_KINDS, (row + 1) * RATE_KINDS);
+  }
+
+  private dropRows(rowCount: number): void {
+    const {tweens, rates} = this;
+    for (let i = 0; i < tweens.orderCount; i++) {
+      const slot = tweens.order[i];
+      if (tweens.alive[slot] === 1 && this.tweenRow[slot] >= rowCount) {
+        this.releaseTween(slot);
+      }
+    }
+    for (let i = 0; i < rates.orderCount; i++) {
+      const slot = rates.order[i];
+      if (rates.alive[slot] === 1 && this.rateRow[slot] >= rowCount) this.stopRate(slot);
+    }
+    this.changedSinceTick = true;
+  }
+
+  /** Returns a row in use to the defaults, for a new tree. */
+  private clearRow(row: number): void {
+    for (let group = 0; group < GROUP_COUNT; group++) {
+      const slot = this.tweenIndex[row * GROUP_COUNT + group];
+      if (slot >= 0) {
+        this.releaseTween(slot);
+      }
+    }
+    for (let rate = 0; rate < RATE_KINDS; rate++) {
+      const slot = this.rateIndex[row * RATE_KINDS + rate];
+      if (slot >= 0) this.stopRate(slot);
+    }
+    this.resetRow(row);
+    this.markRowChanged(row);
+  }
+
+  /**
+   * Fills `incoming` from `values`. Raw values go straight into the typed array, where undefined, and
+   * null by way of `??`, become NaN. One pass then checks them all against the channel table.
+   */
+  private readIncoming(values: TreeStateUpdate, base: number): void {
+    const {incoming, targets} = this;
+    const {position, positionLow: low, crop} = values;
+    for (let axis = 0; axis < 3; axis++) {
+      const lowPart = low ? low[axis] : 0;
+      incoming[CHANNEL_X + axis] =
+        (position ? (position[axis] ?? NOT_SET) : NOT_SET) +
+        (Number.isFinite(lowPart) ? lowPart : 0);
+    }
+    incoming[CHANNEL_CROWN_X] = values.crownX ?? NOT_SET;
+    incoming[CHANNEL_CROWN_Y] = values.crownY ?? NOT_SET;
+    incoming[CHANNEL_HEIGHT] = values.height ?? NOT_SET;
+    incoming[CHANNEL_LEAF_SCALE] = values.leafScale ?? NOT_SET;
+    incoming[CHANNEL_TRUNK_HEIGHT] = values.trunkHeight ?? NOT_SET;
+    incoming[CHANNEL_TRUNK_RADIUS] = values.trunkRadius ?? NOT_SET;
+    incoming[CHANNEL_GROWTH] = values.growth ?? NOT_SET;
+    incoming[CHANNEL_HEALTH] = values.health ?? NOT_SET;
+    incoming[CHANNEL_FOLIAGE] = values.foliage ?? NOT_SET;
+    incoming[CHANNEL_FLUSH] = values.flush ?? NOT_SET;
+    incoming[CHANNEL_LEAN_DEGREES] = values.leanDegrees ?? NOT_SET;
+    incoming[CHANNEL_LEAN_BEARING] = values.leanBearing ?? NOT_SET;
+    incoming[CHANNEL_DAMAGE] = values.damage ?? NOT_SET;
+    incoming[CHANNEL_DECAY] = values.decay ?? NOT_SET;
+    this.readIncomingColor(values.canopyColor, CHANNEL_CANOPY, 4);
+    this.readIncomingColor(values.trunkColor, CHANNEL_BARK, 4);
+    incoming[CHANNEL_WIND_FLEX] = values.windFlex ?? NOT_SET;
+    this.readIncomingCrop(crop);
+    incoming[CHANNEL_YAW] = values.yaw ?? NOT_SET;
+    incoming[CHANNEL_WIND_PHASE] = values.windPhase ?? NOT_SET;
+    incoming[CHANNEL_COVERAGE] = values.coverage ?? NOT_SET;
+    incoming[CHANNEL_LEAF_DETAIL] = values.leafDetail ?? NOT_SET;
+    incoming[CHANNEL_SEED] = values.seed ?? NOT_SET;
+
+    const bearing = incoming[CHANNEL_LEAN_BEARING];
+    if (!(bearing >= 0 && bearing < 360))
+      incoming[CHANNEL_LEAN_BEARING] = ((bearing % 360) + 360) % 360;
+    for (let channel = 0; channel < CHANNEL_COUNT; channel++) {
+      const value = incoming[channel];
+      incoming[channel] = Number.isFinite(value)
+        ? Math.min(CHANNEL_MAX[channel], Math.max(CHANNEL_MIN[channel], value))
+        : targets[base + channel];
+    }
+  }
+
+  private readIncomingColor(
+    color: ArrayLike<number> | null | undefined,
+    channel: number,
+    size: number
+  ): void {
+    const {incoming} = this;
+    for (let i = 0; i < size; i++)
+      incoming[channel + i] = color ? (color[i] ?? (i === 3 ? 255 : NOT_SET)) : NOT_SET;
+  }
+
+  private readIncomingCrop(crop: TreeStateUpdate['crop']): void {
+    const {incoming} = this;
+    const emptyCount = crop === null ? 0 : NOT_SET;
+    incoming[CHANNEL_CROP + CROP_COUNT] = crop?.count ?? emptyCount;
+    incoming[CHANNEL_CROP + CROP_RADIUS] = crop?.radius ?? NOT_SET;
+    incoming[CHANNEL_CROP + CROP_RIPENESS] = crop?.ripeness ?? NOT_SET;
+    incoming[CHANNEL_CROP + CROP_FALLEN] = crop?.fallen ?? NOT_SET;
+    incoming[CHANNEL_CROP + CROP_DROPPED] = crop?.dropped ?? emptyCount;
+    this.readIncomingColor(crop?.color, CHANNEL_CROP + CROP_COLOR, 4);
+    this.readIncomingColor(crop?.unripeColor, CHANNEL_CROP + CROP_UNRIPE, 3);
+  }
+
+  private allocateTween(): number {
+    const {tweens} = this;
+    const slot = tweens.allocate();
+    if (tweens.capacity > this.tweenRow.length) {
+      const {capacity} = tweens;
+      const channels = capacity * GROUP_MAX_CHANNELS;
+      const tweenRow = new Int32Array(capacity);
+      tweenRow.set(this.tweenRow);
+      this.tweenRow = tweenRow;
+      const tweenGroup = new Uint8Array(capacity);
+      tweenGroup.set(this.tweenGroup);
+      this.tweenGroup = tweenGroup;
+      this.tweenFrom = growArray(this.tweenFrom, channels);
+      this.tweenTo = growArray(this.tweenTo, channels);
+      this.tweenCurrent = growArray(this.tweenCurrent, channels);
+      this.tweenStart = growArray(this.tweenStart, channels);
+    }
+    return slot;
+  }
+
+  private releaseTween(slot: number): void {
+    this.tweenIndex[this.tweenRow[slot] * GROUP_COUNT + this.tweenGroup[slot]] = -1;
+    this.tweenSettings[slot] = null;
+    this.tweens.release(slot);
+  }
+
+  /** Copies a group's incoming values to its targets, without touching the state row. */
+  private commitTargets(row: number, group: number): void {
+    const base = row * CHANNEL_COUNT;
+    const first = GROUP_FIRST[group];
+    for (let channel = first; channel < first + this.groupCounts[group]; channel++)
+      this.targets[base + channel] = this.incoming[channel];
+  }
+
+  /**
+   * Moves a group to its incoming values at once. It has no tween to end: `setTransitions` stops the
+   * tweens of a group that loses its settings, and `clearRow` those of a row with a new tree.
+   */
+  private jumpGroup(row: number, group: number, trackRates: boolean): void {
+    const {incoming, targets} = this;
+    const base = row * CHANNEL_COUNT;
+    const first = GROUP_FIRST[group];
+    for (let channel = first; channel < first + this.groupCounts[group]; channel++) {
+      const before = targets[base + channel];
+      const value = incoming[channel];
+      targets[base + channel] = value;
+      this.writeRowChannel(row, channel, targets, base + channel);
+      const rate = CHANNEL_RATE[channel];
+      if (trackRates && rate >= 0) {
+        this.rateBefore = before;
+        this.rateAfter = value;
+        this.noteRateChange(row, rate);
+      }
+    }
+  }
+
+  private retargetGroup(row: number, group: number, settings: ResolvedTreeTransition): void {
+    const slot = this.tweenIndex[row * GROUP_COUNT + group];
+    if (slot >= 0) {
+      this.retargetTween(slot, row, group, settings);
+      return;
+    }
+    const base = row * CHANNEL_COUNT;
+    const first = GROUP_FIRST[group];
+    for (let c = 0; c < this.groupCounts[group]; c++)
+      this.startValues[c] = this.targets[base + first + c];
+    this.beginTween(row, group, settings);
+  }
+
+  /** Starts a tween from `startValues` toward the incoming values, if anything would move. */
+  private beginTween(row: number, group: number, settings: ResolvedTreeTransition): void {
+    // Allocating can replace the record arrays, so read them afterward.
+    const slot = this.allocateTween();
+    const {incoming, startValues, tweenFrom, tweenTo, tweenCurrent, tweenStart} = this;
+    const first = GROUP_FIRST[group];
+    const count = this.groupCounts[group];
+    this.tweenRow[slot] = row;
+    this.tweenGroup[slot] = group;
+    this.tweenSettings[slot] = settings;
+    const offset = slot * GROUP_MAX_CHANNELS;
+    for (let c = 0; c < count; c++) {
+      const from = startValues[c];
+      const to = incoming[first + c];
+      tweenFrom[offset + c] = from;
+      tweenCurrent[offset + c] = from;
+      tweenTo[offset + c] = to;
+      tweenStart[offset + c] = from === to ? -Infinity : this.now;
+    }
+    this.applyGroupRules(slot, row, group, false);
+    if (!this.isTweenMoving(slot, count, settings)) {
+      this.releaseTween(slot);
+      this.jumpGroup(row, group, false);
+      return;
+    }
+    this.tweenIndex[row * GROUP_COUNT + group] = slot;
+    for (let c = 0; c < count; c++) this.writeRowChannel(row, first + c, tweenCurrent, offset + c);
+    this.commitTargets(row, group);
+  }
+
+  /** Points a running tween at the incoming values, continuing from where it is at `now`. */
+  private retargetTween(
+    slot: number,
+    row: number,
+    group: number,
+    settings: ResolvedTreeTransition
+  ): void {
+    this.advanceInterpolation(slot);
+    const previous = this.tweenSettings[slot] as ResolvedTreeTransition;
+
+    const {now, incoming, targets, tweenFrom, tweenTo, tweenCurrent, tweenStart} = this;
+    const base = row * CHANNEL_COUNT;
+    const first = GROUP_FIRST[group];
+    const count = this.groupCounts[group];
+    const offset = slot * GROUP_MAX_CHANNELS;
+    if (previous.duration !== settings.duration) {
+      // An inline easing can change identity every render without restarting other channels.
+      for (let c = 0; c < count; c++) {
+        const current = tweenCurrent[offset + c];
+        tweenFrom[offset + c] = current;
+        tweenStart[offset + c] = current === tweenTo[offset + c] ? -Infinity : now;
+      }
+    }
+    this.tweenSettings[slot] = settings;
+
+    // The lean rule places the bearing itself.
+    const retargeted = group === GROUP_LEAN ? 1 : count;
+    for (let c = 0; c < retargeted; c++) {
+      const value = incoming[first + c];
+      if (value !== targets[base + first + c]) {
+        const current = tweenCurrent[offset + c];
+        tweenFrom[offset + c] = current;
+        tweenTo[offset + c] = value;
+        tweenStart[offset + c] = current === value ? -Infinity : now;
+      }
+    }
+    this.applyGroupRules(slot, row, group, true);
+    this.commitTargets(row, group);
+    if (!this.isTweenMoving(slot, count, settings)) {
+      for (let c = 0; c < count; c++)
+        this.writeRowChannel(row, first + c, targets, base + first + c);
+      this.releaseTween(slot);
+    }
+  }
+
+  private isTweenMoving(slot: number, count: number, settings: ResolvedTreeTransition): boolean {
+    const offset = slot * GROUP_MAX_CHANNELS;
+    for (let c = 0; c < count; c++) {
+      if (this.now - this.tweenStart[offset + c] < settings.duration) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Field semantics that plain per-channel arithmetic would get visibly wrong. */
+  private applyGroupRules(slot: number, row: number, group: number, retargeting: boolean): void {
+    if (group === GROUP_LEAN) this.applyLeanRule(slot, row, retargeting);
+    else if (group === GROUP_CROP) this.applyEmptyCropRule(slot, row);
+  }
+
+  /** Puts a tween's channel on its incoming value at once, for good. */
+  private snapTweenChannel(offset: number, row: number, channel: number): void {
+    const value = this.incoming[channel];
+    this.tweenFrom[offset] = value;
+    this.tweenTo[offset] = value;
+    this.tweenCurrent[offset] = value;
+    this.tweenStart[offset] = -Infinity;
+    this.writeRowChannel(row, channel, this.tweenCurrent, offset);
+  }
+
+  private applyLeanRule(slot: number, row: number, retargeting: boolean): void {
+    const {incoming, tweenFrom, tweenTo, tweenCurrent, tweenStart} = this;
+    const offset = slot * GROUP_MAX_CHANNELS;
+    const degrees = tweenCurrent[offset];
+    const bearing = tweenCurrent[offset + 1];
+    const target = incoming[CHANNEL_LEAN_BEARING];
+    const upright = degrees < LEAN_UPRIGHT_DEGREES;
+    const targetUpright = incoming[CHANNEL_LEAN_DEGREES] < LEAN_UPRIGHT_DEGREES;
+    if (upright && !targetUpright) {
+      this.snapTweenChannel(offset + 1, row, CHANNEL_LEAN_BEARING);
+      return;
+    }
+    if (targetUpright && !upright) {
+      // Held here until the tween ends, when the target bearing lands on an upright tree.
+      tweenFrom[offset + 1] = bearing;
+      tweenTo[offset + 1] = bearing;
+      tweenStart[offset + 1] = -Infinity;
+      return;
+    }
+    const sameTarget =
+      retargeting &&
+      tweenStart[offset + 1] !== -Infinity &&
+      Math.abs(getBearingTurn(tweenTo[offset + 1], target)) < SAME_BEARING_DEGREES;
+    if (sameTarget) return;
+    const turn = getBearingTurn(bearing, target);
+    tweenFrom[offset + 1] = bearing;
+    tweenTo[offset + 1] = bearing + turn;
+    tweenStart[offset + 1] = turn === 0 ? -Infinity : this.now;
+  }
+
+  private applyEmptyCropRule(slot: number, row: number): void {
+    const offset = slot * GROUP_MAX_CHANNELS;
+    if (
+      this.tweenCurrent[offset + CROP_COUNT] > EMPTY_CROP_COUNT ||
+      this.tweenCurrent[offset + CROP_DROPPED] > EMPTY_CROP_COUNT
+    )
+      return;
+    for (let c = CROP_RADIUS; c < CROP_DROPPED; c++)
+      this.snapTweenChannel(offset + c, row, CHANNEL_CROP + c);
+  }
+
+  private advanceTweens(): void {
+    const list = this.tweens;
+    let kept = 0;
+    for (let i = 0; i < list.orderCount; i++) {
+      const slot = list.order[i];
+      if (list.alive[slot] === 0) {
+        list.recycle(slot);
+      } else if (this.advanceInterpolation(slot)) {
+        this.finishTween(slot);
+        list.recycle(slot);
+      } else {
+        list.order[kept++] = slot;
+      }
+    }
+    list.orderCount = kept;
+  }
+
+  private advanceInterpolation(slot: number): boolean {
+    const {duration, easing} = this.tweenSettings[slot] as ResolvedTreeTransition;
+    const {now, tweenStart, tweenFrom, tweenTo} = this;
+    const row = this.tweenRow[slot];
+    const group = this.tweenGroup[slot];
+    const first = GROUP_FIRST[group];
+    const count = this.groupCounts[group];
+    const offset = slot * GROUP_MAX_CHANNELS;
+    let finished = true;
+    // Channels usually started together, and an easing is the caller's code, so run it once for them.
+    let easedStart = Number.NaN;
+    let eased = 0;
+    for (let c = 0; c < count; c++) {
+      const start = tweenStart[offset + c];
+      const to = tweenTo[offset + c];
+      const t = (now - start) / duration;
+      let value = to;
+      if (t < 1) {
+        finished = false;
+        const from = tweenFrom[offset + c];
+        if (t <= 0) {
+          value = from;
+        } else {
+          if (start !== easedStart) {
+            easedStart = start;
+            eased = t;
+            if (easing) {
+              // `+` keeps `eased` a double. Merged with the untyped result of a call, V8 would box
+              // `t` on every tick of every tween, including those with no easing.
+              const result = +easing(t);
+              if (Number.isFinite(result)) eased = result;
+            }
+          }
+          value = from + (to - from) * eased;
+        }
+      }
+      this.nextValue = value;
+      this.setTweenValue(offset + c, row, first + c);
+    }
+    return finished;
+  }
+
+  /** Moves a tween's channel to `nextValue`. */
+  private setTweenValue(offset: number, row: number, channel: number): void {
+    const {tweenCurrent} = this;
+    const value = this.nextValue;
+    const before = tweenCurrent[offset];
+    if (value === before) return;
+    tweenCurrent[offset] = value;
+    this.writeRowChannel(row, channel, tweenCurrent, offset);
+    const rate = CHANNEL_RATE[channel];
+    if (rate >= 0) {
+      // Every channel with a loss rate is 0-1.
+      this.rateBefore = Math.min(1, Math.max(0, before));
+      this.rateAfter = Math.min(1, Math.max(0, value));
+      this.noteRateChange(row, rate);
+    }
+  }
+
+  /** Lands a tween that reached its destination exactly on the group's targets. */
+  private finishTween(slot: number): void {
+    const row = this.tweenRow[slot];
+    const group = this.tweenGroup[slot];
+    const base = row * CHANNEL_COUNT;
+    const first = GROUP_FIRST[group];
+    for (let channel = first; channel < first + this.groupCounts[group]; channel++)
+      this.writeRowChannel(row, channel, this.targets, base + channel);
+    this.releaseTween(slot);
+  }
+
+  /** Interrupts tweens whose group no longer has settings, or all that a split would reassign. */
+  private stopTweens(split: boolean): void {
+    const {tweens} = this;
+    for (let i = 0; i < tweens.orderCount; i++) {
+      const slot = tweens.order[i];
+      if (tweens.alive[slot] === 0) continue;
+      const group = this.tweenGroup[slot];
+      const reassigned =
+        split &&
+        (group === GROUP_POSITION ||
+          group === GROUP_ELEVATION ||
+          group === GROUP_HEIGHT ||
+          group === GROUP_TRUNK_HEIGHT);
+      if (!reassigned && this.groupSettings[group]) continue;
+      const row = this.tweenRow[slot];
+      const base = row * CHANNEL_COUNT;
+      const first = GROUP_FIRST[group];
+      const offset = slot * GROUP_MAX_CHANNELS;
+      for (let c = 0; c < this.groupCounts[group]; c++) {
+        const channel = first + c;
+        this.writeRowChannel(row, channel, this.targets, base + channel);
+        const rate = CHANNEL_RATE[channel];
+        if (rate >= 0) {
+          this.rateBefore = Math.min(1, Math.max(0, this.tweenCurrent[offset + c]));
+          this.rateAfter = this.targets[base + channel];
+          this.noteRateChange(row, rate);
+        }
+      }
+      this.releaseTween(slot);
+    }
+  }
+
+  /**
+   * Records a move from `rateBefore` to `rateAfter` in a value with a loss rate. A value with no
+   * record has rate 0, and only a fall over a usable clock step needs one.
+   */
+  private noteRateChange(row: number, rate: number): void {
+    let slot = this.rateIndex[row * RATE_KINDS + rate];
+    if (slot < 0) {
+      const {rateBefore, rateAfter, frameClock} = this;
+      // The clock at which a value at rest was last known. Once this frame has ticked, a further
+      // change at the same clock took no time.
+      const restClock = this.frameTicked ? frameClock : this.previousClock;
+      const step = frameClock - restClock;
+      if (!(step !== 0 && Math.abs(step) <= MAX_RATE_CLOCK_STEP)) return;
+      if (rate === RATE_FOLIAGE ? (rateBefore - rateAfter) / step <= 0 : rateBefore === rateAfter)
+        return;
+      slot = this.allocateRate();
+      this.rateIndex[row * RATE_KINDS + rate] = slot;
+      this.rateRow[slot] = row;
+      this.rateKind[slot] = rate;
+      this.rateHead[slot] = 0;
+      this.rateSize[slot] = 1;
+      this.rateTimes[slot * RATE_SAMPLES] = restClock;
+      this.rateValues[slot * RATE_SAMPLES] = rateBefore;
+    }
+    this.sampleRate(slot);
+  }
+
+  private allocateRate(): number {
+    const {rates} = this;
+    const slot = rates.allocate();
+    if (rates.capacity > this.rateRow.length) {
+      const {capacity} = rates;
+      const rateRow = new Int32Array(capacity);
+      rateRow.set(this.rateRow);
+      this.rateRow = rateRow;
+      const rateKind = new Uint8Array(capacity);
+      rateKind.set(this.rateKind);
+      this.rateKind = rateKind;
+      const rateHead = new Uint8Array(capacity);
+      rateHead.set(this.rateHead);
+      this.rateHead = rateHead;
+      const rateSize = new Uint8Array(capacity);
+      rateSize.set(this.rateSize);
+      this.rateSize = rateSize;
+      this.rateTimes = growArray(this.rateTimes, capacity * RATE_SAMPLES);
+      this.rateValues = growArray(this.rateValues, capacity * RATE_SAMPLES);
+    }
+    return slot;
+  }
+
+  /**
+   * Adds `rateAfter`, at this frame's clock, to a value's window. The rate is the secant across the
+   * window, in loss per second. The sign of the clock step comes along, so scrubbing backward through
+   * a fall gives the same rate as playing it forward, which keeps falling things a function of state.
+   */
+  private sampleRate(slot: number): void {
+    const {rateTimes, rateValues, frameClock: clock, rateAfter: value} = this;
+    const offset = slot * RATE_SAMPLES;
+    const head = this.rateHead[slot];
+    const newestTime = rateTimes[offset + head];
+    const newestValue = rateValues[offset + head];
+    const step = clock - newestTime;
+    if (step === 0) {
+      // A change that took no clock time has no finite difference.
+      if (value !== newestValue) this.stopRate(slot);
+      return;
+    }
+    const reversed = this.rateKind[slot] === RATE_FOLIAGE && (newestValue - value) / step < 0;
+    if (!(Math.abs(step) <= MAX_RATE_CLOCK_STEP) || reversed) {
+      this.stopRate(slot);
+      return;
+    }
+    let size = this.rateSize[slot];
+    if (size > 1) {
+      // A clock that changed direction starts the window again from the turning point.
+      const earlierTime = rateTimes[offset + ((head + RATE_SAMPLES - 1) % RATE_SAMPLES)];
+      if ((newestTime - earlierTime) * step < 0) size = 1;
+    }
+    const next = (head + 1) % RATE_SAMPLES;
+    rateTimes[offset + next] = clock;
+    rateValues[offset + next] = value;
+    size = Math.min(size + 1, RATE_SAMPLES);
+    this.rateHead[slot] = next;
+    this.rateSize[slot] = size;
+    const oldest = (next + RATE_SAMPLES - size + 1) % RATE_SAMPLES;
+    const oldestValue = rateValues[offset + oldest];
+    if (oldestValue === value) {
+      this.stopRate(slot);
+      return;
+    }
+    const row = this.rateRow[slot];
+    const rateOffset = row * FLOATS_PER_ROW + RATE_OFFSETS[this.rateKind[slot]];
+    const rate = Math.fround(
+      Math.abs((oldestValue - value) / (clock - rateTimes[offset + oldest]))
+    );
+    if (this.data[rateOffset] !== rate) {
+      this.data[rateOffset] = rate;
+      this.markRowChanged(row);
+    }
+  }
+
+  private stopRate(slot: number): void {
+    const row = this.rateRow[slot];
+    const rate = this.rateKind[slot];
+    const rateOffset = row * FLOATS_PER_ROW + RATE_OFFSETS[rate];
+    if (this.data[rateOffset] !== 0) {
+      this.data[rateOffset] = 0;
+      this.markRowChanged(row);
+    }
+    this.rateIndex[row * RATE_KINDS + rate] = -1;
+    this.rates.release(slot);
+  }
+
+  /** Feeds a row's windows from `setRow`. A tween's current value is only known at `tick`. */
+  private sampleRowRates(row: number): void {
+    const base = row * CHANNEL_COUNT;
+    for (let rate = 0; rate < RATE_KINDS; rate++) {
+      const slot = this.rateIndex[row * RATE_KINDS + rate];
+      if (slot >= 0 && this.tweenIndex[row * GROUP_COUNT + RATE_GROUPS[rate]] < 0) {
+        this.rateAfter = this.targets[base + RATE_CHANNELS[rate]];
+        this.sampleRate(slot);
+      }
+    }
+  }
+
+  private advanceRates(): void {
+    const list = this.rates;
+    let kept = 0;
+    for (let i = 0; i < list.orderCount; i++) {
+      const slot = list.order[i];
+      if (list.alive[slot] === 1) {
+        const row = this.rateRow[slot];
+        const rate = this.rateKind[slot];
+        const channel = RATE_CHANNELS[rate];
+        const group = RATE_GROUPS[rate];
+        const tween = this.tweenIndex[row * GROUP_COUNT + group];
+        const value =
+          tween < 0
+            ? this.targets[row * CHANNEL_COUNT + channel]
+            : this.tweenCurrent[tween * GROUP_MAX_CHANNELS + channel - GROUP_FIRST[group]];
+        this.rateAfter = Math.min(1, Math.max(0, value));
+        this.sampleRate(slot);
+      }
+      if (list.alive[slot] === 1) list.order[kept++] = slot;
+      else list.recycle(slot);
+    }
+    list.orderCount = kept;
+  }
+}

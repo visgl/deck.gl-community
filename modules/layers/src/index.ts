@@ -42,7 +42,12 @@ export type {
   Season,
   CropConfig,
   CropKind,
-  TreeCharacteristics
+  TreeCharacteristics,
+  TreeInterpolationSettings,
+  TreeLean,
+  TreeTransitionKey,
+  TreeTransitions,
+  TreeTransitionSettings
 } from './tree-layer/tree-layer';
 
 export {SelectionPulseExtension} from './selection-pulse-extension/selection-pulse-extension';

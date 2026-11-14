@@ -2,12 +2,20 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {getShaderAssembler, picking, project32, shadow} from '@deck.gl/core';
-import {phongMaterial, resolveShaderPlugins} from '@luma.gl/shaders';
+import {
+  phongMaterial,
+  type ShaderModule,
+  type GLSLShaderAssembler,
+  type PlatformInfo
+} from '@luma.gl/shaders';
 import {describe, expect, it, vi} from 'vitest';
 import {SplatPrimitiveLayer} from '../../src/splat-layer/splat-primitive-layer';
 import {SPLAT_FRAGMENT, SPLAT_VERTEX, splatUniforms} from '../../src/splat-layer/splat-shaders';
-import {TreeLayer} from '../../src/tree-layer/tree-layer';
-import {TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
+import {type TreeSpec} from '../../src';
+import {TreePhotorealCropLayer} from '../../src/tree-layer/tree-photoreal-crop-layer';
+import {TreePhotorealLeafLayer} from '../../src/tree-layer/tree-photoreal-leaf-layer';
+import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-layer';
+import {mountTreeScene} from './tree-layer-test-utils';
 
 const GLSL_PLATFORM = {
   type: 'webgl',
@@ -17,45 +25,35 @@ const GLSL_PLATFORM = {
   features: new Set<string>()
 } as const;
 
-function assembleGLSL(vs: string, fs: string, modules: any[], plugins: any[] = []) {
-  const resolved = resolveShaderPlugins(plugins, 'glsl');
-  return getShaderAssembler('glsl').assembleGLSLShaderPair({
+function assembleGLSL(vs: string, fs: string, modules: ShaderModule[]) {
+  const assembler = getShaderAssembler('glsl') as GLSLShaderAssembler;
+  return assembler.assembleGLSLShaderPair({
     vs,
     fs,
-    modules: [...modules, ...resolved.modules],
-    pluginInjections: resolved.injections,
-    platformInfo: GLSL_PLATFORM as any
+    modules,
+    platformInfo: GLSL_PLATFORM as PlatformInfo
   });
 }
 
 describe('TreeLayer shadow casting', () => {
   it('casts from every wood, crop and canopy sublayer unless shadowEnabled is false', () => {
-    const data = [{species: 'oak', position: [0, 0, 0], height: 10, crownRadius: 4}];
-    for (const [extra, expected] of [
-      [{}, true],
-      [{shadowEnabled: false}, false]
-    ] as const) {
-      const layer = new TreeLayer({
-        id: 'trees',
-        data,
-        getTree: (row: any) => ({
-          ...row,
-          crop: {count: 4, droppedCount: 2, radius: 0.1, color: [200, 100, 30, 255]}
-        }),
-        ...extra
-      } as any);
-      layer.initializeState();
-      vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
-      layer.updateState({
-        props: layer.props,
-        oldProps: {},
-        changeFlags: {dataChanged: true, propsChanged: true}
-      } as any);
-      const children = layer.renderLayers() as any[];
-      const kinds = children.map(child => child.constructor.layerName);
-      expect(kinds).toEqual(expect.arrayContaining(['TreeWoodLayer', 'SplatLayer']));
-      expect(children.some(child => child.id.includes('crops'))).toBe(true);
-      for (const child of children) expect(child.props.shadowEnabled).toBe(expected);
+    const data: TreeSpec[] = [
+      {
+        species: 'citrus',
+        position: [0, 0, 0],
+        height: 10,
+        crownRadius: 4,
+        crop: {count: 4, droppedCount: 2, radius: 0.25, color: [200, 100, 30, 255]}
+      }
+    ];
+    const scene = mountTreeScene<TreeSpec>();
+    for (const shadowEnabled of [true, false]) {
+      scene.render({data, lodBias: -2, shadowEnabled});
+      const children = scene.children();
+      for (const Part of [TreePhotorealWoodLayer, TreePhotorealLeafLayer, TreePhotorealCropLayer]) {
+        expect(children.some(child => child instanceof Part && child.props.visible)).toBe(true);
+      }
+      for (const child of children) expect(child.props.shadowEnabled).toBe(shadowEnabled);
     }
   });
 });
@@ -100,7 +98,7 @@ describe('SplatPrimitiveLayer shadow pass', () => {
   });
 
   it('projects and alpha-tests Gaussians in light space with the shadow module', () => {
-    const modules = [project32, picking, phongMaterial, splatUniforms, shadow];
+    const modules = [project32, picking as ShaderModule, phongMaterial, splatUniforms, shadow];
     const {vs, fs} = assembleGLSL(SPLAT_VERTEX, SPLAT_FRAGMENT, modules);
     // The footprint uses the light's matrix and is expanded after deck's position filter.
     expect(vs).toMatch(
@@ -109,46 +107,5 @@ describe('SplatPrimitiveLayer shadow pass', () => {
     expect(fs).toMatch(
       /if \(alpha <= splatShadowThreshold\) discard;\n {4}fragColor = shadow_filterShadowColor/
     );
-  });
-});
-
-describe('TreeMeshLayer shadow pass', () => {
-  function makeLayer(type: 'webgl' | 'webgpu') {
-    const setProps = vi.fn();
-    const layer = Object.assign(Object.create(TreeMeshLayer.prototype), {
-      context: {
-        viewport: {projectionMode: 1},
-        device: {type, setParametersWebGL: vi.fn()},
-        defaultShaderModules: [shadow],
-        timeline: {getTime: () => 0}
-      },
-      state: {model: {shaderInputs: {setProps}}},
-      props: {...TreeMeshLayer.defaultProps, extensions: []},
-      setNeedsRedraw: vi.fn()
-    });
-    return {layer, setProps};
-  }
-
-  it('writes the packed shadow depth after SimpleMeshLayer lighting', () => {
-    const {vs, fs, modules, plugins} = makeLayer('webgl').layer.getShaders();
-    expect(assembleGLSL(vs, fs, modules, plugins).fs).toMatch(
-      /fragColor = vec4\(lightColor, color\.a \* layer\.opacity\);\s*#ifdef MODULE_SHADOW\n {2}if \(shadow\.drawShadowMap\) fragColor = shadow_filterShadowColor\(vec4\(0\.0\)\);/
-    );
-  });
-
-  it('draws shadow depth without deck.gl layer depth offsets on WebGL2', () => {
-    const {layer} = makeLayer('webgl');
-    const draw = vi.spyOn(Object.getPrototypeOf(TreeMeshLayer.prototype), 'draw');
-    draw.mockImplementation(() => {});
-    layer.draw({shaderModuleProps: {shadow: {drawToShadowMap: true}}});
-    expect(layer.context.device.setParametersWebGL).toHaveBeenCalledWith({polygonOffset: [0, 0]});
-    expect(draw).toHaveBeenCalled();
-    draw.mockRestore();
-  });
-
-  it('skips the shadow pass on WebGPU', () => {
-    const {layer, setProps} = makeLayer('webgpu');
-    layer.draw({shaderModuleProps: {shadow: {drawToShadowMap: true}}});
-    expect(setProps).not.toHaveBeenCalled();
   });
 });
