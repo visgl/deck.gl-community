@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Matrix3, Quaternion, Vector3} from '@math.gl/core';
-import {getTreeFrames} from './tree-botany';
+import {packTreeTubes, type TreePoint as Point, type TreeTube} from './tree-botany';
 import {createTreeRng} from './tree-geometry';
 import {
   evaluatePalmFrond,
@@ -24,7 +24,6 @@ import {
   type TreeGrowthWood
 } from './tree-photoreal-layout';
 
-type Point = [number, number, number];
 type Rachis = {
   frond: PalmFrond;
   limb: number;
@@ -117,93 +116,41 @@ function packPalmCrops(rachises: Rachis[], top: number, seed: number): Float32Ar
 }
 
 function packPalmWood(rachises: Rachis[], top: number): TreeGrowthWood {
-  const vertexCount =
-    SHAFT_RINGS * (SHAFT_SIDES + 1) + rachises.length * RACHIS_RINGS * (RACHIS_SIDES + 1);
-  const center = new Float32Array(vertexCount * 4);
-  const previous = new Float32Array(vertexCount * 4);
-  const radial = new Float32Array(vertexCount * 4);
-  const bark = new Float32Array(vertexCount * 4);
-  const shade = new Float32Array(vertexCount * 4);
-  const indexBands: number[][] = [[], [], [], []];
-  let vertex = 0;
-
-  function writeTube(
-    points: Point[],
-    radii: number[],
-    births: number[],
-    sides: number,
-    limb: number,
-    seed: number
-  ): void {
-    const physical = points.map(getPhysicalPoint);
-    const frames = getTreeFrames(physical);
-    let arc = 0;
-    for (let ring = 0; ring < points.length; ring++) {
-      const before = Math.max(0, ring - 1);
-      if (ring > 0) arc += new Vector3(physical[ring]).distance(physical[before]);
-      const {side, up} = frames[ring];
-      const band = indexBands[limb === 0 ? 0 : ring < 5 ? 1 : ring < 10 ? 2 : 3];
-      for (let segment = 0; segment <= sides; segment++, vertex++) {
-        const u = segment / sides;
-        const angle = u * Math.PI * 2;
-        const normal = new Vector3(side)
-          .scale(Math.cos(angle))
-          .add(new Vector3(up).scale(Math.sin(angle)));
-        const offset = vertex * 4;
-        center.set([...points[ring], births[ring]], offset);
-        previous.set([...points[before], births[before]], offset);
-        radial.set([...normal, radii[ring]], offset);
-        bark.set([u, arc, 0, limb], offset);
-        shade.set([limb ? 0.8 : 0.95, limb ? 1 : 0, seed, 0], offset);
-
-        if (ring > 0 && segment < sides) {
-          const a = vertex - sides - 1;
-          band.push(a, a + 1, vertex, a + 1, vertex + 1, vertex);
-        }
-      }
-    }
-  }
-
-  const shaftHeights = Array.from(
-    {length: SHAFT_RINGS},
-    (_, ring) => BASE_Z + (ring / (SHAFT_RINGS - 1)) * (PALM_LEADER_TOP - BASE_Z)
-  );
-  const shaft = shaftHeights.map((z): Point => [0, 0, normalizeHeight(z, top)]);
-  writeTube(
-    shaft,
-    shaftHeights.map(z => getPalmTrunkRadius(z) / getPalmTrunkRadius(BASE_Z)),
-    shaft.map(point => getShaftBirth(point[2])),
-    SHAFT_SIDES,
-    0,
-    0
-  );
+  const shaft: TreeTube = {
+    rings: Array.from({length: SHAFT_RINGS}, (_, ring) => {
+      const z = BASE_Z + (ring / (SHAFT_RINGS - 1)) * (PALM_LEADER_TOP - BASE_Z);
+      const height = normalizeHeight(z, top);
+      return {
+        position: [0, 0, height],
+        radius: getPalmTrunkRadius(z) / getPalmTrunkRadius(BASE_Z),
+        birth: getShaftBirth(height),
+        band: 0
+      };
+    }),
+    sides: SHAFT_SIDES,
+    limb: 0,
+    order: 0,
+    occlusion: 0.95,
+    seed: 0
+  };
   const distances = Array.from({length: RACHIS_RINGS}, (_, ring) => ring / (RACHIS_RINGS - 1));
   const rachisRadii = distances.map(t => (getPalmRachisRadius(t) * CROWN_ASPECT) / TRUNK_RATIO);
-  for (const rachis of rachises) {
-    writeTube(
-      distances.map(t => getRachisPoint(rachis, t, top)),
-      rachisRadii,
-      distances.map(t => getRachisBirth(rachis, t)),
-      RACHIS_SIDES,
-      rachis.limb,
-      rachis.limb / (rachises.length + 1)
-    );
-  }
-  const [shaftIndices, petioles, middle, tips] = indexBands;
-  const lod3 = shaftIndices.length;
-  const lod2 = lod3 + petioles.length;
-  const lod1 = lod2 + middle.length;
-  const indices = Uint32Array.from([...shaftIndices, ...petioles, ...middle, ...tips]);
-  return {
-    vertexCount,
-    center,
-    previous,
-    radial,
-    bark,
-    shade,
-    indices,
-    lodIndexCounts: [indices.length, lod1, lod2, lod3]
-  };
+  const frondTubes = rachises.map(
+    (rachis): TreeTube => ({
+      rings: distances.map((t, ring) => ({
+        position: getRachisPoint(rachis, t, top),
+        radius: rachisRadii[ring],
+        birth: getRachisBirth(rachis, t),
+        band: ring < 5 ? 1 : ring < 10 ? 2 : 3
+      })),
+      sides: RACHIS_SIDES,
+      limb: rachis.limb,
+      order: 1,
+      occlusion: 0.8,
+      seed: rachis.limb / (rachises.length + 1)
+    })
+  );
+  return packTreeTubes([shaft, ...frondTubes], CROWN_ASPECT);
 }
 
 function packPalmLeaves(rachises: Rachis[], spear: PalmFrond, top: number, seed: number) {

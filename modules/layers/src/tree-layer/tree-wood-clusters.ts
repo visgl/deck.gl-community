@@ -3,12 +3,19 @@
 // Copyright (c) vis.gl contributors
 
 import {TREE_WOOD_FLAG, type TreeGrowthModel} from './tree-photoreal-layout';
+import {
+  getTreeClusterCellKey,
+  getTreeClusterHeight,
+  getTreeClusterSphere,
+  rotateTreeClusterCenter,
+  type TreeClusterBounds
+} from './tree-cluster-bounds';
 
 type WoodLimb = {position: [number, number, number]; factor: number; outer: boolean};
 
 /** A spatial group of original wood triangles, with bounds enclosing every triangle vertex. */
 export type TreeWoodCluster = {
-  bounds: [number, number, number, number, number, number];
+  bounds: TreeClusterBounds;
   /** Largest radial displacement in mature trunk radii, independent of crown/height units. */
   radius: number;
   indices: Uint32Array;
@@ -36,7 +43,7 @@ export function getTreeWoodClusters(template: TreeGrowthModel, lod: number): Tre
   const {center, previous, radial, bark, shade, indices, lodIndexCounts} = template.wood;
   const bins = new Map<
     string,
-    {bounds: number[]; radius: number; indices: number[]; limbs: Set<number>}
+    {bounds: TreeClusterBounds; radius: number; indices: number[]; limbs: Set<number>}
   >();
   for (let triangle = 0; triangle < lodIndexCounts[lod]; triangle += 3) {
     const a = indices[triangle];
@@ -49,7 +56,7 @@ export function getTreeWoodClusters(template: TreeGrowthModel, lod: number): Tre
     const x = (center[a * 4] + center[b * 4] + center[c * 4]) / 3;
     const y = (center[a * 4 + 1] + center[b * 4 + 1] + center[c * 4 + 1]) / 3;
     const z = (center[a * 4 + 2] + center[b * 4 + 2] + center[c * 4 + 2]) / 3;
-    const key = `${Math.floor(x * 8)},${Math.floor(y * 8)},${Math.floor(z * 12)}`;
+    const key = getTreeClusterCellKey(x, y, z);
     let bin = bins.get(key);
     if (!bin) {
       bin = {bounds: [x, y, z, x, y, z], radius: 0, indices: [], limbs: new Set()};
@@ -77,7 +84,7 @@ export function getTreeWoodClusters(template: TreeGrowthModel, lod: number): Tre
     }
   }
   const clusters = [...bins.values()].map(bin => ({
-    bounds: bin.bounds as TreeWoodCluster['bounds'],
+    bounds: bin.bounds,
     radius: bin.radius,
     indices: Uint32Array.from(bin.indices),
     limbs: [...bin.limbs].map(encoded => {
@@ -114,19 +121,11 @@ export function getTreeWoodClusterSphere(
   forkZ: number,
   yaw: number,
   force: number
-): {center: [number, number, number]; radius: number} {
-  const zMetres = (z: number) =>
-    z < forkZ ? (z / forkZ) * trunk : trunk + ((z - forkZ) / (1 - forkZ)) * (height - trunk);
-  const [lowX, lowY, lowZ, highX, highY, highZ] = cluster.bounds;
-  const x = (lowX + highX) * 0.5 * crownX;
-  const y = (lowY + highY) * 0.5 * crownY;
-  const low = zMetres(lowZ);
-  const high = zMetres(highZ);
-  const z = (low + high) * 0.5;
-  let radius =
-    Math.hypot((highX - lowX) * crownX, (highY - lowY) * crownY, high - low) * 0.5 +
-    cluster.radius * trunkRadius +
-    0.01; // The shader clamps visible wood just above the soil, and slightly widens sub-pixel twigs.
+) {
+  const sphere = getTreeClusterSphere(cluster.bounds, crownX, crownY, height, trunk, forkZ);
+  const [x, y, z] = sphere.center;
+  // The shader clamps visible wood just above the soil and slightly widens sub-pixel twigs.
+  let radius = sphere.radius + cluster.radius * trunkRadius + 0.01;
   if (force > 0) {
     const curving =
       (1.3 * force ** 0.75 * Math.min(6 / Math.max(height, 1e-3), 3)) / (1 + 0.3 * force);
@@ -139,7 +138,7 @@ export function getTreeWoodClusterSphere(
           Math.hypot(
             x - limb.position[0] * crownX,
             y - limb.position[1] * crownY,
-            z - zMetres(limb.position[2])
+            z - getTreeClusterHeight(limb.position[2], height, trunk, forkZ)
           ) +
           radius +
           limbReach;
@@ -162,9 +161,9 @@ export function getTreeWoodClusterSphere(
       2 * across * Math.sin(angle * 0.5) +
       vertical * (angle * 0.5 + (angle * angle) / 6);
   }
-  const cosine = Math.cos(yaw);
-  const sine = Math.sin(yaw);
-  return {center: [x * cosine - y * sine, x * sine + y * cosine, z], radius};
+  rotateTreeClusterCenter(sphere.center, yaw);
+  sphere.radius = radius;
+  return sphere;
 }
 
 /** Reuse the previous GPU index list until spatial-cluster visibility actually changes. */

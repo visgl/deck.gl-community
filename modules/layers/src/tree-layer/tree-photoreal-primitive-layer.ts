@@ -12,7 +12,7 @@ import {
   type UpdateParameters
 } from '@deck.gl/core';
 import {Buffer, type Device, type Texture} from '@luma.gl/core';
-import {Model} from '@luma.gl/engine';
+import {GPUGeometry, Model} from '@luma.gl/engine';
 import type {PhongMaterialProps, ShaderModule, ShaderPlugin} from '@luma.gl/shaders';
 import {INSTANCE_COLOR_PLUGIN} from '../selection-pulse-extension/selection-pulse-shaders';
 import {prepareShadowDraw} from '../splat-layer/splat-shadow';
@@ -49,20 +49,31 @@ type TemplateEntry = TreeTemplateResources & {references: number};
 const TEMPLATES = new WeakMap<Device, Map<TreeGrowthModel, TemplateEntry>>();
 
 /** Lays records out in the shared width of the template textures. */
-function createTemplateTexture(device: Device, id: string, records: Float32Array): Texture {
-  const texels = Math.max(1, records.length / 4);
-  const height = Math.ceil(texels / TREE_TEMPLATE_TEXTURE_WIDTH);
-  const data = new Float32Array(TREE_TEMPLATE_TEXTURE_WIDTH * height * 4);
+export function createTreeTemplateTexture(
+  device: Device,
+  id: string,
+  records: Float32Array,
+  format: 'r32float' | 'rgba32float' = 'rgba32float'
+): Texture {
+  const components = format === 'r32float' ? 1 : 4;
+  const rowLength = TREE_TEMPLATE_TEXTURE_WIDTH * components;
+  const height = Math.max(1, Math.ceil(records.length / rowLength));
+  const data = new Float32Array(rowLength * height);
   data.set(records);
   return device.createTexture({
     id,
-    format: 'rgba32float',
+    format,
     width: TREE_TEMPLATE_TEXTURE_WIDTH,
     height,
     data,
     mipLevels: 1,
     sampler: {minFilter: 'nearest', magFilter: 'nearest', mipmapFilter: 'none'}
   });
+}
+
+/** Geometry with buffers owned by a shared resource cache. */
+export class SharedTreeGeometry extends GPUGeometry {
+  destroy(): void {}
 }
 
 /** Interleaves the wood arrays, one vec4 each per vertex. */
@@ -107,13 +118,13 @@ export function acquireTreeTemplateResources(
         usage: Buffer.INDEX,
         data: model.wood.indices
       }),
-      leaves: createTemplateTexture(device, `tree-leaves-${model.key}`, model.leaves),
-      cropAnchors: createTemplateTexture(
+      leaves: createTreeTemplateTexture(device, `tree-leaves-${model.key}`, model.leaves),
+      cropAnchors: createTreeTemplateTexture(
         device,
         `tree-crop-anchors-${model.key}`,
         model.cropAnchors
       ),
-      limbs: createTemplateTexture(device, `tree-limbs-${model.key}`, model.limbs)
+      limbs: createTreeTemplateTexture(device, `tree-limbs-${model.key}`, model.limbs)
     };
     cache.set(model, entry);
   }

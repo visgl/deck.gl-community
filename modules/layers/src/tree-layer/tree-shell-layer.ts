@@ -15,6 +15,8 @@ import {
   treePhotoreal,
   TREE_PHOTOREAL_FRAGMENT_CHUNK,
   TREE_PHOTOREAL_VERTEX_CHUNK,
+  TREE_SHADOW_FRAGMENT_GLSL,
+  TREE_PICKING_FRAGMENT_GLSL,
   TREE_SHELL_COVERAGE_GLSL,
   TREE_SHELL_COVERAGE_WGSL,
   type TreePhotorealUniforms
@@ -158,17 +160,8 @@ void main() {
   }
 #endif
   geometry.uv = vec2(0.0);
-  if (picking.isActive > 0.5) {
-    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    DECKGL_FILTER_COLOR(fragColor, geometry);
-    return;
-  }
-#ifdef MODULE_SHADOW
-  if (shadow.drawShadowMap) {
-    fragColor = shadow_filterShadowColor(vec4(0.0));
-    return;
-  }
-#endif
+${TREE_PICKING_FRAGMENT_GLSL}
+${TREE_SHADOW_FRAGMENT_GLSL}
   vec3 normal = normalize(vNormal);
   vec3 up = treeUp(vPosition);
   float openness = mix(0.56, 1.0, vLife.z * 0.4 + grain * 0.6);

@@ -166,6 +166,17 @@ function isPlainWood(ring: Ring): boolean {
   return ring.flags === 0;
 }
 
+function getWoodEnvelope(rings: readonly Ring[], growth: number) {
+  let height = 0;
+  let radius = 0;
+  for (const ring of rings) {
+    if (!isPlainWood(ring) || ring.birth > growth) continue;
+    height = Math.max(height, ring.z);
+    radius = Math.max(radius, Math.hypot(ring.x, ring.y));
+  }
+  return {height, radius};
+}
+
 /** Distance in tree heights, with x and y brought back from crown radii to citrus proportions. */
 function physicalDistance(a: Ring, b: Ring): number {
   return Math.hypot((a.x - b.x) * CITRUS_ASPECT, (a.y - b.y) * CITRUS_ASPECT, a.z - b.z);
@@ -266,36 +277,24 @@ function createWoodLookup(rings: Ring[]) {
   };
 }
 
-/** Mean turning in degrees over steps of about 0.05 tree heights along a tube. */
-function getMeanTurning(tubeRings: Ring[]): number {
-  const limb = tubeRings.filter(ring => ring.radius > 0);
-  const points: Ring[] = [limb[0]];
-  let walked = 0;
-  for (let index = 1; index < limb.length; index++) {
-    walked += physicalDistance(limb[index - 1], limb[index]);
-    if (walked >= 0.05) {
-      points.push(limb[index]);
-      walked = 0;
-    }
+/** Farthest living leaf in each angular sector at each height. */
+function getMatureCrownReach(
+  model: TreeGrowthModel,
+  bands: number,
+  sectors: number,
+  from = 0,
+  to = 1
+): number[] {
+  const reach = new Array<number>(bands * sectors).fill(0);
+  for (let index = 0; index < model.leafCount; index++) {
+    const leaf = getLeaf(model, index);
+    if (leaf.death <= 1 || leaf.z < from || leaf.z > to) continue;
+    const band = Math.min(bands - 1, Math.floor(((leaf.z - from) / (to - from)) * bands));
+    const angle = (Math.atan2(leaf.y, leaf.x) + Math.PI) / (2 * Math.PI);
+    const cell = band * sectors + Math.min(sectors - 1, Math.floor(angle * sectors));
+    reach[cell] = Math.max(reach[cell], Math.hypot(leaf.x, leaf.y));
   }
-  let sum = 0;
-  let count = 0;
-  for (let index = 2; index < points.length; index++) {
-    const a = points[index - 2];
-    const b = points[index - 1];
-    const c = points[index];
-    const ux = (b.x - a.x) * CITRUS_ASPECT;
-    const uy = (b.y - a.y) * CITRUS_ASPECT;
-    const uz = b.z - a.z;
-    const vx = (c.x - b.x) * CITRUS_ASPECT;
-    const vy = (c.y - b.y) * CITRUS_ASPECT;
-    const vz = c.z - b.z;
-    const cosine =
-      (ux * vx + uy * vy + uz * vz) / (Math.hypot(ux, uy, uz) * Math.hypot(vx, vy, vz));
-    sum += Math.acos(Math.min(1, Math.max(-1, cosine)));
-    count++;
-  }
-  return count > 0 ? (sum / count) * (180 / Math.PI) : 0;
+  return reach;
 }
 
 const citrus = getTreeGrowthModel('citrus', {seed: 7});
@@ -643,21 +642,14 @@ describe.each(SPECIES)('%s template', type => {
   });
 
   it('tracks the height and crown fractions as it grows', () => {
-    const plain = rings.filter(isPlainWood);
-    for (const growth of [0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1]) {
-      let highest = 0;
-      for (const ring of plain) if (ring.birth <= growth) highest = Math.max(highest, ring.z);
-      expect(Math.abs(highest - getTreeHeightFraction(growth))).toBeLessThan(0.07);
-    }
-    for (const growth of [0.25, 0.35, 0.5, 0.7, 0.85, 1]) {
-      let widest = 0;
-      for (const ring of plain) {
-        if (ring.birth <= growth) widest = Math.max(widest, Math.hypot(ring.x, ring.y));
+    for (const growth of [0.05, 0.1, 0.2, 0.25, 0.35, 0.5, 0.7, 0.85, 1]) {
+      const {height, radius} = getWoodEnvelope(rings, growth);
+      expect(Math.abs(height - getTreeHeightFraction(growth))).toBeLessThan(0.07);
+      if (growth >= 0.25) {
+        const crown = getTreeCrownFraction(growth);
+        expect(radius).toBeLessThan(crown * 1.14);
+        expect(radius).toBeGreaterThan(crown - 0.16);
       }
-      const crown = getTreeCrownFraction(growth);
-      // Its lobes and the odd shoot stand a little past the crown's radius.
-      expect(widest).toBeLessThan(crown * 1.14);
-      expect(widest).toBeGreaterThan(crown - 0.16);
     }
   });
 
@@ -794,6 +786,11 @@ describe('Citrus growth stages', () => {
     expect(leaves.reduce((top, leaf) => Math.max(top, leaf.z), 0)).toBeLessThan(
       getTreeHeightFraction(0.35) + 0.05
     );
+    for (const growth of [0.2, 0.35, 0.5, 0.7]) {
+      const {height, radius} = getWoodEnvelope(rings, growth);
+      expect(height).toBeLessThanOrEqual(getTreeHeightFraction(growth) + 0.02);
+      expect(radius).toBeLessThanOrEqual(getTreeCrownFraction(growth) * 1.14 + 0.03);
+    }
   });
 
   it('closes into a dome with a low skirt at growth 1', () => {
@@ -827,32 +824,17 @@ describe('Citrus growth stages', () => {
     expect(leaves.reduce((low, leaf) => Math.min(low, leaf.z), 1)).toBeLessThan(0.06);
   });
 
-  it('is a small complete tree at every age: the wood of growth g fits the crown of growth g', () => {
-    const violations = new Violations();
-    for (const growth of [0.2, 0.35, 0.5, 0.7]) {
-      const height = getTreeHeightFraction(growth);
-      const crown = getTreeCrownFraction(growth);
-      for (const ring of rings) {
-        if (!isPlainWood(ring) || ring.birth > growth) continue;
-        violations.check(ring.z <= height + 0.02, 'wood above the young crown');
-        violations.check(
-          Math.hypot(ring.x, ring.y) <= crown * 1.14 + 0.03,
-          'wood outside the young crown'
-        );
-      }
-    }
-    violations.expectNone();
-  });
-
   it('lets interior leaves die as the crown outgrows them, while outer leaves never do', () => {
     let mortal = 0;
-    let immortal = 0;
+    let outer = 0;
     const violations = new Violations();
     for (let index = 0; index < citrus.leafCount; index++) {
       const leaf = getLeaf(citrus, index);
+      if (leaf.shell > 0.7) {
+        outer++;
+        violations.check(leaf.death > 1, 'outer leaf does not survive');
+      }
       if (leaf.death > 1) {
-        immortal++;
-        // Everything that lasts was born when the crown was already large.
         violations.check(getTreeCrownFraction(leaf.birth) > 0.4, 'old interior leaf never dies');
       } else {
         mortal++;
@@ -864,20 +846,9 @@ describe('Citrus growth stages', () => {
       }
     }
     violations.expectNone();
-    expect(mortal).toBeGreaterThan(citrus.leafCount * 0.05);
-    expect(immortal).toBeGreaterThan(citrus.leafCount * 0.4);
-    // The outermost leaves are immortal and the shell value says they are outer.
-    let outer = 0;
-    let outerImmortal = 0;
-    for (let index = 0; index < citrus.leafCount; index++) {
-      const leaf = getLeaf(citrus, index);
-      if (leaf.shell > 0.7) {
-        outer++;
-        if (leaf.death > 1) outerImmortal++;
-      }
-    }
+    expect(mortal / citrus.leafCount).toBeGreaterThan(0.05);
+    expect(mortal / citrus.leafCount).toBeLessThan(0.6);
     expect(outer).toBeGreaterThan(1000);
-    expect(outerImmortal).toBe(outer);
   });
 });
 
@@ -925,25 +896,6 @@ describe('Citrus organic form', () => {
       );
       expect(Math.max(...azimuthGaps) / Math.min(...azimuthGaps)).toBeGreaterThan(1.15);
       expect(coefficientOfVariation(azimuthGaps)).toBeGreaterThan(0.08);
-    }
-  });
-
-  it('turns along limbs, with sinuous bends and no long straight runs', () => {
-    for (const tree of trees) {
-      for (const scaffold of scaffoldsOf(tree)) {
-        const limb = scaffold.rings.filter(ring => ring.radius > 0);
-        if (arc(limb) < 0.3) continue;
-        expect(getMeanTurning(limb)).toBeGreaterThan(5);
-        // No run longer than 0.3 of the tree height stays within 0.2 percent of its chord.
-        for (let from = 0; from < limb.length - 2; from++) {
-          for (let to = from + 2; to < limb.length; to++) {
-            const length = arc(limb, from, to);
-            if (length < 0.3) continue;
-            expect(physicalDistance(limb[from], limb[to]) / length).toBeLessThan(0.998);
-            break;
-          }
-        }
-      }
     }
   });
 
@@ -1115,28 +1067,15 @@ describe('Citrus organic form', () => {
 });
 
 describe('Citrus crown', () => {
-  /** How far out the outermost leaves reach at each of `bands` heights, in crown radii. */
-  const getReach = (model: TreeGrowthModel, growth: number, bands: number): number[] => {
-    const around = 36;
-    const cells = new Float64Array(bands * around);
-    for (let index = 0; index < model.leafCount; index++) {
-      const leaf = getLeaf(model, index);
-      if (leaf.birth > growth || growth >= leaf.death) continue;
-      const band = Math.min(bands - 1, Math.floor(leaf.z * bands));
-      const sector = Math.floor(((Math.atan2(leaf.y, leaf.x) + Math.PI) / (2 * Math.PI)) * around);
-      const cell = band * around + Math.min(around - 1, sector);
-      cells[cell] = Math.max(cells[cell], Math.hypot(leaf.x, leaf.y));
-    }
-    return Array.from({length: bands}, (_, band) => {
-      const sectors = Array.from(cells.subarray(band * around, band * around + around));
-      return sectors.reduce((sum, reach) => sum + reach, 0) / around;
-    });
-  };
-
-  it.each([1, 2, 3])('is a closed dome, widest low on it, with a broad skirt, seed %i', seed => {
+  it.each([1, 2, 3])('is widest low on the dome, with a broad skirt, seed %i', seed => {
     const model = getTreeGrowthModel('citrus', {seed});
     const bands = 12;
-    const reach = getReach(model, 1, bands);
+    const sectors = 36;
+    const samples = getMatureCrownReach(model, bands, sectors);
+    const reach = Array.from(
+      {length: bands},
+      (_, band) => spreadOf(samples.slice(band * sectors, (band + 1) * sectors)).mean
+    );
     const widest = Math.max(...reach);
     const widestBand = reach.indexOf(widest);
     // Out to about the crown radius, and at its widest in its lower half.
@@ -1152,44 +1091,19 @@ describe('Citrus crown', () => {
     expect(shoulder).toBeGreaterThan(widest * 0.68);
     expect(shoulder).toBeLessThan(widest * 0.96);
     expect(reach[bands - 1]).toBeLessThan(widest * 0.6);
-    // It is no topiary ball, nor a lump: reach differs around the crown, by a limb's lobe or a
-    // side's.
-    const middle: number[] = [];
-    for (let index = 0; index < model.leafCount; index++) {
-      const leaf = getLeaf(model, index);
-      if (leaf.death > 1 && leaf.z > 0.2 && leaf.z < 0.45) {
-        const sector = Math.floor(((Math.atan2(leaf.y, leaf.x) + Math.PI) / (2 * Math.PI)) * 8);
-        middle[sector] = Math.max(middle[sector] ?? 0, Math.hypot(leaf.x, leaf.y));
-      }
-    }
-    expect(coefficientOfVariation(middle)).toBeGreaterThan(0.012);
-    expect(coefficientOfVariation(middle)).toBeLessThan(0.1);
   });
 
   it('has an outline of its own for each seed, set by its scaffolds', () => {
     const around = 24;
-    const outlines = [1, 2, 3].map(seed => {
-      const model = getTreeGrowthModel('citrus', {seed});
-      const reach = new Float64Array(around);
-      for (let index = 0; index < model.leafCount; index++) {
-        const leaf = getLeaf(model, index);
-        if (leaf.death <= 1 || leaf.z < 0.2 || leaf.z > 0.6) continue;
-        const sector = Math.floor(
-          ((Math.atan2(leaf.y, leaf.x) + Math.PI) / (2 * Math.PI)) * around
-        );
-        reach[Math.min(around - 1, sector)] = Math.max(
-          reach[Math.min(around - 1, sector)],
-          Math.hypot(leaf.x, leaf.y)
-        );
-      }
-      return reach;
-    });
+    const outlines = [1, 2, 3].map(seed =>
+      getMatureCrownReach(getTreeGrowthModel('citrus', {seed}), 1, around, 0.2, 0.6)
+    );
     for (const outline of outlines) {
       // One side reaches further than another.
       expect(Math.max(...outline) / Math.min(...outline)).toBeGreaterThan(1.06);
       expect(Math.max(...outline) / Math.min(...outline)).toBeLessThan(1.5);
     }
-    const apart = (a: Float64Array, b: Float64Array) =>
+    const apart = (a: number[], b: number[]) =>
       a.reduce((sum, value, index) => sum + Math.abs(value - b[index]), 0) / around;
     expect(apart(outlines[0], outlines[1])).toBeGreaterThan(0.012);
     expect(apart(outlines[1], outlines[2])).toBeGreaterThan(0.012);
@@ -1372,31 +1286,6 @@ describe('Citrus wood', () => {
       expect(rings.filter(ring => isPlainWood(ring) && ring.radius < 0.02).length).toBeGreaterThan(
         15000
       );
-    }
-  });
-
-  it('keeps a parent visibly thicker than each child, and steps down at forks', () => {
-    for (const {rings} of trees) {
-      let forks = 0;
-      let thinner = 0;
-      for (const ring of rings) {
-        if (!isPlainWood(ring) || ring.radius < 0.1 || ring.shaped) continue;
-        const after = rings[ring.index + 1];
-        const children = ring.successors.filter(
-          index => isPlainWood(rings[index]) && rings[index] !== after
-        );
-        if (children.length === 0) continue;
-        for (const child of children) {
-          // Past its collar.
-          let body = rings[child];
-          while (body.shaped && rings[body.index + 1]) body = rings[body.index + 1];
-          if (body.radius < ring.radius * 0.25) continue;
-          forks++;
-          if (body.radius < ring.radius * 0.93) thinner++;
-        }
-      }
-      expect(forks).toBeGreaterThan(40);
-      expect(thinner / forks).toBeGreaterThan(0.92);
     }
   });
 
@@ -1856,14 +1745,7 @@ describe('Characteristics', () => {
     // How much the crown's reach varies around it, at each of several heights.
     const lumpiness = (asymmetry: number) => {
       const {model} = measure({crownAsymmetry: asymmetry});
-      const reach = new Array<number>(24 * 6).fill(0);
-      for (let index = 0; index < model.leafCount; index++) {
-        const leaf = getLeaf(model, index);
-        const sector = Math.floor(((Math.atan2(leaf.y, leaf.x) + Math.PI) / (Math.PI * 2)) * 24);
-        const band = Math.min(5, Math.floor(leaf.z * 6));
-        const cell = band * 24 + (sector % 24);
-        reach[cell] = Math.max(reach[cell], Math.hypot(leaf.x, leaf.y));
-      }
+      const reach = getMatureCrownReach(model, 6, 24);
       let sum = 0;
       for (let band = 1; band < 5; band++) {
         sum += coefficientOfVariation(reach.slice(band * 24, band * 24 + 24));

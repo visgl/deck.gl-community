@@ -57,6 +57,47 @@ function createTemplateTexture(device: Device, channels: number, offset: number,
   });
 }
 
+/** A persistent RGBA8 render target and readback buffer for the current WebGPU case. */
+function createReadbackTarget(device: Device, width: number, height: number, useDepth = true) {
+  const color = device.createTexture({
+    width,
+    height,
+    format: 'rgba8unorm',
+    usage: Texture.RENDER_ATTACHMENT | Texture.COPY_SRC
+  });
+  const framebuffer = device.createFramebuffer({
+    width,
+    height,
+    colorAttachments: [color],
+    depthStencilAttachment: useDepth ? 'depth24plus' : null
+  });
+  const buffer = device.createBuffer({
+    byteLength: width * height * 4,
+    usage: Buffer.COPY_DST | Buffer.MAP_READ
+  });
+  return {
+    framebuffer,
+    async readPixels() {
+      device.submit();
+      const encoder = device.createCommandEncoder();
+      encoder.copyTextureToBuffer({
+        sourceTexture: color,
+        destinationBuffer: buffer,
+        bytesPerRow: width * 4,
+        width,
+        height
+      });
+      device.submit(encoder.finish());
+      return new Uint8Array(await buffer.readAsync());
+    },
+    destroy() {
+      buffer.destroy();
+      framebuffer.destroy();
+      color.destroy();
+    }
+  };
+}
+
 it('draws photoreal WebGPU geometry from packed state and template textures', async ({skip}) => {
   await requireWebGPUAdapter(skip);
   const device = await luma.createDevice({
@@ -89,21 +130,8 @@ it('draws photoreal WebGPU geometry from packed state and template textures', as
     const leaves = createTemplateTexture(device, 4, 1, 0.25);
     const anchors = createTemplateTexture(device, 4, 2, 0.375);
     const ranks = createTemplateTexture(device, 1, 0, 0.5);
-    const color = device.createTexture({
-      width: SIZE,
-      height: SIZE,
-      format: 'rgba8unorm',
-      usage: Texture.RENDER_ATTACHMENT | Texture.COPY_SRC
-    });
-    const framebuffer = device.createFramebuffer({
-      width: SIZE,
-      height: SIZE,
-      colorAttachments: [color]
-    });
-    const readback = device.createBuffer({
-      usage: Buffer.COPY_DST | Buffer.MAP_READ,
-      byteLength: SIZE * SIZE * 4
-    });
+    const target = createReadbackTarget(device, SIZE, SIZE, false);
+    const {framebuffer} = target;
     const model = new Model(device, {
       id: 'photoreal-tree-wgsl-layout-probe',
       colorAttachmentFormats: ['rgba8unorm'],
@@ -173,17 +201,7 @@ struct Probe {
       const drawn = model.draw(pass);
       pass.end();
       expect(drawn).toBe(true);
-      device.submit();
-      const encoder = device.createCommandEncoder();
-      encoder.copyTextureToBuffer({
-        sourceTexture: color,
-        destinationBuffer: readback,
-        bytesPerRow: SIZE * 4,
-        width: SIZE,
-        height: SIZE
-      });
-      device.submit(encoder.finish());
-      const pixels = new Uint8Array(await readback.readAsync());
+      const pixels = await target.readPixels();
       expect(errors).toEqual([]);
       for (const [index, x] of [32, 96].entries()) {
         const start = (64 * SIZE + x) * 4;
@@ -201,9 +219,7 @@ struct Probe {
       expect(pixels[(64 * SIZE + 64) * 4 + 3]).toBe(0);
     } finally {
       model.destroy();
-      readback.destroy();
-      framebuffer.destroy();
-      color.destroy();
+      target.destroy();
       ranks.destroy();
       anchors.destroy();
       leaves.destroy();
@@ -235,22 +251,8 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
   const handle = (device as Device & {handle: GPUDevice}).handle;
   const recordError = (event: GPUUncapturedErrorEvent) => errors.push(event.error.message);
   handle.addEventListener('uncapturederror', recordError);
-  const color = device.createTexture({
-    width,
-    height,
-    format: 'rgba8unorm',
-    usage: Texture.RENDER_ATTACHMENT | Texture.COPY_SRC
-  });
-  const framebuffer = device.createFramebuffer({
-    width,
-    height,
-    colorAttachments: [color],
-    depthStencilAttachment: 'depth24plus'
-  });
-  const readback = device.createBuffer({
-    byteLength: width * height * 4,
-    usage: Buffer.COPY_DST | Buffer.MAP_READ
-  });
+  const target = createReadbackTarget(device, width, height);
+  const {framebuffer, readPixels} = target;
   const rows = (['citrus', 'pine', 'palm'] as const).map((species, index) => ({
     position: [(index - 1) * 3.2, 0, 0] as [number, number, number],
     species,
@@ -268,19 +270,6 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
             color: species === 'palm' ? ([244, 38, 213] as const) : ([242, 123, 24] as const)
           }
   }));
-  const readPixels = async () => {
-    device.submit();
-    const encoder = device.createCommandEncoder();
-    encoder.copyTextureToBuffer({
-      sourceTexture: color,
-      destinationBuffer: readback,
-      bytesPerRow: width * 4,
-      width,
-      height
-    });
-    device.submit(encoder.finish());
-    return new Uint8Array(await readback.readAsync());
-  };
   let drawCount = 0;
   let deck: Deck | undefined;
   try {
@@ -416,9 +405,7 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
   } finally {
     deck?.finalize();
     handle.removeEventListener('uncapturederror', recordError);
-    readback.destroy();
-    framebuffer.destroy();
-    color.destroy();
+    target.destroy();
     device.destroy();
     parent.remove();
   }
@@ -439,22 +426,8 @@ it('casts and receives directional shadows on the highest-detail WebGPU tree', a
   const handle = (device as Device & {handle: GPUDevice}).handle;
   const recordError = (event: GPUUncapturedErrorEvent) => errors.push(event.error.message);
   handle.addEventListener('uncapturederror', recordError);
-  const color = device.createTexture({
-    width: size,
-    height: size,
-    format: 'rgba8unorm',
-    usage: Texture.RENDER_ATTACHMENT | Texture.COPY_SRC
-  });
-  const framebuffer = device.createFramebuffer({
-    width: size,
-    height: size,
-    colorAttachments: [color],
-    depthStencilAttachment: 'depth24plus'
-  });
-  const readback = device.createBuffer({
-    byteLength: size * size * 4,
-    usage: Buffer.COPY_DST | Buffer.MAP_READ
-  });
+  const target = createReadbackTarget(device, size, size);
+  const {framebuffer, readPixels} = target;
   const light = new LightingEffect({
     ambient: new AmbientLight({intensity: 0.7}),
     sun: new DirectionalLight({direction: [-1, -2, -3], intensity: 2.4, _shadow: true})
@@ -479,17 +452,7 @@ it('casts and receives directional shadows on the highest-detail WebGPU tree', a
     deck.redraw('read back tree lighting');
     expect(frames).toBe(start + 1);
     expect(errors).toEqual([]);
-    device.submit();
-    const encoder = device.createCommandEncoder();
-    encoder.copyTextureToBuffer({
-      sourceTexture: color,
-      destinationBuffer: readback,
-      bytesPerRow: size * 4,
-      width: size,
-      height: size
-    });
-    device.submit(encoder.finish());
-    return new Uint8Array(await readback.readAsync());
+    return readPixels();
   };
   try {
     await expect.poll(() => deck.isInitialized, {timeout: 30_000}).toBe(true);
@@ -538,9 +501,7 @@ it('casts and receives directional shadows on the highest-detail WebGPU tree', a
   } finally {
     deck.finalize();
     handle.removeEventListener('uncapturederror', recordError);
-    readback.destroy();
-    framebuffer.destroy();
-    color.destroy();
+    target.destroy();
     device.destroy();
     parent.remove();
   }
@@ -561,22 +522,8 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
   const handle = (device as Device & {handle: GPUDevice}).handle;
   const recordError = (event: GPUUncapturedErrorEvent) => errors.push(event.error.message);
   handle.addEventListener('uncapturederror', recordError);
-  const color = device.createTexture({
-    width: size,
-    height: size,
-    format: 'rgba8unorm',
-    usage: Texture.RENDER_ATTACHMENT | Texture.COPY_SRC
-  });
-  const framebuffer = device.createFramebuffer({
-    width: size,
-    height: size,
-    colorAttachments: [color],
-    depthStencilAttachment: 'depth24plus'
-  });
-  const readback = device.createBuffer({
-    byteLength: size * size * 4,
-    usage: Buffer.COPY_DST | Buffer.MAP_READ
-  });
+  const target = createReadbackTarget(device, size, size);
+  const {framebuffer, readPixels} = target;
   // One known attachment keeps the pixel tests independent of the species' authored anchor order.
   const template = {
     ...getTreeGrowthModel('citrus'),
@@ -635,19 +582,6 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
     vertexCount: 3,
     topology: 'triangle-list'
   });
-  const readPixels = async () => {
-    device.submit();
-    const encoder = device.createCommandEncoder();
-    encoder.copyTextureToBuffer({
-      sourceTexture: color,
-      destinationBuffer: readback,
-      bytesPerRow: size * 4,
-      width: size,
-      height: size
-    });
-    device.submit(encoder.finish());
-    return new Uint8Array(await readback.readAsync());
-  };
   const capture = async (
     kind: 'fruit' | 'flower',
     lod: number,
@@ -770,9 +704,7 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
     handle.removeEventListener('uncapturederror', recordError);
     shadowRead.destroy();
     state.destroy();
-    readback.destroy();
-    framebuffer.destroy();
-    color.destroy();
+    target.destroy();
     device.destroy();
     parent.remove();
   }
