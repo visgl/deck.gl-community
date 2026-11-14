@@ -158,8 +158,8 @@ Use deck.gl's `LightingEffect` with a `DirectionalLight` whose `_shadow` is `tru
 sets the shadow map's coverage, resolution and color. `TreeLayer` casts and receives shadows on
 WebGL2 and WebGPU and keeps its caster geometry stable across visible canopy LOD changes.
 Set `shadowEnabled: false` to stop trees from casting. Separate ground and terrain layers need
-shader support for receiving shadows on their backend. In deck.gl 9.4, the Seasonal Farm plot
-polygons receive shadows on WebGL2.
+shader support for receiving shadows on their backend. Seasonal Farm supplies a receiver for
+its plots and paths on WebGL2 and WebGPU.
 
 ## Limitations
 

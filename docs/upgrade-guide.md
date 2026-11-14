@@ -9,9 +9,10 @@ Please refer the documentation of each module for detailed upgrade guides.
 ### TreeLayer renderer
 
 Remove `maxCanopySplats`, `maxCanopyPixels` and `foveationStrength` from `TreeLayer`.
-If you used a preview build, remove its `quality` switch as well. Use `lodBias` to tune the transition between individual foliage, clumps and
-crown hulls. Update custom Gaussian-canopy overrides to use TreeLayer materials and
-accessors, or use a standalone `SplatLayer` for Gaussian data. See the
+If you used a preview build, remove its `quality` switch as well. Use `lodBias` to tune how
+far individual leaves remain visible before switching to fitted canopy shells. Replace custom
+Gaussian-canopy overrides with TreeLayer materials and accessors. Use standalone `SplatLayer`
+for Gaussian data. See the
 [TreeLayer reference](./modules/layers/api-reference/tree-layer.md#migrating-from-the-gaussian-canopy-renderer).
 
 ### Consolidated sidebars
@@ -74,9 +75,6 @@ new SplatLayer({data: rows, source, hierarchy});
 // After
 new SplatLayer({data: rows, getSource: {type: 'prepared-splats', source, hierarchy}});
 ```
-
-TreeLayer canopy overrides follow the same rule: set `getSource` in `_subLayerProps` instead of
-`source` or `hierarchy`.
 
 ## v9.4.7
 

@@ -33,7 +33,8 @@ export const DEFAULT_FARM_SETTINGS: FarmSettings = {
     branchWander: 1,
     twigDroop: 1
   },
-  lodBias: 0
+  // A small demo can retain leafy crowns farther out than a large field.
+  lodBias: -2
 };
 
 // Geometry props regenerate tree templates, so sliders only apply once dragging pauses.

@@ -5,7 +5,8 @@ This page lists module additions and major changes in each release. For detailed
 ## Unreleased
 
 - **Breaking:** [TreeLayer](./modules/layers/api-reference/tree-layer.md) uses botanical wood,
-  foliage and crop templates for all eight species. Crown detail follows screen size. Replace
+  foliage and crop templates for all eight species. Crown detail follows camera distance and projected
+  size, with a smooth handoff between shells and individual leaves. Replace
   the Gaussian canopy controls with `lodBias` as described in the [upgrade guide](./upgrade-guide.md#treelayer-renderer).
 
 Gallery pages, inline documentation examples, and all 37 standalone HTML examples now share an iPhone-compatible fullscreen button.

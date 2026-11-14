@@ -8,14 +8,14 @@ The **TreeLayer** panel maps directly onto layer props:
 - **Trees**: season (`getSeason`), fruit and flowers (`getCrop`), wind (`windStrength`) and size
   (`sizeScale`).
 - **Crown**: every shared `characteristics` field, from seed and spread to leaf density.
-- **Rendering** adjusts `lodBias`, which controls how soon crowns use simpler detail.
+- **Rendering** adjusts `lodBias`, which controls how soon crowns use simpler detail. Camera
+  distance also helps small trees keep individual leaves as you approach.
 
 Drag to pan, scroll or pinch to zoom, and right-drag to tilt or rotate, up to zoom 23 and an 80°
 pitch. No basemap is required.
 
-Trees cast and receive directional shadows through deck.gl's `LightingEffect`. The farm sets
-the shadow opacity to 0.42. Plot surfaces receive these shadows on WebGL2. With deck.gl 9.4's
-WebGPU polygon renderer, shadows are visible on trees and crops.
+Trees cast directional shadows onto the plots and paths on WebGL2 and WebGPU. The shadow map
+covers the farm at overview scale and follows the camera with finer resolution at close range.
 
 ## Run
 

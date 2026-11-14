@@ -6,7 +6,6 @@ import {
   AmbientLight,
   Deck,
   DirectionalLight,
-  LightingEffect,
   MapView,
   MapController,
   WebMercatorViewport,
@@ -33,6 +32,8 @@ import {
   type FarmTree,
   type FarmPlot
 } from './farm-data';
+import {FarmGroundLayer} from './farm-ground-layer';
+import {FARM_GROUND, FarmLightingEffect} from './farm-lighting';
 import {DEFAULT_FARM_SETTINGS, SETTINGS_SCHEMA, type FarmSettings} from './settings';
 import '@deck.gl/widgets/stylesheet.css';
 import './style.css';
@@ -130,7 +131,7 @@ export function mountSeasonalFarmExample(
       }
     })
   });
-  const lighting = new LightingEffect({
+  const lighting = new FarmLightingEffect({
     ambient: new AmbientLight({color: [210, 224, 242], intensity: 1}),
     sun: new DirectionalLight({
       color: [255, 246, 225],
@@ -232,8 +233,22 @@ export function mountSeasonalFarmExample(
         getLineColor: [128, 145, 107, 255],
         getLineWidth: 1.5,
         lineWidthUnits: 'pixels',
-        // The plot surfaces receive shadows on WebGL2. Keep them out of the caster pass.
-        _subLayerProps: {fill: {shadowEnabled: false}, stroke: {shadowEnabled: false}}
+        // Keep the original WebGL depth offsets when the plots draw one layer earlier.
+        getPolygonOffset: ({layerIndex}) => [0, -(layerIndex + 1) * 100],
+        _subLayerProps: {
+          fill: {type: FarmGroundLayer, shadowEnabled: false},
+          stroke: {shadowEnabled: false}
+        }
+      }),
+      new FarmGroundLayer<typeof FARM_GROUND>({
+        id: 'farm-ground',
+        data: [FARM_GROUND],
+        getPolygon: ground => ground,
+        getFillColor: [246, 247, 240, 255],
+        shadowEnabled: false,
+        // Test before shading and keep the plot color when its depth ties the ground.
+        getPolygonOffset: () => [0, 0],
+        parameters: {depthCompare: 'less'}
       }),
       new TreeLayer<FarmTree>({
         id: 'farm-trees',

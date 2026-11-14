@@ -14,8 +14,8 @@ import {
 } from '@deck.gl/core';
 import {TreeLayer, type CropConfig, type Season} from '@deck.gl-community/layers';
 import {luma, type Device} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {describe, expect, it, vi} from 'vitest';
 import {userEvent} from 'vitest/browser';
 import {mountSeasonalFarmExample} from './app';
