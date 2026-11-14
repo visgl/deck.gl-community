@@ -249,12 +249,15 @@ describe('TreeLayer species lifecycle', () => {
       }
       return {red: red / alpha, green: green / alpha};
     };
+    const healthy = await canopyOnly({});
+    // At this camera angle, settled litter stays below the line two metres above the trunk base.
+    const [viewport] = scene.deck.getViewports();
+    const crownStart = Math.ceil(SIZE - viewport.project([0, 0, 2])[1]) * SIZE * 4;
     const alphaSum = (pixels: Uint8Array) => {
       let sum = 0;
-      for (let offset = 3; offset < pixels.length; offset += 4) sum += pixels[offset];
+      for (let offset = crownStart + 3; offset < pixels.length; offset += 4) sum += pixels[offset];
       return sum;
     };
-    const healthy = await canopyOnly({});
     const sick = await canopyOnly({health: 0});
     expect(color(sick).red / color(sick).green).toBeGreaterThan(
       color(healthy).red / color(healthy).green + 0.02
@@ -264,7 +267,9 @@ describe('TreeLayer species lifecycle', () => {
     const thin = await canopyOnly({foliage: 0.25});
     expect(alphaSum(thin)).toBeLessThan(alphaSum(healthy) * 0.8);
     expect(alphaSum(thin)).toBeGreaterThan(0);
-    expect(alphaSum(await canopyOnly({foliage: 0}))).toBe(0);
+    const bare = await canopyOnly({foliage: 0});
+    expect(alphaSum(bare)).toBe(0);
+    expect(measure(bare).count).toBeGreaterThan(0);
     expect(scene.errors).toEqual([]);
   }, 180000);
 

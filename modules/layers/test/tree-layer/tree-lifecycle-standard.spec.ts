@@ -305,20 +305,26 @@ describe('TreeLayer timeline transitions', () => {
     expect([...scene.layer().state.photoreal!.groups.values()][0]).toBe(group);
   });
 
-  it('tweens per-tree wind under getTree', () => {
+  it('tweens the strongest tree’s wind without changing nearby trees', () => {
     const scene = lifecycleScene();
     const render = (wind: number) =>
-      scene.render([tree('oak', {wind}), tree('oak', {position: [1e-4, 0, 0], wind: 0.5})], {
-        windStrength: 0.5,
+      scene.render([tree('oak', {wind}), tree('oak', {position: [1e-4, 0, 0]})], {
+        windStrength: 0.125,
         transitions: {getTree: 1000}
       });
-    render(0.5);
-    render(0.25);
+    render(0.75);
+    const previousReach = scene.layer().state.photoreal!.rows[0].bounds!.reach;
+    render(0);
+    expect(scene.row().windFlex).toBe(0.75);
+    expect(scene.layer().state.currentWindStrength).toBe(0.75);
     scene.tick(1500);
-    expect(scene.row().windFlex).toBeCloseTo(0.75, 8);
-    expect(scene.row(1).windFlex).toBe(1);
+    expect(scene.row().windFlex).toBe(0.375);
+    expect(scene.row(1).windFlex).toBe(0.125);
+    expect(scene.layer().state.currentWindStrength).toBe(0.375);
+    expect(scene.layer().state.photoreal!.rows[0].bounds!.reach).toBe(previousReach / 2);
     scene.tick(2100);
-    expect(scene.row().windFlex).toBeCloseTo(0.5, 8);
+    expect(scene.row().windFlex).toBe(0);
+    expect(scene.layer().state.currentWindStrength).toBe(0.125);
   });
 
   it('jumps to accessor values when a transition is removed mid-tween', () => {

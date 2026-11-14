@@ -127,7 +127,7 @@ fn treeWindGust(at: vec2<f32>, time: f32, strong: f32, phase: f32) -> f32 {
 }
 
 fn treeWindBend(place: TreePlace, life: TreeLife) -> vec2<f32> {
-  let force = treePhotoreal.wind.x * life.windFlex;
+  let force = life.windFlex;
   let strength = force * max(cos(life.lean), 0.0);
   let bend = 0.3 * (1.0 - exp(-strength / 0.3));
   let time = treePhotoreal.clock.x;
@@ -192,7 +192,7 @@ fn treeMovePoint(
   }
   moved.point = treeLeanPoint(moved.point, life, lean);
   moved.turn = lean * moved.turn;
-  if (treePhotoreal.wind.x * life.windFlex > 0.0) {
+  if (life.windFlex > 0.0) {
     moved = treeBendPoint(moved, place, life);
   }
   if (life.lean > 0.6) {

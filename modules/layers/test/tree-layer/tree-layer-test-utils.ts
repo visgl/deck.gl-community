@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {LayerManager, type Layer, WebMercatorViewport} from '@deck.gl/core';
+import {LayerManager, type Layer, type Viewport, WebMercatorViewport} from '@deck.gl/core';
 import {device} from '@deck.gl/test-utils/vitest';
 import {Timeline} from '@luma.gl/engine';
 import {afterEach} from 'vitest';
@@ -26,7 +26,7 @@ afterEach(() => {
 
 /** Run layer updates with deck.gl's source rows and a clock controlled by the test. */
 export function mountTreeScene<DataT>(
-  viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 19, pitch: 30})
+  viewport: Viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 19, pitch: 30})
 ) {
   const timeline = new Timeline();
   timeline.setTime(1000);
@@ -52,7 +52,7 @@ export function mountTreeScene<DataT>(
       assertNoErrors();
       return layer();
     },
-    setViewport(next: WebMercatorViewport) {
+    setViewport(next: Viewport) {
       viewport = next;
       manager.activateViewport(next);
       // A Deck draw normally gives each layer its viewport before the next layer update.

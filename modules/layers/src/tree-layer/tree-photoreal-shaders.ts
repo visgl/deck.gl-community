@@ -637,7 +637,7 @@ const float TREE_WIND_BEND_LIMIT = 0.3;
 ${TREE_WIND_GUST_GLSL}
 // Once per vertex: the tree's bend for this frame, faded as a tree tips over, and how its crown takes the wind.
 void treeWindLoad() {
-  float force = treePhotoreal.wind.x * tree.windFlex;
+  float force = tree.windFlex;
   float strength = force * max(tree.leanCos, 0.0);
   tree.windForce = force;
   tree.windStrength = strength;
@@ -2889,7 +2889,7 @@ ${
   // A tree in full leaf hides what lies deep in its crown, and on its far side, from a camera outside it, and
   // near half its vertices have nothing to show. Light still sees them. They go smoothly with foliage.
   float closed = tree.lean <= 0.0 && tree.damage <= 0.0 && tree.decay <= 0.0
-    ? smoothstep(0.82, 0.97, tree.foliage) * smoothstep(0.5, 0.7, g) * (1.0 - smoothstep(0.12, 0.3, treePhotoreal.wind.x * tree.windFlex))
+    ? smoothstep(0.82, 0.97, tree.foliage) * smoothstep(0.5, 0.7, g) * (1.0 - smoothstep(0.12, 0.3, tree.windFlex))
     : 0.0;
 #ifdef MODULE_SHADOW
   if (shadow.drawShadowMap) closed = 0.0;
@@ -2978,7 +2978,7 @@ ${
     // cheaper to know that first than to work out where they are: from the nearest its flight could bring it and
     // the most of it there is, which is more than it can be shown for.
     vec3 toTree = (project.cameraPosition - anchorCommon) * tree.frame / project_size(1.0) - base;
-    float strengthNow = treePhotoreal.wind.x * tree.windFlex;
+    float strengthNow = tree.windFlex;
     float reach = (3.0 + 40.0 * strengthNow) * flightSeconds * pow(flight, 1.6) + 3.0 + 3.0 * strengthNow +
       (min(tree.lean, 1.6) + 0.35) * tree.liveHeight;
     float nearest = max(length(toTree) - reach, ${floatLiteral(TREE_LEAF_AIR_NEAR[0])});
@@ -3001,7 +3001,7 @@ ${
     vec4 place = project_common_position_to_clipspace(vec4(anchorCommon + tree.frame * project_size(treeLeanPoint(rest)), 1.0));
     mat4 view = project.viewProjectionMatrix;
     // Where it rests may be out of view and where the wind has it may not be.
-    float slack = (head.w * tree.leafScale * 1.5 + treePhotoreal.wind.x * tree.windFlex * tree.liveHeight) * project_size(1.0);
+    float slack = (head.w * tree.leafScale * 1.5 + tree.windFlex * tree.liveHeight) * project_size(1.0);
     float slackX = slack * length(vec3(view[0].x, view[1].x, view[2].x));
     float slackY = slack * length(vec3(view[0].y, view[1].y, view[2].y));
     // An offset also changes the width and height of the clip volume through W. In OrbitView,
@@ -3111,7 +3111,7 @@ ${
     : ''
 }
   if (flight > 0.0) {
-    float strengthNow = treePhotoreal.wind.x * tree.windFlex;
+    float strengthNow = tree.windFlex;
     vec2 down = treePhotoreal.wind.w > 0.5
       ? treePhotoreal.wind.yz
       : vec2(cos(hashA * TREE_TWO_PI), sin(hashA * TREE_TWO_PI));
@@ -3221,7 +3221,7 @@ ${
     float restDistance = lyingListed
       ? nowDistance
       : length(project.cameraPosition - (anchorCommon + tree.frame * project_size(treeLeanPoint(rest))));
-    float reachOver = min(treePhotoreal.wind.x * tree.windFlex * tree.liveHeight * 0.5, ${floatLiteral(TREE_LEAF_BLADE_MARGIN_MOST)}) * metre;
+    float reachOver = min(tree.windFlex * tree.liveHeight * 0.5, ${floatLiteral(TREE_LEAF_BLADE_MARGIN_MOST)}) * metre;
     float fineDistance = max(nowDistance, restDistance - reachOver);
 ${
   coarse
@@ -4890,7 +4890,7 @@ void main(void) {
     ) * (0.2 + 0.6 * hashK) * flutter;
     // The wind carries those it catches away for good, and only leans on the others in the air.
     vec2 downwind = treePhotoreal.wind.w > 0.5 ? treePhotoreal.wind.yz : vec2(0.91, 0.41);
-    float gust = treePhotoreal.wind.x * tree.windFlex * 24.0;
+    float gust = tree.windFlex * 24.0;
     carried = hashK < 0.22;
     if (carried && progress >= 1.0) return;
     vec2 windPath = downwind * gust * (carried ? progress : flutter * 0.45) * (0.5 + hashL);

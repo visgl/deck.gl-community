@@ -92,21 +92,23 @@ it('shares identical morphology templates and pairs each distinct wood and folia
   }
 }, 30_000);
 
-it('normalizes independent wind amplitudes without rebuilding geometry on global wind updates', () => {
+it('updates default wind without changing independent amplitudes or rebuilding geometry', () => {
   const data: TreeSpec[] = [false, true, 0.1].map((wind, index) => ({
     position: [index * 0.0001, 0],
     species: 'citrus',
     wind
   }));
+  data.push({position: [0.0003, 0], species: 'citrus'});
   const scene = prepare(data, {windStrength: 0.05});
   const wood = () => scene.children().find(child => child instanceof TreePhotorealWoodLayer)!;
-  expect(wood().props.windStrength).toBe(0.1);
-  expect([0, 1, 2].map(index => scene.row(index).windFlex)).toEqual([0, 0.25, 1]);
+  expect(wood().props.windStrength).toBeCloseTo(0.1, 7);
+  expect([0, 1, 2, 3].map(index => scene.row(index).windFlex)).toEqual([0, 0.025, 0.1, 0.05]);
   const {rows, groups} = scene.layer().state.photoreal!;
   scene.render({data, windStrength: 0.08});
   expect(scene.layer().state.photoreal!.rows).toBe(rows);
   expect(scene.layer().state.photoreal!.groups).toBe(groups);
-  expect(wood().props.windStrength).toBe(0.1);
+  expect(wood().props.windStrength).toBeCloseTo(0.1, 7);
+  expect(scene.row(3).windFlex).toBe(0.08);
   scene.render({data: [{...data[0]}], windStrength: 0.05});
   expect(wood().props.windStrength).toBe(0);
 });

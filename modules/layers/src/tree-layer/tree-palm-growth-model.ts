@@ -17,6 +17,7 @@ import {
   type PalmFrond
 } from './tree-palm';
 import {
+  TREE_CROP_ANCHOR_STRIDE,
   TREE_LEAF_STRIDE,
   TREE_LIMB_STRIDE,
   type TreeGrowthModel,
@@ -40,6 +41,8 @@ const SHAFT_RINGS = 133;
 const RACHIS_RINGS = 18;
 const SHAFT_SIDES = 24;
 const RACHIS_SIDES = 6;
+const DATES_PER_BUNCH = 20;
+const AXIL_T = 0.12;
 const LEAFLET_LODS = [PALM_LEAFLET_COUNT, 4, 2, 1] as const;
 const JUVENILE_LEAVES_PER_WHORL = 5;
 const JUVENILE_WHORLS = [
@@ -78,6 +81,39 @@ function getRachisPoint({frond, base}: Rachis, t: number, top: number): Point {
 
 function getRachisBirth(rachis: Rachis, t: number): number {
   return rachis.birth + t * 0.18;
+}
+
+function packPalmCrops(rachises: Rachis[], top: number, seed: number): Float32Array {
+  const random = createTreeRng(seed ^ 0xe31a);
+  const anchors = new Float32Array(rachises.length * DATES_PER_BUNCH * TREE_CROP_ANCHOR_STRIDE);
+  for (const [bunch, rachis] of rachises.entries()) {
+    const [x, y, z] = getRachisPoint(rachis, AXIL_T, top);
+    const phase = random() * 2 * Math.PI;
+    const birth = getRachisBirth(rachis, AXIL_T) + 0.09;
+    const azimuth = Math.atan2(y, x);
+    for (let date = 0; date < DATES_PER_BUNCH; date++) {
+      // Each axil bears a hanging bunch. Stagger its fruit sites as the bunch narrows toward its tip.
+      const depth = (date + 0.4 * random()) / DATES_PER_BUNCH;
+      const angle = phase + date * Math.PI * (3 - Math.sqrt(5));
+      const spread = (0.046 - 0.028 * depth) * (0.65 + 0.35 * random());
+      const reach = 0.015 + 0.065 * depth;
+      const offset = (date * rachises.length + bunch) * TREE_CROP_ANCHOR_STRIDE;
+      anchors.set(
+        [
+          x + reach * Math.cos(azimuth) + spread * Math.cos(angle),
+          y + reach * Math.sin(azimuth) + spread * Math.sin(angle),
+          z - 0.012 - 0.057 * depth,
+          birth + 0.055 * depth,
+          0,
+          rachis.limb,
+          random(),
+          0.76
+        ],
+        offset
+      );
+    }
+  }
+  return anchors;
 }
 
 function packPalmWood(rachises: Rachis[], top: number): TreeGrowthWood {
@@ -318,6 +354,7 @@ export function createPalmGrowthModel(seed = 1): TreeGrowthModel {
     limbs.set([...rachis.base, breakAt, ...direction, axis.len()], rachis.limb * TREE_LIMB_STRIDE);
   }
 
+  const cropAnchors = packPalmCrops(rachises, top, seed);
   return {
     key: `palm-${seed}`,
     forkZ: FORK_Z,
@@ -326,8 +363,8 @@ export function createPalmGrowthModel(seed = 1): TreeGrowthModel {
     crownAspect: CROWN_ASPECT,
     wood: packPalmWood(rachises, top),
     ...packPalmLeaves(rachises, spear, top, seed),
-    cropAnchors: new Float32Array(),
-    cropAnchorCount: 0,
+    cropAnchors,
+    cropAnchorCount: cropAnchors.length / TREE_CROP_ANCHOR_STRIDE,
     limbs,
     limbCount
   };

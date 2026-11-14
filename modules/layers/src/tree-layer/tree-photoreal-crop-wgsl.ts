@@ -76,6 +76,7 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
 
   let cluster = max(treePhotoreal.shape.w, 1.0);
   let parent = u32(floor(index / cluster));
+  let member = index - f32(parent) * cluster;
   var seed = fract(index * 0.61803399 + f32(slot) * 0.37 + life.seed);
   var grown = smoothstep(0.0, 0.02, life.growth);
   var anchor = vec3<f32>(0.0);
@@ -87,7 +88,7 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
     let head = treeCropAnchorTexel(treeCropAnchors, parent, 0u);
     let born = ${flower ? `min(head.w, ${TREE_CROP_BLOOM_FROM})` : 'head.w'};
     let age = life.growth - born;
-    let rank = treeCropRankAt(parent, ${flower ? '1.0' : 'life.growth'}) * cluster + index - f32(parent) * cluster;
+    let rank = treeCropRankAt(parent, ${flower ? '1.0' : 'life.growth'}) * cluster + member;
     if (age <= 0.0 || rank >= total) { return output; }
     let tail = treeCropAnchorTexel(treeCropAnchors, parent, 1u);
     anchor = head.xyz;
@@ -100,6 +101,18 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
   let ripe = treeStateTexel(treeState, row, first + 1u);
   let unripe = treeStateTexel(treeState, row, first + 2u);
   if (fract(seed * 61.73 + life.seed) >= life.coverage * ripe.a) { return output; }
+  ${
+    flower
+      ? `
+  // Keep the anchor's coverage and first flower across levels. The other flowers have their own poses.
+  let anchorSeed = seed;
+  let sideBlossom = !dropped && member > 0.0;
+  if (sideBlossom) {
+    seed = fract(anchorSeed * 7.0 + (member + 1.0) * 0.61803399);
+  }
+  `
+      : ''
+  }
   let place = treeReadPlace(treeState, row, life.growth);
   let hashA = fract(seed * 13.17);
   let hashB = fract(seed * 29.41);
@@ -119,7 +132,17 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
   let restZ = treePhotoreal.shape.z * radius + TREE_GROUND;
   let stem = full * treePhotoreal.look.w * (0.72 + 0.56 * hashE) * swell;
   let axis = vec2<f32>(cos(hashB * 2.0 * TREE_TWO_PI), sin(hashB * 2.0 * TREE_TWO_PI));
-  let offset = axis * stem * select(0.25 + 0.6 * hashC, 1.0, offTwig);
+  ${flower ? 'var' : 'let'} offset = axis * stem * select(0.25 + 0.6 * hashC, 1.0, offTwig);
+  ${
+    flower
+      ? `
+  if (sideBlossom) {
+    let spreadAngle = (fract(anchorSeed * 91.3) + member / cluster) * TREE_TWO_PI;
+    offset += vec2<f32>(cos(spreadAngle), sin(spreadAngle)) * stem * 0.9;
+  }
+  `
+      : ''
+  }
   let hanging = vec3<f32>(attachment.xy + offset,
     max(restZ, attachment.z - stem - treePhotoreal.shape.y * radius));
   let crown = max(place.size.x, place.size.y) * (1.0 - pow(1.0 - life.growth, 1.9));

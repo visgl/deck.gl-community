@@ -114,7 +114,7 @@ export type TreeStateValues = {
   trunkColor: number[];
   /** Metres. @default 0.5 */
   trunkRadius: number;
-  /** Non-negative multiplier. @default 1 */
+  /** Effective wind bend as a fraction of tree height. @default 0 */
   windFlex: number;
   /** 0-1. @default 1 */
   coverage: number;
