@@ -41,11 +41,11 @@ Outside production builds, React Fiber warns `ScatterplotLayer needs a stable id
 
 ## React DevTools
 
-The renderer registers with [React DevTools](https://react.dev/learn/react-developer-tools). In the Components tab, the tree inside each `DeckGL` root shows every `<layer>`, `<view>`, `<widget>` and `<effect>` element, with its props and the components that render it. Use it to check which component produced a layer, and which props it had when it was rendered.
+The renderer registers with [React DevTools](https://react.dev/learn/react-developer-tools). In the Components tab, the tree inside each `DeckGL` root shows every `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>` element, with its props and the components that render it. Use it to check which component produced a layer, and which props it had when it was rendered.
 
 ## Errors
 
-An error thrown while rendering inside `DeckGL` is rethrown from the `DeckGL` component. The nearest error boundary around `DeckGL` handles it, and the framework's development error overlay shows it. This includes errors the renderer raises itself, for example when `<layer>` receives something other than a deck.gl `Layer`.
+An error thrown while rendering inside `DeckGL` is rethrown from the `DeckGL` component. The nearest error boundary around `DeckGL` handles it, and the framework's development error overlay shows it. This includes errors the renderer raises itself, for example when `<deckLayer>` receives something other than a deck.gl `Layer`.
 
 An error boundary placed inside `DeckGL` catches errors from its own children first. Its fallback can only render native elements or `null`.
 

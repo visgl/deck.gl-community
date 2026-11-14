@@ -51,7 +51,7 @@ export const TREE_STATE_TEXEL = {
   CROP1_COLOR: 13,
   /** Crop slot 1 unripe tint: sRGB 0-1 RGB; alpha is the fallen rate (/s). */
   CROP1_UNRIPE: 14,
-  /** Dropped crops on the ground: slot 0 count, slot 1 count, and two unused. */
+  /** Dropped crops on the ground: slot 0 count, slot 1 count, canopy shell retention, unused. */
   CROP_DROPPED: 15
 } as const;
 
@@ -59,6 +59,13 @@ export const TREE_STATE_TEXEL = {
 export const TREE_TEMPLATE_TEXTURE_WIDTH = 2048;
 /** Four texels per leaf, so 16 floats. */
 export const TREE_LEAF_STRIDE = 16;
+
+/** Whether the leaf vertex shaders can reject a template record at fully mature growth. */
+export function isMatureLeafRejected(leaves: Float32Array, leaf: number): boolean {
+  const timing = leaf * TREE_LEAF_STRIDE + 8;
+  // Both backends compare the death time plus 0.004 to growth. Leave a rounding margin.
+  return leaves[timing] >= 1 || leaves[timing + 1] < 0.995999;
+}
 /** Two texels per crop anchor, so 8 floats. */
 export const TREE_CROP_ANCHOR_STRIDE = 8;
 /** Two texels per limb, so 8 floats. */

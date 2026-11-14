@@ -1,7 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
-import {Deck, OrbitView, COORDINATE_SYSTEM, type Layer} from '@deck.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {Deck, OrbitView, type Layer} from '@deck.gl/core';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {expect, it} from 'vitest';
 import {SplatLayer, TreeLayer, type TreeSpec} from '../../src';
 import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-layer';
@@ -71,7 +71,7 @@ it('composites interleaved prepared sources in depth order and reverses with the
           id: `order-${i}`,
           data,
           kernelVariance: 0,
-          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          coordinateSystem: 'cartesian',
           getPosition: [0, 0, 0],
           transparency: 'sorted',
           getScale: [1, 1, reverse ? -1 : 1],
@@ -124,7 +124,7 @@ it('keeps the interior of the banyan bole solid as wood detail changes', async (
       id: 'solid-banyan',
       data: rows,
       getTree: row => row,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       getFoliage: 0,
       lodBias,
       shadowEnabled: false,
@@ -185,7 +185,7 @@ it('updates optical fade weights without replacing the sorted geometry', async (
       id: 'coverage-update',
       data: asset,
       transparency: 'sorted',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       getPosition: [0, 0, -1],
       getCoverageWeight: () => weight,
       updateTriggers: {getCoverageWeight: weight},

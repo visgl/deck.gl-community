@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {color, getShaderAssembler, picking, project32} from '@deck.gl/core';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 import {describe, expect, it} from 'vitest';
 
 import blockSource from '../../infovis-layers/src/layers/block-layer/block-layer.wgsl';

@@ -6,7 +6,7 @@ import {getTreeCropWgslShaders} from './tree-photoreal-crop-wgsl';
 import {picking, project32, type DefaultProps} from '@deck.gl/core';
 import {Buffer, type Device, type Texture} from '@luma.gl/core';
 import {GPUGeometry, Model} from '@luma.gl/engine';
-import {phongMaterial} from '@luma.gl/shadertools';
+import {phongMaterial} from '@luma.gl/shaders';
 import {
   getTreeCropGeometry,
   getTreeCropTable,

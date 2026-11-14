@@ -10,8 +10,8 @@ import {AccordionPanel, ColumnPanel, MarkdownPanel, StatsPanel} from '../../../m
 import {BoxPanelWidget} from '../../../modules/widgets/src';
 import {SharedTile2DLayer, TileGridLayer} from '../../../modules/geo-layers/src';
 import {SharedTileset2D} from '../../../modules/geo-layers/src/tileset';
-import {TableTileSource} from '@loaders.gl/mvt';
-import type {TileSource} from '@loaders.gl/loader-utils';
+import {TableTileSourceLoader} from '@loaders.gl/tiles/mvt';
+import type {TileSource} from '@loaders.gl/core/loader-utils';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -304,7 +304,7 @@ function attachEstimatedByteLength(features: SharedPointFeature[]): TileContent 
 }
 
 function createSharedTileSource(): TileSource {
-  const source = TableTileSource.createDataSource(createSharedGeojsonTable(), {
+  const source = TableTileSourceLoader.createDataSourceSync(createSharedGeojsonTable(), {
     table: {
       coordinates: 'local',
       maxZoom: 14,
@@ -376,7 +376,7 @@ function buildInfoPanel(
         id: 'shared-tile-2d-layer-overview',
         title: '',
         markdown: [
-          'One shared auto-tiled GeoJSON `TableTileSource` and one shared `SharedTileset2D` feed styled `SharedTile2DLayer` comparisons plus a minimap.',
+          'One shared auto-tiled GeoJSON `TableTileSourceLoader` and one shared `SharedTileset2D` feed styled `SharedTile2DLayer` comparisons plus a minimap.',
           `Hovered feature: **${hoveredId ?? 'none'}**`,
           `Selected feature: **${selectedId ?? 'none'}**`
         ].join('\n\n')

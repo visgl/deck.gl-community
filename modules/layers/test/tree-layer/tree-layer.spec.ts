@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, LayerExtension, WebMercatorViewport} from '@deck.gl/core';
+import {LayerExtension, WebMercatorViewport} from '@deck.gl/core';
 import {describe, expect, it, vi} from 'vitest';
 import {
   TreeLayer,
@@ -35,6 +35,30 @@ function load(data: TreeSpec[] = [OAK], props: Partial<TreeLayerProps<TreeSpec>>
 }
 
 describe('TreeLayer species and attributes', () => {
+  it('assigns canopy tiers in projected crown order from either side of the shell cutoff', () => {
+    const viewport = new WebMercatorViewport({width: 640, height: 480, zoom: 20, pitch: 55});
+    const scene = mountTreeScene<TreeSpec>(viewport);
+    const data: TreeSpec[] = [
+      {...OAK, crownRadius: 1, trunkHeightFraction: 0.25},
+      {...OAK, crownRadius: 1, trunkHeightFraction: 0.55}
+    ];
+    const render = (lodBias: number) =>
+      scene.render({...baseProps, data, lodBias, windStrength: 0}).state.photoreal!.rows;
+    const [tall] = render(0);
+    const cutoff = Math.log2((tall.middlePixelsPerMeter * 7.5) / 60);
+
+    render(cutoff + 1);
+    const [first, second] = render(cutoff);
+    const weights = [first.shellRetention, second.shellRetention];
+    expect(first.shellLevel).toBe(0);
+    expect(weights[0]).toBeGreaterThan(0);
+    expect(weights[0]).toBeLessThan(1);
+    expect(second.shellLevel).toBe(0);
+    expect(weights[1]).toBe(0);
+    render(cutoff - 1);
+    expect(render(cutoff).map(row => row.shellRetention)).toEqual(weights);
+  });
+
   it('refreshes cached near-leaf bounds when moving a tree with coordinateOrigin', () => {
     const viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 23, pitch: 45});
     const scene = mountTreeScene<TreeSpec>(viewport);
@@ -43,7 +67,7 @@ describe('TreeLayer species and attributes', () => {
       target.render({
         ...baseProps,
         data,
-        coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+        coordinateSystem: 'meter-offsets',
         coordinateOrigin: [longitude, 0, 0],
         windStrength: 0,
         lodBias: -3
@@ -191,7 +215,7 @@ describe('TreeLayer composition contracts', () => {
   });
 
   it('rejects compositional scale and allows translation', () => {
-    for (const coordinateSystem of [COORDINATE_SYSTEM.CARTESIAN, COORDINATE_SYSTEM.METER_OFFSETS]) {
+    for (const coordinateSystem of ['cartesian', 'meter-offsets']) {
       expect(() =>
         load([OAK], {
           coordinateSystem,
@@ -201,7 +225,7 @@ describe('TreeLayer composition contracts', () => {
     }
     expect(() =>
       load([OAK], {
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        coordinateSystem: 'cartesian',
         modelMatrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 12, 4, 0, 1]
       })
     ).not.toThrow();

@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {getShaderAssembler, picking, project32, shadow} from '@deck.gl/core';
-import {type GLSLShaderAssembler, phongMaterial, type ShaderModule} from '@luma.gl/shadertools';
+import {
+  phongMaterial,
+  type ShaderModule,
+  type GLSLShaderAssembler,
+  type PlatformInfo
+} from '@luma.gl/shaders';
 import {describe, expect, it, vi} from 'vitest';
 import {SplatPrimitiveLayer} from '../../src/splat-layer/splat-primitive-layer';
 import {SPLAT_FRAGMENT, SPLAT_VERTEX, splatUniforms} from '../../src/splat-layer/splat-shaders';
@@ -26,7 +31,7 @@ function assembleGLSL(vs: string, fs: string, modules: ShaderModule[]) {
     vs,
     fs,
     modules,
-    platformInfo: GLSL_PLATFORM
+    platformInfo: GLSL_PLATFORM as PlatformInfo
   });
 }
 
@@ -57,7 +62,11 @@ describe('SplatPrimitiveLayer shadow pass', () => {
   function makeLayer(type: 'webgl' | 'webgpu') {
     const model = {shaderInputs: {setProps: vi.fn()}, setInstanceCount: vi.fn(), draw: vi.fn()};
     const layer = Object.assign(Object.create(SplatPrimitiveLayer.prototype), {
-      context: {device: {type, setParametersWebGL: vi.fn()}, timeline: {getTime: () => 0}},
+      context: {
+        viewport: {projectionMode: 1},
+        device: {type, setParametersWebGL: vi.fn()},
+        timeline: {getTime: () => 0}
+      },
       state: {model, effect: {resolve: vi.fn()}},
       props: {...SplatPrimitiveLayer.defaultProps, source: {}, deformationTime: 0},
       getNumInstances: () => 3,

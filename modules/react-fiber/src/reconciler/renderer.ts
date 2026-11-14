@@ -203,7 +203,7 @@ export function unmountAtNode(node: RootElement) {
  *
  * // Render layers
  * root.render(
- *   <layer layer={new ScatterplotLayer({ id: 'points', data })} />
+ *   <deckLayer layer={new ScatterplotLayer({ id: 'points', data })} />
  * );
  * ```
  */

@@ -1,8 +1,8 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {COORDINATE_SYSTEM, Deck, MapView, WebMercatorViewport} from '@deck.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {Deck, MapView, WebMercatorViewport} from '@deck.gl/core';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {expect, it} from 'vitest';
 import {TreeLayer, type TreeSpec} from '../../src';
 import {getTreeRenderTiers} from './tree-grove-test-utils';
@@ -66,7 +66,7 @@ it('refines a 10,000-tree citrus grove in a grazing view and retains source owne
       new TreeLayer<TreeSpec>({
         id: 'citrus-grove',
         data: grove,
-        coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+        coordinateSystem: 'meter-offsets',
         coordinateOrigin: [0, 0, 0],
         getTree: tree => tree,
         windStrength: 0,

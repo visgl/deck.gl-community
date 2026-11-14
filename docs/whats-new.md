@@ -2,7 +2,11 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
-## Unreleased
+## v10.0.0-alpha.1
+
+- **Breaking:** adopt deck.gl `10.0.0-alpha.1`, luma.gl `10.0.0-alpha.14`,
+  loaders.gl and math.gl `5.0.0-beta.8`, and probe.gl `5.0.0`.
+  Applications must update their peer dependencies together. See the [upgrade guide](./upgrade-guide.md).
 
 Gallery pages, inline documentation examples, and all 37 standalone HTML examples now share an iPhone-compatible fullscreen button.
 
@@ -11,9 +15,12 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
   preserve visualization state, manage focus and background scrolling, and clean up on removal.
   See [Fullscreen controls](./modules/panels/api-reference/panel-components/full-screen-component.md).
 
-- **react-fiber:** the `DeckGL` root matches `@deck.gl/react`, new `<widget>` and `<effect>`
+- **react-fiber:** the `DeckGL` root matches `@deck.gl/react`, new `<deckWidget>` and `<deckEffect>`
   elements add deck.gl widgets and effects from the React tree, and `/mapbox` and `/maplibre` roots attach to map overlays.
-  See the [migration guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react).
+  The elements are now `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`.
+  Every built-in deck.gl layer, view, widget and effect has a component, imported from a subpath named after its
+  module, such as `<ScatterplotLayer>` from `/layers`, and `createLayerComponent` wraps custom classes.
+  See the [upgrade guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react).
 
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 

@@ -122,6 +122,28 @@ describe('near leaf spatial clusters', () => {
     expect(empty.visibleLeaves.length).toBe(0);
   });
 
+  it('omits inactive mature records without changing original indices or the visibility count', () => {
+    const model = template();
+    for (let leaf = 0; leaf < model.leafCount; leaf++) {
+      const timing = leaf * TREE_LEAF_STRIDE + 8;
+      model.leaves[timing] = leaf % 4 === 0 ? 1 : 0.4;
+      model.leaves[timing + 1] = [2, 0.99, 0.9959995, 2][leaf % 4];
+    }
+    const clusters = getTreeLeafClusters(model);
+    const visible = (cluster: (typeof clusters)[number]) => cluster.bounds[0] > 0.4;
+    const full = selectTreeLeafClusters(clusters, visible, null);
+    const compact = selectTreeLeafClusters(clusters, visible, full, true);
+    expect(compact).not.toBe(full);
+    expect(compact.visible).toEqual(full.visible);
+    expect(compact.visibleLeafCount).toBe(full.visibleLeaves.length);
+    expect(compact.visibleLeaves.length).toBeLessThan(full.visibleLeaves.length);
+    expect(compact.visibleLeaves).toEqual(full.visibleLeaves.filter(leaf => leaf % 4 >= 2));
+    expect(selectTreeLeafClusters(clusters, visible, compact, true)).toBe(compact);
+    expect(selectTreeLeafClusters(clusters, visible, compact).visibleLeaves).toEqual(
+      full.visibleLeaves
+    );
+  });
+
   it('never rejects a leaf motion sphere intersecting a perspective view at any tested yaw or proportion', () => {
     const model = template();
     const clusters = getTreeLeafClusters(model);

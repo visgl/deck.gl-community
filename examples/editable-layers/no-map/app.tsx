@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
-import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
+import {Deck, OrthographicView} from '@deck.gl/core';
 import type {OrthographicViewState} from '@deck.gl/core';
 import {BitmapLayer} from '@deck.gl/layers';
 import {
@@ -206,12 +206,12 @@ function buildLayers(
       id: 'background-image',
       bounds: IMAGE_BOUNDS,
       image: BACKGROUND_IMAGE,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+      coordinateSystem: 'cartesian'
     }),
     new EditableGeoJsonLayer({
       id: 'editable-geojson',
       data: state.geoJson,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       mode: state.mode,
       selectedFeatureIndexes: state.selectedFeatureIndexes,
       onClick: state.mode === ViewMode ? onFeatureClick : undefined,

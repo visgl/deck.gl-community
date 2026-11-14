@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/react-fiber",
-  "version": "9.4.10",
+  "version": "10.0.0-alpha.1",
   "private": true,
   "description": "A React Fiber renderer for deck.gl",
   "license": "MIT",
@@ -42,6 +42,36 @@
       "require": "./dist/dom/maplibre.cjs",
       "import": "./dist/dom/maplibre.js"
     },
+    "./core": {
+      "types": "./dist/wrappers/core.d.ts",
+      "require": "./dist/wrappers/core.cjs",
+      "import": "./dist/wrappers/core.js"
+    },
+    "./layers": {
+      "types": "./dist/wrappers/layers.d.ts",
+      "require": "./dist/wrappers/layers.cjs",
+      "import": "./dist/wrappers/layers.js"
+    },
+    "./geo-layers": {
+      "types": "./dist/wrappers/geo-layers.d.ts",
+      "require": "./dist/wrappers/geo-layers.cjs",
+      "import": "./dist/wrappers/geo-layers.js"
+    },
+    "./aggregation-layers": {
+      "types": "./dist/wrappers/aggregation-layers.d.ts",
+      "require": "./dist/wrappers/aggregation-layers.cjs",
+      "import": "./dist/wrappers/aggregation-layers.js"
+    },
+    "./mesh-layers": {
+      "types": "./dist/wrappers/mesh-layers.d.ts",
+      "require": "./dist/wrappers/mesh-layers.cjs",
+      "import": "./dist/wrappers/mesh-layers.js"
+    },
+    "./widgets": {
+      "types": "./dist/wrappers/widgets.d.ts",
+      "require": "./dist/wrappers/widgets.cjs",
+      "import": "./dist/wrappers/widgets.js"
+    },
     "./reconciler": {
       "types": "./dist/reconciler/index.d.ts",
       "require": "./dist/reconciler/index.cjs",
@@ -64,36 +94,60 @@
     "react-reconciler": "0.33.0"
   },
   "peerDependencies": {
-    "@deck.gl/core": "~9.4.1",
-    "@deck.gl/mapbox": "~9.4.1",
-    "@deck.gl/maplibre": "~9.4.1",
+    "@deck.gl/aggregation-layers": "10.0.0-alpha.1",
+    "@deck.gl/core": "10.0.0-alpha.1",
+    "@deck.gl/geo-layers": "10.0.0-alpha.1",
+    "@deck.gl/layers": "10.0.0-alpha.1",
+    "@deck.gl/mapbox": "10.0.0-alpha.1",
+    "@deck.gl/maplibre": "10.0.0-alpha.1",
+    "@deck.gl/mesh-layers": "10.0.0-alpha.1",
+    "@deck.gl/widgets": "10.0.0-alpha.1",
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0"
   },
   "peerDependenciesMeta": {
+    "@deck.gl/aggregation-layers": {
+      "optional": true
+    },
+    "@deck.gl/geo-layers": {
+      "optional": true
+    },
+    "@deck.gl/layers": {
+      "optional": true
+    },
     "@deck.gl/mapbox": {
       "optional": true
     },
     "@deck.gl/maplibre": {
       "optional": true
+    },
+    "@deck.gl/mesh-layers": {
+      "optional": true
+    },
+    "@deck.gl/widgets": {
+      "optional": true
     }
   },
   "devDependencies": {
-    "@deck.gl/core": "~9.4.1",
-    "@deck.gl/extensions": "~9.4.1",
-    "@deck.gl/layers": "~9.4.1",
-    "@deck.gl/mapbox": "~9.4.1",
-    "@deck.gl/maplibre": "~9.4.1",
-    "@deck.gl/widgets": "~9.4.1",
-    "@loaders.gl/core": "^4.5.1",
-    "@luma.gl/core": "~9.4.2",
-    "@luma.gl/engine": "~9.4.2",
-    "@luma.gl/shadertools": "~9.4.2",
+    "@deck.gl/aggregation-layers": "10.0.0-alpha.1",
+    "@deck.gl/core": "10.0.0-alpha.1",
+    "@deck.gl/extensions": "10.0.0-alpha.1",
+    "@deck.gl/geo-layers": "10.0.0-alpha.1",
+    "@deck.gl/layers": "10.0.0-alpha.1",
+    "@deck.gl/mapbox": "10.0.0-alpha.1",
+    "@deck.gl/maplibre": "10.0.0-alpha.1",
+    "@deck.gl/mesh-layers": "10.0.0-alpha.1",
+    "@deck.gl/widgets": "10.0.0-alpha.1",
+    "@loaders.gl/core": "5.0.0-beta.8",
+    "@luma.gl/core": "10.0.0-alpha.14",
+    "@luma.gl/engine": "10.0.0-alpha.14",
+    "@luma.gl/shaders": "10.0.0-alpha.14",
     "@testing-library/dom": "^10.0.0",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "@types/react-reconciler": "0.33.0",
+    "esbuild": "^0.28.1",
     "fast-check": "^4.0.0",
     "jsdom": "^26.0.0",
     "mapbox-gl": "^3.8.0",

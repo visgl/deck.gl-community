@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {Deck, _GlobeView as GlobeView, type Layer} from '@deck.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {describe, expect, it} from 'vitest';
 import {SplatLayer, TreeLayer, type SplatSource, type TreeSpec} from '../../src';
 import {getTreeRenderTiers} from '../tree-layer/tree-grove-test-utils';

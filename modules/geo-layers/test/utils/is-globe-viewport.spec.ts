@@ -13,9 +13,9 @@ import {isGlobeViewport} from '../../src/index';
 const camera = {width: 256, height: 256, longitude: 10, latitude: 20, zoom: 2};
 
 describe('isGlobeViewport', () => {
-  it('detects a deck.gl 9.4 GlobeViewport (resolution 10)', () => {
+  it('detects a deck.gl v10 GlobeViewport (resolution 0)', () => {
     const viewport = new GlobeViewport(camera);
-    expect(viewport.resolution).toBe(10);
+    expect(viewport.resolution).toBe(0);
     expect(isGlobeViewport(viewport)).toBe(true);
   });
 

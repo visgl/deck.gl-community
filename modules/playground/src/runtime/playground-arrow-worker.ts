@@ -1,7 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 
-import {ArrowLoader} from '@loaders.gl/arrow';
+import {ArrowLoader} from '@loaders.gl/tables';
 import {parseInBatches} from '@loaders.gl/core';
 import {
   DataType,
@@ -22,14 +22,10 @@ self.onmessage = async (event: MessageEvent<Uint8Array>) => {
     }
     validateSchema(bytes);
     // The batch API returns Arrow tables without serializing unsupported dictionary schemas.
-    const batches: ReturnType<typeof ArrowLoader.parseInBatches> = await parseInBatches(
-      [bytes],
-      ArrowLoader,
-      {
-        worker: false,
-        arrow: {shape: 'arrow-table'}
-      }
-    );
+    const batches = await parseInBatches([bytes], ArrowLoader, {
+      worker: false,
+      arrow: {shape: 'arrow-table'}
+    });
     const rows: Record<string, unknown>[] = [];
     const appendRows = createRowNormalizer(rows);
     for await (const batch of batches) {

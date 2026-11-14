@@ -113,6 +113,21 @@ const FULL_VALUES: TreeStateUpdate = {
 };
 
 describe('TreeStateStore layout', () => {
+  it('marks camera detail for upload without dirtying lifecycle state', () => {
+    const store = createStore(null, FULL_VALUES);
+    store.setLeafDetail(0, 0.7);
+    expect(readFloat(store, 0, TEXEL.DETAIL, 0)).toBe(Math.fround(0.7));
+    expect(store.isDirty).toBe(true);
+    expect(store.tick(0, 0).changed).toBe(false);
+
+    store.clearDirty();
+    store.setLeafDetail(0, 0.7);
+    expect(store.isDirty).toBe(false);
+    set(store, {height: 9});
+    expect(read(store).leafDetail).toBe(0.7);
+    expect(store.tick(0, 0).changed).toBe(true);
+  });
+
   it('imports nothing but the shared layout, so it stays pure', () => {
     const source = readFileSync(
       new URL('../../src/tree-layer/tree-state-store.ts', import.meta.url),

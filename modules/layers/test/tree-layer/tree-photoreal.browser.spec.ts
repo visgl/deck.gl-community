@@ -5,7 +5,6 @@
 import {
   _GlobeView as GlobeView,
   AmbientLight,
-  COORDINATE_SYSTEM,
   Deck,
   DirectionalLight,
   LayerExtension,
@@ -16,8 +15,8 @@ import {
   type LayerManager
 } from '@deck.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
-import {CubeGeometry} from '@luma.gl/engine';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {CubeGeometry, type Model} from '@luma.gl/engine';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {SelectionPulseExtension, TreeLayer, type TreeSpec} from '../../src';
 import {TreePhotorealLeafLayer} from '../../src/tree-layer/tree-photoreal-leaf-layer';
@@ -34,7 +33,7 @@ const ORBIT_VIEW = new OrbitView({orbitAxis: 'Z', fovy: 40, near: 0.05, far: 8} 
 const ORBIT_STATE = {target: [0, 0, 2.8], rotationOrbit: 20, rotationX: 8, zoom: 5.2, maxZoom: 30};
 
 const coordinates = {
-  coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+  coordinateSystem: 'cartesian',
   coordinateOrigin: [0, 0, 0] as [number, number, number]
 };
 
@@ -214,17 +213,24 @@ class ShiftShadowReceivers extends LayerExtension<{pixels: number}> {
         {
           name: 'shiftShadowReceivers',
           vs: 'layout(std140) uniform shiftShadowReceiversUniforms { float offset; } shiftShadowReceivers;',
-          uniformTypes: {offset: 'f32'},
-          inject: {
-            'vs:DECKGL_FILTER_GL_POSITION': {
+          uniformTypes: {offset: 'f32'}
+        }
+      ],
+      plugins: [
+        {
+          name: 'shift-shadow-receivers',
+          injections: [
+            {
+              stage: 'vertex',
+              target: 'DECKGL_FILTER_GL_POSITION',
               order: 100,
-              injection: `
+              glsl: `
 #ifdef MODULE_SHADOW
   if (!shadow.drawShadowMap) position.x += shiftShadowReceivers.offset * position.w;
 #endif
 `
             }
-          }
+          ]
         }
       ]
     };
@@ -545,8 +551,8 @@ describe('TreeLayer photoreal rendering', () => {
           .map(layer => [layer.id, layer.state.model])
       );
     const loaded = models();
-    // The 13 individual leaf and branch variants, four fitted canopy tiers, and two stable casters.
-    expect(loaded.size).toBe(19);
+    // The 13 individual leaf and branch variants, four handoff variants, four shells and two casters.
+    expect(loaded.size).toBe(23);
     expect([...loaded.values()].every(Boolean)).toBe(true);
     const unchanged = () => {
       const current = models();
@@ -620,6 +626,73 @@ describe('TreeLayer photoreal rendering', () => {
     expect(scene.errors).toEqual([]);
     expect(scene.glErrors).toEqual([]);
   }, 120000);
+
+  it('preserves individual leaves when specializing upright trees in undirected wind', async () => {
+    const scene = mount({staticFrames: true, effects: [lighting(true)]});
+    const prototype = TreePhotorealLeafLayer.prototype as unknown as {
+      getDrawModel(
+        this: TreePhotorealLeafLayer,
+        params: Parameters<Layer['draw']>[0]
+      ): Model | undefined;
+    };
+    const getDrawModel = prototype.getDrawModel;
+    let useReference = false;
+    const usedMature = new Set<string>();
+    const select = vi.spyOn(prototype, 'getDrawModel').mockImplementation(function (
+      this: TreePhotorealLeafLayer,
+      params
+    ) {
+      const model = getDrawModel.call(this, params);
+      if (model && model === this.state.matureModel) usedMature.add(this.id);
+      return useReference ? this.state.model : model;
+    });
+    const data = [{...CITRUS, characteristics: {branchDensity: 0.5, leafDensity: 0.25}}];
+    const receiver = ground();
+    try {
+      const props = {windTime: 12, windStrength: 0.035, lodBias: 0};
+      const layers = [receiver, trees(props, data)];
+      const mature = await scene.render(layers, 1);
+      expect(usedMature.size).toBeGreaterThan(0);
+      useReference = true;
+      const reference = await scene.render(layers, 1);
+      // Optimizing the shader can change the rounding of an occasional color channel.
+      expect(mature.every((channel, index) => Math.abs(channel - reference[index]) <= 2)).toBe(
+        true
+      );
+      const highlightedLayers = [
+        receiver,
+        trees({...props, highlightedObjectIndex: 0, highlightColor: [255, 0, 255, 160]}, data)
+      ];
+      useReference = false;
+      const highlighted = await scene.render(highlightedLayers, 1);
+      expect(highlighted.some((channel, index) => Math.abs(channel - mature[index]) > 5)).toBe(
+        true
+      );
+      useReference = true;
+      const referenceHighlighted = await scene.render(highlightedLayers, 1);
+      expect(
+        highlighted.every((channel, index) => Math.abs(channel - referenceHighlighted[index]) <= 2)
+      ).toBe(true);
+
+      for (const next of [{foliage: 0.5}, {growth: 0.7}, {damage: 0.2}, {decay: 0.2}]) {
+        usedMature.clear();
+        useReference = false;
+        await scene.render([receiver, trees(props, [{...data[0], ...next}])]);
+        expect(usedMature.size).toBe(0);
+      }
+      usedMature.clear();
+      await scene.render([receiver, trees({...props, windDirection: 80}, data)]);
+      expect(usedMature.size).toBe(0);
+      await scene.render([receiver, trees(props, data)], 1);
+      usedMature.clear();
+      expect(scene.deck.pickObject({x: SIZE / 2, y: SIZE / 2, radius: 16})?.object).toBe(data[0]);
+      expect(usedMature.size).toBe(0);
+      expect(scene.errors).toEqual([]);
+      expect(scene.glErrors).toEqual([]);
+    } finally {
+      select.mockRestore();
+    }
+  }, 120_000);
 
   // Synchronous shadow and picking readback are slow on CI software rendering.
   it('compacts offscreen near leaves without changing macro pixels, shadows or picking', async () => {
@@ -732,7 +805,7 @@ describe('TreeLayer photoreal rendering', () => {
     const data = [CITRUS];
     const move = (x: number) =>
       placement === 'coordinateOrigin'
-        ? {coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS, coordinateOrigin: [x / 400, 0, 0]}
+        ? {coordinateSystem: 'meter-offsets', coordinateOrigin: [x / 400, 0, 0]}
         : {modelMatrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1]};
     expect(countPixels(await scene.render([trees(move(400), data)]))).toBe(0);
     expect(countPixels(await scene.render([trees(move(0), data)]))).toBeGreaterThan(100);
@@ -747,15 +820,10 @@ describe('TreeLayer photoreal rendering', () => {
       viewState: {longitude: 0, latitude: 0, zoom: 19, pitch: 20}
     });
     const data: TreeSpec[] = [{...CITRUS, position: [3, 0, 0]}];
-    const make = (
-      coordinateSystem:
-        | typeof COORDINATE_SYSTEM.METER_OFFSETS
-        | typeof COORDINATE_SYSTEM.LNGLAT_OFFSETS
-    ) => trees({coordinateSystem}, data);
-    expect(countPixels(await scene.render([make(COORDINATE_SYSTEM.LNGLAT_OFFSETS)]))).toBe(0);
-    expect(
-      countPixels(await scene.render([make(COORDINATE_SYSTEM.METER_OFFSETS)]))
-    ).toBeGreaterThan(100);
+    const make = (coordinateSystem: 'meter-offsets' | 'lnglat-offsets') =>
+      trees({coordinateSystem}, data);
+    expect(countPixels(await scene.render([make('lnglat-offsets')]))).toBe(0);
+    expect(countPixels(await scene.render([make('meter-offsets')]))).toBeGreaterThan(100);
     expect(scene.errors).toEqual([]);
   }, 120000);
 
@@ -846,7 +914,7 @@ describe('TreeLayer photoreal rendering', () => {
       viewState: {longitude: -81.5, latitude: 28, zoom: 20, pitch: 50, bearing: 20}
     });
     const mapPixels = await map.render([
-      trees({coordinateSystem: COORDINATE_SYSTEM.LNGLAT}, [lngLat([-81.5, 28, 0])])
+      trees({coordinateSystem: 'lnglat'}, [lngLat([-81.5, 28, 0])])
     ]);
     expect(countPixels(mapPixels)).toBeGreaterThan(1000);
     expect(Boolean(map.deck.pickObject({x: 128, y: 110, radius: 8})?.object)).toBe(true);
@@ -857,7 +925,7 @@ describe('TreeLayer photoreal rendering', () => {
       viewState: {longitude: -81.5, latitude: 28, zoom: 9.5}
     });
     const globePixels = await globe.render([
-      trees({coordinateSystem: COORDINATE_SYSTEM.LNGLAT, sizeScale: 1000}, [lngLat([-81.5, 28, 0])])
+      trees({coordinateSystem: 'lnglat', sizeScale: 1000}, [lngLat([-81.5, 28, 0])])
     ]);
     expect(countPixels(globePixels)).toBeGreaterThan(50);
     expect(globe.errors).toEqual([]);

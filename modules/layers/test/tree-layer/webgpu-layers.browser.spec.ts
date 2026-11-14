@@ -4,7 +4,6 @@
 
 import {
   AmbientLight,
-  COORDINATE_SYSTEM,
   Deck,
   DirectionalLight,
   LightingEffect,
@@ -12,8 +11,8 @@ import {
   type Effect
 } from '@deck.gl/core';
 import {luma, Buffer, Texture, type Device, type Framebuffer} from '@luma.gl/core';
-import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgl2Adapter, type WebGLDevice} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {describe, expect, inject, it} from 'vitest';
 
 import {TreeLayer} from '../../src';
@@ -132,7 +131,7 @@ async function renderDenseCanopy(type: 'webgl' | 'webgpu'): Promise<CanopyMetric
         layers: [
           new TreeLayer({
             id: `dense-canopy-${type}`,
-            coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+            coordinateSystem: 'meter-offsets',
             coordinateOrigin: [0, 0, 0],
             data: Array.from({length: 4}, (_, index) => ({
               position: [((index % 2) - 0.5) * 2, (Math.floor(index / 2) - 0.5) * 2] as [
@@ -235,7 +234,7 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
             // Local metre coordinates under MapView: in WebGPU, the first
             // TreeMesh pipeline must support its high/low position layout without exceeding
             // the device's eight-vertex-buffer limit.
-            coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+            coordinateSystem: 'meter-offsets',
             coordinateOrigin: [0, 0, 0],
             data: (
               ['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove', 'citrus'] as const

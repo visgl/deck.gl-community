@@ -103,7 +103,7 @@ export interface CreateDeckGLOptions<Props, Instance extends DeckGLRenderer> {
    */
   recreateOverlayOnChange?: readonly (keyof Props & string)[];
   /**
-   * Sends `<view>` children, merged with the `views` prop, to the overlay. Set it for an
+   * Sends `<deckView>` children, merged with the `views` prop, to the overlay. Set it for an
    * overlay that supports deck.gl views alongside its host map, such as `MapboxOverlay`
    * and `MapLibreOverlay`. Without it the overlay receives only its `views` prop.
    */
@@ -152,6 +152,8 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
     const detachedRoot = useRef<HTMLDivElement | null>(null);
     const rootOptions = useRef<RootOptions | undefined>(undefined);
     const resolvedCanvas = useRef<ResolvedCanvas | null>(null);
+    // The root and config last sent to `configure`, so a children-only commit skips it.
+    const configured = useRef<{root: ReconcilerRoot; config: DeckGLConfiguration} | null>(null);
 
     // Object-rest creates a new config object each render. Preserve the committed
     // config while its values are unchanged so a lifecycle callback replacement is non-reactive.
@@ -191,8 +193,13 @@ function createDeckGLComponent<Props, Instance extends DeckGLRenderer>(
         ? createRoot(rootElement, rootOptions.current)
         : createRoot(rootElement);
 
-      root.configure(rootConfig);
-      notifyDeckChange(root.store.getState().deckgl as Instance | null);
+      // Each `configure` calls deck.gl `setProps`. Only call it for a new root or a changed
+      // config; new children reach deck.gl through the render commit alone.
+      if (configured.current?.root !== root || configured.current.config !== config) {
+        configured.current = {config, root};
+        root.configure(rootConfig);
+        notifyDeckChange(root.store.getState().deckgl as Instance | null);
+      }
       root.render(
         <Bridge>
           <RootErrorBoundary onError={handleRootError}>{children}</RootErrorBoundary>
@@ -271,7 +278,7 @@ export function createDeckGL<Props, Instance extends DeckGLRenderer>(
  * The standalone Deck root exported from the package root and `/dom`.
  *
  * As in `@deck.gl/react`, the view state props are typed from the `views` prop. Without it,
- * they take one map view state. For views from `<view>` children or a widget, name their
+ * they take one map view state. For views from `<deckView>` children or a widget, name their
  * type: `<DeckGL<MapView[]> initialViewState={{left: ..., right: ...}}>`.
  */
 export function DeckGL<ViewsT extends View | View[] | null = null>(props: DeckGLProps<ViewsT>) {
