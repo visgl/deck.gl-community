@@ -311,7 +311,7 @@ defineChannel(CHANNEL_DECAY, POSE, 3, 0, 0, 1);
 defineColor(CHANNEL_CANOPY, CANOPY, [255, 255, 255, 255]);
 defineColor(CHANNEL_BARK, TRUNK, [255, 255, 255, 255]);
 defineChannel(CHANNEL_TRUNK_RADIUS, MISC, 0, 0.5, 0);
-defineChannel(CHANNEL_WIND_FLEX, MISC, 1, 1, 0);
+defineChannel(CHANNEL_WIND_FLEX, MISC, 1, 0, 0);
 defineChannel(CHANNEL_COVERAGE, MISC, 2, 1, 0, 1);
 defineChannel(CHANNEL_LEAF_SCALE, MISC, 3, 1, 0);
 defineChannel(CHANNEL_LEAF_DETAIL, DETAIL, 0, 1, 0, 1);
