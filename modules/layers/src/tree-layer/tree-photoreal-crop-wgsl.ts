@@ -62,13 +62,9 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
   output.position = TREE_CULLED;
   let row = u32(input.instanceCropRef.x + 0.5);
   let index = input.instanceCropRef.y;
-  let code = u32(input.instanceCropRef.z + 0.5);
-  let slot = code % 2u;
-  let dropped = (code & 2u) != 0u;
-  let offTwig = (code & 4u) != 0u;
-  let first = ${TREE_STATE_TEXEL.CROP0}u + slot * ${TREE_STATE_TEXEL.CROP1 - TREE_STATE_TEXEL.CROP0}u;
-  let crop = treeStateTexel(treeState, row, first);
-  let total = select(crop.x, treeStateTexel(treeState, row, ${TREE_STATE_TEXEL.CROP_DROPPED}u)[slot], dropped) *
+  let dropped = input.instanceCropRef.z > 0.5;
+  let crop = treeStateTexel(treeState, row, ${TREE_STATE_TEXEL.CROP}u);
+  let total = select(crop.x, treeStateTexel(treeState, row, ${TREE_STATE_TEXEL.CROP_DROPPED}u).x, dropped) *
     treePhotoreal.look.x;
   if (crop.y <= 0.0 || total <= 0.0) { return output; }
   let life = treeReadLife(treeState, row);
@@ -77,7 +73,7 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
   let cluster = max(treePhotoreal.shape.w, 1.0);
   let parent = u32(floor(index / cluster));
   let member = index - f32(parent) * cluster;
-  var seed = fract(index * 0.61803399 + f32(slot) * 0.37 + life.seed);
+  var seed = fract(index * 0.61803399 + life.seed);
   var grown = smoothstep(0.0, 0.02, life.growth);
   var anchor = vec3<f32>(0.0);
   var outer = 0u;
@@ -98,8 +94,8 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
     grown = smoothstep(0.0, max(min(1.0 - born, 0.012), 1e-6), age);
   }
 
-  let ripe = treeStateTexel(treeState, row, first + 1u);
-  let unripe = treeStateTexel(treeState, row, first + 2u);
+  let ripe = treeStateTexel(treeState, row, ${TREE_STATE_TEXEL.CROP_COLOR}u);
+  let unripe = treeStateTexel(treeState, row, ${TREE_STATE_TEXEL.CROP_UNRIPE}u);
   if (fract(seed * 61.73 + life.seed) >= life.coverage * ripe.a) { return output; }
   ${
     flower
@@ -132,7 +128,7 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
   let restZ = treePhotoreal.shape.z * radius + TREE_GROUND;
   let stem = full * treePhotoreal.look.w * (0.72 + 0.56 * hashE) * swell;
   let axis = vec2<f32>(cos(hashB * 2.0 * TREE_TWO_PI), sin(hashB * 2.0 * TREE_TWO_PI));
-  ${flower ? 'var' : 'let'} offset = axis * stem * select(0.25 + 0.6 * hashC, 1.0, offTwig);
+  ${flower ? 'var' : 'let'} offset = axis * stem * (0.25 + 0.6 * hashC);
   ${
     flower
       ? `

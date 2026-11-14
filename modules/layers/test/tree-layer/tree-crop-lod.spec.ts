@@ -22,8 +22,7 @@ describe('TreeLayer crop mesh selection', () => {
     const render = (lean: TreeSpec['lean']) => {
       const layer = scene.render({
         data: [{...tree, lean}],
-        shadowEnabled: false,
-        _cropOnly: true
+        shadowEnabled: false
       });
       return [...layer.state.photoreal!.groups.values()][0].rows[0].crop;
     };

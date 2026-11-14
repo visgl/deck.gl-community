@@ -37,18 +37,16 @@ export const SHELL_GRID_TINY: ShellGrid = {azimuths: 5, elevations: [-12]};
 
 /** Growth at which hulls are fitted. The vertex stage blends the two around a tree's growth. */
 export const SHELL_STAGES: readonly number[] = [0.03, 0.08, 0.14, 0.22, 0.32, 0.45, 0.6, 0.8, 1.0];
-/** Optical depth at which the shell renderer treats a crown as opaque. */
-export const SHELL_OPAQUE_TAU = 2;
 
 /** Texels per vertex: position and normal. */
 const VERTEX_TEXELS = 2;
 
-export function getShellVertexCount(grid: ShellGrid): number {
+function getShellVertexCount(grid: ShellGrid): number {
   return grid.azimuths * grid.elevations.length + 2;
 }
 
 /** Vertex index of (ring, azimuth): ring 0 is the bottom pole, ring `rings + 1` the top pole. */
-export function getShellVertexIndex(grid: ShellGrid, ring: number, azimuth: number): number {
+function getShellVertexIndex(grid: ShellGrid, ring: number, azimuth: number): number {
   const rings = grid.elevations.length;
   if (ring <= 0) return 0;
   if (ring >= rings + 1) return 1 + rings * grid.azimuths;
@@ -97,64 +95,30 @@ function getShellDirections(grid: ShellGrid): Float32Array {
   return out;
 }
 
-/** Of a stage, what the vertex stage needs besides its vertices. */
-export type ShellStageInfo = {
-  growth: number;
-  /** Leaves alive, as a fraction of the mature tree's. */
-  leaves: number;
-  /** Lowest and highest leaf, template z. */
-  bottom: number;
-  top: number;
-};
-
-export type ShellFitOptions = {
-  /** Percentile of a direction's leaves that its vertex reaches. */
-  percentile: number;
-  /** How much a vertex is pulled toward the mean of its neighbours, 0-1. */
-  smoothing: number;
-};
-
-export const DEFAULT_SHELL_FIT: ShellFitOptions = {percentile: 0.97, smoothing: 0.2};
-
 /**
- * One template's hulls: `SHELL_STAGES.length` lines of `2 + 2 * vertices` RGBA texels. Texel 0 of a line is the
- * stage: leaves alive (fraction of the template's), half width (crown radii), lowest and highest leaf z. Texel 1 is
- * the template's: the area of all its leaves, in square metres at its reference height. Then per vertex: position
- * xyz and the median damage at which its leaves come off (2 if never), and normal xyz and how far in its median
- * leaf lies (0-1).
+ * One row of RGBA texels per growth stage. The first texel stores the fraction of live leaves.
+ * Each vertex then stores position and median break threshold, followed by normal and median leaf depth.
  */
-export type ShellHull = {
-  grid: ShellGrid;
+type ShellHull = {
   vertexCount: number;
   lineTexels: number;
   data: Float32Array;
-  stages: ShellStageInfo[];
 };
 
 const RADIUS_BUCKETS = 96;
 const RADIUS_MAX = 1.6;
+const SHELL_PERCENTILE = 0.97;
+const SHELL_SMOOTHING = 0.2;
 
 /** Fits the hulls of every stage of one template. A few milliseconds per stage. */
-export function fitShellHull(
-  model: TreeGrowthModel,
-  grid: ShellGrid,
-  options: ShellFitOptions = DEFAULT_SHELL_FIT
-): ShellHull {
+export function fitShellHull(model: TreeGrowthModel, grid: ShellGrid): ShellHull {
   const vertexCount = getShellVertexCount(grid);
-  const lineTexels = 2 + VERTEX_TEXELS * vertexCount;
+  const lineTexels = 1 + VERTEX_TEXELS * vertexCount;
   const data = new Float32Array(SHELL_STAGES.length * lineTexels * 4);
   const directions = getShellDirections(grid);
   const rings = grid.elevations.length;
   const {limbs, limbCount} = model;
   const {leafCount, leaves} = model;
-  const stages: ShellStageInfo[] = [];
-  // Leaves are ellipses, width over length in component 15.
-  let leafArea = 0;
-  for (let leaf = 0; leaf < leafCount; leaf++) {
-    const length = leaves[leaf * 16 + 3];
-    leafArea += 0.785 * length * length * leaves[leaf * 16 + 15];
-  }
-
   // When a leaf comes off with damage: the first limb under it, of those that break and fall, to break.
   const lossAt = new Float32Array(leafCount);
   for (let leaf = 0; leaf < leafCount; leaf++) {
@@ -197,16 +161,13 @@ export function fitShellHull(
       const z = leaves[leaf * 16 + 2];
       if (z < bottom) bottom = z;
       if (z > top) top = z;
-    }
-    for (let leaf = 0; leaf < leafCount; leaf++) {
-      if (leaves[leaf * 16 + 8] > g || g >= leaves[leaf * 16 + 9]) continue;
       const r = Math.hypot(leaves[leaf * 16], leaves[leaf * 16 + 1]);
       radial[Math.min(RADIUS_BUCKETS - 1, Math.floor((r / RADIUS_MAX) * RADIUS_BUCKETS))]++;
     }
     let horizontal = 0.05;
     for (let b = 0, sum = 0; b < RADIUS_BUCKETS; b++) {
       sum += radial[b];
-      if (sum >= alive * 0.97) {
+      if (sum >= alive * SHELL_PERCENTILE) {
         horizontal = ((b + 1) / RADIUS_BUCKETS) * RADIUS_MAX;
         break;
       }
@@ -266,7 +227,7 @@ export function fitShellHull(
         sum += histogram[v * RADIUS_BUCKETS + b];
         const r = ((b + 0.5) / RADIUS_BUCKETS) * RADIUS_MAX;
         if (p50 < 0 && sum >= n * 0.5) p50 = r;
-        if (pHigh < 0 && sum >= n * options.percentile) pHigh = r;
+        if (pHigh < 0 && sum >= n * SHELL_PERCENTILE) pHigh = r;
       }
       reach[v] = pHigh;
       inner[v] = pHigh > 0 ? p50 / pHigh : 0.5;
@@ -295,17 +256,12 @@ export function fitShellHull(
         count++;
       });
       smoothed[v] = count
-        ? reach[v] * (1 - options.smoothing) + (total / count) * options.smoothing
+        ? reach[v] * (1 - SHELL_SMOOTHING) + (total / count) * SHELL_SMOOTHING
         : reach[v];
     }
 
     const line = s * lineTexels * 4;
     data[line] = alive / leafCount;
-    data[line + 1] = halfWidth;
-    data[line + 2] = bottom;
-    data[line + 3] = top;
-    data[line + 4] = leafArea;
-    stages.push({growth: g, leaves: alive / leafCount, bottom, top});
 
     // Positions in template space.
     const positions = new Float32Array(vertexCount * 3);
@@ -318,7 +274,7 @@ export function fitShellHull(
     // Normals from the faces around each vertex, in metres-like space (x, y crown radii, z heights).
     const normals = getShellNormals(grid, positions);
     for (let v = 0; v < vertexCount; v++) {
-      const offset = line + 8 + v * VERTEX_TEXELS * 4;
+      const offset = line + 4 + v * VERTEX_TEXELS * 4;
       data[offset] = positions[v * 3];
       data[offset + 1] = positions[v * 3 + 1];
       data[offset + 2] = positions[v * 3 + 2];
@@ -330,7 +286,7 @@ export function fitShellHull(
       data[offset + 7] = inner[v];
     }
   }
-  return {grid, vertexCount, lineTexels, data, stages};
+  return {vertexCount, lineTexels, data};
 }
 
 function forEachNeighbour(grid: ShellGrid, vertex: number, callback: (u: number) => void): void {

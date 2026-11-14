@@ -9,11 +9,10 @@ import {
   LightingEffect,
   MapView,
   OrbitView,
-  type Layer,
-  type LayerManager
+  type Layer
 } from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
-import {afterEach, describe, expect, it, vi} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {SelectionPulseExtension, TreeLayer, type CropConfig, type TreeSpec} from '../../src';
 import {getTreeCropTable} from '../../src/tree-layer/tree-crop';
 import {TreePhotorealCropLayer} from '../../src/tree-layer/tree-photoreal-crop-layer';
@@ -23,7 +22,7 @@ import {
 } from '../../src/tree-layer/tree-photoreal-layout';
 import {TreePhotorealLeafLayer} from '../../src/tree-layer/tree-photoreal-leaf-layer';
 import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-layer';
-import {createTreeFrameReader} from './tree-browser-frame-reader';
+import {mountTreeBrowserScene, type TreeBrowserScene as Scene} from './tree-browser-frame-reader';
 
 const SIZE = 256;
 
@@ -52,79 +51,23 @@ const TREE: TreeSpec = {
   foliage: 0
 };
 
-type Scene = {
-  deck: Deck;
-  errors: string[];
-  glErrors: number[];
-  layerManager(): LayerManager;
-  setViewState(viewState: unknown): void;
-  render(layers: Layer[], frames?: number): Promise<Uint8Array>;
-  settle(frames?: number): Promise<Uint8Array>;
-  cleanup(): void;
-};
-
-const scenes = new Set<Scene>();
-
-function mount({
-  effects,
-  views = ORBIT_VIEW,
-  viewState = ORBIT_STATE,
-  staticFrames = false
-}: {
-  effects?: LightingEffect[];
-  views?: unknown;
-  viewState?: unknown;
-  staticFrames?: boolean;
-} = {}): Scene {
-  const parent = document.createElement('div');
-  parent.style.cssText = `width:${SIZE}px;height:${SIZE}px`;
-  document.body.append(parent);
-  const errors: string[] = [];
-  const glErrors: number[] = [];
-  const frameReader = createTreeFrameReader(SIZE, glErrors, staticFrames);
-  const deck = new Deck({
-    parent,
-    width: SIZE,
-    height: SIZE,
-    useDevicePixels: false,
-    _animate: true,
-    deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
-    views: views as never,
-    viewState: viewState as never,
-    effects: effects ?? [],
-    layers: [],
-    onError: error => errors.push(error.message),
-    onAfterRender: frameReader.onAfterRender
+function mount(options: Partial<Parameters<typeof mountTreeBrowserScene>[0]> = {}): Scene {
+  return mountTreeBrowserScene({
+    size: SIZE,
+    views: ORBIT_VIEW,
+    viewState: ORBIT_STATE,
+    ...options
   });
-  const settle = (count?: number) => frameReader.settle(deck, count);
-  const scene: Scene = {
-    deck,
-    errors,
-    glErrors,
-    settle,
-    layerManager: () => (deck as unknown as {layerManager: LayerManager}).layerManager,
-    setViewState: state => deck.setProps({viewState: state as never}),
-    render(layers, frames) {
-      deck.setProps({layers});
-      return settle(frames);
-    },
-    cleanup() {
-      if (!scenes.delete(scene)) return;
-      deck.finalize();
-      parent.remove();
-    }
-  };
-  scenes.add(scene);
-  return scene;
 }
 
-afterEach(() => {
-  for (const scene of scenes) scene.cleanup();
-});
-
 /** One tree whose crops are in `tree.crop`. CI renders in software, and a coarse mesh tests the same. */
-function trees(tree: TreeSpec, props: Record<string, unknown> = {}, data: TreeSpec[] = [tree]) {
-  return new TreeLayer<TreeSpec>({
+function trees(
+  tree: TreeSpec,
+  props: Record<string, unknown> = {},
+  data: TreeSpec[] = [tree],
+  Layer = TreeLayer<TreeSpec>
+) {
+  return new Layer({
     ...coordinates,
     id: 'trees',
     data,
@@ -182,38 +125,6 @@ function countDifferent(a: Uint8Array, b: Uint8Array): number {
 }
 
 describe('TreeLayer photoreal crops', () => {
-  it('keeps photoreal crops in a crop-only pass without preparing canopy geometry', async () => {
-    const scene = mount();
-    const data = [{...TREE, foliage: 1, crop: fruit({count: 300})}];
-    const preparation = TreeLayer.prototype as unknown as {
-      updateNearLeaves(...args: unknown[]): void;
-      updateLeafSelection(...args: unknown[]): void;
-    };
-    const prepareLeaves = vi.spyOn(preparation, 'updateNearLeaves');
-    const selectLeaves = vi.spyOn(preparation, 'updateLeafSelection');
-    try {
-      const lodBias = -1;
-      const pixels = await scene.render([trees(data[0], {_cropOnly: true, lodBias}, data)], 1);
-      expect(countCrop(pixels)).toBeGreaterThan(10);
-      expect(cropLayers(scene).some(layer => layer.props.visible)).toBe(true);
-      expect(subLayers(scene).some(layer => layer instanceof TreePhotorealLeafLayer)).toBe(false);
-      expect(subLayers(scene).some(layer => layer instanceof TreePhotorealWoodLayer)).toBe(false);
-      expect(prepareLeaves).not.toHaveBeenCalled();
-      expect(selectLeaves).not.toHaveBeenCalled();
-
-      // Switching the same layer back restores its canopy and the normal per-leaf preparation.
-      await scene.render([trees(data[0], {_cropOnly: false, lodBias}, data)], 1);
-      expect(subLayers(scene).some(layer => layer instanceof TreePhotorealLeafLayer)).toBe(true);
-      expect(subLayers(scene).some(layer => layer instanceof TreePhotorealWoodLayer)).toBe(true);
-      expect(selectLeaves).toHaveBeenCalled();
-      expect(scene.errors).toEqual([]);
-      expect(scene.glErrors).toEqual([]);
-    } finally {
-      prepareLeaves.mockRestore();
-      selectLeaves.mockRestore();
-    }
-  }, 60_000);
-
   it('draws fruit only once growth reaches its anchors', async () => {
     const scene = mount();
     const at = (growth: number, crop: CropConfig | null) =>
@@ -406,15 +317,23 @@ describe('TreeLayer photoreal crops', () => {
       return count;
     };
     const near = {...ORBIT_STATE, target: [1.2, 0, 0], rotationX: 30, zoom: 7.6};
+    class CropFixture extends TreeLayer<TreeSpec> {
+      static layerName = 'CropFixture';
+
+      filterSubLayer(context: Parameters<TreeLayer['filterSubLayer']>[0]): boolean {
+        return context.layer instanceof TreePhotorealCropLayer && super.filterSubLayer(context);
+      }
+    }
     const make = (droppedCount: number, windTime: number) =>
       trees(
-        {...TREE, canopyColor: [0, 0, 0, 0], crop: fruit({count: 0, radius: 0.12, droppedCount})},
+        {...TREE, crop: fruit({count: 0, radius: 0.12, droppedCount})},
         {
-          _cropOnly: true,
           lodBias: 0,
           updateTriggers: {getTree: `${droppedCount}-${windTime}`},
           windTime
-        }
+        },
+        undefined,
+        CropFixture
       );
     // Sample only the frames used by assertions and release each software GPU context before the next.
     const scene = mount({viewState: near, staticFrames: true});
@@ -483,7 +402,7 @@ describe('TreeLayer photoreal crops', () => {
     // Halfway there it holds half.
     timeline.setTime(2000);
     await scene.settle();
-    expect(treeLayer(scene).state.store!.getRowValues(0).crops[0].dropped).toBeCloseTo(100);
+    expect(treeLayer(scene).state.store!.getRowValues(0).crop.dropped).toBeCloseTo(100);
     timeline.setTime(3000);
     const pixels = await scene.settle();
     const dropped = countCrop(pixels, 0, 180, SIZE, SIZE);
@@ -923,9 +842,9 @@ describe('TreeLayer photoreal crops', () => {
     const instanced = cropLayers(scene)[0].props.data;
     timeline.setTime(2000);
     await scene.settle();
-    const {crops} = treeLayer(scene).state.store!.getRowValues(0);
-    expect(crops[0].count).toBeCloseTo(50);
-    expect(crops[0].radius).toBeCloseTo(0.09);
+    const {crop} = treeLayer(scene).state.store!.getRowValues(0);
+    expect(crop.count).toBeCloseTo(50);
+    expect(crop.radius).toBeCloseTo(0.09);
     expect(treeLayer(scene).state.ticking).toBe(true);
     timeline.setTime(3000);
     await scene.settle();

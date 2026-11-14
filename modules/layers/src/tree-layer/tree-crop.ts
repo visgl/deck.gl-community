@@ -1026,12 +1026,11 @@ export function updateTreeCropCapacity(
   return true;
 }
 
-/** The instance refs of one slot: `[tree row, crop index, slot code]` each. Returns the next offset. */
+/** The instance refs for attached crops: `[tree row, crop index, dropped]`. Returns the next offset. */
 export function writeTreeCropRefs(
   out: Float32Array,
   offset: number,
   row: number,
-  slotCode: number,
   capacity: TreeCropCapacity,
   table: TreeCropTable,
   cluster: number
@@ -1040,7 +1039,7 @@ export function writeTreeCropRefs(
   for (let crop = 0; crop < capacity.capacity; crop++) {
     out[offset++] = row;
     out[offset++] = anchors[Math.floor(crop / cluster)] * cluster + (crop % cluster);
-    out[offset++] = slotCode;
+    out[offset++] = 0;
   }
   return offset;
 }
