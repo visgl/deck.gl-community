@@ -17,7 +17,11 @@ import type {PhongMaterialProps, ShaderModule} from '@luma.gl/shadertools';
 import {prepareShadowDraw} from '../splat-layer/splat-shadow';
 import type {TreeType} from './tree-layer';
 import {getTreeShadowWgsl, treeUnshadowedWgsl} from './tree-photoreal-shadow-wgsl';
-import {TREE_TEMPLATE_TEXTURE_WIDTH, type TreeGrowthModel} from './tree-photoreal-layout';
+import {
+  isMatureLeafRejected,
+  TREE_TEMPLATE_TEXTURE_WIDTH,
+  type TreeGrowthModel
+} from './tree-photoreal-layout';
 import {TREE_WIND_STRONG_FROM} from './tree-wind';
 import {
   getTreeLeafPaleness,
@@ -32,6 +36,7 @@ export type TreeTemplateResources = {
   woodIndices: Buffer;
   /** `TREE_LEAF_STRIDE` floats per leaf. */
   leaves: Texture;
+  matureLeafIndices?: Map<string, MatureTreeLeafIndices | null>;
   /** `TREE_CROP_ANCHOR_STRIDE` floats per anchor. */
   cropAnchors: Texture;
   /** `TREE_LIMB_STRIDE` floats per limb. */
@@ -123,8 +128,55 @@ export function releaseTreeTemplateResources(device: Device, model: TreeGrowthMo
   entry.woodVertices.destroy();
   entry.woodIndices.destroy();
   entry.leaves.destroy();
+  for (const indices of entry.matureLeafIndices?.values() ?? []) indices?.buffer.destroy();
   entry.cropAnchors.destroy();
   entry.limbs.destroy();
+}
+
+export type MatureTreeLeafIndices = {buffer: Buffer; indexCounts: Uint32Array};
+
+/** Compact the leaves rejected at growth 1 while retaining their original vertex IDs. */
+export function getMatureTreeLeafIndices(
+  device: Device,
+  resources: TreeTemplateResources,
+  template: TreeGrowthModel,
+  layout: {key: string; corners: number; pattern: readonly number[]},
+  leaves: number
+): MatureTreeLeafIndices | null {
+  const {key, corners, pattern} = layout;
+  resources.matureLeafIndices ??= new Map();
+  const cache = resources.matureLeafIndices;
+  const cacheKey = `${key}-${leaves}`;
+  const existing = cache.get(cacheKey);
+  if (existing !== undefined) return existing;
+
+  const indexCounts = new Uint32Array(leaves + 1);
+  for (let leaf = 0; leaf < leaves; leaf++) {
+    const inactive = isMatureLeafRejected(template.leaves, leaf);
+    indexCounts[leaf + 1] = indexCounts[leaf] + (inactive ? 0 : pattern.length);
+  }
+  const count = indexCounts[leaves];
+  if (count === 0 || count === leaves * pattern.length) {
+    cache.set(cacheKey, null);
+    return null;
+  }
+
+  const indices = new Uint32Array(count);
+  for (let leaf = 0; leaf < leaves; leaf++) {
+    const start = indexCounts[leaf];
+    if (start === indexCounts[leaf + 1]) continue;
+    for (let i = 0; i < pattern.length; i++) indices[start + i] = leaf * corners + pattern[i];
+  }
+  const result = {
+    buffer: device.createBuffer({
+      id: `tree-mature-leaf-indices-${template.key}-${cacheKey}`,
+      usage: Buffer.INDEX,
+      data: indices
+    }),
+    indexCounts
+  };
+  cache.set(cacheKey, result);
+  return result;
 }
 
 type LeafIndexEntry = {

@@ -16,7 +16,7 @@ import {
   type LayerManager
 } from '@deck.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
-import {CubeGeometry} from '@luma.gl/engine';
+import {CubeGeometry, type Model} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {SelectionPulseExtension, TreeLayer, type TreeSpec} from '../../src';
@@ -545,8 +545,8 @@ describe('TreeLayer photoreal rendering', () => {
           .map(layer => [layer.id, layer.state.model])
       );
     const loaded = models();
-    // The 13 individual leaf and branch variants, four fitted canopy tiers, and two stable casters.
-    expect(loaded.size).toBe(19);
+    // The 13 individual leaf and branch variants, four handoff variants, four shells and two casters.
+    expect(loaded.size).toBe(23);
     expect([...loaded.values()].every(Boolean)).toBe(true);
     const unchanged = () => {
       const current = models();
@@ -620,6 +620,73 @@ describe('TreeLayer photoreal rendering', () => {
     expect(scene.errors).toEqual([]);
     expect(scene.glErrors).toEqual([]);
   }, 120000);
+
+  it('preserves individual leaves when specializing upright trees in undirected wind', async () => {
+    const scene = mount({staticFrames: true, effects: [lighting(true)]});
+    const prototype = TreePhotorealLeafLayer.prototype as unknown as {
+      getDrawModel(
+        this: TreePhotorealLeafLayer,
+        params: Parameters<Layer['draw']>[0]
+      ): Model | undefined;
+    };
+    const getDrawModel = prototype.getDrawModel;
+    let useReference = false;
+    const usedMature = new Set<string>();
+    const select = vi.spyOn(prototype, 'getDrawModel').mockImplementation(function (
+      this: TreePhotorealLeafLayer,
+      params
+    ) {
+      const model = getDrawModel.call(this, params);
+      if (model && model === this.state.matureModel) usedMature.add(this.id);
+      return useReference ? this.state.model : model;
+    });
+    const data = [{...CITRUS, characteristics: {branchDensity: 0.5, leafDensity: 0.25}}];
+    const receiver = ground();
+    try {
+      const props = {windTime: 12, windStrength: 0.035, lodBias: 0};
+      const layers = [receiver, trees(props, data)];
+      const mature = await scene.render(layers, 1);
+      expect(usedMature.size).toBeGreaterThan(0);
+      useReference = true;
+      const reference = await scene.render(layers, 1);
+      // Optimizing the shader can change the rounding of an occasional color channel.
+      expect(mature.every((channel, index) => Math.abs(channel - reference[index]) <= 2)).toBe(
+        true
+      );
+      const highlightedLayers = [
+        receiver,
+        trees({...props, highlightedObjectIndex: 0, highlightColor: [255, 0, 255, 160]}, data)
+      ];
+      useReference = false;
+      const highlighted = await scene.render(highlightedLayers, 1);
+      expect(highlighted.some((channel, index) => Math.abs(channel - mature[index]) > 5)).toBe(
+        true
+      );
+      useReference = true;
+      const referenceHighlighted = await scene.render(highlightedLayers, 1);
+      expect(
+        highlighted.every((channel, index) => Math.abs(channel - referenceHighlighted[index]) <= 2)
+      ).toBe(true);
+
+      for (const next of [{foliage: 0.5}, {growth: 0.7}, {damage: 0.2}, {decay: 0.2}]) {
+        usedMature.clear();
+        useReference = false;
+        await scene.render([receiver, trees(props, [{...data[0], ...next}])]);
+        expect(usedMature.size).toBe(0);
+      }
+      usedMature.clear();
+      await scene.render([receiver, trees({...props, windDirection: 80}, data)]);
+      expect(usedMature.size).toBe(0);
+      await scene.render([receiver, trees(props, data)], 1);
+      usedMature.clear();
+      expect(scene.deck.pickObject({x: SIZE / 2, y: SIZE / 2, radius: 16})?.object).toBe(data[0]);
+      expect(usedMature.size).toBe(0);
+      expect(scene.errors).toEqual([]);
+      expect(scene.glErrors).toEqual([]);
+    } finally {
+      select.mockRestore();
+    }
+  }, 120_000);
 
   // Synchronous shadow and picking readback are slow on CI software rendering.
   it('compacts offscreen near leaves without changing macro pixels, shadows or picking', async () => {

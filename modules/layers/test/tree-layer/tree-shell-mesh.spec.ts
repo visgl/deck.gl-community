@@ -20,7 +20,7 @@ describe('TreeLayer fitted crowns', () => {
     const levels = [0, 1, 2, 3].map(level => getTreeShellMesh(template, level));
     const counts = levels.map(mesh => mesh.indices.length);
     expect(counts).toEqual([...counts].sort((a, b) => b - a));
-    expect(levels[0].height).toBeGreaterThan(SHELL_STAGES.length);
+    expect(levels[0].height).toBe(SHELL_STAGES.length);
     expect(counts[3]).toBe(30);
     for (const [level, mesh] of levels.entries()) {
       expect(mesh.data).toHaveLength(mesh.width * mesh.height * 4);

@@ -15,6 +15,8 @@ import {
   treePhotoreal,
   TREE_PHOTOREAL_FRAGMENT_CHUNK,
   TREE_PHOTOREAL_VERTEX_CHUNK,
+  TREE_SHELL_COVERAGE_GLSL,
+  TREE_SHELL_COVERAGE_WGSL,
   type TreePhotorealUniforms
 } from './tree-photoreal-shaders';
 import {getTreeWgslTextures} from './tree-photoreal-wgsl';
@@ -24,7 +26,7 @@ import {getTreeShellMesh} from './tree-shell-mesh';
 const GLSL_STAGES = SHELL_STAGES.map(stage => stage.toFixed(2)).join(', ');
 const STAGE_COUNT = SHELL_STAGES.length;
 const LAST_STAGE = STAGE_COUNT - 1;
-const CANOPY = TREE_STATE_TEXEL.CANOPY;
+const {CANOPY, CROP_DROPPED} = TREE_STATE_TEXEL;
 
 const vertex = /* glsl */ `#version 300 es
 precision highp float;
@@ -39,6 +41,9 @@ out vec4 vTint;
 out vec3 vNormal;
 out vec3 vPosition;
 out vec3 vLife;
+#ifdef TREE_SHELL_TRANSITION
+flat out float vShellRetention;
+#endif
 #endif
 ${TREE_PHOTOREAL_VERTEX_CHUNK}
 #ifndef TREE_SHELL_SHADOW_ONLY
@@ -95,6 +100,9 @@ void main() {
   DECKGL_FILTER_COLOR(filtered, geometry);
   vTint = vec4(filtered.rgb, coverage);
   vLife = vec3(tree.health, tree.flush, sampleNormal.w);
+#ifdef TREE_SHELL_TRANSITION
+  vShellRetention = treeStateTexel(row, ${CROP_DROPPED}).z;
+#endif
 #ifdef MODULE_SHADOW
   if (!shadow.drawShadowMap) treeShadowWrite(commonPosition, tree.seed, 0.10);
 #endif
@@ -113,6 +121,10 @@ in vec4 vTint;
 in vec3 vNormal;
 in vec3 vPosition;
 in vec3 vLife;
+#ifdef TREE_SHELL_TRANSITION
+flat in float vShellRetention;
+${TREE_SHELL_COVERAGE_GLSL}
+#endif
 #endif
 out vec4 fragColor;
 ${TREE_PHOTOREAL_FRAGMENT_CHUNK}
@@ -139,6 +151,14 @@ void main() {
 #else
   float grain = treeNoise(vLocal * 6.0);
   if (pores >= vTint.a * mix(0.72, 1.33, grain)) discard;
+#ifdef TREE_SHELL_TRANSITION
+#ifdef MODULE_SHADOW
+  if (!shadow.drawShadowMap)
+#endif
+  {
+    if (vShellRetention > 0.0 && !treeShellCoversPixel(gl_FragCoord.xy, vShellRetention)) discard;
+  }
+#endif
   geometry.uv = vec2(0.0);
   if (picking.isActive > 0.5) {
     fragColor = vec4(0.0, 0.0, 0.0, 1.0);
@@ -182,7 +202,7 @@ void main() {
 }
 `;
 
-function getShellWgslShaders() {
+function getShellWgslShaders(shellTransition: boolean) {
   const {source, shaderLayout} = getTreeWgslTextures(['treeState', 'treeLimbs']);
   shaderLayout.bindings.push({
     type: 'texture',
@@ -196,6 +216,7 @@ function getShellWgslShaders() {
     modules: [treePhotorealRenderWgsl],
     source: /* wgsl */ `
 ${source}
+${shellTransition ? TREE_SHELL_COVERAGE_WGSL : ''}
 @group(0) @binding(5) var treeHull: texture_2d<f32>;
 const stages = array<f32, ${STAGE_COUNT}>(${GLSL_STAGES});
 
@@ -207,6 +228,7 @@ struct HullVaryings {
   @location(3) tint: vec4<f32>,
   @location(4) life: vec3<f32>,
   @location(5) @interpolate(flat) pickColor: vec3<f32>,
+  ${shellTransition ? '@location(6) @interpolate(flat) shellRetention: f32,' : ''}
 };
 
 @vertex fn vertexMain(
@@ -254,6 +276,7 @@ struct HullVaryings {
   output.tint = treeFilterVertexColor(tintWithCoverage, instanceIndex);
   output.life = vec3<f32>(life.health, life.flush, sampleNormal.w);
   output.pickColor = picking_getPickingColorFromIndex(instanceIndex);
+  ${shellTransition ? `output.shellRetention = treeStateTexel(treeState, row, ${CROP_DROPPED}u).z;` : ''}
   return output;
 }
 
@@ -262,6 +285,7 @@ struct HullVaryings {
   let pores = treeHash(floor(input.local * 22.0) + 0.5);
   if (pores >= input.tint.a * mix(0.72, 1.33, grain)) { discard; }
   if (treeIsShadowPass()) { return treeShadowDepth(input.position.z); }
+  ${shellTransition ? 'if (input.shellRetention > 0.0 && !treeShellCoversPixel(input.position.xy, input.shellRetention)) { discard; }' : ''}
   let openness = mix(0.56, 1.0, input.life.z * 0.4 + grain * 0.6);
   var color = mix(input.tint.rgb * vec3<f32>(1.0, 0.68, 0.32), input.tint.rgb, input.life.x);
   color = mix(color, color * vec3<f32>(1.27, 1.46, 0.76), input.life.y * grain);
@@ -307,13 +331,18 @@ export class TreeShellLayer<DataT> extends TreePhotorealPrimitiveLayer<DataT> {
       mipLevels: 1,
       sampler: {minFilter: 'nearest', magFilter: 'nearest', mipmapFilter: 'none'}
     });
+    const shellTransition = this.props.lod === 0 && this.props._shadowPass === 'skip';
     const shaders =
       this.context.device.type === 'webgpu'
-        ? getShellWgslShaders()
+        ? getShellWgslShaders(shellTransition)
         : {
             vs: vertex,
             fs: fragment,
-            defines: this.usesWebglShadowShader ? {TREE_SHELL_SHADOW_ONLY: 1} : {},
+            defines: this.usesWebglShadowShader
+              ? {TREE_SHELL_SHADOW_ONLY: 1}
+              : shellTransition
+                ? {TREE_SHELL_TRANSITION: 1}
+                : {},
             modules: [project32, picking, phongMaterial, treePhotoreal]
           };
     return new Model(this.context.device, {

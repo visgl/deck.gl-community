@@ -12,7 +12,7 @@
  * them, as they do its leaves.
  */
 
-import {TREE_LEAF_STRIDE, type TreeGrowthModel} from './tree-photoreal-layout';
+import type {TreeGrowthModel} from './tree-photoreal-layout';
 
 /** A grid of directions: rings of `azimuths` vertices at these elevations, and a pole below and above. */
 export type ShellGrid = {
@@ -23,6 +23,11 @@ export type ShellGrid = {
 
 /** 10 x 5 rings and two poles: 52 vertices and 100 triangles. */
 export const SHELL_GRID_FINE: ShellGrid = {azimuths: 10, elevations: [-62, -38, -14, 12, 42]};
+/** A denser fit for the largest crowns that still use a shell. */
+export const SHELL_GRID_NEAR: ShellGrid = {
+  azimuths: 14,
+  elevations: [-70, -50, -30, -10, 12, 36, 60]
+};
 /** 6 x 3 and two poles: 20 vertices and 36 triangles, for trees a few dozen pixels across. */
 export const SHELL_GRID_COARSE: ShellGrid = {azimuths: 6, elevations: [-45, -8, 38]};
 /** 8 x 3 and two poles: a rounder caster silhouette without a change of mesh across color tiers. */
@@ -133,8 +138,7 @@ const RADIUS_MAX = 1.6;
 export function fitShellHull(
   model: TreeGrowthModel,
   grid: ShellGrid,
-  options: ShellFitOptions = DEFAULT_SHELL_FIT,
-  leafIndices?: readonly number[]
+  options: ShellFitOptions = DEFAULT_SHELL_FIT
 ): ShellHull {
   const vertexCount = getShellVertexCount(grid);
   const lineTexels = 2 + VERTEX_TEXELS * vertexCount;
@@ -142,14 +146,7 @@ export function fitShellHull(
   const directions = getShellDirections(grid);
   const rings = grid.elevations.length;
   const {limbs, limbCount} = model;
-  const leafCount = leafIndices?.length ?? model.leafCount;
-  const leaves = leafIndices ? new Float32Array(leafCount * TREE_LEAF_STRIDE) : model.leaves;
-  if (leafIndices) {
-    leafIndices.forEach((index, leaf) => {
-      const start = index * TREE_LEAF_STRIDE;
-      leaves.set(model.leaves.subarray(start, start + TREE_LEAF_STRIDE), leaf * TREE_LEAF_STRIDE);
-    });
-  }
+  const {leafCount, leaves} = model;
   const stages: ShellStageInfo[] = [];
   // Leaves are ellipses, width over length in component 15.
   let leafArea = 0;
@@ -189,8 +186,6 @@ export function fitShellHull(
 
     // The stage's crown: leaves born and not yet dead.
     let alive = 0;
-    let centerX = 0;
-    let centerY = 0;
     let bottom = Infinity;
     let top = -Infinity;
     radial.fill(0);
@@ -202,14 +197,10 @@ export function fitShellHull(
       const z = leaves[leaf * 16 + 2];
       if (z < bottom) bottom = z;
       if (z > top) top = z;
-      centerX += leaves[leaf * 16];
-      centerY += leaves[leaf * 16 + 1];
     }
-    centerX = leafIndices && alive ? centerX / alive : 0;
-    centerY = leafIndices && alive ? centerY / alive : 0;
     for (let leaf = 0; leaf < leafCount; leaf++) {
       if (leaves[leaf * 16 + 8] > g || g >= leaves[leaf * 16 + 9]) continue;
-      const r = Math.hypot(leaves[leaf * 16] - centerX, leaves[leaf * 16 + 1] - centerY);
+      const r = Math.hypot(leaves[leaf * 16], leaves[leaf * 16 + 1]);
       radial[Math.min(RADIUS_BUCKETS - 1, Math.floor((r / RADIUS_MAX) * RADIUS_BUCKETS))]++;
     }
     let horizontal = 0.05;
@@ -234,8 +225,8 @@ export function fitShellHull(
       const birth = leaves[leaf * 16 + 8];
       const death = leaves[leaf * 16 + 9];
       if (birth > g || g >= death) continue;
-      const qx = (leaves[leaf * 16] - centerX) / halfWidth;
-      const qy = (leaves[leaf * 16 + 1] - centerY) / halfWidth;
+      const qx = leaves[leaf * 16] / halfWidth;
+      const qy = leaves[leaf * 16 + 1] / halfWidth;
       const qz = (leaves[leaf * 16 + 2] - middle) / halfHeight;
       const r = Math.hypot(qx, qy, qz);
       if (r < 1e-6) continue;
@@ -320,8 +311,8 @@ export function fitShellHull(
     const positions = new Float32Array(vertexCount * 3);
     for (let v = 0; v < vertexCount; v++) {
       const r = smoothed[v];
-      positions[v * 3] = centerX + directions[v * 3] * r * halfWidth;
-      positions[v * 3 + 1] = centerY + directions[v * 3 + 1] * r * halfWidth;
+      positions[v * 3] = directions[v * 3] * r * halfWidth;
+      positions[v * 3 + 1] = directions[v * 3 + 1] * r * halfWidth;
       positions[v * 3 + 2] = Math.max(middle + directions[v * 3 + 2] * r * halfHeight, 0);
     }
     // Normals from the faces around each vertex, in metres-like space (x, y crown radii, z heights).

@@ -933,6 +933,23 @@ export class TreeStateStore {
     this.sampleRowRates(row);
   }
 
+  /** Write a camera-driven LOD change for upload without scheduling a lifecycle tick. */
+  setLeafDetail(row: number, detail: number): void {
+    const index = row * CHANNEL_COUNT + CHANNEL_LEAF_DETAIL;
+    this.targets[index] = detail;
+    if (writeChannel(this.data, row * FLOATS_PER_ROW, CHANNEL_LEAF_DETAIL, this.targets, index)) {
+      this.markLines(row, row + 1);
+    }
+  }
+
+  /** Write the color-only shell weight without invalidating lifecycle state. */
+  setShellRetention(row: number, retention: number): void {
+    const offset = row * FLOATS_PER_ROW + TREE_STATE_TEXEL.CROP_DROPPED * 4 + 2;
+    if (this.data[offset] === retention) return;
+    this.data[offset] = retention;
+    this.markLines(row, row + 1);
+  }
+
   /**
    * Advances every tween to `now` and every loss rate to `clock`. A paused timeline holds tweens, and
    * a paused clock holds rates, so things in flight wait rather than land.

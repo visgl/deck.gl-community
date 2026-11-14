@@ -521,6 +521,10 @@ const DEFAULT_FOLIAGE_MATERIAL: PhongMaterialProps = {
  * tree gets smaller the count of leaves falls and each grows, in steps of four and two.
  */
 const LOD_LEAF_PIXELS = 7;
+const FINE_LEAVES_DIRTY = 1;
+const MACRO_LEAVES_DIRTY = 2;
+const COARSE_LEAVES_DIRTY = 4;
+const ALL_LEAVES_DIRTY = FINE_LEAVES_DIRTY | MACRO_LEAVES_DIRTY | COARSE_LEAVES_DIRTY;
 /**
  * Leaf vertices one frame should draw. A view asking for more makes every far leaf longer alike until it fits,
  * so a grove of any size stays interactive, and a view with few trees spends all it can on them. Depends only
@@ -557,8 +561,13 @@ const LOD_LONGEST_LEAF = 1.8;
 const LOD_MAX = 4;
 const FIRST_SHELL_LEVEL = 4;
 const CANOPY_LEVEL_COUNT = 8;
-// Crown diameter in CSS pixels. Fine leaf blades still use their own per-leaf size.
-const SHELL_DIAMETERS = [64, 28, 12, 5] as const;
+// Crown span in CSS pixels. Fine leaf blades still use their own per-leaf size.
+const SHELL_DIAMETER = 64;
+const SMALLER_SHELL_DIAMETERS = [28, 12, 5] as const;
+// Keep a small nearby crown leafy once this reference width would resolve at the same distance.
+const SHELL_NEAR_REFERENCE_METRES = 3;
+const SHELL_BLEND_FROM = SHELL_DIAMETER * 0.88;
+const SHELL_BLEND_STEPS = 64;
 /** Past this reach of the wind, in metres, a leaf may come so much nearer the camera than its tree's bound says. */
 const LOD_WIND_NEAR_METRES = 0.3;
 /** A larger change than this, in `leafDetail`, is worth a state upload. */
@@ -678,12 +687,15 @@ type PhotorealRow<DataT> = {
   /** Level of detail before the budget, leaf length in pixels, and `-1` when not even near the view. */
   level: number;
   shellLevel: number;
+  /** Interior overlap weight for the color shell; zero outside the handoff. */
+  shellRetention: number;
   visible: boolean;
   /** Geometry bounds are independent of the camera and stay cached while only it moves. */
   bounds: {
     center: number[];
     radius: number;
     cullRadius: number;
+    crownSpan: number;
     margin: number;
     wind: number;
     reach: number;
@@ -758,6 +770,9 @@ type PhotorealGroup<DataT> = {
   /** Rows of each level of detail, for leaves and for wood, which can be coarser inside a full crown. */
   slots: SplatRowSlots<PhotorealRow<DataT>>[];
   buckets: PhotorealRow<DataT>[][];
+  transitionSlots: SplatRowSlots<PhotorealRow<DataT>>[];
+  transitionBuckets: PhotorealRow<DataT>[][];
+  transitionLeafCounts: number[];
   woodSlots: SplatRowSlots<PhotorealRow<DataT>>[];
   woodBuckets: PhotorealRow<DataT>[][];
   shadowSlots: SplatRowSlots<PhotorealRow<DataT>>;
@@ -774,9 +789,9 @@ type PhotorealGroup<DataT> = {
   /** Full-tree LOD 0 rows that cannot use the conservative upright-leaf bounds. */
   coarseSlots: SplatRowSlots<PhotorealRow<DataT>>;
   coarseBucket: PhotorealRow<DataT>[];
-  bladesDirty: boolean;
-  /** Of the leaves at LOD 0, the largest share that any tree casts. */
-  /** A level that has held trees keeps its sub-layer, so moving between levels never builds a model. */
+  leafBuffersDirty: number;
+  /** Largest shader-visible per-tree prefix at each leaf LOD. */
+  colorLeafCounts: number[];
   /** Crop buckets that have held crops, by kind and level. They keep their sub-layers, as levels do. */
   crops: Map<string, PhotorealCropBucket<DataT>>;
 };
@@ -938,13 +953,12 @@ function getCropDotLevel(
  */
 function getTreeLeafLength(
   natural: number,
-  wanted: number,
+  target: number,
   finePixels: number,
-  pressure: number
+  stretch: number
 ): number {
-  const stretch = Math.min(LOD_LEAF_STRETCH, 2 ** (pressure * 0.5));
   const room = Math.max(Math.min((finePixels - natural) / (finePixels * 0.3), 1), 0);
-  return Math.max(wanted * 2 ** pressure, natural * (1 + (stretch - 1) * room));
+  return Math.max(target, natural * (1 + (stretch - 1) * room));
 }
 
 /**
@@ -959,10 +973,13 @@ function getTreeLeafPressure(
   budget: number
 ): number {
   const cost = (pressure: number): number => {
+    const target = wanted * 2 ** pressure;
+    const stretch = Math.min(LOD_LEAF_STRETCH, 2 ** (pressure * 0.5));
+    const minimumRatio = 4 ** -LOD_MAX;
     let vertices = 0;
     for (let i = 0; i < sized.length; i += 2) {
-      const ratio = sized[i] / getTreeLeafLength(sized[i], wanted, finePixels, pressure);
-      vertices += sized[i + 1] * LOD_COARSE_CORNERS * Math.max(ratio * ratio, 4 ** -LOD_MAX);
+      const ratio = sized[i] / getTreeLeafLength(sized[i], target, finePixels, stretch);
+      vertices += sized[i + 1] * LOD_COARSE_CORNERS * Math.max(ratio * ratio, minimumRatio);
     }
     return vertices;
   };
@@ -1111,8 +1128,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   /** Reused, one shape, for all `setRow` calls of the accessor path. */
   private rowUpdate: TreeStateUpdate = {};
   private rowOptions = {now: 0, clock: 0, isNew: false, cropKindChanged: false};
-  /** Reused for the per-camera `leafDetail` writes, which change nothing else. */
-  private detailUpdate: TreeStateUpdate = {leafDetail: 1};
 
   constructor(...props: (Partial<TreeLayerProps<DataT>> & Partial<NoInfer<ExtraPropsT>>)[]) {
     super(
@@ -1376,7 +1391,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       photoreal &&
       (viewChanged || placementChanged || accessorsChanged || regrouped || firstRead || changed)
     ) {
-      this.updatePhotorealDetail(props, photoreal, store, now, clock, placementChanged);
+      this.updatePhotorealDetail(props, photoreal, store, placementChanged);
     }
     this.uploadStateTexture(store);
     // A tween's last tick can still change a bucket, and nothing says to render it once it stops.
@@ -1528,6 +1543,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             units: [],
             frame: null,
             shellLevel: -1,
+            shellRetention: 0,
             visible: false,
             bounds: null,
             level: -1,
@@ -1595,7 +1611,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     // A tree that came or went takes its crops and near leaves with it.
     for (const group of groups.values()) {
       for (const bucket of group.crops.values()) bucket.dirty = true;
-      group.bladesDirty = true;
+      group.leafBuffersDirty = ALL_LEAVES_DIRTY;
     }
 
     // Gust phases are measured from one tree, in metres, so f32 keeps them smooth anywhere on Earth.
@@ -1642,6 +1658,12 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         () => new SplatRowSlots<PhotorealRow<DataT>>()
       ),
       buckets: Array.from({length: CANOPY_LEVEL_COUNT}, () => []),
+      transitionSlots: Array.from(
+        {length: FIRST_SHELL_LEVEL},
+        () => new SplatRowSlots<PhotorealRow<DataT>>()
+      ),
+      transitionBuckets: [[], [], [], []],
+      transitionLeafCounts: [0, 0, 0, 0],
       woodSlots: [0, 1, 2, 3].map(() => new SplatRowSlots<PhotorealRow<DataT>>()),
       woodBuckets: [[], [], [], []],
       shadowSlots: new SplatRowSlots<PhotorealRow<DataT>>(),
@@ -1655,7 +1677,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       coarseData: createLeafData<DataT>(new Float32Array(0), []),
       coarseSlots: new SplatRowSlots<PhotorealRow<DataT>>(),
       coarseBucket: [],
-      bladesDirty: false,
+      leafBuffersDirty: 0,
+      colorLeafCounts: [0, 0, 0, 0],
       // Compile every leaf and wood variant while the template first loads. Waiting for a camera to
       // enter each level otherwise puts a synchronous program link on that hand-off frame. Empty
       // variants retain their model without issuing a draw, so a later dive only changes their rows.
@@ -1672,8 +1695,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     props,
     photoreal: PhotorealState<DataT>,
     store: TreeStateStore,
-    now: number,
-    clock: number,
     placementChanged: boolean
   ): void {
     const viewport = this.context?.viewport;
@@ -1695,18 +1716,14 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const data = store.data;
     const shapeChanged = store.isDirty;
     const lodBias = getFiniteValue(props.lodBias, 0);
-    const update = this.detailUpdate;
-    const options = this.rowOptions;
-    options.now = now;
-    options.clock = clock;
-    options.isNew = false;
-    options.cropKindChanged = false;
     const {SIZE, LIFE, POSE, MISC, DETAIL, ANCHOR_LOW} = TREE_STATE_TEXEL;
     const center = [0, 0, 0];
 
     // A view with no one camera to measure leaves from has only the coarse blade.
     const biasScale = 2 ** lodBias;
-    const focal = views.length === 1 ? getLeafFocalPixels(views[0] as Viewport) : 0;
+    const nearReference = SHELL_NEAR_REFERENCE_METRES / biasScale;
+    const focals = views.map(getLeafFocalPixels);
+    const focal = views.length === 1 ? focals[0] : 0;
     const layerWind = getFiniteDimension(props.windStrength, 0);
     const finePixels = focal > 0 ? Math.max(LOD_FINE_PIXELS * biasScale, LOD_FINE_FLOOR_PIXELS) : 0;
     const macroPixels =
@@ -1785,20 +1802,29 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             center: offsetSplatCommonPosition(row.common, center, row.units, row.frame),
             radius,
             cullRadius,
+            crownSpan: Math.max(crown * 2, liveHeight - trunkHeight),
             margin: cullRadius + liveHeight * SHADOW_CULL_MARGIN_HEIGHTS * unit,
             wind: layerWind,
             reach: windReach
           };
         }
-        const {center: middle, radius, cullRadius, margin, reach: windReach} = row.bounds;
+        const {
+          center: middle,
+          radius,
+          cullRadius,
+          crownSpan,
+          margin,
+          reach: windReach
+        } = row.bounds;
         const hasCrops = Boolean(this.state.cropKinds[row.stateRow]);
-        const crownScale = (Math.max(crownX, crownY) * 2) / biasScale;
+        const crownScale = crownSpan / biasScale;
         let visible = false;
         let near = false;
         let pixelsPerMeter = 0;
         let cropPixelsPerMeter = 0;
         let nearestPixelsPerMeter = 0;
         let middlePixelsPerMeter = 0;
+        let resolvedSpan = 0;
         let focalPixels = 0;
         // How far the camera is inside the bound, where the bound says only how large it is, 0 to 1: all of the way
         // from its surface in, and none from a third of a radius out.
@@ -1826,21 +1852,25 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             ? projectedPixels
             : (2 * Math.max(view.width, view.height) * unit) / Math.max(radius, 1e-6);
           middlePixelsPerMeter = Math.max(middlePixelsPerMeter, middlePixels);
-          const mayDrawLeaves =
-            !props._cropOnly && middlePixels * crownScale >= SHELL_DIAMETERS[0] * 0.75;
-          if (!hasCrops && !mayDrawLeaves) continue;
-          if (mayDrawLeaves) {
-            pixelsPerMeter = Math.max(
-              pixelsPerMeter,
-              getSplatBoundedPixelsPerMeter(middle, radius, view, units)
-            );
-          }
           const camera = view.cameraPosition;
           const distance = Math.hypot(
             camera[0] - middle[0],
             camera[1] - middle[1],
             camera[2] - middle[2]
           );
+          const viewSpan = Math.max(
+            middlePixels * crownScale,
+            (focals[i] * nearReference * unit) / Math.max(distance, 1e-12)
+          );
+          resolvedSpan = Math.max(resolvedSpan, viewSpan);
+          const mayDrawLeaves = !props._cropOnly && viewSpan >= SHELL_BLEND_FROM;
+          if (!hasCrops && !mayDrawLeaves) continue;
+          if (mayDrawLeaves) {
+            pixelsPerMeter = Math.max(
+              pixelsPerMeter,
+              getSplatBoundedPixelsPerMeter(middle, radius, view, units, projectedPixels)
+            );
+          }
           const outside = Math.min(Math.max((distance / Math.max(radius, 1e-12) - 1) / 0.3, 0), 1);
           inside = Math.max(inside, 1 - outside * outside * (3 - 2 * outside));
           const surface = Math.max(
@@ -1874,6 +1904,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             : null;
         if (!near) {
           row.level = -1;
+          row.shellRetention = 0;
           row.leafPixels = 0;
           continue;
         }
@@ -1885,17 +1916,25 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           continue;
         }
         let leafPixels = 0;
-        const diameter = middlePixelsPerMeter * crownScale;
-        const scale = 0.9 + 0.2 * (data[base + DETAIL * 4 + 1] + 0.5);
-        // Hysteresis avoids rebucketing on a stationary camera at a threshold.
-        const shellLevel = SHELL_DIAMETERS.reduce(
-          (level, threshold, index) =>
-            level + Number(diameter * scale < threshold * (row.shellLevel >= index ? 1.08 : 0.92)),
-          -1
+        const projectedSpan = middlePixelsPerMeter * crownScale;
+        const blend = Math.max(
+          0,
+          Math.min(1, (resolvedSpan - SHELL_BLEND_FROM) / (SHELL_DIAMETER - SHELL_BLEND_FROM))
         );
+        const leafWeight =
+          inside > 0
+            ? 1
+            : Math.round(blend * blend * (3 - 2 * blend) * SHELL_BLEND_STEPS) / SHELL_BLEND_STEPS;
+        row.shellRetention = leafWeight > 0 && leafWeight < 1 ? 1 - leafWeight : 0;
         row.shellLevel =
-          !visible || inside > 0 || diameter > SHELL_DIAMETERS[0] * 2 ? -1 : shellLevel;
-        if (visible && row.shellLevel < 0) {
+          !visible || leafWeight === 1
+            ? -1
+            : SMALLER_SHELL_DIAMETERS.reduce(
+                (level, threshold) => level + Number(projectedSpan < threshold),
+                0
+              );
+        if (row.shellRetention > 0) row.shellLevel = 0;
+        if (visible && leafWeight > 0) {
           leafPixels = Math.max(
             group.meanLeaf * leafScale * Math.max(pixelsPerMeter, middlePixelsPerMeter),
             1e-3
@@ -1938,7 +1977,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       stretchFrom,
       Math.max(budget - nearVertices, budget * 0.25)
     );
-    photoreal.leafTarget = wanted * 2 ** pressure;
+    const leafTarget = wanted * 2 ** pressure;
+    const stretch = Math.min(LOD_LEAF_STRETCH, 2 ** (pressure * 0.5));
+    photoreal.leafTarget = leafTarget;
     const {leafBlades} = photoreal;
     if (leafBlades[0] !== finePixels || leafBlades[1] !== macroPixels || leafBlades[2] !== focal) {
       photoreal.leafBlades = [finePixels, macroPixels, focal, 0];
@@ -1958,6 +1999,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       }
       const next: PhotorealRow<DataT>[][] = Array.from({length: CANOPY_LEVEL_COUNT}, () => []);
       const keys: number[][] = Array.from({length: CANOPY_LEVEL_COUNT}, () => []);
+      const transitions: PhotorealRow<DataT>[][] = [[], [], [], []];
+      const transitionKeys: number[][] = [[], [], [], []];
       const nextWood: PhotorealRow<DataT>[][] = [[], [], [], []];
       const woodKeys: number[][] = [[], [], [], []];
       const nextAir: PhotorealRow<DataT>[] = [];
@@ -1968,15 +2011,19 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       const stemKeys: number[] = [];
       const shadowRows: PhotorealRow<DataT>[] = [];
       const shadowKeys: number[] = [];
+      group.colorLeafCounts.fill(0);
+      group.transitionLeafCounts.fill(0);
       for (const bucket of group.crops.values()) bucket.shedding = false;
       for (const row of group.rows) {
         if (row.cropKind || row.crop.kind) {
           this.updateRowCrops(group, row, data, cropPixelScale);
         }
         if (row.level < 0) {
-          if (row.leafSelection) {
+          store.setShellRetention(row.stateRow, 0);
+          if (row.leafSelection || row.useListedLeaves) {
             row.leafSelection = null;
-            group.bladesDirty = true;
+            row.useListedLeaves = false;
+            group.leafBuffersDirty |= COARSE_LEAVES_DIRTY;
           }
           this.clearNearLeaves(group, row);
           continue;
@@ -1986,102 +2033,127 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           shadowRows.push(row);
           shadowKeys.push(row.stateRow);
         }
-        const level =
-          row.leafPixels > 0
-            ? Math.max(
-                0,
-                Math.min(
-                  LOD_MAX,
-                  Math.log2(
-                    getTreeLeafLength(row.leafPixels, wanted, stretchFrom, pressure) /
-                      row.leafPixels
-                  )
-                )
-              )
-            : LOD_MAX;
-        const lod = Math.min(3, Math.floor(level));
-        const detail = 4 ** (lod - level);
-        if (row.leafPixels > 0 || row.shellLevel >= 0) {
-          const canopyLod = row.shellLevel < 0 ? lod : FIRST_SHELL_LEVEL + row.shellLevel;
+        const inTransition = row.shellRetention > 0;
+        store.setShellRetention(row.stateRow, row.shellRetention);
+        if (row.shellLevel >= 0) {
+          const canopyLod = FIRST_SHELL_LEVEL + row.shellLevel;
           next[canopyLod].push(row);
           keys[canopyLod].push(row.stateRow);
         }
-        if (level === 0 || row.leafSelection) {
+        const foliage = data[base + LIFE * 4 + 2];
+        const stemOnly =
+          (row.shellLevel >= 1 ||
+            (row.shellLevel === 0 && data[base + MISC * 4] * row.middlePixelsPerMeter <= 1.6)) &&
+          foliage * data[base + TREE_STATE_TEXEL.CANOPY * 4 + 3] >= 0.75;
+        const shedding = data[base + DETAIL * 4 + 2] > 0;
+
+        if (row.leafPixels <= 0) {
+          if (row.leafSelection || row.useListedLeaves) {
+            row.leafSelection = null;
+            row.useListedLeaves = false;
+            group.leafBuffersDirty |= COARSE_LEAVES_DIRTY;
+          }
+          this.clearNearLeaves(group, row);
+          if (row.shellLevel === 0 && shedding) {
+            nextAir.push(row);
+            airKeys.push(row.stateRow);
+          }
+          if (stemOnly) {
+            stems.push(row);
+            stemKeys.push(row.stateRow);
+          } else if (row.shellLevel >= 0) {
+            nextWood[3].push(row);
+            woodKeys[3].push(row.stateRow);
+          }
+          continue;
+        }
+
+        const level = Math.max(
+          0,
+          Math.min(
+            LOD_MAX,
+            Math.log2(
+              getTreeLeafLength(row.leafPixels, leafTarget, stretchFrom, stretch) / row.leafPixels
+            )
+          )
+        );
+        const lod = Math.min(3, Math.floor(level));
+        const detail = 4 ** (lod - level);
+        const rows = inTransition ? transitions : next;
+        const rowKeys = inTransition ? transitionKeys : keys;
+        rows[lod].push(row);
+        rowKeys[lod].push(row.stateRow);
+        if ((level === 0 && !inTransition) || row.leafSelection) {
           this.updateLeafSelection(
             group,
             row,
             data,
-            level,
+            inTransition ? LOD_MAX : level,
             views.length === 1 ? views[0] : null,
             props
           );
         }
         // Leaves are in the air only while a tree is losing them.
-        if ((lod === 0 || row.shellLevel === 0) && data[base + DETAIL * 4 + 2] > 0) {
+        if ((lod === 0 || row.shellLevel === 0) && shedding) {
           nextAir.push(row);
           airKeys.push(row.stateRow);
         }
-        if (level === 0) {
+        if (level === 0 && !inTransition) {
           this.updateNearLeaves(group, row, data, finePixels, macroPixels, focal, props);
         } else {
           this.clearNearLeaves(group, row);
         }
-        // Foliage hides the finest wood, and the thinner it is the sooner it goes.
-        const foliage = data[base + LIFE * 4 + 2];
-        const hidden = Math.max(
-          0,
-          Math.min(
-            1,
-            (foliage - TREE_WOOD_HIDDEN_FROM) / (TREE_WOOD_HIDDEN_TO - TREE_WOOD_HIDDEN_FROM)
-          )
-        );
-        const woodLod = Math.min(
-          3,
-          Math.floor(level + TREE_WOOD_LOD_SHIFT * hidden * hidden * (3 - 2 * hidden))
-        );
-        const stemPixels = data[base + MISC * 4] * row.middlePixelsPerMeter;
-        // Dense shells hide small branches. Bare and thin crowns still need their coarse wood.
-        const stemOnly =
-          (row.shellLevel >= 1 || (row.shellLevel === 0 && stemPixels <= 1.6)) &&
-          foliage * data[base + TREE_STATE_TEXEL.CANOPY * 4 + 3] >= 0.75;
+        if (lod === 0 && !inTransition) {
+          // List leaves only if spatial culling saves a substantial part of the original draw.
+          const listed = Boolean(
+            row.leafSelection && row.leafSelection.visibleLeafCount < group.model.leafCount * 0.8
+          );
+          if (row.useListedLeaves !== listed) group.leafBuffersDirty |= COARSE_LEAVES_DIRTY;
+          row.useListedLeaves = listed;
+          if (!listed) {
+            coarse.push(row);
+            coarseKeys.push(row.stateRow);
+          }
+        } else if (row.useListedLeaves) {
+          row.useListedLeaves = false;
+          group.leafBuffersDirty |= COARSE_LEAVES_DIRTY;
+        }
         if (stemOnly) {
           stems.push(row);
           stemKeys.push(row.stateRow);
-        } else if (row.leafPixels > 0 || row.shellLevel >= 0) {
+        } else {
+          // Foliage hides the finest wood, and the thinner it is the sooner it goes.
+          const hidden = Math.max(
+            0,
+            Math.min(
+              1,
+              (foliage - TREE_WOOD_HIDDEN_FROM) / (TREE_WOOD_HIDDEN_TO - TREE_WOOD_HIDDEN_FROM)
+            )
+          );
+          const woodLod = Math.min(
+            3,
+            Math.floor(level + TREE_WOOD_LOD_SHIFT * hidden * hidden * (3 - 2 * hidden))
+          );
           nextWood[woodLod].push(row);
           woodKeys[woodLod].push(row.stateRow);
         }
-        if (
-          row.shellLevel < 0 &&
-          row.visible &&
-          Math.abs(data[base + DETAIL * 4] - detail) > LOD_DETAIL_EPSILON
-        ) {
-          update.leafDetail = detail;
-          store.setRow(row.stateRow, update, options);
+        if (Math.abs(data[base + DETAIL * 4] - detail) > LOD_DETAIL_EPSILON) {
+          store.setLeafDetail(row.stateRow, detail);
         }
-      }
-      for (const row of next[0]) {
-        // Leaf-by-leaf instancing pays off only when it removes a substantial part of the original
-        // submission. Otherwise retain the original per-tree draw.
-        const listed = Boolean(
-          row.leafSelection && row.leafSelection.visibleLeaves.length < group.model.leafCount * 0.8
+        // Use the packed value and round the product the same way as the vertex shaders.
+        const count = Math.ceil(
+          Math.fround(group.model.lodLeafCounts[lod] * data[base + DETAIL * 4])
         );
-        if (row.useListedLeaves !== listed) group.bladesDirty = true;
-        row.useListedLeaves = listed;
-        if (!listed) {
-          coarse.push(row);
-          coarseKeys.push(row.stateRow);
-        }
-      }
-      for (const row of group.rows) {
-        if (row.level < 0 && row.useListedLeaves) {
-          row.useListedLeaves = false;
-          group.bladesDirty = true;
-        }
+        const counts = inTransition ? group.transitionLeafCounts : group.colorLeafCounts;
+        counts[lod] = Math.max(counts[lod], count);
       }
       for (let lod = 0; lod < CANOPY_LEVEL_COUNT; lod++) {
         group.buckets[lod] = group.slots[lod].update(next[lod], keys[lod]);
         if (lod < FIRST_SHELL_LEVEL) {
+          group.transitionBuckets[lod] = group.transitionSlots[lod].update(
+            transitions[lod],
+            transitionKeys[lod]
+          );
           group.woodBuckets[lod] = group.woodSlots[lod].update(nextWood[lod], woodKeys[lod]);
         }
       }
@@ -2089,7 +2161,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       group.airBucket = group.airSlots.update(nextAir, airKeys);
       group.coarseBucket = group.coarseSlots.update(coarse, coarseKeys);
       group.shadowBucket = group.shadowSlots.update(shadowRows, shadowKeys);
-      this.rebuildNearLeaves(group, photoreal);
+      this.rebuildNearLeaves(group, photoreal, next[0]);
       this.rebuildCropBuckets(group, photoreal);
     }
   }
@@ -2193,13 +2265,14 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             norms
           );
         },
-        row.leafSelection
+        row.leafSelection,
+        data[base + LIFE * 4] === 1
       );
     }
     if (selection !== row.leafSelection) {
       row.leafSelection = selection;
       row.bladesFrom = null;
-      group.bladesDirty = true;
+      group.leafBuffersDirty |= COARSE_LEAVES_DIRTY;
     }
   }
 
@@ -2346,44 +2419,59 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       const farthest = length * macroFar;
       if (mayDeform || landed || squared > farthest * farthest) fine.push(leaf);
     }
-    if (!isSameList(row.fineLeaves, fine) || !isSameList(row.macroLeaves, macro)) {
+    if (!isSameList(row.fineLeaves, fine)) {
       row.fineLeaves = fine;
+      group.leafBuffersDirty |= FINE_LEAVES_DIRTY;
+    }
+    if (!isSameList(row.macroLeaves, macro)) {
       row.macroLeaves = macro;
-      group.bladesDirty = true;
+      group.leafBuffersDirty |= MACRO_LEAVES_DIRTY;
     }
   }
 
   private clearNearLeaves(group: PhotorealGroup<DataT>, row: PhotorealRow<DataT>): void {
     row.bladesFrom = null;
-    if (row.fineLeaves.length || row.macroLeaves.length) {
+    if (row.fineLeaves.length) {
       row.fineLeaves = [];
+      group.leafBuffersDirty |= FINE_LEAVES_DIRTY;
+    }
+    if (row.macroLeaves.length) {
       row.macroLeaves = [];
-      group.bladesDirty = true;
+      group.leafBuffersDirty |= MACRO_LEAVES_DIRTY;
     }
   }
 
   /** New instance data for the finer blades, if their members changed. */
-  private rebuildNearLeaves(group: PhotorealGroup<DataT>, photoreal: PhotorealState<DataT>): void {
-    if (!group.bladesDirty) return;
-    group.bladesDirty = false;
-    const build = (list: (row: PhotorealRow<DataT>) => ArrayLike<number> & Iterable<number>) => {
+  private rebuildNearLeaves(
+    group: PhotorealGroup<DataT>,
+    photoreal: PhotorealState<DataT>,
+    nearRows: readonly PhotorealRow<DataT>[]
+  ): void {
+    const dirty = group.leafBuffersDirty;
+    if (!dirty) return;
+    group.leafBuffersDirty = 0;
+    const build = (list: (row: PhotorealRow<DataT>) => ArrayLike<number> | undefined) => {
       let instances = 0;
-      for (const row of group.rows) instances += list(row).length;
+      for (const row of nearRows) instances += list(row)?.length ?? 0;
       const value = new Float32Array(instances * 2);
       let offset = 0;
-      for (const row of group.rows) {
-        for (const leaf of list(row)) {
+      for (const row of nearRows) {
+        const leaves = list(row);
+        if (!leaves) continue;
+        for (let i = 0; i < leaves.length; i++) {
           value[offset++] = row.stateRow;
-          value[offset++] = leaf;
+          value[offset++] = leaves[i];
         }
       }
       return createLeafData(value, photoreal.rows);
     };
-    group.fineData = build(row => row.fineLeaves);
-    group.macroData = build(row => row.macroLeaves);
-    group.coarseData = build(row =>
-      row.useListedLeaves ? (row.leafSelection?.visibleLeaves ?? []) : []
-    );
+    if (dirty & FINE_LEAVES_DIRTY) group.fineData = build(row => row.fineLeaves);
+    if (dirty & MACRO_LEAVES_DIRTY) group.macroData = build(row => row.macroLeaves);
+    if (dirty & COARSE_LEAVES_DIRTY) {
+      group.coarseData = build(row =>
+        row.useListedLeaves ? row.leafSelection?.visibleLeaves : undefined
+      );
+    }
   }
 
   /** The points a tree's crops would take in this view, before any budget. */
@@ -2758,6 +2846,12 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     return {...props, parameters, updateTriggers: {...props.updateTriggers, ...updateTriggers}};
   }
 
+  filterSubLayer({layer, renderPass}: Parameters<CompositeLayer['filterSubLayer']>[0]): boolean {
+    if (!layer.getNumInstances()) return false;
+    const mode = (layer.props as {_shadowPass?: 'only' | 'skip'})._shadowPass;
+    return renderPass === 'shadow' ? mode !== 'skip' : mode !== 'only';
+  }
+
   renderLayers() {
     const {modelMatrix, coordinateSystem} = this.props;
     const composesModelMatrix =
@@ -2824,6 +2918,11 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       const blades = [leafBlades[0], leafBlades[1], leafBlades[2], meanLeaf];
       const material = this.props.foliageMaterial ?? DEFAULT_FOLIAGE_MATERIAL;
       const parameters = {...this.props.parameters, cullMode: 'none'};
+      // Attached blades are opaque. Keep blending for extensions that can supply their own alpha.
+      const leafParameters = {
+        blend: this.props.opacity !== 1 || this.props.extensions.length > 0,
+        ...parameters
+      };
       if (shadowEnabled !== false) {
         // Color tiers never change these meshes. The caster rows and opacity still follow
         // near residency and lifecycle updates, so a departing tree fades as before.
@@ -2894,7 +2993,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               type: TreePhotorealLeafLayer,
               id: `photoreal-leaves-${key}-${blade}`,
               material,
-              parameters
+              parameters: leafParameters
             }),
             data,
             // An empty one keeps its model, and costs a frame nothing.
@@ -2918,7 +3017,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             type: TreePhotorealLeafLayer,
             id: `photoreal-leaves-${key}-listed`,
             material,
-            parameters
+            parameters: leafParameters
           }),
           data: group.coarseData,
           visible: group.coarseData.length > 0 && this.props.visible,
@@ -2949,10 +3048,34 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               leafBlades: blades,
               _shadowPass: 'skip',
               data: lod === 0 ? group.coarseBucket : group.buckets[lod],
+              colorLeafCount: group.colorLeafCounts[lod],
               type: TreePhotorealLeafLayer,
               id: `photoreal-leaves-${key}-${lod}`,
               material,
-              parameters
+              parameters: leafParameters
+            })
+          )
+        );
+      }
+      for (let lod = 0; lod < FIRST_SHELL_LEVEL; lod++) {
+        const data = group.transitionBuckets[lod];
+        // Warm these variants alongside the ordinary canopy so entering the band never compiles.
+        leaves.push(
+          new TreePhotorealLeafLayer(
+            this.getTreeSubLayerProps({
+              ...part,
+              lod,
+              shellTransition: true,
+              // Use the ordinary attached blade in this short overlap; detailed blades resume
+              // after it, where the projected leaf size calls for them.
+              leafBlades: [0, 0, blades[2], meanLeaf],
+              _shadowPass: 'skip',
+              data,
+              colorLeafCount: group.transitionLeafCounts[lod],
+              type: TreePhotorealLeafLayer,
+              id: `photoreal-leaves-${key}-transition-${lod}`,
+              material,
+              parameters: leafParameters
             })
           )
         );

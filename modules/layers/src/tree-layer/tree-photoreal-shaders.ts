@@ -669,7 +669,11 @@ void treeWindLoad() {
   tree.windDetail = smoothstep(0.6, 1.8, tall * force * 0.1) * seen;
   float time = treePhotoreal.clock.x;
   float bend = TREE_WIND_BEND_LIMIT * (1.0 - exp(-strength / TREE_WIND_BEND_LIMIT));
+#ifdef TREE_MATURE_ATTACHED_LEAVES
+  const bool directed = false;
+#else
   bool directed = treePhotoreal.wind.w >= 0.5;
+#endif
   vec2 direction = directed ? treePhotoreal.wind.yz : vec2(0.91, 0.41);
   vec2 across = vec2(-direction.y, direction.x);
   vec2 world = ((tree.anchor.xy - treePhotoreal.world.xy) + tree.anchorLow.xy) * treePhotoreal.world.zw;
@@ -1390,10 +1394,11 @@ function getTreeWoodLevel(lod: number): number {
   return Math.min(lod, 2);
 }
 
-function getTreeWoodVertex(lod: number, palm: boolean): string {
+function getTreeWoodVertex(lod: number, opaque: boolean, palm: boolean): string {
   return /* glsl */ `#version 300 es
 #define SHADER_NAME tree-photoreal-wood-vs
 #define TREE_WOOD_LOD ${getTreeWoodLevel(lod)}
+${opaque ? '#define TREE_WOOD_OPAQUE' : ''}
 precision highp float;
 precision highp int;
 precision highp sampler2D;
@@ -1434,6 +1439,22 @@ void main(void) {
   int row = treePhotoreal.woodLevel.w > 0.0
     ? int(treePhotoreal.woodLevel.w - 1.0 + 0.5)
     : int(instanceTreeRow + 0.5);
+#ifdef TREE_WOOD_OPAQUE
+  // The draw selects mature, upright and undamaged trees with full coverage.
+  vec4 life = treeStateTexel(row, ${LIFE});
+  vec4 misc = treeStateTexel(row, ${MISC});
+  treeSetLife(
+    vec4(1.0, life.yzw),
+    vec4(0.0, 0.0, 0.0, treeStateTexel(row, ${POSE}).w),
+    vec4(misc.xy, 1.0, misc.w),
+    treeStateTexel(row, ${DETAIL})
+  );
+  float flags = treeShade.w;
+  if (mod(flags, 4.0) >= 1.0) return;
+  const bool isRoot = false;
+  const bool isSoil = false;
+  const bool isHidden = false;
+#else
   treeLoadLife(row);
   if (tree.growth <= 0.0 || tree.coverage <= 0.0 || tree.decay >= 1.0) return;
 
@@ -1441,6 +1462,7 @@ void main(void) {
   bool isRoot = mod(flags, 2.0) >= 1.0;
   bool isSoil = mod(floor(flags / 2.0), 2.0) >= 1.0;
   bool isHidden = isRoot || isSoil;
+#endif
   // How far roots and the plate of soil have come out of the ground as the tree leans: what their places in the tree
   // are scaled by, across and up, and their girth. And how deep under its top a point of the plate lies, as a share of
   // its thickness under the trunk. All of it is worked out here, where a part of a tree that stands has gone already,
@@ -1529,8 +1551,17 @@ void main(void) {
   treeWindLoad();
   if (tree.windStrength > 0.0 && !isHidden) {
     vec3 sway = treeLimbSway(outerLimb, innerLimb, point) * (1.0 - swing);
+#ifdef TREE_WOOD_OPAQUE
+    // The detailed position and normal use the same wind rotation at this point.
+    vec3 bent = treeWindPoint(point);
+    radial = tree.windDetail > 0.0 || tree.groundDetail > 0.0
+      ? treeTurnBy(radial, tree.windTurn + treeSwayTurn)
+      : treeWindTurn(radial, point.z);
+    point = bent + sway;
+#else
     radial = treeWindTurn(radial, point.z);
     point = treeWindPoint(point) + sway;
+#endif
   }
 
   point = treeDecayPoint(point);
@@ -2340,7 +2371,7 @@ export function getTreeWoodShaders(
   species: TreeAppearanceSpecies = 'citrus'
 ): {vs: string; fs: string} {
   const palm = species === 'palm';
-  return {vs: getTreeWoodVertex(lod, palm), fs: getTreeWoodFragment(lod, opaque, palm)};
+  return {vs: getTreeWoodVertex(lod, opaque, palm), fs: getTreeWoodFragment(lod, opaque, palm)};
 }
 
 /** Blade surface terms shared by the vertex shape and its fine normal reconstruction. */
@@ -2656,12 +2687,29 @@ ${
     }`;
 }
 
+// A fixed screen-space pattern lets the shell and leaves keep complementary pixels
+// even when their surfaces are at different depths.
+export const TREE_SHELL_COVERAGE_GLSL = /* glsl */ `
+bool treeShellCoversPixel(vec2 position, float retention) {
+  vec2 pixel = floor(position);
+  return fract(52.9829189 * fract(dot(pixel, vec2(0.06711056, 0.00583715)))) < retention;
+}
+`;
+
+export const TREE_SHELL_COVERAGE_WGSL = /* wgsl */ `
+fn treeShellCoversPixel(position: vec2<f32>, retention: f32) -> bool {
+  let pixel = floor(position);
+  return fract(52.9829189 * fract(dot(pixel, vec2<f32>(0.06711056, 0.00583715)))) < retention;
+}
+`;
+
 function getTreeLeafVertex(
   blade: TreeLeafBlade,
   air = false,
   depth = false,
   listed = false,
-  species: TreeAppearanceSpecies = 'citrus'
+  species: TreeAppearanceSpecies = 'citrus',
+  shellTransition = false
 ): string {
   const surface = getBladeSurface(species);
   const needle = species === 'pine';
@@ -2681,6 +2729,7 @@ precision highp sampler2D;
 ${coarse && !listed ? 'in float instanceTreeRow;' : 'in vec2 instanceLeafRef;'}
 
 uniform sampler2D treeLeaves;
+${shellTransition ? 'flat out float vShellRetention;' : ''}
 
 ${
   air
@@ -2812,7 +2861,11 @@ ${
   vec4 timing = treeLeafTexel(leaf, 2);
   float seed = timing.z;
   vec4 life = treeStateTexel(row, ${LIFE});
+#ifdef TREE_MATURE_ATTACHED_LEAVES
+  const float g = 1.0;
+#else
   float g = life.x;
+#endif
   float age = g - timing.x;
   if (age <= 0.0 || g > timing.y + 0.004) return;
 ${
@@ -2822,7 +2875,11 @@ ${
     : ''
 }
 
+#ifdef TREE_MATURE_ATTACHED_LEAVES
+  treeSetLife(vec4(g, life.y, 1.0, life.w), vec4(0.0), treeStateTexel(row, ${MISC}), detail);
+#else
   treeSetLife(life, treeStateTexel(row, ${POSE}), treeStateTexel(row, ${MISC}), detail);
+#endif
   if (tree.coverage <= 0.0 || tree.decay >= 1.0) return;
   if (fract(seed * 61.73 + tree.seed) >= tree.coverage) return;
   float shell = timing.w;
@@ -2858,6 +2915,12 @@ ${
   float leafFoliage = tree.foliage * 1.02;
   float passed = seed - leafFoliage;
   float settled = 1.0 - smoothstep(0.0, 0.02, tree.foliageRate);
+#ifdef TREE_MATURE_ATTACHED_LEAVES
+  const float flight = 0.0;
+  const bool litter = false;
+  const float flightSeconds = 0.0;
+  presence *= mix(1.0, smoothstep(0.0, 0.02, -passed), settled);
+#else
   float flight = 0.0;
   bool litter = false;
   float flightSeconds = 1.2 + 1.3 * fract(seed * 83.31);
@@ -2890,6 +2953,7 @@ ${
   } else {
     presence *= mix(1.0, smoothstep(0.0, 0.02, -passed), settled);
   }
+#endif
   float rotHash = fract(seed * 37.71);
   presence *= 1.0 - smoothstep(rotHash * 0.4, rotHash * 0.4 + 0.25, tree.decay);
   float dying = timing.y <= 1.0 ? 1.0 - smoothstep(timing.y, timing.y + 0.004, g) : 1.0;
@@ -3306,6 +3370,7 @@ ${
 #ifdef MODULE_SHADOW
   if (shadow.drawShadowMap) return;
 #endif
+  ${shellTransition ? `vShellRetention = treeStateTexel(row, ${CROP_DROPPED}).z;` : ''}
   // Enough to clear the leaf's own caster, which is larger than it in a coarser shadow pass. Read by the pixel
   // a leaf compares against its own plane, and its caster lies in that plane.
   float shadowBias = natural * ${coarse ? '1.2' : '0.2'};
@@ -3510,10 +3575,27 @@ ${
 `;
 }
 
-function getTreeLeafFragment(blade: TreeLeafBlade, species: TreeAppearanceSpecies): string {
+function getTreeLeafFragment(
+  blade: TreeLeafBlade,
+  species: TreeAppearanceSpecies,
+  shellTransition: boolean
+): string {
   const surface = getBladeSurface(species);
   const palm = species === 'palm';
   const pine = species === 'pine';
+  const shellCoverage = shellTransition
+    ? /* glsl */ `flat in float vShellRetention;
+${TREE_SHELL_COVERAGE_GLSL}`
+    : '';
+  const applyShellCoverage = shellTransition
+    ? /* glsl */ `
+#ifdef MODULE_SHADOW
+  if (!shadow.drawShadowMap)
+#endif
+  {
+    if (vShellRetention > 0.0 && treeShellCoversPixel(gl_FragCoord.xy, vShellRetention)) discard;
+  }`
+    : '';
   if (blade === 'far' || blade === 'coarse') {
     return /* glsl */ `#version 300 es
 #define SHADER_NAME tree-photoreal-leaf-fs
@@ -3525,14 +3607,18 @@ in vec3 vColor;
 out vec4 fragColor;
 
 ${TREE_PHOTOREAL_FRAGMENT_CHUNK}
+${shellCoverage}
 
 void main(void) {
+  ${applyShellCoverage}
   geometry.uv = vec2(0.0);
+#ifndef TREE_MATURE_ATTACHED_LEAVES
   if (picking.isActive > 0.5) {
     fragColor = vec4(0.0, 0.0, 0.0, 1.0);
     DECKGL_FILTER_COLOR(fragColor, geometry);
     return;
   }
+#endif
 #ifdef MODULE_SHADOW
   if (shadow.drawShadowMap) {
     fragColor = shadow_filterShadowColor(vec4(0.0));
@@ -3565,6 +3651,7 @@ in vec3 vFold;
 out vec4 fragColor;
 
 ${TREE_PHOTOREAL_FRAGMENT_CHUNK}
+${shellCoverage}
 ${getTreeShadowFragment(true, 8)}
 ${getTreeLeafShading(blade)}
 ${TREE_LEAF_MARGIN}
@@ -3601,12 +3688,15 @@ float treeLeafRelief(float t, float y, float seed, float midrib, float veins, fl
 
 
 void main(void) {
+  ${applyShellCoverage}
   geometry.uv = vec2(0.0);
+#ifndef TREE_MATURE_ATTACHED_LEAVES
   if (picking.isActive > 0.5) {
     fragColor = vec4(0.0, 0.0, 0.0, 1.0);
     DECKGL_FILTER_COLOR(fragColor, geometry);
     return;
   }
+#endif
 #ifdef MODULE_SHADOW
   if (shadow.drawShadowMap) {
     fragColor = shadow_filterShadowColor(vec4(0.0));
@@ -3701,7 +3791,8 @@ export function getTreeLeafShaders(
   blade: TreeLeafBlade,
   air?: 'blend' | 'depth',
   listed = false,
-  species: TreeAppearanceSpecies = 'citrus'
+  species: TreeAppearanceSpecies = 'citrus',
+  shellTransition = false
 ): {vs: string; fs: string} {
   return air
     ? {
@@ -3709,8 +3800,8 @@ export function getTreeLeafShaders(
         fs: getTreeLeafAirFragment(air === 'depth')
       }
     : {
-        vs: getTreeLeafVertex(blade, false, false, listed, species),
-        fs: getTreeLeafFragment(blade, species)
+        vs: getTreeLeafVertex(blade, false, false, listed, species, shellTransition),
+        fs: getTreeLeafFragment(blade, species, shellTransition)
       };
 }
 
