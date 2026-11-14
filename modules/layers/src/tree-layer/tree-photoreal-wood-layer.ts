@@ -4,9 +4,10 @@
 
 import {picking, project32, type DefaultProps, type Layer, type Viewport} from '@deck.gl/core';
 import {Buffer} from '@luma.gl/core';
-import {GPUGeometry, Model} from '@luma.gl/engine';
+import {Model} from '@luma.gl/engine';
 import {phongMaterial} from '@luma.gl/shaders';
 import {
+  SharedTreeGeometry,
   TreePhotorealPrimitiveLayer,
   type TreePhotorealLayerProps,
   type TreeTemplateResources
@@ -83,11 +84,6 @@ function getWoodLevelCuts(template: TreeGrowthModel): [number, number, number, n
   return cuts;
 }
 
-/** Index buffers belong to the shared template, so a model's geometry must not destroy them. */
-class SharedWoodGeometry extends GPUGeometry {
-  destroy(): void {}
-}
-
 /**
  * Connected wood of one template at one level of detail: a shared mesh instanced by state row. The
  * vertex stage grows, breaks, tips, bends and rots it from the state texture alone, so animating a tree
@@ -123,7 +119,7 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
     const {template} = this.props;
     // Eager models are prepared at startup, so the first macro dive never has to bin triangles.
     getTreeWoodClusters(template, this.props.lod);
-    const geometry = new SharedWoodGeometry({
+    const geometry = new SharedTreeGeometry({
       topology: 'triangle-list',
       vertexCount: template.wood.vertexCount,
       indices: resources.woodIndices,

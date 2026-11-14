@@ -28,6 +28,11 @@ import {PALM_SHAFT_SCAR_FREQUENCY} from './tree-palm';
 import {getPineBladeOutline} from './tree-pine-needle';
 import {TREE_WIND_GUST_GLSL, TREE_WIND_STRONG_FROM, TREE_WIND_STRONG_TO} from './tree-wind';
 
+const TREE_PRECISION_GLSL = /* glsl */ `precision highp float;
+precision highp int;`;
+const TREE_SAMPLER_PRECISION_GLSL = /* glsl */ `${TREE_PRECISION_GLSL}
+precision highp sampler2D;`;
+
 const DECLARATION = `uniform treePhotorealUniforms {
   vec4 wind;
   vec4 clock;
@@ -1051,6 +1056,24 @@ vec4 treeCrownLight(vec3 point, float shell) {
 }
 `;
 
+/** Early returns after a fragment passes the part's coverage tests. */
+export const TREE_PICKING_FRAGMENT_GLSL = /* glsl */ `  if (picking.isActive > 0.5) {
+    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    DECKGL_FILTER_COLOR(fragColor, geometry);
+    return;
+  }`;
+
+export const TREE_SHADOW_FRAGMENT_GLSL = /* glsl */ `#ifdef MODULE_SHADOW
+  if (shadow.drawShadowMap) {
+    fragColor = shadow_filterShadowColor(vec4(0.0));
+    return;
+  }
+#endif`;
+
+const TREE_LEAF_PICKING_FRAGMENT_GLSL = /* glsl */ `#ifndef TREE_MATURE_ATTACHED_LEAVES
+${TREE_PICKING_FRAGMENT_GLSL}
+#endif`;
+
 /**
  * The fragment stage all parts share: light color, hemisphere ambient, shadow map reading and the
  * filmic curve. Everything is in linear space until `treeFilmic`.
@@ -1400,9 +1423,7 @@ function getTreeWoodVertex(lod: number, opaque: boolean, palm: boolean): string 
 #define SHADER_NAME tree-photoreal-wood-vs
 #define TREE_WOOD_LOD ${getTreeWoodLevel(lod)}
 ${opaque ? '#define TREE_WOOD_OPAQUE' : ''}
-precision highp float;
-precision highp int;
-precision highp sampler2D;
+${TREE_SAMPLER_PRECISION_GLSL}
 
 in vec4 treeCenter;
 in vec4 treePrevious;
@@ -1645,9 +1666,7 @@ function getTreeWoodFragment(lod: number, opaque: boolean, palm: boolean): strin
 #define SHADER_NAME tree-photoreal-wood-fs
 #define TREE_WOOD_LOD ${getTreeWoodLevel(lod)}
 ${opaque ? '#define TREE_WOOD_OPAQUE' : ''}
-precision highp float;
-precision highp int;
-precision highp sampler2D;
+${TREE_SAMPLER_PRECISION_GLSL}
 
 in vec3 vPosition;
 in vec3 vCamera;
@@ -2107,17 +2126,8 @@ void main(void) {
   if (vFate.y < 1.0 && treeHash(floor(tube * 96.0) + 3.1) >= vFate.y) discard;
 
   geometry.uv = vBark.xy;
-  if (picking.isActive > 0.5) {
-    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    DECKGL_FILTER_COLOR(fragColor, geometry);
-    return;
-  }
-#ifdef MODULE_SHADOW
-  if (shadow.drawShadowMap) {
-    fragColor = shadow_filterShadowColor(vec4(0.0));
-    return;
-  }
-#endif
+${TREE_PICKING_FRAGMENT_GLSL}
+${TREE_SHADOW_FRAGMENT_GLSL}
 #endif
 
   float flags = vWood.w;
@@ -2723,9 +2733,7 @@ function getTreeLeafVertex(
   const corners = air ? TREE_LEAF_AIR_CORNERS : getTreeLeafCorners(blade);
   return /* glsl */ `#version 300 es
 #define SHADER_NAME tree-photoreal-leaf-${air ? 'air-' : ''}vs
-precision highp float;
-precision highp int;
-precision highp sampler2D;
+${TREE_SAMPLER_PRECISION_GLSL}
 
 ${coarse && !listed ? 'in float instanceTreeRow;' : 'in vec2 instanceLeafRef;'}
 
@@ -3511,8 +3519,7 @@ ${
 function getTreeLeafAirFragment(depth: boolean): string {
   return /* glsl */ `#version 300 es
 #define SHADER_NAME tree-photoreal-leaf-air-${depth ? 'depth-' : ''}fs
-precision highp float;
-precision highp int;
+${TREE_PRECISION_GLSL}
 
 in vec3 vColor;
 in vec2 vAirPixel;
@@ -3600,8 +3607,7 @@ ${TREE_SHELL_COVERAGE_GLSL}`
   if (blade === 'far' || blade === 'coarse') {
     return /* glsl */ `#version 300 es
 #define SHADER_NAME tree-photoreal-leaf-fs
-precision highp float;
-precision highp int;
+${TREE_PRECISION_GLSL}
 
 in vec3 vColor;
 
@@ -3613,19 +3619,8 @@ ${shellCoverage}
 void main(void) {
   ${applyShellCoverage}
   geometry.uv = vec2(0.0);
-#ifndef TREE_MATURE_ATTACHED_LEAVES
-  if (picking.isActive > 0.5) {
-    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    DECKGL_FILTER_COLOR(fragColor, geometry);
-    return;
-  }
-#endif
-#ifdef MODULE_SHADOW
-  if (shadow.drawShadowMap) {
-    fragColor = shadow_filterShadowColor(vec4(0.0));
-    return;
-  }
-#endif
+${TREE_LEAF_PICKING_FRAGMENT_GLSL}
+${TREE_SHADOW_FRAGMENT_GLSL}
   fragColor = vec4(treeFilmic(vColor), layer.opacity);
   DECKGL_FILTER_COLOR(fragColor, geometry);
 }
@@ -3633,9 +3628,7 @@ void main(void) {
   }
   return /* glsl */ `#version 300 es
 #define SHADER_NAME tree-photoreal-leaf-fs
-precision highp float;
-precision highp int;
-precision highp sampler2D;
+${TREE_SAMPLER_PRECISION_GLSL}
 
 in vec3 vPosition;
 in vec3 vCamera;
@@ -3691,19 +3684,8 @@ float treeLeafRelief(float t, float y, float seed, float midrib, float veins, fl
 void main(void) {
   ${applyShellCoverage}
   geometry.uv = vec2(0.0);
-#ifndef TREE_MATURE_ATTACHED_LEAVES
-  if (picking.isActive > 0.5) {
-    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    DECKGL_FILTER_COLOR(fragColor, geometry);
-    return;
-  }
-#endif
-#ifdef MODULE_SHADOW
-  if (shadow.drawShadowMap) {
-    fragColor = shadow_filterShadowColor(vec4(0.0));
-    return;
-  }
-#endif
+${TREE_LEAF_PICKING_FRAGMENT_GLSL}
+${TREE_SHADOW_FRAGMENT_GLSL}
 
   float seed = vInfo.x;
   float dead = vInfo.y;
@@ -4350,6 +4332,24 @@ vec3 treeCropLitTone(vec3 x) {
 `;
 
 /** Fruit, nuts and cones hang from a twig straight down, swing in the wind, drop and roll. */
+const TREE_CROP_PROJECT_GLSL = /* glsl */ `  point.z = max(point.z, TREE_GROUND);
+
+  vec4 commonPosition = treeCropProject(point);
+  DECKGL_FILTER_GL_POSITION(gl_Position, geometry);`;
+
+const TREE_CROP_VARYINGS_GLSL = /* glsl */ `#ifdef MODULE_SHADOW
+  if (shadow.drawShadowMap) return;
+  treeShadowWrite(commonPosition, seed, shadowBias);
+#endif
+#ifndef TREE_CROP_DOT
+  vCamera = project.cameraPosition;
+  vNormal = treeToCommonDirection(normal);
+  geometry.normal = vNormal;`;
+
+const TREE_CROP_TINT_GLSL = /* glsl */ `  float early = hashE * 0.38;
+  float ripeness = smoothstep(early, early + 0.62, crop.z);
+  treeCropTints();`;
+
 function getTreeCropHangingVertex(rind: boolean, level: TreeCropMeshLevel): string {
   const dot = level >= CROP_DOT_LEVEL;
   const lit = level === CROP_LIT_DOT_LEVEL;
@@ -4358,9 +4358,7 @@ function getTreeCropHangingVertex(rind: boolean, level: TreeCropMeshLevel): stri
 ${dot ? '#define TREE_CROP_DOT' : ''}
 ${lit ? '#define TREE_CROP_LIT' : ''}
 ${dot && !lit ? '#define TREE_CROP_QUAD' : ''}
-precision highp float;
-precision highp int;
-precision highp sampler2D;
+${TREE_SAMPLER_PRECISION_GLSL}
 
 ${
   lit
@@ -4630,10 +4628,7 @@ void main(void) {
     point = center + axisX * local.x + axisY * local.y + axisZ * local.z;
   }
 #endif
-  point.z = max(point.z, TREE_GROUND);
-
-  vec4 commonPosition = treeCropProject(point);
-  DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
+${TREE_CROP_PROJECT_GLSL}
   float leafCutHash = fract(seed * 47.13);
 #ifdef TREE_CROP_DOT
   // The size this shape has, large enough to be seen.
@@ -4656,14 +4651,7 @@ void main(void) {
 #ifdef TREE_CROP_DOT
   shadowBias = mix(0.2, shadowBias, smoothstep(4.5, 11.0, radiusPixels));
 #endif
-#ifdef MODULE_SHADOW
-  if (shadow.drawShadowMap) return;
-  treeShadowWrite(commonPosition, seed, shadowBias);
-#endif
-#ifndef TREE_CROP_DOT
-  vCamera = project.cameraPosition;
-  vNormal = treeToCommonDirection(normal);
-  geometry.normal = vNormal;
+${TREE_CROP_VARYINGS_GLSL}
   vLocal = cropPosition;
 #endif
   // The crown takes most of its light, and the leaves of its own shoot more.
@@ -4673,9 +4661,7 @@ void main(void) {
   float among = isContact ? contact : treeCropAmong(crown, hashC, progress);
   float grounded = smoothstep(0.95, 1.0, progress);
   // Ripening goes fruit by fruit, and is done for all of them at either end.
-  float early = hashE * 0.38;
-  float ripeness = smoothstep(early, early + 0.62, crop.z);
-  treeCropTints();
+${TREE_CROP_TINT_GLSL}
   // No two fruit quite one color: some a deeper orange, some yellower.
   cropRipe *= mix(vec3(1.05, 0.92, 0.9), vec3(0.97, 1.09, 1.1), hashD);
   float leafCut = treeCropLeafCut(isContact ? 0.0 : among, leafCutHash, radiusPixels);
@@ -4738,9 +4724,7 @@ function getTreeCropFlowerVertex(level: TreeCropMeshLevel): string {
 #define TREE_CROP_FLOWER
 ${dot ? '#define TREE_CROP_DOT' : ''}
 ${dot ? '#define TREE_CROP_LIT' : ''}
-precision highp float;
-precision highp int;
-precision highp sampler2D;
+${TREE_SAMPLER_PRECISION_GLSL}
 
 ${TREE_PHOTOREAL_VERTEX_CHUNK}
 ${getTreeShadowVertex(level === 0)}
@@ -4946,10 +4930,7 @@ void main(void) {
     normal = axisX * cropNormal.x + axisY * cropNormal.y + axis * cropNormal.z;
   }
 #endif
-  point.z = max(point.z, TREE_GROUND);
-
-  vec4 commonPosition = treeCropProject(point);
-  DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
+${TREE_CROP_PROJECT_GLSL}
 #ifdef TREE_CROP_DOT
   vec3 dotNormal = vec3(0.0);
   if (progress > 0.0) {
@@ -4971,23 +4952,14 @@ void main(void) {
   }
 #endif
   float shadowBias = full * 0.6 + 0.02;
-#ifdef MODULE_SHADOW
-  if (shadow.drawShadowMap) return;
-  treeShadowWrite(commonPosition, seed, shadowBias);
-#endif
-#ifndef TREE_CROP_DOT
-  vCamera = project.cameraPosition;
-  vNormal = treeToCommonDirection(normal);
-  geometry.normal = vNormal;
+${TREE_CROP_VARYINGS_GLSL}
   vLocal = local;
 #endif
 
   // The crown takes most of its light, wherever it has got to, and the leaves of its own shoot more.
   vec4 crown = treeCrownLight(mix(twig, path, progress), mix(cropShell, 1.0, progress));
   float among = treeCropAmong(crown, hashC, progress);
-  float early = hashE * 0.38;
-  float ripeness = smoothstep(early, early + 0.62, crop.z);
-  treeCropTints();
+${TREE_CROP_TINT_GLSL}
 #ifdef TREE_CROP_LIT
   {
     vec3 tint = mix(cropGreen, cropRipe, ripeness) * ${floatLiteral(TREE_CROP_PETAL_ALBEDO)};
@@ -5021,8 +4993,7 @@ void main(void) {
 function getTreeCropLitDotFragment(flower: boolean): string {
   return /* glsl */ `#version 300 es
 #define SHADER_NAME tree-photoreal-crop-lit-dot-fs
-precision highp float;
-precision highp int;
+${TREE_PRECISION_GLSL}
 
 in vec3 vLit;
 in vec3 vLitRight;
@@ -5073,11 +5044,7 @@ ${
   coverage *= 1.0 - clamp(beyondCut * pixels * 0.5 + 0.5, 0.0, 1.0);`
 }
   if (coverage <= (picking.isActive > 0.5 ? 0.5 : 0.0)) discard;
-  if (picking.isActive > 0.5) {
-    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    DECKGL_FILTER_COLOR(fragColor, geometry);
-    return;
-  }
+${TREE_PICKING_FRAGMENT_GLSL}
   fragColor = vec4(color, layer.opacity * coverage);
   DECKGL_FILTER_COLOR(fragColor, geometry);
 }
@@ -5209,9 +5176,7 @@ function getTreeCropHangingFragment(rind: boolean, level: TreeCropMeshLevel): st
   const dot = level >= CROP_DOT_LEVEL;
   return /* glsl */ `#version 300 es
 #define SHADER_NAME tree-photoreal-crop-hanging-fs
-precision highp float;
-precision highp int;
-precision highp sampler2D;
+${TREE_SAMPLER_PRECISION_GLSL}
 
 flat in vec3 vAxisX;
 flat in vec3 vAxisZ;
@@ -5268,17 +5233,8 @@ void main(void) {
   // Nothing here discards: a fragment that may discard is shaded before the depth test.
 ${dot ? '  vec4 dotPoint = treeCropDotPoint();' : ''}
   float part = floor(vInfo.y + 0.5);
-  if (picking.isActive > 0.5) {
-    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    DECKGL_FILTER_COLOR(fragColor, geometry);
-    return;
-  }
-#ifdef MODULE_SHADOW
-  if (shadow.drawShadowMap) {
-    fragColor = shadow_filterShadowColor(vec4(0.0));
-    return;
-  }
-#endif
+${TREE_PICKING_FRAGMENT_GLSL}
+${TREE_SHADOW_FRAGMENT_GLSL}
 
   if (part == ${TREE_CROP_PART.CONTACT}.0) {
 ${
@@ -5521,25 +5477,14 @@ function getTreeCropFlowerFragment(level: TreeCropMeshLevel): string {
   const full = level === 0;
   return /* glsl */ `#version 300 es
 #define SHADER_NAME tree-photoreal-crop-flower-fs
-precision highp float;
-precision highp int;
-precision highp sampler2D;
+${TREE_SAMPLER_PRECISION_GLSL}
 
 ${getTreeCropFragmentChunk(false, full, 8)}
 
 void main(void) {
   geometry.uv = vec2(0.0);
-  if (picking.isActive > 0.5) {
-    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    DECKGL_FILTER_COLOR(fragColor, geometry);
-    return;
-  }
-#ifdef MODULE_SHADOW
-  if (shadow.drawShadowMap) {
-    fragColor = shadow_filterShadowColor(vec4(0.0));
-    return;
-  }
-#endif
+${TREE_PICKING_FRAGMENT_GLSL}
+${TREE_SHADOW_FRAGMENT_GLSL}
 
   float part = floor(vInfo.y + 0.5);
   float seed = vUnripe.a;

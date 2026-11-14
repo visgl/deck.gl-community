@@ -4955,25 +4955,22 @@ function writeLeaves(
   const bareBase = 0.004;
 
   // The stem carries seedling leaves at a fixed spacing; all other shoots share the rest.
-  const stemFrom = chains.start[0];
-  const stemTo = chains.start[1];
-  let stemLength = 0;
-  for (let index = stemFrom + 1; index < stemTo; index++) {
-    const a = list[index - 1];
-    const b = list[index];
-    stemLength += Math.hypot(x[b] - x[a], y[b] - y[a], z[b] - z[a]);
-  }
-  const target = Math.round(profile.leaves * traits.leafDensity);
-  const stemLeaves = Math.round((stemLength / 0.0032) * Math.sqrt(traits.leafDensity));
+  const chainLengths = new Float64Array(chains.count);
   let totalWeight = 0;
-  for (let chain = 1; chain < chains.count; chain++) {
+  for (let chain = 0; chain < chains.count; chain++) {
+    let chainLength = 0;
     for (let index = chains.start[chain] + 1; index < chains.start[chain + 1]; index++) {
       const a = list[index - 1];
       const b = list[index];
       const length = Math.hypot(x[b] - x[a], y[b] - y[a], z[b] - z[a]);
-      totalWeight += length * getLeafWeight(context, b, pipe.radius[b]);
+      chainLength += length;
+      if (chain > 0) totalWeight += length * getLeafWeight(context, b, pipe.radius[b]);
     }
+    chainLengths[chain] = chainLength;
   }
+  const stemLength = chainLengths[0];
+  const target = Math.round(profile.leaves * traits.leafDensity);
+  const stemLeaves = Math.round((stemLength / 0.0032) * Math.sqrt(traits.leafDensity));
   const rate = (target - stemLeaves) / totalWeight;
   const capacity = target + 128;
   const records = new Float32Array(capacity * TREE_LEAF_STRIDE);
@@ -4983,12 +4980,7 @@ function writeLeaves(
     const from = chains.start[chain];
     const to = chains.start[chain + 1];
     const isStem = chain === 0;
-    let chainLength = 0;
-    for (let index = from + 1; index < to; index++) {
-      const a = list[index - 1];
-      const b = list[index];
-      chainLength += Math.hypot(x[b] - x[a], y[b] - y[a], z[b] - z[a]);
-    }
+    const chainLength = chainLengths[chain];
     const flushHabit = 0.4 + rng() * 0.6;
     let azimuth = rng() * TWO_PI;
     let carried = rng();
