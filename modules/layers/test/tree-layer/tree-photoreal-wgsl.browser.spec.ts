@@ -442,30 +442,15 @@ it('casts and receives directional shadows on the highest-detail WebGPU tree', a
     useDevicePixels: false,
     views: new OrbitView({orbitAxis: 'Z', fovy: 40, near: 0.25, far: 5}),
     initialViewState: {target: [0, 0, 2.3], zoom: 5.6, rotationX: 28, rotationOrbit: 0},
-    layers: [
-      new TreeLayer({
-        id: 'shadowed-tree',
-        coordinateSystem: 'cartesian',
-        data: [{position: [0, 0, 0], species: 'citrus', height: 4.8, crownRadius: 1.4}],
-        lodBias: -2
-      })
-    ],
     effects: [light],
     onAfterRender: () => frames++,
     onError: error => errors.push(error.message)
   });
   const capture = async () => {
     const start = frames;
-    await new Promise<void>(resolve => {
-      deck.setProps({
-        _animate: true,
-        onAfterRender() {
-          if (++frames < start + 3) return;
-          deck.setProps({_animate: false});
-          resolve();
-        }
-      });
-    });
+    deck.redraw('read back tree lighting');
+    expect(frames).toBe(start + 1);
+    expect(errors).toEqual([]);
     device.submit();
     const encoder = device.createCommandEncoder();
     encoder.copyTextureToBuffer({
@@ -479,6 +464,22 @@ it('casts and receives directional shadows on the highest-detail WebGPU tree', a
     return new Uint8Array(await readback.readAsync());
   };
   try {
+    await expect.poll(() => deck.isInitialized, {timeout: 30_000}).toBe(true);
+    const loop = deck['animationLoop']!;
+    loop.stop();
+    deck.setProps({
+      layers: [
+        new TreeLayer({
+          id: 'shadowed-tree',
+          coordinateSystem: 'cartesian',
+          data: [{position: [0, 0, 0], species: 'citrus', height: 4.8, crownRadius: 1.4}],
+          lodBias: -2
+        })
+      ]
+    });
+    // Initialize layer layout, then render only the two static samples. Queuing extra full
+    // shadow and lighting passes makes SwiftShader process them before it reaches the readback.
+    deck.layerManager!.updateLayers();
     const shadowed = await capture();
     const layer = deck.layerManager!.getLayers().find(layer => layer instanceof TreeLayer);
     expect(layer?.state.photoreal?.groups.values().next().value?.buckets[0]).toHaveLength(1);
