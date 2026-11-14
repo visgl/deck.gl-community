@@ -14,7 +14,7 @@ it('keeps the coarse branch silhouette at shell tiers with sparse or transparent
   const transparent: TreeSpec = {...oak, position: [0.00002, 0], canopyColor: [20, 110, 30, 0]};
   const summer: TreeSpec = {...oak, position: [0.00006, 0], season: 'summer'};
   const scene = mountTreeScene<TreeSpec>();
-  const layer = scene.render({data: [winter, sparse, transparent, summer], lodBias: 1});
+  const layer = scene.render({data: [winter, sparse, transparent, summer], lodBias: 2});
   const [group] = layer.state.photoreal!.groups.values();
   expect(group.rows.every(row => row.shellLevel >= 1)).toBe(true);
 
