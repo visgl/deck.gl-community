@@ -8,7 +8,7 @@ import type {ShaderModule, ShaderPlugin} from '@luma.gl/shaders';
 import {getTreeShadowWgsl} from '../../modules/layers/src/tree-layer/tree-photoreal-shadow-wgsl';
 import {FIELD_GROUND_SHADOW_WGSL} from './field-ground-shadow';
 
-const modules = new WeakMap<ShaderModule, ShaderModule>();
+const plugins = new WeakMap<ShaderPlugin, ShaderPlugin>();
 const isFieldShadow = (module: ShaderModule) =>
   module.name === 'shadow' && module.dependencies?.some(dep => dep.name === 'fieldShadowBlend');
 
@@ -18,41 +18,36 @@ export class FieldGroundLayer<DataT> extends SolidPolygonLayer<DataT, {shadowEna
 
   getShaders(type: 'top' | 'side') {
     const shaders = super.getShaders(type);
-    if (
-      this.context.device.type !== 'webgpu' ||
-      type !== 'top' ||
-      !shaders.plugins.some(plugin => plugin.module && isFieldShadow(plugin.module))
-    )
+    const plugin = shaders.plugins.find(plugin => plugin.module && isFieldShadow(plugin.module));
+    const module: ShaderModule | undefined = plugin?.module;
+    if (this.context.device.type !== 'webgpu' || type !== 'top' || !plugin || !module)
       return shaders;
+
+    let receiver = plugins.get(plugin);
+    if (!receiver) {
+      const wgsl = getTreeShadowWgsl(module);
+      receiver = {
+        ...plugin,
+        module: {
+          ...wgsl,
+          source: wgsl.source!.replace(/fn treeShadowTap\([\s\S]*$/, FIELD_GROUND_SHADOW_WGSL)
+        },
+        interStageVariables: {fieldShadowPosition: {type: 'vec3<f32>'}},
+        injections: {
+          'wgsl:vs:DECKGL_FILTER_GL_POSITION': 'fieldShadowPosition = geometry.position.xyz;',
+          'wgsl:fs:DECKGL_FILTER_COLOR': /* wgsl */ `
+if (picking.isActive <= 0.5) {
+  (*color) = vec4<f32>((*color).rgb * fieldGroundVisibility(fieldShadowPosition), (*color).a);
+}
+`
+        }
+      };
+      plugins.set(plugin, receiver);
+    }
     return {
       ...shaders,
-      plugins: shaders.plugins.map((plugin: ShaderPlugin) => {
-        const module = plugin.module;
-        if (!module || !isFieldShadow(module)) return plugin;
-        let receiver = modules.get(module);
-        if (!receiver) {
-          const wgsl = getTreeShadowWgsl(module);
-          receiver = {
-            ...wgsl,
-            source: wgsl.source!.replace(/fn treeShadowTap\([\s\S]*$/, FIELD_GROUND_SHADOW_WGSL)
-          };
-          modules.set(module, receiver);
-        }
-        return {...plugin, module: receiver};
-      }),
-      source: shaders.source
-        .replace(
-          '@location(1) pickingColor: vec3<f32>,',
-          '@location(1) pickingColor: vec3<f32>, @location(2) shadowPosition: vec3<f32>,'
-        )
-        .replace(
-          'geometry.position = projectedPosition.commonPosition;',
-          'geometry.position = projectedPosition.commonPosition; outp.shadowPosition = geometry.position.xyz;'
-        )
-        .replace(
-          'var fragColor = inp.vColor;',
-          'let visibility = fieldGroundVisibility(inp.shadowPosition); var fragColor = vec4<f32>(inp.vColor.rgb * visibility, inp.vColor.a);'
-        )
+      modules: shaders.modules.filter(entry => entry !== module),
+      plugins: shaders.plugins.map(entry => (entry === plugin ? receiver : entry))
     };
   }
 
