@@ -25,6 +25,9 @@ export {SkyboxLayer} from './skybox-layer/skybox-layer';
 export type {FlameTrailLayerProps} from './flame-trail-layer/flame-trail-layer';
 export {FlameTrailLayer} from './flame-trail-layer/flame-trail-layer';
 
+export type {RainLayerProps} from './rain-layer/rain-layer';
+export {RainLayer} from './rain-layer/rain-layer';
+
 export {VolumetricVideoLayer} from './volumetric-video-layer/volumetric-video-layer';
 export type {
   VolumetricVideoLayerProps,

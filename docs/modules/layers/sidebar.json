@@ -4,6 +4,7 @@
   "items": [
     "modules/layers/README",
     "modules/layers/api-reference/flame-trail-layer",
+    "modules/layers/api-reference/rain-layer",
     "modules/layers/api-reference/skybox-layer",
     "modules/layers/api-reference/dependency-arrow-layer",
     "modules/layers/api-reference/path-marker-layer",
