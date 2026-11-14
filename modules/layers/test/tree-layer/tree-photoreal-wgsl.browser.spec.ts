@@ -105,6 +105,7 @@ it('draws photoreal WebGPU geometry from packed state and template textures', as
     });
     const model = new Model(device, {
       id: 'photoreal-tree-wgsl-layout-probe',
+      colorAttachmentFormats: ['rgba8unorm'],
       shaderAssembler: getShaderAssembler('wgsl'),
       shaderLayout: binding.shaderLayout,
       modules: [treePhotorealWgsl],
@@ -197,9 +198,6 @@ struct Probe {
         });
       }
       expect(pixels[(64 * SIZE + 64) * 4 + 3]).toBe(0);
-    } catch (error) {
-      console.error('WGSL direct probe root error', error, errors);
-      throw error;
     } finally {
       model.destroy();
       readback.destroy();
@@ -370,7 +368,8 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
     expect(palm.count).toBeGreaterThan(100);
     const cropPick = await deck!.pickObjectAsync({
       x: crop.point.x,
-      y: height - 1 - crop.point.y,
+      // Native WebGPU readback and Deck picking both use top-left pixel coordinates.
+      y: crop.point.y,
       radius: 2,
       layerIds: ['photoreal-tree-photoreal-crops']
     });
@@ -562,6 +561,7 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
   });
   const shadowRead = new Model(device, {
     id: 'crop-shadow-readback',
+    colorAttachmentFormats: ['rgba8unorm'],
     shaderLayout: {
       attributes: [],
       bindings: [
@@ -697,9 +697,6 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
       100
     );
     expect(errors.slice(0, 4)).toEqual([]);
-  } catch (error) {
-    console.error('WGSL close crop probe root error', error, errors);
-    throw error;
   } finally {
     deck.finalize();
     handle.removeEventListener('uncapturederror', recordError);
