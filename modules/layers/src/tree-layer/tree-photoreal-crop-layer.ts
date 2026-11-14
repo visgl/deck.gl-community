@@ -5,7 +5,7 @@
 import {getTreeCropWgslShaders} from './tree-photoreal-crop-wgsl';
 import {picking, project32, type DefaultProps} from '@deck.gl/core';
 import {Buffer, type Device, type Texture} from '@luma.gl/core';
-import {GPUGeometry, Model} from '@luma.gl/engine';
+import {Model} from '@luma.gl/engine';
 import {phongMaterial} from '@luma.gl/shaders';
 import {
   getTreeCropGeometry,
@@ -15,8 +15,10 @@ import {
   type CropKind,
   type TreeCropMeshLevel
 } from './tree-crop';
-import {TREE_TEMPLATE_TEXTURE_WIDTH, type TreeGrowthModel} from './tree-photoreal-layout';
+import type {TreeGrowthModel} from './tree-photoreal-layout';
 import {
+  createTreeTemplateTexture,
+  SharedTreeGeometry,
   TreePhotorealPrimitiveLayer,
   type TreePhotorealLayerProps,
   type TreeTemplateResources
@@ -145,20 +147,9 @@ function acquireCropRanks(device: Device, model: TreeGrowthModel): Texture {
   let entry = cache.get(model);
   if (!entry) {
     const {ranks} = getTreeCropTable(model);
-    const height = Math.max(1, Math.ceil(ranks.length / TREE_TEMPLATE_TEXTURE_WIDTH));
-    const data = new Float32Array(TREE_TEMPLATE_TEXTURE_WIDTH * height);
-    data.set(ranks);
     entry = {
       references: 0,
-      texture: device.createTexture({
-        id: `tree-crop-ranks-${model.key}`,
-        format: 'r32float',
-        width: TREE_TEMPLATE_TEXTURE_WIDTH,
-        height,
-        data,
-        mipLevels: 1,
-        sampler: {minFilter: 'nearest', magFilter: 'nearest', mipmapFilter: 'none'}
-      })
+      texture: createTreeTemplateTexture(device, `tree-crop-ranks-${model.key}`, ranks, 'r32float')
     };
     cache.set(model, entry);
   }
@@ -172,11 +163,6 @@ function releaseCropRanks(device: Device, model: TreeGrowthModel): void {
   if (!cache || !entry || --entry.references > 0) return;
   cache.delete(model);
   entry.texture.destroy();
-}
-
-/** Crop meshes are shared, so a model's geometry must not destroy their buffers. */
-class SharedCropGeometry extends GPUGeometry {
-  destroy(): void {}
 }
 
 /**
@@ -290,7 +276,7 @@ export class TreePhotorealCropLayer<DataT = unknown> extends TreePhotorealPrimit
     return new Model(device, {
       ...this.getShaders(),
       id: this.props.id,
-      geometry: new SharedCropGeometry({
+      geometry: new SharedTreeGeometry({
         topology: isPoint ? 'point-list' : 'triangle-list',
         vertexCount: geometry.vertexCount,
         indices,

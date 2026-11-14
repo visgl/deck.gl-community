@@ -7,10 +7,16 @@ import {
   TREE_LEAF_STRIDE,
   type TreeGrowthModel
 } from './tree-photoreal-layout';
+import {
+  getTreeClusterCellKey,
+  getTreeClusterSphere,
+  rotateTreeClusterCenter,
+  type TreeClusterBounds
+} from './tree-cluster-bounds';
 
 /** Bounds in template coordinates, containing the resting bases of a small spatial group of leaves. */
 export type TreeLeafCluster = {
-  bounds: readonly [number, number, number, number, number, number];
+  bounds: Readonly<TreeClusterBounds>;
   length: number;
   leaves: Uint32Array;
   matureLeaves: Uint32Array;
@@ -68,39 +74,26 @@ export function getTreeLeafClusterSphere(
   leafScale: number,
   windReach: number,
   bladeMargin = 8
-): {center: [number, number, number]; radius: number} {
-  const [lowX, lowY, lowZ, highX, highY, highZ] = cluster.bounds;
-  const zMetres = (z: number) =>
-    z < forkZ ? (z / forkZ) * trunk : trunk + ((z - forkZ) / (1 - forkZ)) * (height - trunk);
-  const x = (lowX + highX) * 0.5 * crownX;
-  const y = (lowY + highY) * 0.5 * crownY;
-  const low = zMetres(lowZ);
-  const high = zMetres(highZ);
-  const cosine = Math.cos(yaw);
-  const sine = Math.sin(yaw);
-  return {
-    center: [x * cosine - y * sine, x * sine + y * cosine, (low + high) * 0.5],
-    // The longest blade, its inward hidden-leaf shift, and the wind's full reach. Eight leaf lengths
-    // cover the coarse blade's largest hiddenScale (3), inward shift (3.6), outline and cupping.
-    radius:
-      Math.hypot((highX - lowX) * crownX, (highY - lowY) * crownY, high - low) * 0.5 +
-      cluster.length * leafScale * bladeMargin +
-      windReach
-  };
+) {
+  const sphere = getTreeClusterSphere(cluster.bounds, crownX, crownY, height, trunk, forkZ);
+  rotateTreeClusterCenter(sphere.center, yaw);
+  // Eight leaf lengths cover the largest hiddenScale (3), inward shift (3.6), outline and cupping.
+  sphere.radius = sphere.radius + cluster.length * leafScale * bladeMargin + windReach;
+  return sphere;
 }
 
 /** Build spatial bounds once per shared template, without changing its leaf order or LOD prefixes. */
 export function getTreeLeafClusters(template: TreeGrowthModel): TreeLeafCluster[] {
   const known = CLUSTERS.get(template);
   if (known) return known;
-  const bins = new Map<string, {bounds: number[]; length: number; leaves: number[]}>();
+  const bins = new Map<string, {bounds: TreeClusterBounds; length: number; leaves: number[]}>();
   const {leaves, leafCount} = template;
   for (let leaf = 0; leaf < leafCount; leaf++) {
     const offset = leaf * TREE_LEAF_STRIDE;
     const x = leaves[offset];
     const y = leaves[offset + 1];
     const z = leaves[offset + 2];
-    const key = `${Math.floor(x * 8)},${Math.floor(y * 8)},${Math.floor(z * 12)}`;
+    const key = getTreeClusterCellKey(x, y, z);
     let bin = bins.get(key);
     if (!bin) {
       bin = {bounds: [x, y, z, x, y, z], length: 0, leaves: []};
@@ -117,7 +110,7 @@ export function getTreeLeafClusters(template: TreeGrowthModel): TreeLeafCluster[
     const indices = Uint32Array.from(bin.leaves);
     const matureLeaves = indices.filter(leaf => !isMatureLeafRejected(leaves, leaf));
     return {
-      bounds: bin.bounds as unknown as TreeLeafCluster['bounds'],
+      bounds: bin.bounds,
       length: bin.length,
       leaves: indices,
       matureLeaves: matureLeaves.length === indices.length ? indices : matureLeaves

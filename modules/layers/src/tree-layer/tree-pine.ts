@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Quaternion, Vector3} from '@math.gl/core';
-import {getTreeFrames, type TreePoint} from './tree-botany';
+import {getTreeFrames, packTreeTubes, type TreePoint, type TreeTube} from './tree-botany';
 import {
   getTreeCharacteristicsKey,
   resolveTreeCharacteristics,
@@ -16,8 +16,7 @@ import {
   TREE_CROP_ANCHOR_STRIDE,
   TREE_LEAF_STRIDE,
   TREE_LIMB_STRIDE,
-  type TreeGrowthModel,
-  type TreeGrowthWood
+  type TreeGrowthModel
 } from './tree-photoreal-layout';
 
 const REFERENCE_HEIGHT = 12;
@@ -289,49 +288,29 @@ export function createPineGrowthModel(
     const {parent, order} = nodes[index];
     if (order === nodes[parent].order) next[parent] = index;
   }
-  const physicalPoint = ([x, y, z]: TreePoint): TreePoint => [x * crownAspect, y * crownAspect, z];
-  const center: number[] = [];
-  const previous: number[] = [];
-  const radial: number[] = [];
-  const bark: number[] = [];
-  const shade: number[] = [];
-  // Coarsest first, so every detailed model starts with the same woody silhouette.
-  const indices: number[][] = [[], [], [], []];
+  const tubes: TreeTube[] = [];
   const limbs = [0, 0, 0, 2, 0, 0, 1, 0];
   const limbByNode = new Uint16Array(nodes.length);
   const cropAnchors: number[] = [];
 
-  function writeTube(path: number[], order: PineNode['order'], limb: number) {
-    const sides = order === 0 ? 12 : order === 1 ? 8 : 5;
-    const points = path.map(index => physicalPoint(nodes[index].position));
-    const frames = getTreeFrames(points);
-    const seed = rng();
-    let arc = 0;
-    for (const [ring, index] of path.entries()) {
-      const node = nodes[index];
-      const before = nodes[path[Math.max(0, ring - 1)]];
-      if (ring > 0) arc += new Vector3(points[ring]).distance(points[ring - 1]);
-      const radius = ring === 0 && order > 0 ? nodes[path[1]].radius * 1.3 : node.radius;
-      const band = order === 0 ? 0 : order >= 2 ? 3 : ring <= 2 ? 1 : 2;
-      const {side, up} = frames[ring];
-      for (let segment = 0; segment <= sides; segment++) {
-        const u = segment / sides;
-        const angle = u * TWO_PI;
-        const normal = new Vector3(side)
-          .scale(Math.cos(angle))
-          .add(new Vector3(up).scale(Math.sin(angle)));
-        const vertex = center.length / 4;
-        center.push(...node.position, Math.max(node.birth, 0.0001));
-        previous.push(...before.position, before.birth);
-        radial.push(...normal, radius);
-        bark.push(u, arc, 0, limb);
-        shade.push(order === 0 ? 0.9 : Math.min(1, 0.7 + 0.12 * order), order, seed, 0);
-        if (ring > 0 && segment < sides) {
-          const a = vertex - sides - 1;
-          indices[band].push(a, a + 1, vertex, a + 1, vertex + 1, vertex);
-        }
-      }
-    }
+  function addTube(path: number[], order: PineNode['order'], limb: number) {
+    tubes.push({
+      rings: path.map((index, ring) => {
+        const {position, birth, radius} = nodes[index];
+        return {
+          position,
+          birth,
+          radius: ring === 0 && order > 0 ? nodes[path[1]].radius * 1.3 : radius,
+          band: order === 0 ? 0 : order >= 2 ? 3 : ring <= 2 ? 1 : 2
+        };
+      }),
+      sides: order === 0 ? 12 : order === 1 ? 8 : 5,
+      limb,
+      order,
+      occlusion: order === 0 ? 0.9 : Math.min(1, 0.7 + 0.12 * order),
+      seed: rng(),
+      minimumBirth: 0.0001
+    });
   }
 
   function traceTube(first: number): number[] {
@@ -340,7 +319,7 @@ export function createPineGrowthModel(
     return path;
   }
 
-  writeTube(traceTube(0), 0, 0);
+  addTube(traceTube(0), 0, 0);
   for (let index = 1; index < nodes.length; index++) {
     const node = nodes[index];
     const parent = nodes[node.parent];
@@ -353,11 +332,11 @@ export function createPineGrowthModel(
       const breakAt = 0.78 - 0.42 * parent.position[2] + 0.08 * rng();
       limbs.push(...parent.position, breakAt, ...direction.normalize(), length);
       for (const member of bough) limbByNode[member] = limb;
-      writeTube([node.parent, ...bough], 1, limb);
+      addTube([node.parent, ...bough], 1, limb);
     } else if (node.order >= 2) {
       const limb = limbByNode[node.parent];
       limbByNode[index] = limb;
-      writeTube([node.parent, index], node.order, limb);
+      addTube([node.parent, index], node.order, limb);
       // An optional crop attaches to a grown twig near the ends of the surrounding needles.
       if (node.order === 2)
         cropAnchors.push(...node.position, node.birth + 0.003, 0, limb, rng(), 0.82);
@@ -367,29 +346,13 @@ export function createPineGrowthModel(
     leaves[leaf * TREE_LEAF_STRIDE + 13] = limbByNode[needleNodes[leaf]];
   }
 
-  const [stem, primary, outer, fine] = indices;
-  const wood: TreeGrowthWood = {
-    vertexCount: center.length / 4,
-    center: Float32Array.from(center),
-    previous: Float32Array.from(previous),
-    radial: Float32Array.from(radial),
-    bark: Float32Array.from(bark),
-    shade: Float32Array.from(shade),
-    indices: Uint32Array.from(indices.flat()),
-    lodIndexCounts: [
-      stem.length + primary.length + outer.length + fine.length,
-      stem.length + primary.length + outer.length,
-      stem.length + primary.length,
-      stem.length
-    ]
-  };
   const model = {
     key,
     forkZ,
     referenceHeight,
     trunkRatio: TRUNK_RATIO,
     crownAspect,
-    wood,
+    wood: packTreeTubes(tubes, crownAspect),
     leaves,
     leafCount,
     lodLeafCounts,
