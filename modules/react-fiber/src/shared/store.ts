@@ -44,7 +44,7 @@ export interface State {
   /**
    * Views passed directly via the `views` prop (internal use)
    *
-   * Merged with JSX `<view>` children; `undefined` when the prop is absent.
+   * Merged with JSX `<deckView>` children; `undefined` when the prop is absent.
    *
    * @internal
    */
@@ -53,7 +53,7 @@ export interface State {
   /**
    * Widgets passed directly via the `widgets` prop (internal use)
    *
-   * Merged with JSX `<widget>` children; `undefined` when the prop is absent.
+   * Merged with JSX `<deckWidget>` children; `undefined` when the prop is absent.
    *
    * @internal
    */
@@ -62,7 +62,7 @@ export interface State {
   /**
    * Effects passed directly via the `effects` prop (internal use)
    *
-   * Merged with JSX `<effect>` children; `undefined` when the prop is absent.
+   * Merged with JSX `<deckEffect>` children; `undefined` when the prop is absent.
    *
    * @internal
    */

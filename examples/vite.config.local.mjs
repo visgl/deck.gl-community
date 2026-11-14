@@ -33,7 +33,7 @@ export default defineConfig(async () => {
         'react-dom': join(rootDir, './node_modules/react-dom'),
       },
       dedupe: deckSource
-        ? ['@luma.gl/core', '@luma.gl/engine', '@luma.gl/webgl', '@luma.gl/webgpu', '@luma.gl/shadertools']
+        ? ['@luma.gl/core', '@luma.gl/engine', '@luma.gl/core/webgl', '@luma.gl/core/webgpu', '@luma.gl/shaders']
         : []
     },
     define: {

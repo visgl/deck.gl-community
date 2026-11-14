@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {_deepEqual, CompositeLayer, createIterable, COORDINATE_SYSTEM} from '@deck.gl/core';
+import {_deepEqual, CompositeLayer, createIterable} from '@deck.gl/core';
 import type {
   Color,
   Accessor,
@@ -17,7 +17,7 @@ import type {
   Viewport
 } from '@deck.gl/core';
 import type {Texture} from '@luma.gl/core';
-import type {PhongMaterialProps} from '@luma.gl/shadertools';
+import type {PhongMaterialProps} from '@luma.gl/shaders';
 import {
   getTreeCropTable,
   getTreeCropVertexCount,
@@ -908,9 +908,9 @@ function getWindVector(bearing: number | null | undefined): [number, number] | n
 function getWindUnits(props, origin: ArrayLike<number>, viewport?: Viewport): [number, number] {
   const {coordinateSystem} = props;
   const lngLat =
-    coordinateSystem === COORDINATE_SYSTEM.LNGLAT ||
-    coordinateSystem === COORDINATE_SYSTEM.LNGLAT_OFFSETS ||
-    (coordinateSystem === COORDINATE_SYSTEM.DEFAULT && viewport?.isGeospatial);
+    coordinateSystem === 'lnglat' ||
+    coordinateSystem === 'lnglat-offsets' ||
+    (coordinateSystem === 'default' && viewport?.isGeospatial);
   return lngLat
     ? [METRES_PER_DEGREE * Math.cos((origin[1] * Math.PI) / 180), METRES_PER_DEGREE]
     : [1, 1];
@@ -2855,9 +2855,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   renderLayers() {
     const {modelMatrix, coordinateSystem} = this.props;
     const composesModelMatrix =
-      coordinateSystem === COORDINATE_SYSTEM.CARTESIAN ||
-      coordinateSystem === COORDINATE_SYSTEM.METER_OFFSETS ||
-      (coordinateSystem === COORDINATE_SYSTEM.DEFAULT && !this.context?.viewport?.isGeospatial);
+      coordinateSystem === 'cartesian' ||
+      coordinateSystem === 'meter-offsets' ||
+      (coordinateSystem === 'default' && !this.context?.viewport?.isGeospatial);
     if (
       modelMatrix &&
       composesModelMatrix &&

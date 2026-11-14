@@ -20,7 +20,7 @@ describe('config-misc', () => {
       // Arrange
       const layer = new ScatterplotLayer({data: [], id: 'test'});
       const instance = createMockInstance(layer);
-      const type = 'layer';
+      const type = 'deckLayer';
       const oldProps: Props = {layer};
       const newProps: Props = {layer};
       const rootContainer = {} as Container;
@@ -46,7 +46,7 @@ describe('config-misc', () => {
         id: 'test'
       });
       const instance = createMockInstance(oldLayer);
-      const type = 'layer';
+      const type = 'deckLayer';
       const oldProps: Props = {layer: oldLayer};
       const newProps: Props = {layer: newLayer};
 

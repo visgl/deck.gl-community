@@ -81,11 +81,12 @@ describe('GraphLayer data inputs', () => {
 
   it('converts published DOT loader output through the default graph loader', async () => {
     const url = `data:text/vnd.graphviz,${encodeURIComponent(karateDot)}`;
-    const data = await load(url, [DOTLoaderWithParser]);
+    const data = await load(url, [DOTLoaderWithParser], {dot: {shape: 'plain-graph-data'}});
     const layer = new GraphLayer({
       id: 'dot',
       data,
       loaders: [DOTLoaderWithParser],
+      loadOptions: {dot: {shape: 'plain-graph-data'}},
       layout: new SimpleLayout()
     });
     initializeLayer(layer);

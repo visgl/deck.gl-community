@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 import {SPLAT_GLOBE_GLSL} from '../splat-layer/splat-globe';
 import {TREE_CROP_PART, type CropKind, type TreeCropMeshLevel} from './tree-crop';
 import {

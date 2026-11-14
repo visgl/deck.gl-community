@@ -4,8 +4,8 @@
 
 import {Deck, OrbitView} from '@deck.gl/core';
 import {Buffer, luma, Texture} from '@luma.gl/core';
-import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
-import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/webgpu';
+import {webgl2Adapter, type WebGLDevice} from '@luma.gl/core/webgl';
+import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/core/webgpu';
 import {expect, it} from 'vitest';
 import {requireWebGPUAdapter} from '../../../modules/layers/test/webgpu-test-utils';
 import {createSceneLayers, fitSceneView} from './scene';

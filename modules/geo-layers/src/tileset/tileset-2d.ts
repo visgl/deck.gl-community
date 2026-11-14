@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {RequestScheduler, type TileSource, type TileSourceMetadata} from '@loaders.gl/loader-utils';
+import {
+  RequestScheduler,
+  type TileSource,
+  type TileSourceMetadata
+} from '@loaders.gl/core/loader-utils';
 import type {Matrix4} from '@math.gl/core';
-import {Stats} from '@probe.gl/stats';
+import {Stats} from 'probe.gl/stats';
 import {SharedTile2DHeader} from './tile-2d-header';
 import type {SharedTileset2DAdapter, SharedTileset2DTileContext} from './adapter';
 import type {TileIndex, TileLoadProps, ZRange} from './types';

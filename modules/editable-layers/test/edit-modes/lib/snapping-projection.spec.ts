@@ -1,9 +1,11 @@
+import {projectionEngine} from '@math.gl/geospatial/projection';
+const SOURCE_CRS = await projectionEngine.getCRS('EPSG:4326');
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
 import {test, expect} from 'vitest';
-import {WebMercatorViewport, OrthographicViewport, COORDINATE_SYSTEM} from '@deck.gl/core';
+import {WebMercatorViewport, OrthographicViewport} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core';
 import {EditableGeoJsonLayer} from '../../../src/editable-layers/editable-geojson-layer';
 import {getClosestSnapTargetHandle} from '../../../src/edit-modes/snapping/snapping-utils';
@@ -25,7 +27,7 @@ function createProjectionLayer(
   coordinates,
   modelMatrix?,
   activeViewport = viewport,
-  coordinateOrigin = origin
+  coordinateOrigin = coordinateSystem === 'lnglat' ? [0, 0, 0] : origin
 ) {
   const props = createFeatureCollectionProps();
   props.data = {
@@ -52,7 +54,10 @@ function createProjectionLayer(
     pickingRadius: 8
   });
   layer.context = {viewport: activeViewport} as any;
-  layer.internalState = {viewport: activeViewport} as any;
+  layer.internalState = {
+    viewport: activeViewport,
+    sourceCrs: ['cartesian', 'meter-offsets'].includes(coordinateSystem) ? null : SOURCE_CRS
+  } as any;
   layer.state = {
     lastPointerMoveEvent: {...props.lastPointerMoveEvent, mapCoords: coordinates[0]},
     cursor: null
@@ -61,8 +66,8 @@ function createProjectionLayer(
 }
 
 test.each([
-  [COORDINATE_SYSTEM.METER_OFFSETS, [100, 80, 40]],
-  [COORDINATE_SYSTEM.LNGLAT_OFFSETS, [0.001, 0.001, 40]]
+  ['meter-offsets', [100, 80, 40]],
+  ['lnglat-offsets', [0.001, 0.001, 40]]
 ])('offset vertices snap to original local coordinates: %s', (coordinateSystem, position) => {
   const layer = createProjectionLayer(coordinateSystem, [position]);
   const screen = layer.project(position);
@@ -76,7 +81,7 @@ test.each([
 
 test.each([
   [
-    COORDINATE_SYSTEM.METER_OFFSETS,
+    'meter-offsets',
     [
       [0, 0, 0],
       [200, 100, 80]
@@ -84,7 +89,7 @@ test.each([
     new Matrix4().translate([20, 30, 10]).rotateZ(0.2)
   ],
   [
-    COORDINATE_SYSTEM.LNGLAT_OFFSETS,
+    'lnglat-offsets',
     [
       [0, 0, 0],
       [0.002, 0.001, 80]
@@ -123,15 +128,10 @@ test.each([
 });
 
 test.each([
-  [COORDINATE_SYSTEM.LNGLAT, [-122.399, 37.801, 70], undefined, viewport],
+  ['lnglat', [-122.399, 37.801, 70], undefined, viewport],
+  ['cartesian', [0.002, 0.002, 0.001], new Matrix4().translate([1, 1, 1]), viewport],
   [
-    COORDINATE_SYSTEM.CARTESIAN,
-    [0.002, 0.002, 0.001],
-    new Matrix4().translate([1, 1, 1]),
-    viewport
-  ],
-  [
-    COORDINATE_SYSTEM.CARTESIAN,
+    'cartesian',
     [20, 30, 40],
     new Matrix4().translate([10, 20, 30]).rotateZ(0.2),
     new OrthographicViewport({width: 900, height: 700, target: [0, 0, 0], zoom: 1})
@@ -147,7 +147,7 @@ test.each([
 
 test('singular model matrices cannot produce an edge snap', () => {
   const layer = createProjectionLayer(
-    COORDINATE_SYSTEM.METER_OFFSETS,
+    'meter-offsets',
     [
       [0, 0, 0],
       [200, 100, 80]
@@ -165,19 +165,17 @@ test('Cartesian origin without altitude has a finite local inverse', () => {
   const position = [0.002, 0.001, 0];
   const shortOrigin = commonOrigin.slice(0, 2);
   const layer = createProjectionLayer(
-    COORDINATE_SYSTEM.CARTESIAN,
+    'cartesian',
     [position],
     undefined,
     viewport,
     shortOrigin as any
   );
-  const reference = createProjectionLayer(
-    COORDINATE_SYSTEM.CARTESIAN,
-    [position],
-    undefined,
-    viewport,
-    [commonOrigin[0], commonOrigin[1], 0]
-  );
+  const reference = createProjectionLayer('cartesian', [position], undefined, viewport, [
+    commonOrigin[0],
+    commonOrigin[1],
+    0
+  ]);
   const inverse = layer
     .getModeProps(layer.props)
     .projection!.unproject(reference.project(position));
@@ -193,19 +191,17 @@ test('Cartesian origin without altitude supports bounded 2D edge targets', () =>
   ];
   const shortOrigin = commonOrigin.slice(0, 2);
   const layer = createProjectionLayer(
-    COORDINATE_SYSTEM.CARTESIAN,
+    'cartesian',
     positions,
     undefined,
     viewport,
     shortOrigin as any
   );
-  const reference = createProjectionLayer(
-    COORDINATE_SYSTEM.CARTESIAN,
-    positions,
-    undefined,
-    viewport,
-    [commonOrigin[0], commonOrigin[1], 0]
-  );
+  const reference = createProjectionLayer('cartesian', positions, undefined, viewport, [
+    commonOrigin[0],
+    commonOrigin[1],
+    0
+  ]);
   const start = reference.project([...positions[0], 0]);
   const end = reference.project([...positions[1], 0]);
   const foot = start.map((value, i) => (value + end[i]) / 2);
@@ -232,12 +228,12 @@ test.each([
     [-122.398, 37.801, 100]
   ];
   const source = createProjectionLayer(
-    COORDINATE_SYSTEM.LNGLAT,
+    'lnglat',
     sourcePositions,
     new Matrix4().translate([0.0001, 0.0002, 12])
   );
   const layer = createProjectionLayer(
-    COORDINATE_SYSTEM.METER_OFFSETS,
+    'meter-offsets',
     [[0, 0, 0]],
     new Matrix4().translate([20, 30, 10]).rotateZ(0.2)
   );

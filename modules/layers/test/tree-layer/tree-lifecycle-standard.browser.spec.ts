@@ -5,7 +5,6 @@
 import {
   _GlobeView as GlobeView,
   AmbientLight,
-  COORDINATE_SYSTEM,
   Deck,
   DirectionalLight,
   LightingEffect,
@@ -15,8 +14,8 @@ import {
   type LayerManager
 } from '@deck.gl/core';
 import {luma, type Device} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {afterEach, describe, expect, inject, it} from 'vitest';
 import {TreeLayer, type TreeSpec, type TreeType} from '../../src';
 import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-layer';
@@ -28,7 +27,7 @@ const VIEW = new OrbitView({orbitAxis: 'Z', fovy: 40, near: 0.1, far: 12} as nev
 const VIEW_STATE = {target: [0, 0, 5.5], rotationOrbit: 0, rotationX: 3, zoom: 3.2, maxZoom: 30};
 
 const coordinates = {
-  coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+  coordinateSystem: 'cartesian',
   coordinateOrigin: [0, 0, 0] as [number, number, number]
 };
 
@@ -285,7 +284,7 @@ describe('TreeLayer species lifecycle', () => {
       tree('palm', {position: [0.0001, 0.00005, 0], lean: [35, 20], decay: 0.15, damage: 0.4})
     ];
     const pixels = await scene.render([
-      trees(data, {coordinateSystem: COORDINATE_SYSTEM.LNGLAT, windStrength: 0.05})
+      trees(data, {coordinateSystem: 'lnglat', windStrength: 0.05})
     ]);
     expect(measure(pixels).count).toBeGreaterThan(200);
     expect(
@@ -309,7 +308,7 @@ describe('TreeLayer species lifecycle', () => {
     ];
     const pixels = await scene.render([
       trees(data, {
-        coordinateSystem: COORDINATE_SYSTEM.LNGLAT,
+        coordinateSystem: 'lnglat',
         sizeScale: 300,
         windStrength: 0.2,
         windDirection: 45
@@ -570,7 +569,7 @@ describe('TreeLayer lifecycle and wind on WebGPU', () => {
           layers: [
             new TreeLayer<TreeSpec>({
               id: 'trees',
-              coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+              coordinateSystem: 'meter-offsets',
               coordinateOrigin: [0, 0, 0],
               data: [
                 tree('citrus', {growth: 0.5, health: 0.6, flush: 0.4, damage: 0.3}),

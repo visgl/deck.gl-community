@@ -4,7 +4,6 @@
 
 import {
   AmbientLight,
-  COORDINATE_SYSTEM,
   Deck,
   DirectionalLight,
   LightingEffect,
@@ -13,7 +12,7 @@ import {
   type Layer,
   type LayerManager
 } from '@deck.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {SelectionPulseExtension, TreeLayer, type CropConfig, type TreeSpec} from '../../src';
 import {getTreeCropTable} from '../../src/tree-layer/tree-crop';
@@ -33,7 +32,7 @@ const ORBIT_VIEW = new OrbitView({orbitAxis: 'Z', fovy: 40, near: 0.05, far: 8} 
 const ORBIT_STATE = {target: [0, 0, 2.8], rotationOrbit: 20, rotationX: 4, zoom: 4.7, maxZoom: 30};
 
 const coordinates = {
-  coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+  coordinateSystem: 'cartesian',
   coordinateOrigin: [0, 0, 0] as [number, number, number]
 };
 
@@ -811,7 +810,7 @@ describe('TreeLayer photoreal crops', () => {
       position: [-81.5, 28, 0],
       crop: fruit({count: 200, radius: 0.1})
     } as TreeSpec;
-    const pixels = await scene.render([trees(tree, {coordinateSystem: COORDINATE_SYSTEM.LNGLAT})]);
+    const pixels = await scene.render([trees(tree, {coordinateSystem: 'lnglat'})]);
     expect(countCrop(pixels)).toBeGreaterThan(50);
     expect(scene.errors).toEqual([]);
   }, 120000);

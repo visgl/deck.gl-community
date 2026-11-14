@@ -6,7 +6,7 @@ import type {Fiber} from 'react-reconciler';
 /**
  * Element type identifier used by the reconciler.
  *
- * Represents the string key used to identify element types (e.g., 'layer', 'view')
+ * Represents the string key used to identify element types (e.g., 'deckLayer', 'deckView')
  * during the reconciliation process.
  */
 export type Type = string;

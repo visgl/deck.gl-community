@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {picking, project32, type DefaultProps} from '@deck.gl/core';
+import {picking, pickingPlugin, project32, type DefaultProps} from '@deck.gl/core';
 import type {Buffer} from '@luma.gl/core';
 import {Model} from '@luma.gl/engine';
-import {phongMaterial} from '@luma.gl/shadertools';
+import {phongMaterial, type ShaderInjection, type ShaderPlugin} from '@luma.gl/shaders';
 import {TREE_STATE_TEXEL, TREE_STATE_TEXELS_PER_ROW} from './tree-photoreal-layout';
 import {getTreeLeafWgslShaders} from './tree-photoreal-leaf-wgsl';
 import {
@@ -31,15 +31,19 @@ import {
 // The color-only model still highlights picked trees. Keeping the picking filter out of its
 // fragment hook lets opaque leaves reject covered fragments before evaluating their material.
 const colorPicking = {
-  ...picking,
-  inject: {
-    ...picking.inject,
-    'fs:DECKGL_FILTER_COLOR': {
-      ...picking.inject['fs:DECKGL_FILTER_COLOR'],
-      injection: 'color = picking_filterHighlightColor(color);'
+  ...pickingPlugin,
+  injections: [
+    ...(pickingPlugin.injections as ShaderInjection[]).filter(
+      injection => injection.stage === 'vertex'
+    ),
+    {
+      stage: 'fragment',
+      target: 'DECKGL_FILTER_COLOR',
+      order: 99,
+      glsl: 'color = picking_filterHighlightColor(color);'
     }
-  }
-};
+  ]
+} satisfies ShaderPlugin;
 
 /** How much a leaf's normal bends toward the crown's, and how much gloss remains, by level of detail. */
 const LOOK_BY_LOD: readonly (readonly [number, number])[] = [
@@ -167,7 +171,10 @@ export class TreePhotorealLeafLayer<DataT = unknown> extends TreePhotorealPrimit
         shellTransition
       ),
       defines: mature ? {TREE_MATURE_ATTACHED_LEAVES: 1} : {},
-      modules: [project32, mature ? colorPicking : picking, phongMaterial, treePhotoreal]
+      modules: mature
+        ? [project32, phongMaterial, treePhotoreal]
+        : [project32, picking, phongMaterial, treePhotoreal],
+      plugins: mature ? [colorPicking] : []
     });
   }
 

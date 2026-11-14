@@ -4,7 +4,7 @@
 
 import {project32} from '@deck.gl/core';
 import type {ShaderLayout} from '@luma.gl/core';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 import {SPLAT_GLOBE_WGSL} from '../splat-layer/splat-globe';
 import {
   TREE_CROP_ANCHOR_STRIDE,

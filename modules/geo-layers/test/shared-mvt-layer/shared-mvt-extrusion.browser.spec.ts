@@ -4,7 +4,7 @@
 
 import {Deck, MapView} from '@deck.gl/core';
 import {GeoJsonLayer} from '@deck.gl/layers';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {lngLatToWorld} from '@math.gl/web-mercator';
 import {afterEach, describe, expect, test} from 'vitest';
 import {SharedMVTLayer} from '../../src';

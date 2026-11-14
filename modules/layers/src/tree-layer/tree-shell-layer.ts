@@ -5,7 +5,7 @@
 import {picking, project32} from '@deck.gl/core';
 import type {Texture} from '@luma.gl/core';
 import {Geometry, Model} from '@luma.gl/engine';
-import {phongMaterial} from '@luma.gl/shadertools';
+import {phongMaterial} from '@luma.gl/shaders';
 import {TreePhotorealPrimitiveLayer} from './tree-photoreal-primitive-layer';
 import {TREE_STATE_TEXEL} from './tree-photoreal-layout';
 import {treePhotorealRenderWgsl} from './tree-photoreal-render-wgsl';

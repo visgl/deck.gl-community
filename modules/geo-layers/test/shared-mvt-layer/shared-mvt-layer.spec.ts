@@ -1,9 +1,5 @@
 import {describe, expect, it, vi} from 'vitest';
-import {
-  COORDINATE_SYSTEM,
-  WebMercatorViewport,
-  _GlobeViewport as GlobeViewport
-} from '@deck.gl/core';
+import {WebMercatorViewport, _GlobeViewport as GlobeViewport} from '@deck.gl/core';
 import {SharedMVTLayer, SharedTileset2D} from '../../src';
 import {SharedTile2DView} from '../../src/shared-tile-2d-layer/shared-tile-2d-view';
 import {getMVTDataInWGS84} from '../../src/shared-mvt-layer/shared-mvt-layer';
@@ -92,10 +88,10 @@ describe('SharedMVTLayer', () => {
           _offset: 0
         } as any);
         if (active === globe) {
-          expect(captured.coordinateSystem).toBe(COORDINATE_SYSTEM.LNGLAT);
+          expect(captured.coordinateSystem).toBe('lnglat');
           expect(captured.data[0].geometry.coordinates).toEqual([0, 0]);
         } else {
-          expect(captured.coordinateSystem).toBe(COORDINATE_SYSTEM.CARTESIAN);
+          expect(captured.coordinateSystem).toBe('cartesian');
           expect(captured.data).toBe(DATA);
           expect(captured.modelMatrix.transformAsPoint([0.5, 0.5, 0])).toEqual([256, -256, 0]);
         }
@@ -150,14 +146,14 @@ it('converts picked geometry and highlights IDs without modifying shared data', 
   expect(props.clipBounds).toEqual([0, 0, 1, 1]);
   const picked = layer.getPickingInfo({
     info: {picked: true, object: feature, index: 0},
-    sourceLayer: {props: {tile, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN}}
+    sourceLayer: {props: {tile, coordinateSystem: 'cartesian'}}
   } as any);
   expect(picked.object.geometry.coordinates).toEqual([0, 0]);
   expect(feature.geometry.coordinates).toEqual([0.5, 0.5]);
 });
 
 it('decodes an MVT before the cache owner has a deck.gl context', async () => {
-  const {MVTLoader} = await import('@loaders.gl/mvt');
+  const {MVTLoader} = await import('@loaders.gl/tiles/mvt');
   // A valid protobuf tile containing an empty layer named "test", version 2.
   const bytes = Uint8Array.from([0x1a, 8, 0x0a, 4, 116, 101, 115, 116, 0x78, 2]);
   const url = `data:application/x-protobuf;base64,${Buffer.from(bytes).toString('base64')}`;
@@ -194,7 +190,7 @@ it('unwraps a geojson-table tile into its features', async () => {
 
 it('decodes an MVT tile into its features', async () => {
   const {encode} = await import('@loaders.gl/core');
-  const {MVTLoader, MVTWriter} = await import('@loaders.gl/mvt');
+  const {MVTLoader, MVTWriter} = await import('@loaders.gl/tiles/mvt');
   // Coordinates on the 4096 grid so the encoded tile decodes them exactly.
   const features = [
     {
@@ -378,7 +374,7 @@ describe('SharedMVTLayer consumers of one tileset', () => {
     for (const layer of [hovered, other]) {
       const picked = layer.getPickingInfo({
         info: {picked: true, object: features[1], index: 1},
-        sourceLayer: {props: {tile, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN}}
+        sourceLayer: {props: {tile, coordinateSystem: 'cartesian'}}
       } as any);
       expect(picked.object).not.toBe(features[1]);
       expect(picked.object.geometry.coordinates).toEqual([0, 0]);
@@ -409,10 +405,10 @@ it('picks features by the coordinates its sublayer holds, not by the current vie
 
   // Just after a switch from a globe to a map, the sublayer built for the globe still draws
   // geographic features: they are returned as they are, not converted a second time.
-  expect(pick(geographic, COORDINATE_SYSTEM.LNGLAT, viewport)).toBe(geographic);
+  expect(pick(geographic, 'lnglat', viewport)).toBe(geographic);
   // Just after a switch from a map to a globe, a tile-local feature is still converted.
-  expect(pick(local, COORDINATE_SYSTEM.CARTESIAN, globe).geometry.coordinates).toEqual([0, 0]);
-  expect(pick(local, COORDINATE_SYSTEM.CARTESIAN, viewport).geometry.coordinates).toEqual([0, 0]);
-  expect(pick(geographic, COORDINATE_SYSTEM.LNGLAT, globe)).toBe(geographic);
+  expect(pick(local, 'cartesian', globe).geometry.coordinates).toEqual([0, 0]);
+  expect(pick(local, 'cartesian', viewport).geometry.coordinates).toEqual([0, 0]);
+  expect(pick(geographic, 'lnglat', globe)).toBe(geographic);
   expect(local.geometry.coordinates).toEqual([0.5, 0.5]);
 });

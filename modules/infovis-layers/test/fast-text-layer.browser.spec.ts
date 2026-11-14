@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
+import {Deck, OrthographicView} from '@deck.gl/core';
 import {luma, type Device} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {describe, expect, it} from 'vitest';
 
 import {FastTextLayer} from '../src';
@@ -45,7 +45,7 @@ async function renderFastText(type: 'webgl' | 'webgpu', sdf: boolean): Promise<v
 
     const layer = new FastTextLayer({
       id: `fast-text-${type}-${sdf ? 'sdf' : 'bitmap'}`,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data: [
         {text: 'WebGPU', position: [0, 20]},
         {text: 'Text', position: [0, -20]}

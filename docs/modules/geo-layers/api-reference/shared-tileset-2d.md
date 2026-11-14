@@ -48,7 +48,7 @@ const tileset = new SharedTileset2D({
 ### From a loaders.gl `TileSource`
 
 ```ts
-import type {TileSource} from '@loaders.gl/loader-utils';
+import type {TileSource} from '@loaders.gl/core/loader-utils';
 
 const tileSource: TileSource = createTileSourceSomehow();
 const tileset = SharedTileset2D.fromTileSource(tileSource, {

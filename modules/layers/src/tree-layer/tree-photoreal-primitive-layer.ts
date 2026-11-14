@@ -13,7 +13,8 @@ import {
 } from '@deck.gl/core';
 import {Buffer, type Device, type Texture} from '@luma.gl/core';
 import {Model} from '@luma.gl/engine';
-import type {PhongMaterialProps, ShaderModule} from '@luma.gl/shadertools';
+import type {PhongMaterialProps, ShaderModule, ShaderPlugin} from '@luma.gl/shaders';
+import {INSTANCE_COLOR_PLUGIN} from '../selection-pulse-extension/selection-pulse-shaders';
 import {prepareShadowDraw} from '../splat-layer/splat-shadow';
 import type {TreeType} from './tree-layer';
 import {getTreeShadowWgsl, treeUnshadowedWgsl} from './tree-photoreal-shadow-wgsl';
@@ -467,15 +468,34 @@ export abstract class TreePhotorealPrimitiveLayer<DataT = unknown> extends Layer
   }
 
   getShaders(shaders: unknown): any {
-    const merged = super.getShaders(shaders) as {modules: ShaderModule[]};
+    const merged = super.getShaders(shaders) as {modules: ShaderModule[]; plugins: ShaderPlugin[]};
     if (this.context.device.type === 'webgpu') {
-      const shadow = merged.modules.find(module => module.name === 'shadow');
-      const modules = shadow
-        ? merged.modules.map(module => (module === shadow ? getTreeShadowWgsl(module) : module))
-        : [...merged.modules, treeUnshadowedWgsl];
-      return {...merged, modules};
+      const shadow =
+        merged.plugins.find(plugin => plugin.name === 'shadow')?.module ??
+        merged.modules.find(module => module.name === 'shadow');
+      const modules = [
+        ...merged.modules.filter(module => module.name !== 'shadow'),
+        shadow ? getTreeShadowWgsl(shadow) : treeUnshadowedWgsl
+      ];
+      return {
+        ...merged,
+        modules,
+        plugins: [
+          ...merged.plugins.filter(plugin => plugin.name !== 'shadow'),
+          INSTANCE_COLOR_PLUGIN
+        ]
+      };
     }
-    return {...merged, modules: merged.modules.map(getTreeShadowModule)};
+    const modules = merged.modules.map(getTreeShadowModule);
+    return {
+      ...merged,
+      modules,
+      plugins: merged.plugins.map(plugin =>
+        plugin.name === 'shadow' && plugin.module
+          ? {...plugin, module: getTreeShadowModule(plugin.module)}
+          : plugin
+      )
+    };
   }
 
   /** Builds the model. It holds a lease from `acquireTreeTemplateResources` through `resources`. */
@@ -594,6 +614,6 @@ export abstract class TreePhotorealPrimitiveLayer<DataT = unknown> extends Layer
 
   /** Whether this part's shaders sample the shadow maps, which then must be bound. */
   protected readsShadowMaps(): boolean {
-    return this.context.defaultShaderModules.some(module => module.name === 'shadow');
+    return this.context.defaultShaderPlugins.some(plugin => plugin.name === 'shadow');
   }
 }

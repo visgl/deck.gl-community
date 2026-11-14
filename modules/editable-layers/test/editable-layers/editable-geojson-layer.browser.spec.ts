@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {Deck, OrthographicView} from '@deck.gl/core';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {expect, test} from 'vitest';
 import {DrawPolygonByDraggingMode} from '../../src/edit-modes/draw-polygon-by-dragging-mode';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
@@ -22,7 +22,7 @@ async function createGestureScene() {
   const createLayer = () =>
     new EditableGeoJsonLayer({
       id: 'gesture-browser-test',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data,
       mode,
       selectedFeatureIndexes: [],

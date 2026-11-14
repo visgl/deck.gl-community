@@ -4,7 +4,6 @@
 
 import {
   AmbientLight,
-  COORDINATE_SYSTEM,
   Deck,
   DirectionalLight,
   getShaderAssembler,
@@ -14,7 +13,7 @@ import {
 } from '@deck.gl/core';
 import {Buffer, luma, Texture, type Device, type TextureFormat} from '@luma.gl/core';
 import {Model} from '@luma.gl/engine';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {expect, it} from 'vitest';
 import {requireWebGPUAdapter} from '../webgpu-test-utils';
 import {getTreeGrowthModel} from '../../src/tree-layer/tree-growth-model';
@@ -157,7 +156,7 @@ struct Probe {
             zoom: 4,
             target: [0, 0, 4]
           }),
-          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+          coordinateSystem: 'cartesian'
         },
         treePhotoreal: {shape: [0.25, 0, 0, 0], woodLevel: [0, 0, 0, 0]}
       });
@@ -198,6 +197,9 @@ struct Probe {
         });
       }
       expect(pixels[(64 * SIZE + 64) * 4 + 3]).toBe(0);
+    } catch (error) {
+      console.error('WGSL direct probe root error', error, errors);
+      throw error;
     } finally {
       model.destroy();
       readback.destroy();
@@ -290,7 +292,7 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
             data: rows,
             pickable: true,
             getTree: row => row,
-            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+            coordinateSystem: 'cartesian'
           })
         ],
         effects: [
@@ -435,7 +437,7 @@ it('casts and receives directional shadows on the highest-detail WebGPU tree', a
     layers: [
       new TreeLayer({
         id: 'shadowed-tree',
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        coordinateSystem: 'cartesian',
         data: [{position: [0, 0, 0], species: 'citrus', height: 4.8, crownRadius: 1.4}],
         lodBias: -2
       })
@@ -626,7 +628,7 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
     };
     const layer = new TreePhotorealCropLayer({
       id: `crop-${kind}-${lod}`,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       template,
       data,
       stateTexture: state,
@@ -695,6 +697,9 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
       100
     );
     expect(errors.slice(0, 4)).toEqual([]);
+  } catch (error) {
+    console.error('WGSL close crop probe root error', error, errors);
+    throw error;
   } finally {
     deck.finalize();
     handle.removeEventListener('uncapturederror', recordError);

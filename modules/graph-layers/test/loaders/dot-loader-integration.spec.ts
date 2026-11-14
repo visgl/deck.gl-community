@@ -18,7 +18,8 @@ describe('published DOT loader integration', () => {
   it('preserves string IDs, labels, weights and undirected edges in the Karate example', async () => {
     const data = await load(
       `data:text/vnd.graphviz,${encodeURIComponent(karateDot)}`,
-      DOTLoaderWithParser
+      DOTLoaderWithParser,
+      {dot: {shape: 'plain-graph-data'}}
     );
     const graph = new ClassicGraph({data});
     expect(Array.from(graph.getNodes())).toHaveLength(8);
@@ -36,7 +37,8 @@ describe('published DOT loader integration', () => {
   it('loads upstream plain records into the graph runtime with cluster attributes intact', async () => {
     const data = await load(
       `data:text/vnd.graphviz,${encodeURIComponent(clusterDot)}`,
-      DOTLoaderWithParser
+      DOTLoaderWithParser,
+      {dot: {shape: 'plain-graph-data'}}
     );
     const graph = new ClassicGraph({data});
     expect(data.shape).toBe('plain-graph-data');

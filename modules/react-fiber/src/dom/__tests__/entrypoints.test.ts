@@ -7,7 +7,15 @@ import packageJson from '../../../package.json';
 describe('native entrypoint export matrix', () => {
   it('exports standalone APIs from the package root entrypoint', () => {
     // package.json maps `.` to this module.
-    expect(Object.keys(dom).sort()).toEqual(['DeckCanvas', 'DeckGL', 'createDeckGL']);
+    expect(Object.keys(dom).sort()).toEqual([
+      'DeckCanvas',
+      'DeckGL',
+      'createDeckGL',
+      'createEffectComponent',
+      'createLayerComponent',
+      'createViewComponent',
+      'createWidgetComponent'
+    ]);
     expect(dom).not.toHaveProperty('Deckgl');
   });
 
@@ -23,6 +31,12 @@ describe('native entrypoint export matrix', () => {
       '.',
       './mapbox',
       './maplibre',
+      './core',
+      './layers',
+      './geo-layers',
+      './aggregation-layers',
+      './mesh-layers',
+      './widgets',
       './reconciler',
       './package.json'
     ]);

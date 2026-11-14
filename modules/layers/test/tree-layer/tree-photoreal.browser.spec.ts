@@ -5,7 +5,6 @@
 import {
   _GlobeView as GlobeView,
   AmbientLight,
-  COORDINATE_SYSTEM,
   Deck,
   DirectionalLight,
   LayerExtension,
@@ -17,7 +16,7 @@ import {
 } from '@deck.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {CubeGeometry, type Model} from '@luma.gl/engine';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {SelectionPulseExtension, TreeLayer, type TreeSpec} from '../../src';
 import {TreePhotorealLeafLayer} from '../../src/tree-layer/tree-photoreal-leaf-layer';
@@ -34,7 +33,7 @@ const ORBIT_VIEW = new OrbitView({orbitAxis: 'Z', fovy: 40, near: 0.05, far: 8} 
 const ORBIT_STATE = {target: [0, 0, 2.8], rotationOrbit: 20, rotationX: 8, zoom: 5.2, maxZoom: 30};
 
 const coordinates = {
-  coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+  coordinateSystem: 'cartesian',
   coordinateOrigin: [0, 0, 0] as [number, number, number]
 };
 
@@ -214,17 +213,24 @@ class ShiftShadowReceivers extends LayerExtension<{pixels: number}> {
         {
           name: 'shiftShadowReceivers',
           vs: 'layout(std140) uniform shiftShadowReceiversUniforms { float offset; } shiftShadowReceivers;',
-          uniformTypes: {offset: 'f32'},
-          inject: {
-            'vs:DECKGL_FILTER_GL_POSITION': {
+          uniformTypes: {offset: 'f32'}
+        }
+      ],
+      plugins: [
+        {
+          name: 'shift-shadow-receivers',
+          injections: [
+            {
+              stage: 'vertex',
+              target: 'DECKGL_FILTER_GL_POSITION',
               order: 100,
-              injection: `
+              glsl: `
 #ifdef MODULE_SHADOW
   if (!shadow.drawShadowMap) position.x += shiftShadowReceivers.offset * position.w;
 #endif
 `
             }
-          }
+          ]
         }
       ]
     };
@@ -799,7 +805,7 @@ describe('TreeLayer photoreal rendering', () => {
     const data = [CITRUS];
     const move = (x: number) =>
       placement === 'coordinateOrigin'
-        ? {coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS, coordinateOrigin: [x / 400, 0, 0]}
+        ? {coordinateSystem: 'meter-offsets', coordinateOrigin: [x / 400, 0, 0]}
         : {modelMatrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1]};
     expect(countPixels(await scene.render([trees(move(400), data)]))).toBe(0);
     expect(countPixels(await scene.render([trees(move(0), data)]))).toBeGreaterThan(100);
@@ -814,15 +820,10 @@ describe('TreeLayer photoreal rendering', () => {
       viewState: {longitude: 0, latitude: 0, zoom: 19, pitch: 20}
     });
     const data: TreeSpec[] = [{...CITRUS, position: [3, 0, 0]}];
-    const make = (
-      coordinateSystem:
-        | typeof COORDINATE_SYSTEM.METER_OFFSETS
-        | typeof COORDINATE_SYSTEM.LNGLAT_OFFSETS
-    ) => trees({coordinateSystem}, data);
-    expect(countPixels(await scene.render([make(COORDINATE_SYSTEM.LNGLAT_OFFSETS)]))).toBe(0);
-    expect(
-      countPixels(await scene.render([make(COORDINATE_SYSTEM.METER_OFFSETS)]))
-    ).toBeGreaterThan(100);
+    const make = (coordinateSystem: 'meter-offsets' | 'lnglat-offsets') =>
+      trees({coordinateSystem}, data);
+    expect(countPixels(await scene.render([make('lnglat-offsets')]))).toBe(0);
+    expect(countPixels(await scene.render([make('meter-offsets')]))).toBeGreaterThan(100);
     expect(scene.errors).toEqual([]);
   }, 120000);
 
@@ -913,7 +914,7 @@ describe('TreeLayer photoreal rendering', () => {
       viewState: {longitude: -81.5, latitude: 28, zoom: 20, pitch: 50, bearing: 20}
     });
     const mapPixels = await map.render([
-      trees({coordinateSystem: COORDINATE_SYSTEM.LNGLAT}, [lngLat([-81.5, 28, 0])])
+      trees({coordinateSystem: 'lnglat'}, [lngLat([-81.5, 28, 0])])
     ]);
     expect(countPixels(mapPixels)).toBeGreaterThan(1000);
     expect(Boolean(map.deck.pickObject({x: 128, y: 110, radius: 8})?.object)).toBe(true);
@@ -924,7 +925,7 @@ describe('TreeLayer photoreal rendering', () => {
       viewState: {longitude: -81.5, latitude: 28, zoom: 9.5}
     });
     const globePixels = await globe.render([
-      trees({coordinateSystem: COORDINATE_SYSTEM.LNGLAT, sizeScale: 1000}, [lngLat([-81.5, 28, 0])])
+      trees({coordinateSystem: 'lnglat', sizeScale: 1000}, [lngLat([-81.5, 28, 0])])
     ]);
     expect(countPixels(globePixels)).toBeGreaterThan(50);
     expect(globe.errors).toEqual([]);

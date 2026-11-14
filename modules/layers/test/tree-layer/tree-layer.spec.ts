@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, LayerExtension, WebMercatorViewport} from '@deck.gl/core';
+import {LayerExtension, WebMercatorViewport} from '@deck.gl/core';
 import {describe, expect, it, vi} from 'vitest';
 import {
   TreeLayer,
@@ -67,7 +67,7 @@ describe('TreeLayer species and attributes', () => {
       target.render({
         ...baseProps,
         data,
-        coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+        coordinateSystem: 'meter-offsets',
         coordinateOrigin: [longitude, 0, 0],
         windStrength: 0,
         lodBias: -3
@@ -215,7 +215,7 @@ describe('TreeLayer composition contracts', () => {
   });
 
   it('rejects compositional scale and allows translation', () => {
-    for (const coordinateSystem of [COORDINATE_SYSTEM.CARTESIAN, COORDINATE_SYSTEM.METER_OFFSETS]) {
+    for (const coordinateSystem of ['cartesian', 'meter-offsets']) {
       expect(() =>
         load([OAK], {
           coordinateSystem,
@@ -225,7 +225,7 @@ describe('TreeLayer composition contracts', () => {
     }
     expect(() =>
       load([OAK], {
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        coordinateSystem: 'cartesian',
         modelMatrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 12, 4, 0, 1]
       })
     ).not.toThrow();

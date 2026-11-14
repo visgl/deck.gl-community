@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {Accessor, Color, DefaultProps, Position, UpdateParameters} from '@deck.gl/core';
-import {CompositeLayer, COORDINATE_SYSTEM} from '@deck.gl/core';
+import {CompositeLayer} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {GeometryLayer} from '../dependency-arrow-layer/geometry-layer';
 import {PathOutlineLayer, PathOutlineLayerProps} from '../path-outline-layer/path-outline-layer';
@@ -88,11 +88,11 @@ export class PathMarkerLayer<
   }
 
   projectFlat(xyz: Position, viewport, coordinateSystem, coordinateOrigin) {
-    if (coordinateSystem === COORDINATE_SYSTEM.METER_OFFSETS) {
+    if (coordinateSystem === 'meter-offsets') {
       const [x, y] = coordinateOrigin;
       const [dx, dy] = viewport.metersToLngLatDelta ? viewport.metersToLngLatDelta(xyz) : xyz;
       return viewport.projectFlat([x + dx, y + dy]);
-    } else if (coordinateSystem === COORDINATE_SYSTEM.LNGLAT_OFFSETS) {
+    } else if (coordinateSystem === 'lnglat-offsets') {
       const [dx, dy] = xyz;
       const [x, y] = coordinateOrigin;
       return viewport.projectFlat([x + dx, y + dy]);

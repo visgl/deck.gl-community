@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {Deck, Layer, MapView, type MapViewState} from '@deck.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {expect, it} from 'vitest';
 import {commands} from 'vitest/browser';
 import {TreeLayer, type TreeSpec} from '../../src';

@@ -5,7 +5,7 @@
 import {picking, project32, type DefaultProps, type Layer, type Viewport} from '@deck.gl/core';
 import {Buffer} from '@luma.gl/core';
 import {GPUGeometry, Model} from '@luma.gl/engine';
-import {phongMaterial} from '@luma.gl/shadertools';
+import {phongMaterial} from '@luma.gl/shaders';
 import {
   TreePhotorealPrimitiveLayer,
   type TreePhotorealLayerProps,
