@@ -134,9 +134,8 @@ function hasIdProp(props: {id?: string}): boolean {
 }
 
 /**
- * The ids descriptors had before the renderer gave them one. Views are given ids on a copy, and
- * widgets and effects in place, so a later render of the same widget or effect still knows the id
- * it came with. Props entries are merged with JSX entries by either id; see `getOwnId`.
+ * The ids widgets and effects had before the renderer gave them one in place, so a later render of
+ * the same instance builds its id from that one, not from the id it was given.
  */
 const ownIds = new WeakMap<object, string | undefined>();
 /**
@@ -147,18 +146,13 @@ const widgetsWithGeneratedIds = new WeakSet<Widget>();
 // A widget or effect keeps its given id after its element unmounts. Restoring the original id
 // then would rename an instance that deck.gl may still hold under the given id, or that a prop
 // already passes to it, and deck.gl would set it up again and then clean it up as the removed
-// one. So the merge with props matches prop entries by their current id only; see `mergeById`.
+// one. The merge with props matches entries by their final id only; see `mergeById`.
 
 function getOriginalId(descriptor: Widget | Effect): string | undefined {
   if (!ownIds.has(descriptor)) {
     ownIds.set(descriptor, descriptor.id);
   }
   return ownIds.get(descriptor);
-}
-
-/** The id a descriptor had before the renderer gave it one, or its id. */
-export function getOwnId(descriptor: {id: string}): string {
-  return ownIds.get(descriptor) ?? descriptor.id;
 }
 
 /**
@@ -186,9 +180,7 @@ export function withViewId(view: View, path: readonly string[]): View {
   if (id === view.id) {
     return view;
   }
-  const clone = view.clone({id});
-  ownIds.set(clone, view.id);
-  return clone;
+  return view.clone({id});
 }
 
 /**

@@ -1,7 +1,7 @@
 import {Layer, View, Widget} from '@deck.gl/core';
 import type {DeckProps, Effect, LayersList} from '@deck.gl/core';
 
-import {getOwnId, warnOnDuplicateIds} from './element-ids';
+import {warnOnDuplicateIds} from './element-ids';
 import type {Container, Instance, JsxDescriptors, ViewOrViews} from './types';
 
 /**
@@ -149,51 +149,31 @@ interface RootDescriptorProps {
 }
 
 /**
- * Merges JSX descriptors with a prop's descriptors by id.
+ * Merges JSX descriptors with a prop's descriptors by their final id.
  *
  * JSX entries with one id collapse into the last of them, at the first one's place. A prop entry
- * then replaces the JSX entries that have its id, either the id the renderer gave them or their
- * own, so `effects={[new LightingEffect()]}` still replaces a JSX `LightingEffect` that has an id
- * from its position. Other prop entries follow the JSX entries.
- *
- * Only JSX entries are matched by their own id. A widget or effect keeps the id the renderer gave
- * it after it leaves JSX, so a prop entry is matched by its current id alone: otherwise a reused
- * instance passed in a prop could be replaced by another prop entry with its original id, and
- * which one survived would depend on prop order. Prop entries replace each other only when their
- * ids are equal, as before.
+ * then replaces the entry with its id, so the prop wins over JSX. Other prop entries follow the
+ * JSX entries. Only the final id is compared: elements without an id get distinct ids from their
+ * paths, so a prop entry with the class's default id, such as `new MapView()`, matches none of
+ * them and is added beside them, instead of replacing every one built from that class.
  */
 function mergeById<T extends {id: string}>(
   jsxEntries: readonly T[],
   passedEntries: readonly (T | null | undefined | false)[]
 ): T[] {
-  const merged: {entry: T; fromJsx: boolean}[] = [];
-  for (const entry of jsxEntries) {
-    const index = merged.findIndex(other => other.entry.id === entry.id);
-    if (index < 0) {
-      merged.push({entry, fromJsx: true});
-    } else {
-      merged[index] = {entry, fromJsx: true};
-    }
-  }
-  for (const entry of passedEntries) {
+  const merged: T[] = [];
+  for (const entry of [...jsxEntries, ...passedEntries]) {
     if (!entry) {
       continue;
     }
-    const matches = (other: {entry: T; fromJsx: boolean}) =>
-      other.entry.id === entry.id || (other.fromJsx && getOwnId(other.entry) === entry.id);
-    const index = merged.findIndex(matches);
+    const index = merged.findIndex(other => other.id === entry.id);
     if (index < 0) {
-      merged.push({entry, fromJsx: false});
-      continue;
-    }
-    merged[index] = {entry, fromJsx: false};
-    for (let later = merged.length - 1; later > index; later--) {
-      if (matches(merged[later])) {
-        merged.splice(later, 1);
-      }
+      merged.push(entry);
+    } else {
+      merged[index] = entry;
     }
   }
-  return merged.map(({entry}) => entry);
+  return merged;
 }
 
 /**

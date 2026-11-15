@@ -494,8 +494,37 @@ describe('merging props with JSX elements that have generated ids', () => {
     }
   });
 
-  it('still lets a props entry replace a JSX element by its own id', async () => {
-    const jsxLighting = markGeneratedEffectId(new LightingEffect());
+  it('lets a prop entry replace only the JSX element with its final id', async () => {
+    const minimap = new MapView({id: 'minimap'});
+    const test = await renderWithProps(
+      [
+        React.createElement('deckView', {key: 'a', view: new MapView()}),
+        React.createElement('deckView', {key: 'b', view: new MapView()})
+      ],
+      {}
+    );
+    try {
+      // A prop view with the class default id matches no generated id, so it is added.
+      await React.act(async () => test.root.configure({views: [new MapView(), minimap]}));
+      expect(test.deck.views.map(({id}) => id)).toEqual([
+        'MapView/a',
+        'MapView/b',
+        'MapView',
+        'minimap'
+      ]);
+      // A prop view with a generated id replaces that element only.
+      const replacement = new MapView({id: 'MapView/b'});
+      await React.act(async () => test.root.configure({views: [replacement]}));
+      expect(test.deck.views.map(({id}) => id)).toEqual(['MapView/a', 'MapView/b']);
+      expect(test.deck.views[1]).toBe(replacement);
+    } finally {
+      React.act(() => test.unmount());
+    }
+  });
+
+  it('lets a prop entry replace a JSX element with the same id', async () => {
+    // A <deckEffect> keeps its effect's id, `lighting-effect`, which the prop entry also has.
+    const jsxLighting = new LightingEffect();
     const propLighting = new LightingEffect();
     const test = await renderWithProps(
       [
@@ -505,7 +534,7 @@ describe('merging props with JSX elements that have generated ids', () => {
       {effects: [propLighting]}
     );
     try {
-      expect(jsxLighting.id).toBe('lighting-effect/#1');
+      expect(jsxLighting.id).toBe('lighting-effect');
       expect(test.deck.effects).toContain(propLighting);
       expect(test.deck.effects).not.toContain(jsxLighting);
     } finally {

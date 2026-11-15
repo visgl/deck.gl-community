@@ -408,7 +408,9 @@ export function cloneInstance(
 export function cloneHiddenInstance(instance: Instance, type: Type, props: Props): Instance {
   return {
     children: instance.children,
-    node: instance.node
+    node: instance.node,
+    // A later clone builds its id from the path, so a hidden element keeps its id when shown.
+    path: instance.path
   };
 }
 

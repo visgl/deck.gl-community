@@ -272,6 +272,20 @@ describe('config-instance-creation', () => {
       expect(effect.id).toBe('sun');
     });
 
+    it('keeps the element path through a hidden clone, so a later clone keeps its id', () => {
+      const hostContext = createMockHostContext();
+      const fiber = createFiberPath([null, 'a']);
+      const layerProps = {layer: new ScatterplotLayer({data: []})};
+      const instance = createInstance('deckLayer', layerProps, {} as never, hostContext, fiber);
+      expect(instance.node.id).toBe('ScatterplotLayer/#0/a');
+
+      // Suspense or Activity hides the element, then it renders a new layer.
+      const hidden = cloneHiddenInstance(instance, 'deckLayer', layerProps);
+      const nextProps = {layer: new ScatterplotLayer({data: []})};
+      const next = cloneInstance(hidden, 'deckLayer', layerProps, nextProps, false, null);
+      expect(next?.node.id).toBe('ScatterplotLayer/#0/a');
+    });
+
     it("gives a lone top-level element deck.gl's default id", () => {
       const hostContext = createMockHostContext();
       const node = createInstance(

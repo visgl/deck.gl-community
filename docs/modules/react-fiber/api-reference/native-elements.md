@@ -136,7 +136,7 @@ Refs on these intrinsic elements resolve to their deck.gl instance, not an inter
 Each element has a matching `DeckGL` prop: `layers`, `views`, `widgets` and `effects`. The root combines the two, as `@deck.gl/react` does:
 
 - **Layers.** `<deckLayer>` layers come first and `layers` prop layers after them, so prop layers draw on top. IDs must be unique across both lists.
-- **Views, widgets and effects.** The root merges them by ID. A prop entry replaces the element with the same ID, either the one the renderer gave it or its own, so `effects={[new LightingEffect()]}` replaces a `<deckEffect>` with a `LightingEffect`. Other prop entries follow the elements.
+- **Views, widgets and effects.** The root merges them by ID. A prop entry replaces the element with the same final ID, so `effects={[new LightingEffect()]}` replaces a `<deckEffect>` with a `LightingEffect`, which keeps its ID. An element with a generated ID is replaced only by an entry with that ID. Other prop entries follow the elements.
 
 ```tsx
 <DeckGL

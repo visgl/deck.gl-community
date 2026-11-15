@@ -65,7 +65,7 @@ An `id` you pass is always kept, even one that equals the class's default, such 
 
 - **Lists that change.** As in any React list, give each element a `key`, or give it an `id`. Without either, inserting, removing or reordering items moves the index-based ids. Each layer then takes over another layer's state and recomputes its attributes, and a `TileLayer` fetches its tiles again. A conditional element, such as `{show && <ScatterplotLayer ... />}`, keeps its siblings' ids, because React keeps its place.
 - **Code that refers to an id.** A `layerFilter`, picking results (`info.layer.id`), `getTooltip`, a view state keyed by view id, a view's `viewState: {id}`, a widget's `viewId`, `deck.getViewports()` and `onViewStateChange`'s `viewId` all use the final id. A generated id is predictable, but it changes when you move the element, so give these an explicit `id`.
-- **Elements that must match a prop entry.** A `views`, `widgets` or `effects` prop entry on `DeckGL` replaces an element with the same id, the generated one or its own. A `layers` prop entry never replaces a layer element.
+- **Elements that must match a prop entry.** A `views`, `widgets` or `effects` prop entry on `DeckGL` replaces the element with the same final id. An element without an `id` has a generated one, so to replace it from a prop, give both the same explicit `id`. A `layers` prop entry never replaces a layer element.
 
 Outside production builds, the renderer warns when two layers, views, widgets or effects reach deck.gl with the same id, naming both, for example an explicit `id` that equals a generated one, or a `layers` prop entry that shares an id with a layer element.
 
