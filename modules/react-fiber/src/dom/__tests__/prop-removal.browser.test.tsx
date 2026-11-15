@@ -113,7 +113,7 @@ webglTest('viewState can switch from controlled to uncontrolled and back', async
 });
 
 webglTest(
-  'a prop set to undefined is treated as removed, so deck.gl keeps calling its default',
+  'a prop set to undefined falls back to the deck.gl default (deck.gl#10906)',
   async () => {
     const test = await mount();
     try {

@@ -179,25 +179,23 @@ function warnOnCreationOnlyChanges(
 }
 
 /**
- * Drops props whose value is `undefined`. React treats `prop={undefined}` as an absent prop, but
- * deck.gl would store the `undefined` over its default, and it calls some callbacks, such as
- * `onLoad`, without checking for them.
+ * Leaves out the props that the root sends as merged descriptors. A `views={undefined}` passed
+ * through would otherwise reach `Deck.setProps`, which resets an explicit `undefined` to its
+ * default (deck.gl#10906), and clear views that a widget such as `SplitterWidget` set.
  */
-function omitUndefinedProps(props: DeckGLConfiguration): DeckGLConfiguration {
-  let defined: Record<string, unknown> | null = null;
-  for (const [key, value] of Object.entries(props)) {
-    if (value === undefined) {
-      defined ??= {...props};
-      delete defined[key];
-    }
+function omitDescriptorProps(props: DeckGLConfiguration): DeckGLConfiguration {
+  const rest: Record<string, unknown> = {...props};
+  for (const key of DESCRIPTOR_PROPS) {
+    delete rest[key];
   }
-  return (defined ?? props) as DeckGLConfiguration;
+  return rest as DeckGLConfiguration;
 }
 
 /**
  * Returns the props that `previous` had and `next` no longer has, each set to its deck.gl
  * default. `Deck.setProps` merges into the props it already holds, so a prop that a React
- * render stops passing would otherwise keep its old value.
+ * render stops passing would otherwise keep its old value. A prop passed as `undefined` is not
+ * removed: it reaches deck.gl, which falls back to the default itself (deck.gl#10906).
  */
 function getRemovedProps(
   previous: DeckGLConfiguration,
@@ -366,9 +364,10 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   // Creation-only props this root has already warned about.
   const warnedCreationOnlyProps = new Set<string>();
 
-  function configure(passedProps: DeckGLConfiguration) {
-    log.log(4, 'DeckGL configure', passedProps)();
-    const props = omitUndefinedProps(passedProps);
+  // A prop passed as `undefined` goes to deck.gl as is: deck.gl falls back to its default
+  // (deck.gl#10906), the same as for a prop that is left out.
+  function configure(props: DeckGLConfiguration) {
+    log.log(4, 'DeckGL configure', props)();
 
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
@@ -391,7 +390,11 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
         );
         containerInfo.sentViews = Boolean(descriptors.views);
         warnOnCreationOnlyChanges(previousProps, props, warnedCreationOnlyProps);
-        deckgl.setProps({...getRemovedProps(previousProps, props), ...props, ...descriptors});
+        deckgl.setProps({
+          ...getRemovedProps(previousProps, props),
+          ...omitDescriptorProps(props),
+          ...descriptors
+        });
       }
       previousProps = props;
       return;

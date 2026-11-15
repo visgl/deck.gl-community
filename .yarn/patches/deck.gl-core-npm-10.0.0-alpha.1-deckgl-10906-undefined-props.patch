@@ -1,0 +1,190 @@
+diff --git a/dist/dist.dev.js b/dist/dist.dev.js
+index 6f1f43e..c60f788 100644
+--- a/dist/dist.dev.js
++++ b/dist/dist.dev.js
+@@ -81404,6 +81404,16 @@ void main() {
+     debug: false,
+     drawPickingColors: false
+   };
++  /** Replace explicitly `undefined` props with their defaults, so `undefined` behaves like omitting the prop (deck.gl#10906) */
++  function resolveUndefinedProps(props) {
++    const resolvedProps = { ...props };
++    for (const key in resolvedProps) {
++      if (resolvedProps[key] === undefined && key in defaultProps) {
++        resolvedProps[key] = defaultProps[key];
++      }
++    }
++    return resolvedProps;
++  }
+   var Deck = class {
+     constructor(props) {
+       this.width = 0;
+@@ -81574,7 +81584,7 @@ void main() {
+         this._lastPointerDownInfoPromise = pickPromise;
+       };
+       const initialProps = props;
+-      this.props = { ...defaultProps, ...props };
++      this.props = { ...defaultProps, ...resolveUndefinedProps(props) };
+       props = this.props;
+       this._validateCanvasConfiguration(props);
+       if (props.viewState && props.initialViewState) {
+@@ -81651,6 +81661,7 @@ void main() {
+     /** Partially update props */
+     setProps(props) {
+       this.stats.get("setProps Time").timeStart();
++      props = resolveUndefinedProps(props);
+       if ("onLayerHover" in props) {
+         log_default.removed("onLayerHover", "onHover")();
+       }
+diff --git a/dist/index.cjs b/dist/index.cjs
+index 2f8a7de..c9f7fb1 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -9516,6 +9516,16 @@ var defaultProps = {
+   debug: false,
+   drawPickingColors: false
+ };
++/** Replace explicitly `undefined` props with their defaults, so `undefined` behaves like omitting the prop (deck.gl#10906) */
++function resolveUndefinedProps(props) {
++  const resolvedProps = { ...props };
++  for (const key in resolvedProps) {
++    if (resolvedProps[key] === undefined && key in defaultProps) {
++      resolvedProps[key] = defaultProps[key];
++    }
++  }
++  return resolvedProps;
++}
+ var Deck = class {
+   constructor(props) {
+     this.width = 0;
+@@ -9674,7 +9684,7 @@ var Deck = class {
+       this._lastPointerDownInfoPromise = pickPromise;
+     };
+     const initialProps = props;
+-    this.props = { ...defaultProps, ...props };
++    this.props = { ...defaultProps, ...resolveUndefinedProps(props) };
+     props = this.props;
+     this._validateCanvasConfiguration(props);
+     if (props.viewState && props.initialViewState) {
+@@ -9751,6 +9761,7 @@ var Deck = class {
+   setProps(props) {
+     var _a, _b, _c, _d, _e, _f;
+     this.stats.get("setProps Time").timeStart();
++    props = resolveUndefinedProps(props);
+     if ("onLayerHover" in props) {
+       log_default.removed("onLayerHover", "onHover")();
+     }
+diff --git a/dist/lib/deck.js b/dist/lib/deck.js
+index 2464966..231ce1e 100644
+--- a/dist/lib/deck.js
++++ b/dist/lib/deck.js
+@@ -81,6 +81,16 @@ const defaultProps = {
+     debug: false,
+     drawPickingColors: false
+ };
++/** Replace explicitly `undefined` props with their defaults, so `undefined` behaves like omitting the prop (deck.gl#10906) */
++function resolveUndefinedProps(props) {
++  const resolvedProps = { ...props };
++  for (const key in resolvedProps) {
++    if (resolvedProps[key] === undefined && key in defaultProps) {
++      resolvedProps[key] = defaultProps[key];
++    }
++  }
++  return resolvedProps;
++}
+ /* eslint-disable max-statements */
+ class Deck {
+     constructor(props) {
+@@ -262,7 +272,7 @@ class Deck {
+         };
+         const initialProps = props;
+         // @ts-ignore views
+-        this.props = { ...defaultProps, ...props };
++        this.props = { ...defaultProps, ...resolveUndefinedProps(props) };
+         props = this.props;
+         this._validateCanvasConfiguration(props);
+         if (props.viewState && props.initialViewState) {
+@@ -343,6 +353,7 @@ class Deck {
+     /** Partially update props */
+     setProps(props) {
+         this.stats.get('setProps Time').timeStart();
++        props = resolveUndefinedProps(props);
+         if ('onLayerHover' in props) {
+             log.removed('onLayerHover', 'onHover')();
+         }
+diff --git a/dist.webgl-only/index.cjs b/dist.webgl-only/index.cjs
+index a729295..1eff81a 100644
+--- a/dist.webgl-only/index.cjs
++++ b/dist.webgl-only/index.cjs
+@@ -8877,6 +8877,16 @@ var defaultProps = {
+   debug: false,
+   drawPickingColors: false
+ };
++/** Replace explicitly `undefined` props with their defaults, so `undefined` behaves like omitting the prop (deck.gl#10906) */
++function resolveUndefinedProps(props) {
++  const resolvedProps = { ...props };
++  for (const key in resolvedProps) {
++    if (resolvedProps[key] === undefined && key in defaultProps) {
++      resolvedProps[key] = defaultProps[key];
++    }
++  }
++  return resolvedProps;
++}
+ var Deck = class {
+   constructor(props) {
+     this.width = 0;
+@@ -9035,7 +9045,7 @@ var Deck = class {
+       this._lastPointerDownInfoPromise = pickPromise;
+     };
+     const initialProps = props;
+-    this.props = { ...defaultProps, ...props };
++    this.props = { ...defaultProps, ...resolveUndefinedProps(props) };
+     props = this.props;
+     this._validateCanvasConfiguration(props);
+     if (props.viewState && props.initialViewState) {
+@@ -9112,6 +9122,7 @@ var Deck = class {
+   setProps(props) {
+     var _a, _b, _c, _d, _e, _f;
+     this.stats.get("setProps Time").timeStart();
++    props = resolveUndefinedProps(props);
+     if ("onLayerHover" in props) {
+       log_default.removed("onLayerHover", "onHover")();
+     }
+diff --git a/dist.webgl-only/lib/deck.js b/dist.webgl-only/lib/deck.js
+index 2464966..231ce1e 100644
+--- a/dist.webgl-only/lib/deck.js
++++ b/dist.webgl-only/lib/deck.js
+@@ -81,6 +81,16 @@ const defaultProps = {
+     debug: false,
+     drawPickingColors: false
+ };
++/** Replace explicitly `undefined` props with their defaults, so `undefined` behaves like omitting the prop (deck.gl#10906) */
++function resolveUndefinedProps(props) {
++  const resolvedProps = { ...props };
++  for (const key in resolvedProps) {
++    if (resolvedProps[key] === undefined && key in defaultProps) {
++      resolvedProps[key] = defaultProps[key];
++    }
++  }
++  return resolvedProps;
++}
+ /* eslint-disable max-statements */
+ class Deck {
+     constructor(props) {
+@@ -262,7 +272,7 @@ class Deck {
+         };
+         const initialProps = props;
+         // @ts-ignore views
+-        this.props = { ...defaultProps, ...props };
++        this.props = { ...defaultProps, ...resolveUndefinedProps(props) };
+         props = this.props;
+         this._validateCanvasConfiguration(props);
+         if (props.viewState && props.initialViewState) {
+@@ -343,6 +353,7 @@ class Deck {
+     /** Partially update props */
+     setProps(props) {
+         this.stats.get('setProps Time').timeStart();
++        props = resolveUndefinedProps(props);
+         if ('onLayerHover' in props) {
+             log.removed('onLayerHover', 'onHover')();
+         }

@@ -101,16 +101,20 @@ describe('removing a prop', () => {
     expect(Object.hasOwn(lastSetProps(deck), 'pickingRadius')).toBe(false);
   });
 
-  it('treats a prop set to undefined as removed, as React does', () => {
+  // deck.gl falls back to the default for a prop passed as `undefined` (deck.gl#10906), so the
+  // root sends it as is. The browser tests check the result on a real Deck.
+  it('sends a prop set to undefined to deck.gl as undefined', () => {
     const onLoad = vi.fn();
     const {deck, root} = setup({onLoad});
 
     root.configure({onLoad: undefined});
 
-    expect(lastSetProps(deck).onLoad).toBe(Deck.defaultProps.onLoad);
+    const props = lastSetProps(deck);
+    expect(Object.hasOwn(props, 'onLoad')).toBe(true);
+    expect(props.onLoad).toBeUndefined();
   });
 
-  it('leaves an undefined prop out of the props that create the instance', () => {
+  it('passes an undefined prop through to the props that create the instance', () => {
     const createExternalOverlay = vi.fn(() => ({finalize: vi.fn(), setProps: vi.fn()}));
     const node = document.createElement('div');
     const root = createRoot(node, {createExternalOverlay: createExternalOverlay as never});
@@ -119,8 +123,19 @@ describe('removing a prop', () => {
     root.configure({onLoad: undefined, pickingRadius: 2});
 
     const created = createExternalOverlay.mock.calls[0]![0] as Record<string, unknown>;
-    expect(Object.hasOwn(created, 'onLoad')).toBe(false);
+    expect(Object.hasOwn(created, 'onLoad')).toBe(true);
+    expect(created.onLoad).toBeUndefined();
     expect(created.pickingRadius).toBe(2);
+  });
+
+  it('does not send views={undefined} when the root has never sent views', () => {
+    // deck.gl would reset an explicit `undefined` to its default and clear views that a widget,
+    // such as SplitterWidget, set.
+    const {deck, root} = setup({pickingRadius: 1});
+
+    root.configure({views: undefined});
+
+    expect(Object.hasOwn(lastSetProps(deck), 'views')).toBe(false);
   });
 
   it('does not reset props that only take effect when deck.gl is created', () => {

@@ -75,7 +75,9 @@ attach the overlay to the map you create. See [Using with maps](./using-with-map
 ### Removed props reset
 
 Removing a prop now resets it to deck.gl's default. `@deck.gl/react` kept the last value for most
-props. A few props only apply when deck.gl is created, and changing them later has no effect; see
+props. A prop set to `undefined`, such as `onLoad={debug ? onLoad : undefined}`, also gets the
+default, where `@deck.gl/react` stored the `undefined` and could crash calling it; deck.gl handles
+that case itself ([deck.gl#10906](https://github.com/visgl/deck.gl/pull/10906)). A few props only apply when deck.gl is created, and changing them later has no effect; see
 [Props that only apply at creation](../api-reference/deckgl.md#props-that-only-apply-at-creation).
 
 ### Replace `DeckGLRef`
