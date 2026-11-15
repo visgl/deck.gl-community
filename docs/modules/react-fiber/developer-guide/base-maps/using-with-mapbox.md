@@ -41,44 +41,30 @@ yarn add @deck.gl/mapbox mapbox-gl
 
 ## Examples
 
+Keep the map in React state and pass it in `map`. `DeckGL` adds its overlay to the map, adds the
+new one when it recreates the overlay because `interleaved` changed, and removes it on unmount.
+It does not wait for the map to load: `MapboxOverlay` waits for the style before it adds layers.
+
 ### React Map GL
 
-Give Mapbox options to React Map GL. The effect adds the `MapboxOverlay` only after both the map
-and overlay are available.
+Give Mapbox options to React Map GL. Its callback ref stores the map in state.
 
 ```tsx
-import {useEffect, useRef, useState} from 'react';
+import {useState} from 'react';
 import Map, {type MapRef} from 'react-map-gl/mapbox';
-import type {MapboxOverlay} from '@deck.gl/mapbox';
 import {DeckGL} from '@deck.gl-community/react-fiber/mapbox';
 
 export function MapboxMap() {
-  const mapRef = useRef<MapRef>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [overlay, setOverlay] = useState<MapboxOverlay | null>(null);
-
-  useEffect(() => {
-    const map = mapRef.current?.getMap();
-    if (!map || !loaded || !overlay) return;
-
-    let attached = false;
-    map.addControl(overlay);
-    attached = true;
-
-    return () => {
-      if (attached) map.removeControl(overlay);
-    };
-  }, [loaded, overlay]);
+  const [map, setMap] = useState<MapRef | null>(null);
 
   return (
     <Map
-      ref={mapRef}
+      ref={setMap}
       mapboxAccessToken={import.meta.env.VITE_MAPBOX_ACCESS_TOKEN}
       mapStyle="mapbox://styles/mapbox/standard"
       initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}}
-      onLoad={() => setLoaded(true)}
     >
-      <DeckGL interleaved onDeckChange={setOverlay}>
+      <DeckGL map={map} interleaved>
         {/* Layer components, such as <ScatterplotLayer /> */}
       </DeckGL>
     </Map>
@@ -88,56 +74,39 @@ export function MapboxMap() {
 
 ### Manual map
 
-When constructing a map directly, use a ref as the container. The provider root returns no DOM
-node, so the container remains valid for Mapbox.
+Create the map once, in an effect, and remove it in the effect's cleanup. Provider `DeckGL`
+renders no DOM node, so the container remains valid for Mapbox.
 
 ```tsx
 import {useEffect, useRef, useState} from 'react';
 import mapboxgl from 'mapbox-gl';
-import type {MapboxOverlay} from '@deck.gl/mapbox';
 import {DeckGL} from '@deck.gl-community/react-fiber/mapbox';
 
 export function ManualMapboxMap() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [overlay, setOverlay] = useState<MapboxOverlay | null>(null);
+  const [map, setMap] = useState<mapboxgl.Map | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current || !overlay) return;
+    if (!containerRef.current) return;
 
-    const map = new mapboxgl.Map({
+    const instance = new mapboxgl.Map({
       accessToken: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN,
       container: containerRef.current,
       center: [-122.4, 37.8],
       style: 'mapbox://styles/mapbox/standard',
       zoom: 12
     });
-    let disposed = false;
-    let attached = false;
-
-    const attachOverlay = () => {
-      if (!disposed) {
-        map.addControl(overlay);
-        attached = true;
-      }
-    };
-
-    if (map.loaded()) {
-      attachOverlay();
-    } else {
-      map.once('load', attachOverlay);
-    }
+    setMap(instance);
 
     return () => {
-      disposed = true;
-      map.off('load', attachOverlay);
-      if (attached) map.removeControl(overlay);
-      map.remove();
+      setMap(null);
+      instance.remove();
     };
-  }, [overlay]);
+  }, []);
 
   return (
     <div ref={containerRef} style={{height: 500}}>
-      <DeckGL interleaved onDeckChange={setOverlay}>
+      <DeckGL map={map} interleaved>
         {/* Layer components, such as <ScatterplotLayer /> */}
       </DeckGL>
     </div>
@@ -147,12 +116,12 @@ export function ManualMapboxMap() {
 
 ## Additional information
 
-### React Map GL
+### React Map GL `useControl`
 
-deck.gl's guide attaches `MapboxOverlay` with React Map GL's `useControl` hook. Do not use
-`useControl` with a provider root: its factory runs once when the hook mounts, but the provider
-root creates the overlay itself and delivers it later through `onDeckChange`. Attach the overlay
-in an effect, as in the example above.
+deck.gl's own guides attach the overlay with React Map GL's `useControl` hook. That does not work
+with these roots. `useControl` creates its control once, when it mounts, and keeps it. The root
+creates its own overlay, and creates a new one when `interleaved` changes, so `useControl` would
+hold the wrong instance. Pass the map in `map` instead.
 
 ### Mapbox token and alternatives
 
