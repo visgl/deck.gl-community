@@ -2,6 +2,7 @@ import type {Effect, Layer, LayersList, View, Widget} from '@deck.gl/core';
 import {log} from '@deck.gl/core';
 import type {Fiber} from 'react-reconciler';
 
+import {hasGeneratedEffectId} from '../shared/generated-effect-id';
 import {RootErrorBoundary} from './error-boundary';
 
 /*
@@ -11,7 +12,20 @@ import {RootErrorBoundary} from './error-boundary';
  * deck.gl matches each new layer, view, widget and effect with the previous one that has the same
  * id. A descriptor without an id keeps deck.gl's default, which is shared by every instance of its
  * class, so two of them would collide. The renderer gives such an element an id built from its
- * position in the React tree:
+ * position in the React tree, and never changes an id the app passed, even one that equals the
+ * default.
+ *
+ * Which descriptors have no id
+ * ----------------------------
+ *
+ * Layers, views and widgets keep the props the app passed as own properties, and deck.gl's
+ * default `id` on the prototype, so `Object.hasOwn(props, 'id')` is false exactly when no id was
+ * passed. Views and widgets need visgl/deck.gl#11114 for this; layers always worked this way.
+ * deck.gl effects take no `id` at all, so only an effect a component built, which the component
+ * marks, gets an id from its path. An effect passed to `<deckEffect>` keeps its own id.
+ *
+ * The format
+ * ----------
  *
  *   id      = encodeURIComponent(base) ("/" segment)*
  *   segment = "#" index        for an element without a key, by its index among its siblings
@@ -107,13 +121,16 @@ export function formatElementId(base: string, path: readonly string[]): string {
 
 type ClassWithDefaults = {
   componentName?: string;
-  defaultProps?: {id?: string};
-  displayName?: string;
   name: string;
 };
 
 function getClass(descriptor: object): ClassWithDefaults {
   return descriptor.constructor as unknown as ClassWithDefaults;
+}
+
+/** Whether the app passed an id: an own `id` prop that is not empty. */
+function hasIdProp(props: {id?: string}): boolean {
+  return Object.prototype.hasOwnProperty.call(props, 'id') && Boolean(props.id);
 }
 
 /**
@@ -122,6 +139,11 @@ function getClass(descriptor: object): ClassWithDefaults {
  * it came with. Props entries are merged with JSX entries by either id; see `getOwnId`.
  */
 const ownIds = new WeakMap<object, string | undefined>();
+/**
+ * Widgets the renderer gives ids, decided when it first sees them. Giving a widget an id in place
+ * sets `props.id`, so a later render of the same widget could no longer tell.
+ */
+const widgetsWithGeneratedIds = new WeakSet<Widget>();
 // A widget or effect keeps its given id after its element unmounts. Restoring the original id
 // then would rename an instance that deck.gl may still hold under the given id, or that a prop
 // already passes to it, and deck.gl would set it up again and then clean it up as the removed
@@ -144,8 +166,7 @@ export function getOwnId(descriptor: {id: string}): string {
  * built from `props.id`, so the layer is cloned with the new id.
  */
 export function withLayerId(layer: Layer, path: readonly string[]): Layer {
-  const ownId = Object.prototype.hasOwnProperty.call(layer.props, 'id') ? layer.props.id : '';
-  if (ownId) {
+  if (hasIdProp(layer.props)) {
     return layer;
   }
   const LayerClass = getClass(layer);
@@ -154,16 +175,14 @@ export function withLayerId(layer: Layer, path: readonly string[]): Layer {
 }
 
 /**
- * Gives a view that keeps deck.gl's default id, its class's `displayName`, one from its path.
- * A view does not record whether its id was passed, so an explicit id equal to the default is
- * replaced too. The view is cloned with the new id.
+ * Gives a view without an `id` one from its path, with deck.gl's default id, its class's
+ * `displayName`, as the base. The view is cloned with the new id.
  */
 export function withViewId(view: View, path: readonly string[]): View {
-  const defaultId = getClass(view).displayName || 'view';
-  if (view.id !== defaultId) {
+  if (hasIdProp(view.props)) {
     return view;
   }
-  const id = formatElementId(defaultId, path);
+  const id = formatElementId(view.id, path);
   if (id === view.id) {
     return view;
   }
@@ -173,19 +192,19 @@ export function withViewId(view: View, path: readonly string[]): View {
 }
 
 /**
- * Gives a widget that keeps its class's default id one from its path. Widgets hold DOM and
- * state, and applications keep references to them, so the id is changed in place rather than on
- * a copy. A widget does not record whether its id was passed, so an explicit id equal to the
- * default, such as `'zoom'` for a `ZoomWidget`, is replaced too.
+ * Gives a widget without an `id` one from its path, with its class's default id as the base.
+ * Widgets hold DOM and state, and applications keep references to them, so the id is changed in
+ * place rather than on a copy.
  */
 export function withWidgetId(widget: Widget, path: readonly string[]): Widget {
-  const WidgetClass = getClass(widget);
-  const defaultId = WidgetClass.defaultProps?.id;
+  if (!ownIds.has(widget) && !hasIdProp(widget.props)) {
+    widgetsWithGeneratedIds.add(widget);
+  }
   const originalId = getOriginalId(widget);
-  if (originalId && originalId !== defaultId) {
+  if (!widgetsWithGeneratedIds.has(widget)) {
     return widget;
   }
-  const id = formatElementId(originalId || WidgetClass.name, path);
+  const id = formatElementId(originalId || getClass(widget).name, path);
   if (widget.id !== id) {
     widget.id = id;
     (widget.props as {id?: string}).id = id;
@@ -194,12 +213,17 @@ export function withWidgetId(widget: Widget, path: readonly string[]): Widget {
 }
 
 /**
- * Gives an effect an id from its path. deck.gl effects take no id: each class assigns its own,
- * such as `lighting-effect`, or `${module.name}-pass` for a `PostProcessEffect`, so every effect
- * element gets one, with that id as the base. The id is changed in place, because an effect
- * holds GPU resources and takes class-specific constructor arguments.
+ * Gives an effect a component built an id from its path. deck.gl effects take no id: each class
+ * assigns its own, such as `lighting-effect`, or `${module.name}-pass` for a `PostProcessEffect`,
+ * and an app can only change it after construction. So an effect cannot say whether its id was
+ * chosen; only the component that built it knows, and it marks the effect. An effect passed to
+ * `<deckEffect>` keeps its id. A marked effect's class id is the base. The id is changed in place,
+ * because an effect holds GPU resources and takes class-specific constructor arguments.
  */
 export function withEffectId(effect: Effect, path: readonly string[]): Effect {
+  if (!hasGeneratedEffectId(effect)) {
+    return effect;
+  }
   const id = formatElementId(getOriginalId(effect) || getClass(effect).name, path);
   if (effect.id !== id) {
     effect.id = id;

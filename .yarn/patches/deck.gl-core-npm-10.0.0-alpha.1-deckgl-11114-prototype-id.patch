@@ -1,0 +1,398 @@
+diff --git a/dist/dist.dev.js b/dist/dist.dev.js
+index 6f1f43ed2cf65fdcc68781fd062c2d4c547e85f8..4fd90f444e06be7ebf7de68f73a8448954aa46cb 100644
+--- a/dist/dist.dev.js
++++ b/dist/dist.dev.js
+@@ -77806,7 +77806,11 @@ void main() {
+     constructor(props) {
+       const { id, x = 0, y = 0, width = "100%", height = "100%", padding = null } = props;
+       this.id = id || this.constructor.displayName || "view";
+-      this.props = { ...props, id: this.id };
++      // visgl/deck.gl#11114: the default id lives on the prototype, so Object.hasOwn(props, "id") tells a passed id from the default
++        this.props = Object.assign(Object.create({ id: this.id }), props);
++        if (!id) {
++            delete this.props.id;
++        }
+       this._x = parsePosition(x);
+       this._y = parsePosition(y);
+       this._width = parsePosition(width);
+@@ -77827,7 +77831,9 @@ void main() {
+       if (this === view) {
+         return true;
+       }
+-      return this.constructor === view.constructor && deepEqual2(this.props, view.props, 2);
++      const { id: _id, ...props } = this.props;
++      const { id: _otherId, ...otherProps } = view.props;
++      return this.constructor === view.constructor && this.id === view.id && deepEqual2(props, otherProps, 2);
+     }
+     /** Clone this view with modified props */
+     clone(newProps) {
+@@ -77845,7 +77851,7 @@ void main() {
+         return null;
+       }
+       const ViewportType = this.getViewportType(viewState);
+-      return new ViewportType({ ...viewState, ...this.props, ...viewportDimensions });
++      return new ViewportType({ ...viewState, ...this.props, id: this.id, ...viewportDimensions });
+     }
+     getViewStateId() {
+       const { viewState } = this.props;
+@@ -81042,11 +81048,12 @@ void main() {
+        * under the shared widget root.
+        */
+       this.viewId = null;
+-      this.props = {
+-        // @ts-expect-error `defaultProps` may not exist on constructor
+-        ...this.constructor.defaultProps,
+-        ...props
+-      };
++      // visgl/deck.gl#11114: the default id lives on the prototype, so Object.hasOwn(props, "id") tells a passed id from the default
++        const { id: defaultId, ...defaultProps } = this.constructor.defaultProps || {};
++        this.props = Object.assign(Object.create({ id: defaultId }), defaultProps, props);
++        if (props?.id === undefined) {
++            delete this.props.id;
++        }
+       this.id = this.props.id;
+     }
+     /** Called to update widget options */
+@@ -90739,9 +90746,9 @@ void main(void) {
+     equals(view) {
+       if (this === view) return true;
+       if (this.constructor !== view.constructor) return false;
+-      const { crs, ...props } = this.props;
+-      const { crs: otherCrs, ...otherProps } = view.props;
+-      return deepEqual2(crs, otherCrs, -1) && deepEqual2(props, otherProps, 2);
++      const { crs, id: _id, ...props } = this.props;
++      const { crs: otherCrs, id: _otherId, ...otherProps } = view.props;
++      return this.id === view.id && deepEqual2(crs, otherCrs, -1) && deepEqual2(props, otherProps, 2);
+     }
+     /** Resolve the target CRS once for this view before creating its synchronous viewport. */
+     initialize() {
+@@ -90774,6 +90781,7 @@ void main(void) {
+       return new CustomProjectionViewport({
+         ...viewState,
+         ...viewportProps,
++        id: this.id,
+         ...dimensions,
+         crs: __privateGet(this, _crs),
+         padding: dimensions.padding
+diff --git a/dist/index.cjs b/dist/index.cjs
+index 2f8a7de2072dca407a1ba2c5f0d2b7646a80d575..1235b362147d0c97e6aa7be7567b55b39eea192c 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -6153,7 +6153,11 @@ var View = class {
+   constructor(props) {
+     const { id, x = 0, y = 0, width = "100%", height = "100%", padding = null } = props;
+     this.id = id || this.constructor.displayName || "view";
+-    this.props = { ...props, id: this.id };
++    // visgl/deck.gl#11114: the default id lives on the prototype, so Object.hasOwn(props, "id") tells a passed id from the default
++        this.props = Object.assign(Object.create({ id: this.id }), props);
++        if (!id) {
++            delete this.props.id;
++        }
+     this._x = parsePosition(x);
+     this._y = parsePosition(y);
+     this._width = parsePosition(width);
+@@ -6174,7 +6178,9 @@ var View = class {
+     if (this === view) {
+       return true;
+     }
+-    return this.constructor === view.constructor && deepEqual(this.props, view.props, 2);
++    const { id: _id, ...props } = this.props;
++        const { id: _otherId, ...otherProps } = view.props;
++        return this.constructor === view.constructor && this.id === view.id && deepEqual(props, otherProps, 2);
+   }
+   /** Clone this view with modified props */
+   clone(newProps) {
+@@ -6192,7 +6198,7 @@ var View = class {
+       return null;
+     }
+     const ViewportType = this.getViewportType(viewState);
+-    return new ViewportType({ ...viewState, ...this.props, ...viewportDimensions });
++    return new ViewportType({ ...viewState, ...this.props, id: this.id, ...viewportDimensions });
+   }
+   getViewStateId() {
+     const { viewState } = this.props;
+@@ -9150,11 +9156,12 @@ function removeStyles(element, style) {
+ var Widget = class {
+   constructor(props) {
+     this.viewId = null;
+-    this.props = {
+-      // @ts-expect-error `defaultProps` may not exist on constructor
+-      ...this.constructor.defaultProps,
+-      ...props
+-    };
++    // visgl/deck.gl#11114: the default id lives on the prototype, so Object.hasOwn(props, "id") tells a passed id from the default
++        const { id: defaultId, ...defaultProps } = this.constructor.defaultProps || {};
++        this.props = Object.assign(Object.create({ id: defaultId }), defaultProps, props);
++        if (props?.id === undefined) {
++            delete this.props.id;
++        }
+     this.id = this.props.id;
+   }
+   /** Called to update widget options */
+@@ -18302,9 +18309,9 @@ var CustomProjectionView = class extends View {
+       return true;
+     if (this.constructor !== view.constructor)
+       return false;
+-    const { crs, ...props } = this.props;
+-    const { crs: otherCrs, ...otherProps } = view.props;
+-    return deepEqual(crs, otherCrs, -1) && deepEqual(props, otherProps, 2);
++    const { crs, id: _id, ...props } = this.props;
++    const { crs: otherCrs, id: _otherId, ...otherProps } = view.props;
++    return this.id === view.id && deepEqual(crs, otherCrs, -1) && deepEqual(props, otherProps, 2);
+   }
+   /** Resolve the target CRS once for this view before creating its synchronous viewport. */
+   initialize() {
+@@ -18340,6 +18347,7 @@ var CustomProjectionView = class extends View {
+     return new custom_projection_viewport_default({
+       ...viewState,
+       ...viewportProps,
++      id: this.id,
+       ...dimensions,
+       crs: __classPrivateFieldGet(this, _CustomProjectionView_crs, "f"),
+       padding: dimensions.padding
+diff --git a/dist/lib/widget.js b/dist/lib/widget.js
+index 8d52fa2b86201671b53eb6198f3afce9789e72dd..d89bc925387de1faaee0ccbcbaa4e8fc534df010 100644
+--- a/dist/lib/widget.js
++++ b/dist/lib/widget.js
+@@ -12,11 +12,12 @@ export class Widget {
+          * under the shared widget root.
+          */
+         this.viewId = null;
+-        this.props = {
+-            // @ts-expect-error `defaultProps` may not exist on constructor
+-            ...this.constructor.defaultProps,
+-            ...props
+-        };
++        // visgl/deck.gl#11114: the default id lives on the prototype, so Object.hasOwn(props, "id") tells a passed id from the default
++        const { id: defaultId, ...defaultProps } = this.constructor.defaultProps || {};
++        this.props = Object.assign(Object.create({ id: defaultId }), defaultProps, props);
++        if (props?.id === undefined) {
++            delete this.props.id;
++        }
+         // @ts-expect-error TODO(ib) - why is id considered optional even though we use Required<>
+         this.id = this.props.id;
+     }
+diff --git a/dist/views/custom-projection-view.js b/dist/views/custom-projection-view.js
+index 2396e5e7d4fdf8ccbf5ef1f6b18696d280dd53a1..e3ba423d60ba56fc5d49b848c286abd5eff14cc5 100644
+--- a/dist/views/custom-projection-view.js
++++ b/dist/views/custom-projection-view.js
+@@ -34,10 +34,10 @@ class CustomProjectionView extends View {
+             return true;
+         if (this.constructor !== view.constructor)
+             return false;
+-        const { crs, ...props } = this.props;
+-        const { crs: otherCrs, ...otherProps } = view.props;
++        const { crs, id: _id, ...props } = this.props;
++        const { crs: otherCrs, id: _otherId, ...otherProps } = view.props;
+         // Structured CRS definitions can nest more deeply than View's layout and controller props.
+-        return deepEqual(crs, otherCrs, -1) && deepEqual(props, otherProps, 2);
++        return this.id === view.id && deepEqual(crs, otherCrs, -1) && deepEqual(props, otherProps, 2);
+     }
+     /** Resolve the target CRS once for this view before creating its synchronous viewport. */
+     initialize() {
+@@ -73,6 +73,7 @@ class CustomProjectionView extends View {
+         return new CustomProjectionViewport({
+             ...viewState,
+             ...viewportProps,
++            id: this.id,
+             ...dimensions,
+             crs: __classPrivateFieldGet(this, _CustomProjectionView_crs, "f"),
+             padding: dimensions.padding
+diff --git a/dist/views/view.js b/dist/views/view.js
+index 8205563af23dd30f768a8c05f0828f880ff13bd3..e6ee00487e843753e887e17b313eb7054e398797 100644
+--- a/dist/views/view.js
++++ b/dist/views/view.js
+@@ -9,7 +9,11 @@ export default class View {
+         const { id, x = 0, y = 0, width = '100%', height = '100%', padding = null } = props;
+         // @ts-ignore
+         this.id = id || this.constructor.displayName || 'view';
+-        this.props = { ...props, id: this.id };
++        // visgl/deck.gl#11114: the default id lives on the prototype, so Object.hasOwn(props, "id") tells a passed id from the default
++        this.props = Object.assign(Object.create({ id: this.id }), props);
++        if (!id) {
++            delete this.props.id;
++        }
+         // Extents
+         this._x = parsePosition(x);
+         this._y = parsePosition(y);
+@@ -32,7 +36,9 @@ export default class View {
+             return true;
+         }
+         // To correctly compare padding use depth=2
+-        return this.constructor === view.constructor && deepEqual(this.props, view.props, 2);
++        const { id: _id, ...props } = this.props;
++        const { id: _otherId, ...otherProps } = view.props;
++        return this.constructor === view.constructor && this.id === view.id && deepEqual(props, otherProps, 2);
+     }
+     /** Clone this view with modified props */
+     clone(newProps) {
+@@ -51,7 +57,7 @@ export default class View {
+             return null;
+         }
+         const ViewportType = this.getViewportType(viewState);
+-        return new ViewportType({ ...viewState, ...this.props, ...viewportDimensions });
++        return new ViewportType({ ...viewState, ...this.props, id: this.id, ...viewportDimensions });
+     }
+     getViewStateId() {
+         const { viewState } = this.props;
+diff --git a/dist.webgl-only/index.cjs b/dist.webgl-only/index.cjs
+index a7292956a7429e5a926d99198b185e4be97895ed..31fa88dde8878885642bd07dd02958fc1c255a7a 100644
+--- a/dist.webgl-only/index.cjs
++++ b/dist.webgl-only/index.cjs
+@@ -5514,7 +5514,11 @@ var View = class {
+   constructor(props) {
+     const { id, x = 0, y = 0, width = "100%", height = "100%", padding = null } = props;
+     this.id = id || this.constructor.displayName || "view";
+-    this.props = { ...props, id: this.id };
++    // visgl/deck.gl#11114: the default id lives on the prototype, so Object.hasOwn(props, "id") tells a passed id from the default
++        this.props = Object.assign(Object.create({ id: this.id }), props);
++        if (!id) {
++            delete this.props.id;
++        }
+     this._x = parsePosition(x);
+     this._y = parsePosition(y);
+     this._width = parsePosition(width);
+@@ -5535,7 +5539,9 @@ var View = class {
+     if (this === view) {
+       return true;
+     }
+-    return this.constructor === view.constructor && deepEqual(this.props, view.props, 2);
++    const { id: _id, ...props } = this.props;
++        const { id: _otherId, ...otherProps } = view.props;
++        return this.constructor === view.constructor && this.id === view.id && deepEqual(props, otherProps, 2);
+   }
+   /** Clone this view with modified props */
+   clone(newProps) {
+@@ -5553,7 +5559,7 @@ var View = class {
+       return null;
+     }
+     const ViewportType = this.getViewportType(viewState);
+-    return new ViewportType({ ...viewState, ...this.props, ...viewportDimensions });
++    return new ViewportType({ ...viewState, ...this.props, id: this.id, ...viewportDimensions });
+   }
+   getViewStateId() {
+     const { viewState } = this.props;
+@@ -8511,11 +8517,12 @@ function removeStyles(element, style) {
+ var Widget = class {
+   constructor(props) {
+     this.viewId = null;
+-    this.props = {
+-      // @ts-expect-error `defaultProps` may not exist on constructor
+-      ...this.constructor.defaultProps,
+-      ...props
+-    };
++    // visgl/deck.gl#11114: the default id lives on the prototype, so Object.hasOwn(props, "id") tells a passed id from the default
++        const { id: defaultId, ...defaultProps } = this.constructor.defaultProps || {};
++        this.props = Object.assign(Object.create({ id: defaultId }), defaultProps, props);
++        if (props?.id === undefined) {
++            delete this.props.id;
++        }
+     this.id = this.props.id;
+   }
+   /** Called to update widget options */
+@@ -17431,9 +17438,9 @@ var CustomProjectionView = class extends View {
+       return true;
+     if (this.constructor !== view.constructor)
+       return false;
+-    const { crs, ...props } = this.props;
+-    const { crs: otherCrs, ...otherProps } = view.props;
+-    return deepEqual(crs, otherCrs, -1) && deepEqual(props, otherProps, 2);
++    const { crs, id: _id, ...props } = this.props;
++    const { crs: otherCrs, id: _otherId, ...otherProps } = view.props;
++    return this.id === view.id && deepEqual(crs, otherCrs, -1) && deepEqual(props, otherProps, 2);
+   }
+   /** Resolve the target CRS once for this view before creating its synchronous viewport. */
+   initialize() {
+@@ -17469,6 +17476,7 @@ var CustomProjectionView = class extends View {
+     return new custom_projection_viewport_default({
+       ...viewState,
+       ...viewportProps,
++      id: this.id,
+       ...dimensions,
+       crs: __classPrivateFieldGet(this, _CustomProjectionView_crs, "f"),
+       padding: dimensions.padding
+diff --git a/dist.webgl-only/lib/widget.js b/dist.webgl-only/lib/widget.js
+index 8d52fa2b86201671b53eb6198f3afce9789e72dd..d89bc925387de1faaee0ccbcbaa4e8fc534df010 100644
+--- a/dist.webgl-only/lib/widget.js
++++ b/dist.webgl-only/lib/widget.js
+@@ -12,11 +12,12 @@ export class Widget {
+          * under the shared widget root.
+          */
+         this.viewId = null;
+-        this.props = {
+-            // @ts-expect-error `defaultProps` may not exist on constructor
+-            ...this.constructor.defaultProps,
+-            ...props
+-        };
++        // visgl/deck.gl#11114: the default id lives on the prototype, so Object.hasOwn(props, "id") tells a passed id from the default
++        const { id: defaultId, ...defaultProps } = this.constructor.defaultProps || {};
++        this.props = Object.assign(Object.create({ id: defaultId }), defaultProps, props);
++        if (props?.id === undefined) {
++            delete this.props.id;
++        }
+         // @ts-expect-error TODO(ib) - why is id considered optional even though we use Required<>
+         this.id = this.props.id;
+     }
+diff --git a/dist.webgl-only/views/custom-projection-view.js b/dist.webgl-only/views/custom-projection-view.js
+index 2396e5e7d4fdf8ccbf5ef1f6b18696d280dd53a1..e3ba423d60ba56fc5d49b848c286abd5eff14cc5 100644
+--- a/dist.webgl-only/views/custom-projection-view.js
++++ b/dist.webgl-only/views/custom-projection-view.js
+@@ -34,10 +34,10 @@ class CustomProjectionView extends View {
+             return true;
+         if (this.constructor !== view.constructor)
+             return false;
+-        const { crs, ...props } = this.props;
+-        const { crs: otherCrs, ...otherProps } = view.props;
++        const { crs, id: _id, ...props } = this.props;
++        const { crs: otherCrs, id: _otherId, ...otherProps } = view.props;
+         // Structured CRS definitions can nest more deeply than View's layout and controller props.
+-        return deepEqual(crs, otherCrs, -1) && deepEqual(props, otherProps, 2);
++        return this.id === view.id && deepEqual(crs, otherCrs, -1) && deepEqual(props, otherProps, 2);
+     }
+     /** Resolve the target CRS once for this view before creating its synchronous viewport. */
+     initialize() {
+@@ -73,6 +73,7 @@ class CustomProjectionView extends View {
+         return new CustomProjectionViewport({
+             ...viewState,
+             ...viewportProps,
++            id: this.id,
+             ...dimensions,
+             crs: __classPrivateFieldGet(this, _CustomProjectionView_crs, "f"),
+             padding: dimensions.padding
+diff --git a/dist.webgl-only/views/view.js b/dist.webgl-only/views/view.js
+index 8205563af23dd30f768a8c05f0828f880ff13bd3..e6ee00487e843753e887e17b313eb7054e398797 100644
+--- a/dist.webgl-only/views/view.js
++++ b/dist.webgl-only/views/view.js
+@@ -9,7 +9,11 @@ export default class View {
+         const { id, x = 0, y = 0, width = '100%', height = '100%', padding = null } = props;
+         // @ts-ignore
+         this.id = id || this.constructor.displayName || 'view';
+-        this.props = { ...props, id: this.id };
++        // visgl/deck.gl#11114: the default id lives on the prototype, so Object.hasOwn(props, "id") tells a passed id from the default
++        this.props = Object.assign(Object.create({ id: this.id }), props);
++        if (!id) {
++            delete this.props.id;
++        }
+         // Extents
+         this._x = parsePosition(x);
+         this._y = parsePosition(y);
+@@ -32,7 +36,9 @@ export default class View {
+             return true;
+         }
+         // To correctly compare padding use depth=2
+-        return this.constructor === view.constructor && deepEqual(this.props, view.props, 2);
++        const { id: _id, ...props } = this.props;
++        const { id: _otherId, ...otherProps } = view.props;
++        return this.constructor === view.constructor && this.id === view.id && deepEqual(props, otherProps, 2);
+     }
+     /** Clone this view with modified props */
+     clone(newProps) {
+@@ -51,7 +57,7 @@ export default class View {
+             return null;
+         }
+         const ViewportType = this.getViewportType(viewState);
+-        return new ViewportType({ ...viewState, ...this.props, ...viewportDimensions });
++        return new ViewportType({ ...viewState, ...this.props, id: this.id, ...viewportDimensions });
+     }
+     getViewStateId() {
+         const { viewState } = this.props;

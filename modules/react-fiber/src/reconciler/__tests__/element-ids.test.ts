@@ -13,6 +13,7 @@ import * as fc from 'fast-check';
 import React from 'react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
+import {markGeneratedEffectId} from '../../shared/generated-effect-id';
 import {formatElementId, formatPathSegment} from '../element-ids';
 import {createTestRoot} from './test-renderer';
 import {TestWidget} from './test-widget';
@@ -244,6 +245,48 @@ describe('element ids in a rendered tree', () => {
   });
 });
 
+describe('explicit ids', () => {
+  it('keeps an explicit id equal to the class default in a keyed list next to a sibling', async () => {
+    const warnSpy = vi.spyOn(log, 'warn').mockReturnValue(() => {});
+    const {root, deck, unmount} = createTestRoot();
+    const keyed = (key: string, type: string, props: object) =>
+      React.createElement(type, {key, ...props});
+    const rawEffect = new LightingEffect();
+    try {
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            React.Fragment,
+            null,
+            keyed('main', 'deckView', {view: new MapView({id: 'MapView'})}),
+            keyed('minimap', 'deckView', {view: new MapView({x: '75%', width: '25%'})}),
+            keyed('roads', 'deckLayer', {
+              layer: new ScatterplotLayer({data: [], id: 'ScatterplotLayer'})
+            }),
+            keyed('rail', 'deckLayer', {layer: new ScatterplotLayer({data: []})}),
+            keyed('zoom', 'deckWidget', {widget: new TestWidget({id: 'test-widget'})}),
+            keyed('legend', 'deckWidget', {widget: new TestWidget({})}),
+            keyed('sun', 'deckEffect', {effect: rawEffect}),
+            keyed('night', 'deckEffect', {effect: markGeneratedEffectId(new LightingEffect())})
+          )
+        );
+      });
+      expect(deck.views.map(({id}) => id)).toEqual(['MapView', 'MapView/minimap']);
+      expect(deck.layers.map(({id}) => id)).toEqual(['ScatterplotLayer', 'ScatterplotLayer/rail']);
+      expect(deck.widgets.map(({id}) => id)).toEqual(['test-widget', 'test-widget/legend']);
+      // An effect passed in keeps its id; one a component built gets an id from its path.
+      expect(deck.effects.map(({id}) => id)).toEqual(['lighting-effect', 'lighting-effect/night']);
+      expect(rawEffect.id).toBe('lighting-effect');
+      expect(
+        warnSpy.mock.calls.filter(([message]) => String(message).includes('share the id'))
+      ).toEqual([]);
+    } finally {
+      React.act(() => unmount());
+      warnSpy.mockRestore();
+    }
+  });
+});
+
 describe('duplicate id warnings', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -376,8 +419,11 @@ describe('duplicate id warnings', () => {
 });
 
 describe('merging props with JSX elements that have generated ids', () => {
+  /** An effect as the effect components build it, marked for an id from its path. */
   function createInvert() {
-    return new PostProcessEffect({fs: '', name: 'invert', passes: []} as never, {} as never);
+    return markGeneratedEffectId(
+      new PostProcessEffect({fs: '', name: 'invert', passes: []} as never, {} as never)
+    );
   }
 
   /** Renders `jsx` with `effects` and `widgets` props in a new test root. */
@@ -396,7 +442,7 @@ describe('merging props with JSX elements that have generated ids', () => {
   it('keeps every effect from props, in either order, after one has left JSX', async () => {
     // An effect rendered in JSX gets its id in place, and keeps it after it leaves JSX.
     const reused = createInvert();
-    const lighting = new LightingEffect();
+    const lighting = markGeneratedEffectId(new LightingEffect());
     const first = await renderWithProps(
       [
         React.createElement('deckEffect', {effect: lighting}),
@@ -449,7 +495,7 @@ describe('merging props with JSX elements that have generated ids', () => {
   });
 
   it('still lets a props entry replace a JSX element by its own id', async () => {
-    const jsxLighting = new LightingEffect();
+    const jsxLighting = markGeneratedEffectId(new LightingEffect());
     const propLighting = new LightingEffect();
     const test = await renderWithProps(
       [

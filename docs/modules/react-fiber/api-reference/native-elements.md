@@ -113,7 +113,7 @@ import {vignette} from '@luma.gl/effects';
 </DeckGL>;
 ```
 
-deck.gl matches effects by ID, as it does widgets. Rendering a new effect instance with the same ID updates the mounted effect's props instead of adding another one, so creating the instance during render is fine. deck.gl effects take no `id`: a `LightingEffect` has the ID `lighting-effect`, and a `PostProcessEffect` takes its ID from its shader module. The renderer adds the effect's place in the React tree to that ID, so two effects of one kind can render together. An effect has no children.
+deck.gl matches effects by ID, as it does widgets. Rendering a new effect instance with the same ID updates the mounted effect's props instead of adding another one, so creating the instance during render is fine. deck.gl effects take no `id`: a `LightingEffect` has the ID `lighting-effect`, and a `PostProcessEffect` takes its ID from its shader module. An effect can't say whether its ID was set by you, so `<deckEffect>` keeps the effect's ID. To render two effects of one kind, set a different `id` on each after constructing it, or use the [effect components](./components.md#effects), which add their place in the React tree to the ID. An effect has no children.
 
 ## Tree shape and deck.gl output
 
@@ -157,4 +157,4 @@ The Mapbox and MapLibre roots merge views the same way; a custom overlay root do
 
 ## Ids
 
-An element without an `id` gets one from its place in the React tree, exactly as a [component](./components.md#ids) does, so `<deckLayer key="roads" layer={new ScatterplotLayer({data})} />` gives `ScatterplotLayer/roads`. See [Ids](./components.md#ids) for the format and for when you still need an explicit `id`.
+An element without an `id` gets one from its place in the React tree, exactly as a [component](./components.md#ids) does, so `<deckLayer key="roads" layer={new ScatterplotLayer({data})} />` gives `ScatterplotLayer/roads`, and `<deckView key="minimap" view={new MapView()} />` gives `MapView/minimap`. An `id` you pass is always kept, even one that equals the class's default. `<deckEffect>` is the exception: it keeps its effect's ID; see [`<deckEffect>`](#deckeffect). See [Ids](./components.md#ids) for the format and for when you still need an explicit `id`.

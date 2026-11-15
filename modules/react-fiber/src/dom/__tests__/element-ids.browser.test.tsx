@@ -5,6 +5,7 @@ import {act, type ReactNode} from 'react';
 import {createRoot} from 'react-dom/client';
 import {expect, test} from 'vitest';
 
+import {PostProcessEffect as PostProcessEffectComponent} from '../../wrappers/core';
 import {DeckGL} from '../index';
 
 const webglTest = navigator.userAgent.includes('jsdom') ? test.skip : test;
@@ -145,19 +146,38 @@ vec4 identity_filterColor_ext(vec4 color, vec2 texSize, vec2 texCoord) {
   passes: [{filter: true}]
 } as unknown as ShaderPass;
 
-webglTest('two effects of one kind get distinct ids, so deck.gl keeps both', async () => {
+webglTest('two effect components of one kind get distinct ids, so deck.gl keeps both', async () => {
   const root = mountDeck();
 
   try {
     await root.render({latitude: 0, longitude: 0, zoom: 1}, [
-      <deckEffect key="first" effect={new PostProcessEffect(identity, {})} />,
-      <deckEffect key="second" effect={new PostProcessEffect(identity, {})} />
+      <PostProcessEffectComponent key="first" module={identity} />,
+      <PostProcessEffectComponent key="second" module={identity} />
     ]);
     await waitFor(() => getEffects(root.deck).length === 2);
     expect(getEffects(root.deck).map(({id}) => id)).toEqual([
       'identity-pass/first',
       'identity-pass/second'
     ]);
+  } finally {
+    root.unmount();
+  }
+});
+
+webglTest('two <deckEffect> elements of one kind keep the ids set on them', async () => {
+  const root = mountDeck();
+  const first = new PostProcessEffect(identity, {});
+  const second = new PostProcessEffect(identity, {});
+  first.id = 'identity-a';
+  second.id = 'identity-b';
+
+  try {
+    await root.render({latitude: 0, longitude: 0, zoom: 1}, [
+      <deckEffect key="first" effect={first} />,
+      <deckEffect key="second" effect={second} />
+    ]);
+    await waitFor(() => getEffects(root.deck).length === 2);
+    expect(getEffects(root.deck).map(({id}) => id)).toEqual(['identity-a', 'identity-b']);
   } finally {
     root.unmount();
   }

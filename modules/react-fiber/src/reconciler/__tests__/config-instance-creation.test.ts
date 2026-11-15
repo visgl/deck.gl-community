@@ -2,6 +2,8 @@ import {LightingEffect, MapView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
+import {markGeneratedEffectId} from '../../shared/generated-effect-id';
+
 import {
   cloneHiddenInstance,
   cloneHiddenTextInstance,
@@ -214,7 +216,8 @@ describe('config-instance-creation', () => {
       expect(create('deckWidget', {widget})).toBe(widget);
       expect(widget.id).toBe('test-widget/#0/a%2Fb');
       expect(widget.props.id).toBe('test-widget/#0/a%2Fb');
-      const effect = new LightingEffect();
+      // Only an effect a component built, which the component marks, gets an id from its path.
+      const effect = markGeneratedEffectId(new LightingEffect());
       expect(create('deckEffect', {effect})).toBe(effect);
       expect(effect.id).toBe('lighting-effect/#0/a%2Fb');
       // Rendering the same effect again starts from its own id, not the one it was given.
@@ -238,6 +241,35 @@ describe('config-instance-creation', () => {
       expect(create('deckView', {view})).toBe(view);
       const widget = new TestWidget({id: 'legend'});
       expect(create('deckWidget', {widget}).id).toBe('legend');
+    });
+
+    it("keeps an explicit id that equals the class's default id", () => {
+      const hostContext = createMockHostContext();
+      const fiber = createFiberPath([null, 'a']);
+      const create = (type: Type, props: Props) =>
+        createInstance(type, props, {} as never, hostContext, fiber).node;
+
+      const layer = new ScatterplotLayer({data: [], id: 'ScatterplotLayer'});
+      expect(create('deckLayer', {layer})).toBe(layer);
+      const view = new MapView({id: 'MapView'});
+      expect(create('deckView', {view})).toBe(view);
+      const widget = new TestWidget({id: 'test-widget'});
+      expect(create('deckWidget', {widget})).toBe(widget);
+      expect(widget.id).toBe('test-widget');
+      expect(widget.props.id).toBe('test-widget');
+    });
+
+    it('keeps the id of an effect passed in, which cannot say whether its id was chosen', () => {
+      const hostContext = createMockHostContext();
+      const fiber = createFiberPath([null, 'a']);
+      const effect = new LightingEffect();
+      expect(createInstance('deckEffect', {effect}, {} as never, hostContext, fiber).node).toBe(
+        effect
+      );
+      expect(effect.id).toBe('lighting-effect');
+      effect.id = 'sun';
+      createInstance('deckEffect', {effect}, {} as never, hostContext, fiber);
+      expect(effect.id).toBe('sun');
     });
 
     it("gives a lone top-level element deck.gl's default id", () => {
