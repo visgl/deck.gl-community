@@ -6,6 +6,7 @@ import type {ComponentType} from 'react';
 import {renderToString} from 'react-dom/server';
 import {describe, expect, it, vi} from 'vitest';
 import {createDeckGL, DeckGL} from '../index';
+import {DeckGL as GoogleMapsDeckGL} from '../google-maps';
 import {DeckGL as MapboxDeckGL} from '../mapbox';
 import {DeckGL as MapLibreDeckGL} from '../maplibre';
 
@@ -35,7 +36,8 @@ describe('server rendering without a DOM', () => {
 
   it.each([
     ['/mapbox', MapboxDeckGL],
-    ['/maplibre', MapLibreDeckGL]
+    ['/maplibre', MapLibreDeckGL],
+    ['/google-maps', GoogleMapsDeckGL]
   ])('renders the %s provider root as empty markup', (_name, Component) => {
     expect(renderOnServer(Component, {interleaved: true})).toBe('');
     expect(renderOnServer(Component)).toBe('');

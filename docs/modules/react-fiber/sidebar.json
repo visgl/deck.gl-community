@@ -15,6 +15,7 @@
           "items": [
             "modules/react-fiber/developer-guide/base-maps/using-with-mapbox",
             "modules/react-fiber/developer-guide/base-maps/using-with-maplibre",
+            "modules/react-fiber/developer-guide/base-maps/using-with-google-maps",
             "modules/react-fiber/developer-guide/base-maps/using-with-custom-overlays"
           ]
         },
