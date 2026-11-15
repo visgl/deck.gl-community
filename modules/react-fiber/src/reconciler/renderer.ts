@@ -131,6 +131,12 @@ const CREATION_ONLY_PROPS: ReadonlySet<string> = new Set([
   'touchAction'
 ]);
 
+/**
+ * Creation-only props compared by reference. A WebGL context keeps its state behind prototype
+ * getters and has no own enumerable keys, so a deep compare would see any two contexts as equal.
+ */
+const COMPARED_BY_REFERENCE: ReadonlySet<string> = new Set(['gl']);
+
 const CREATION_ONLY_DOCS =
   'https://visgl.github.io/deck.gl-community/docs/modules/react-fiber/api-reference/deckgl#props-that-only-apply-at-creation';
 
@@ -143,7 +149,8 @@ function isResetOnRemoval(key: string): boolean {
 /**
  * Warns, in development builds, about each creation-only prop that changed since the last
  * configure, once per prop per root. Values are compared deeply, so a new object literal with the
- * same contents, such as `deviceProps={{type: 'webgl'}}`, is not a change.
+ * same contents, such as `deviceProps={{type: 'webgl'}}`, is not a change. `gl` is compared by
+ * reference instead.
  */
 function warnOnCreationOnlyChanges(
   previous: DeckGLConfiguration,
@@ -156,7 +163,12 @@ function warnOnCreationOnlyChanges(
   const previousRecord = previous as Record<string, unknown>;
   const nextRecord = next as Record<string, unknown>;
   for (const key of CREATION_ONLY_PROPS) {
-    if (!warned.has(key) && !_deepEqual(previousRecord[key], nextRecord[key], 3)) {
+    const previousValue = previousRecord[key];
+    const nextValue = nextRecord[key];
+    const unchanged = COMPARED_BY_REFERENCE.has(key)
+      ? previousValue === nextValue
+      : _deepEqual(previousValue, nextValue, 3);
+    if (!warned.has(key) && !unchanged) {
       warned.add(key);
       log.warn(
         `DeckGL: \`${key}\` only applies when deck.gl is created, so this change has no effect. ` +

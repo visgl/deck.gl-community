@@ -63,6 +63,22 @@ describe('creation-only props', () => {
     expect(warnings().some(message => message.includes('`touchAction`'))).toBe(true);
   });
 
+  it('warns when `gl` changes to another context', () => {
+    // A WebGL context keeps its state behind getters on the prototype, so it has no own
+    // enumerable keys, and a deep compare would see any two contexts as equal.
+    const contextPrototype = {getParameter: () => null};
+    const firstContext = Object.create(contextPrototype) as WebGL2RenderingContext;
+    const secondContext = Object.create(contextPrototype) as WebGL2RenderingContext;
+    const {root} = setup({gl: firstContext});
+
+    root.configure({gl: firstContext});
+    expect(warnings()).toEqual([]);
+
+    root.configure({gl: secondContext});
+    expect(warnings()).toHaveLength(1);
+    expect(warnings()[0]).toContain('`gl`');
+  });
+
   it('warns when a creation-only prop is removed, because the removal has no effect either', () => {
     const {deck, root} = setup({eventRecognizerOptions: {pan: {threshold: 20}}});
 
