@@ -112,26 +112,23 @@ webglTest('viewState can switch from controlled to uncontrolled and back', async
   }
 });
 
-webglTest(
-  'a prop set to undefined falls back to the deck.gl default (deck.gl#10906)',
-  async () => {
-    const test = await mount();
-    try {
-      const onLoad = vi.fn();
-      await test.render({initialViewState: START, onLoad: undefined});
-      await waitFor(() => Boolean(test.deck?.isInitialized));
-      // deck.gl calls `onLoad()` without checking for it, so it must hold a function.
-      expect(test.deck!.props.onLoad).toBe(Deck.defaultProps.onLoad);
+webglTest('a prop set to undefined falls back to the deck.gl default (deck.gl#10906)', async () => {
+  const test = await mount();
+  try {
+    const onLoad = vi.fn();
+    await test.render({initialViewState: START, onLoad: undefined});
+    await waitFor(() => Boolean(test.deck?.isInitialized));
+    // deck.gl calls `onLoad()` without checking for it, so it must hold a function.
+    expect(test.deck!.props.onLoad).toBe(Deck.defaultProps.onLoad);
 
-      await test.render({initialViewState: START, onLoad});
-      expect(test.deck!.props.onLoad).toBe(onLoad);
-      await test.render({initialViewState: START, onLoad: undefined});
-      expect(test.deck!.props.onLoad).toBe(Deck.defaultProps.onLoad);
-    } finally {
-      test.unmount();
-    }
+    await test.render({initialViewState: START, onLoad});
+    expect(test.deck!.props.onLoad).toBe(onLoad);
+    await test.render({initialViewState: START, onLoad: undefined});
+    expect(test.deck!.props.onLoad).toBe(Deck.defaultProps.onLoad);
+  } finally {
+    test.unmount();
   }
-);
+});
 
 webglTest('removing the views prop with no JSX views restores the default view', async () => {
   const test = await mount();
