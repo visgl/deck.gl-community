@@ -58,7 +58,7 @@ and [Native elements](./api-reference/native-elements.md).
 The renderer flattens the committed tree into deck.gl's `layers`, `views`, `widgets` and `effects`
 arrays. Nesting a layer inside a view does not assign the layer to that view: use a layer filter
 for view-specific layers, and give every layer and view a stable, explicit `id`. The root
-`DeckGL` owns one standalone `Deck`; import `/mapbox` or `/maplibre` for a map overlay.
+`DeckGL` owns one standalone `Deck`; import `/mapbox`, `/maplibre` or `/google-maps` for a map overlay.
 
 ## Installation
 
@@ -68,7 +68,7 @@ Install React 19 or later, the package, and the deck.gl packages that your appli
 npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers
 ```
 
-The package is built against the deck.gl 10 prerelease packages, `10.0.0-alpha.1`. Every deck.gl package except `@deck.gl/core` is an optional peer: install `@deck.gl/mapbox` or `@deck.gl/maplibre` for its root, and the layer or widget package behind each component subpath you import. The plain root imports none of them.
+The package is built against the deck.gl 10 prerelease packages, `10.0.0-alpha.1`. Every deck.gl package except `@deck.gl/core` is an optional peer: install `@deck.gl/mapbox`, `@deck.gl/maplibre` or `@deck.gl/google-maps` for its root, and the layer or widget package behind each component subpath you import. The plain root imports none of them.
 
 TypeScript users need TypeScript 5.3 or later.
 
@@ -79,7 +79,7 @@ Without `canvas`, a standalone root renders an unstyled wrapper and canvas. Give
 ## Guides and API reference
 
 - [Get started](./developer-guide/get-started.md) explains the root, client boundaries, layer and view components, and instance access.
-- [Using with maps](./developer-guide/using-with-maps.md) explains provider roots and links the [Mapbox](./developer-guide/base-maps/using-with-mapbox.md) and [MapLibre](./developer-guide/base-maps/using-with-maplibre.md) guides.
+- [Using with maps](./developer-guide/using-with-maps.md) explains provider roots and links the [Mapbox](./developer-guide/base-maps/using-with-mapbox.md) and [MapLibre](./developer-guide/base-maps/using-with-maplibre.md) and [Google Maps](./developer-guide/base-maps/using-with-google-maps.md) guides.
 - [Upgrade guide](./developer-guide/migrate-from-deckgl-react.md) lists the changes to make when coming from `@deck.gl/react`.
 - [Debugging](./developer-guide/debugging.md) explains how to trace a problem through the renderer, with logs, React DevTools and error boundaries.
 - [DeckGL API](./api-reference/deckgl.md) documents root ownership and lifecycle behavior.

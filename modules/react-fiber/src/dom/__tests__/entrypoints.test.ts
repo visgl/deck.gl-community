@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import * as dom from '../index';
+import * as googleMaps from '../google-maps';
 import * as mapbox from '../mapbox';
 import * as maplibre from '../maplibre';
 import packageJson from '../../../package.json';
@@ -22,8 +23,10 @@ describe('native entrypoint export matrix', () => {
   it('exports provider-bound roots without adding them to the default module', () => {
     expect(Object.keys(mapbox).sort()).toEqual(['DeckGL']);
     expect(Object.keys(maplibre).sort()).toEqual(['DeckGL']);
+    expect(Object.keys(googleMaps).sort()).toEqual(['DeckGL']);
     expect(mapbox.DeckGL).not.toBe(dom.DeckGL);
     expect(maplibre.DeckGL).not.toBe(dom.DeckGL);
+    expect(googleMaps.DeckGL).not.toBe(dom.DeckGL);
   });
 
   it('publishes only the public entry points and requires only deck.gl core and React', () => {
@@ -31,6 +34,7 @@ describe('native entrypoint export matrix', () => {
       '.',
       './mapbox',
       './maplibre',
+      './google-maps',
       './core',
       './layers',
       './geo-layers',

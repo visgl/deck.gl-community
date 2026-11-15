@@ -42,6 +42,11 @@
       "require": "./dist/dom/maplibre.cjs",
       "import": "./dist/dom/maplibre.js"
     },
+    "./google-maps": {
+      "types": "./dist/dom/google-maps.d.ts",
+      "require": "./dist/dom/google-maps.cjs",
+      "import": "./dist/dom/google-maps.js"
+    },
     "./core": {
       "types": "./dist/wrappers/core.d.ts",
       "require": "./dist/wrappers/core.cjs",
@@ -97,6 +102,7 @@
     "@deck.gl/aggregation-layers": "10.0.0-alpha.1",
     "@deck.gl/core": "10.0.0-alpha.1",
     "@deck.gl/geo-layers": "10.0.0-alpha.1",
+    "@deck.gl/google-maps": "10.0.0-alpha.1",
     "@deck.gl/layers": "10.0.0-alpha.1",
     "@deck.gl/mapbox": "10.0.0-alpha.1",
     "@deck.gl/maplibre": "10.0.0-alpha.1",
@@ -110,6 +116,9 @@
       "optional": true
     },
     "@deck.gl/geo-layers": {
+      "optional": true
+    },
+    "@deck.gl/google-maps": {
       "optional": true
     },
     "@deck.gl/layers": {
@@ -133,6 +142,7 @@
     "@deck.gl/core": "10.0.0-alpha.1",
     "@deck.gl/extensions": "10.0.0-alpha.1",
     "@deck.gl/geo-layers": "10.0.0-alpha.1",
+    "@deck.gl/google-maps": "10.0.0-alpha.1",
     "@deck.gl/layers": "10.0.0-alpha.1",
     "@deck.gl/mapbox": "10.0.0-alpha.1",
     "@deck.gl/maplibre": "10.0.0-alpha.1",
