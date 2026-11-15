@@ -16,9 +16,10 @@ Choose an external overlay by import path, not by a runtime provider-selection p
 ```tsx
 import {DeckGL as MapboxDeckGL} from '@deck.gl-community/react-fiber/mapbox';
 import {DeckGL as MapLibreDeckGL} from '@deck.gl-community/react-fiber/maplibre';
+import {DeckGL as GoogleMapsDeckGL} from '@deck.gl-community/react-fiber/google-maps';
 ```
 
-`/mapbox` always creates `MapboxOverlay`; `/maplibre` always creates `MapLibreOverlay`. They pass `interleaved` to the overlay unchanged, so the overlay's own default applies: `false` for [`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#constructor) and [`MapLibreOverlay`](https://deck.gl/docs/api-reference/maplibre/overview). Both overlays read `interleaved` only in their constructors. When the prop changes, the root finalizes the current overlay, which removes it from the map, and creates a new one. `onDeckChange` receives `null` and then the new instance, which the application attaches. Provider roots render no host DOM node and use a detached internal registry key, so they are safe inside a map container that must remain child-free.
+`/mapbox` always creates `MapboxOverlay`, `/maplibre` always creates `MapLibreOverlay`, and `/google-maps` always creates `GoogleMapsOverlay`. They pass `interleaved` to the overlay unchanged, so the overlay's own default applies: `false` for [`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#constructor) and [`MapLibreOverlay`](https://deck.gl/docs/api-reference/maplibre/overview), and `true` for [`GoogleMapsOverlay`](https://deck.gl/docs/api-reference/google-maps/google-maps-overlay). The Mapbox and MapLibre overlays read `interleaved` only in their constructors, and the Google Maps overlay when it attaches to its map. When the prop changes, the root finalizes the current overlay, which removes it from the map, and creates a new one. `onDeckChange` receives `null` and then the new instance, which the application attaches. Provider roots render no host DOM node and use a detached internal registry key, so they are safe inside a map container that must remain child-free.
 
 Each provider entry point exposes its concrete overlay contract:
 
@@ -27,6 +28,7 @@ Each provider entry point exposes its concrete overlay contract:
 | Root | `DeckGLProps`; the instance is `Deck` |
 | `/mapbox` | `MapboxDeckGLProps`; `onDeckChange` receives `MapboxOverlay \| null` |
 | `/maplibre` | `MapLibreDeckGLProps`; `onDeckChange` receives `MapLibreOverlay \| null` |
+| `/google-maps` | `GoogleMapsDeckGLProps`; `onDeckChange` receives `GoogleMapsOverlay \| null` |
 
 Provider overlay props exclude map-owned configuration such as `canvas`, `parent`, `device`, `viewState`, `initialViewState`, and `controller`. The MapLibre provider also excludes `width`, `height`, and `gl`. Configure those options on the application-owned Mapbox or MapLibre map, and pass the map in `map`. `DeckGL` adds its overlay to the map, adds the new one when `interleaved` recreates it, and removes it when `map` changes or `DeckGL` unmounts. `map` takes a Mapbox or MapLibre `Map` or a React Map GL `MapRef`; keep it in React state. Without `map`, attach the instance from `onDeckChange` with `map.addControl` and remove the same control during cleanup. JSX `<deckView>` descriptors, merged with the `views` prop, are sent to the overlay, which keeps one view in step with the map camera. See [Views beside the map](../developer-guide/using-with-maps.md#views-beside-the-map). See [Using with maps](../developer-guide/using-with-maps.md) for complete attachment and shared-context guidance.
 
