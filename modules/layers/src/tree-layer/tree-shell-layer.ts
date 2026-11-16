@@ -325,7 +325,7 @@ struct HullVaryings {
     shellTransition
       ? `if (phongMaterial.unlit == 0u && lighting.enabled != 0) {
     // Resolved blades scatter less light back than the smooth shell does.
-    lit *= 1.0 - (0.34 + (grain - 0.5) * 0.28) * visibleClumps;
+    lit *= 1.0 - (0.28 + (grain - 0.5) * 0.28) * visibleClumps;
   }`
       : ''
   }
