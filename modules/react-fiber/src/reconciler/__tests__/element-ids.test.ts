@@ -245,6 +245,80 @@ describe('element ids in a rendered tree', () => {
   });
 });
 
+describe('element ids across roots', () => {
+  // A server-rendered page and its client are separate processes, and a remount is a fresh root.
+  // Generated ids come only from each element's class and position, so every one of them must
+  // give the same ids for the same tree.
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  async function renderIds(element: React.ReactElement) {
+    const {root, deck, unmount} = createTestRoot();
+    try {
+      await React.act(async () => {
+        root.render(element);
+      });
+      const ids = (descriptors: {id: string}[]) => descriptors.map(({id}) => id);
+      return {
+        layers: ids(deck.layers),
+        views: ids(deck.views),
+        widgets: ids(deck.widgets),
+        effects: ids(deck.effects)
+      };
+    } finally {
+      React.act(() => unmount());
+    }
+  }
+
+  it('gives the same ids for the same tree in a separate root and after a remount', async () => {
+    vi.spyOn(log, 'warn').mockReturnValue(() => {});
+
+    await fc.assert(
+      fc.asyncProperty(forestArbitrary, async trees => {
+        const tree = () =>
+          React.createElement(React.Fragment, null, ...trees.map(t => renderTree(t, false)));
+        const first = await renderIds(tree());
+        // A second root stands in for the other process; a third for a remount.
+        expect(await renderIds(tree())).toEqual(first);
+        expect(await renderIds(tree())).toEqual(first);
+      }),
+      {numRuns: 100}
+    );
+  });
+
+  it('gives the same ids to nested, escaped and generated keys of every kind', async () => {
+    vi.spyOn(log, 'warn').mockReturnValue(() => {});
+    const tree = () =>
+      React.createElement(
+        Group,
+        {key: 'outer/a-b'},
+        React.createElement(
+          Group,
+          {key: '#1'},
+          React.createElement('deckLayer', {key: 'é %2F', layer: new ScatterplotLayer({data: []})}),
+          React.createElement('deckLayer', {layer: new ScatterplotLayer({data: []})})
+        ),
+        React.createElement('deckView', {key: 'main', view: new MapView()}),
+        React.createElement('deckView', {key: 'mini:map', view: new MapView()}),
+        React.createElement('deckWidget', {key: 'zoom', widget: new TestWidget({})}),
+        React.createElement('deckWidget', {key: '', widget: new TestWidget({})}),
+        React.createElement('deckEffect', {
+          key: 'night',
+          effect: markGeneratedEffectId(new LightingEffect())
+        })
+      );
+
+    const first = await renderIds(tree());
+    expect(first.layers).toHaveLength(2);
+    expect(new Set(first.layers).size).toBe(2);
+    expect(new Set(first.widgets).size).toBe(2);
+    expect(first.effects).toEqual(['lighting-effect/outer%2Fa%2Db/night']);
+    expect(await renderIds(tree())).toEqual(first);
+    expect(await renderIds(tree())).toEqual(first);
+  });
+});
+
 describe('explicit ids', () => {
   it('keeps an explicit id equal to the class default in a keyed list next to a sibling', async () => {
     const warnSpy = vi.spyOn(log, 'warn').mockReturnValue(() => {});
