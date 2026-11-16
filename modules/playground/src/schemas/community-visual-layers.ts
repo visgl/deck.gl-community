@@ -143,6 +143,15 @@ export const DependencyArrowLayerSchema = defineLayer(
   DependencyArrowLayerPropsSchema
 );
 
+/** JSON props for a procedural clear sky. */
+export const SkyLayerPropsSchema = BaseLayerPropsSchema.extend({
+  sunDirection: Vector3Schema.optional(),
+  aerosolOpticalDepth: nonnegative.max(2).optional(),
+  exposure: nonnegative.max(32).optional()
+});
+/** JSON configuration for SkyLayer. */
+export const SkyLayerSchema = defineLayer('SkyLayer', SkyLayerPropsSchema);
+
 const textureSource = z.union([
   z.string(),
   z.array(z.string()),
@@ -645,6 +654,7 @@ export const CommunityVisualLayerSchemas = {
   PathOutlineLayer: PathOutlineLayerSchema,
   PathMarkerLayer: PathMarkerLayerSchema,
   DependencyArrowLayer: DependencyArrowLayerSchema,
+  SkyLayer: SkyLayerSchema,
   SkyboxLayer: SkyboxLayerSchema,
   TimeDeltaLayer: TimeDeltaLayerSchema,
   AnimationLayer: AnimationLayerSchema,

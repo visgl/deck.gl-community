@@ -8,6 +8,8 @@ This page lists module additions and major changes in each release. For detailed
   loaders.gl and math.gl `5.0.0-beta.8`, and probe.gl `5.0.0`.
   Applications must update their peer dependencies together. See the [upgrade guide](./upgrade-guide.md).
 
+- **layers:** [`SkyLayer`](./modules/layers/api-reference/sky-layer.md) renders a procedural clear sky with an adjustable sun and haze on WebGL2 and WebGPU.
+
 Gallery pages, inline documentation examples, and all 37 standalone HTML examples now share an iPhone-compatible fullscreen button.
 
 - **panels:** `FullScreenComponent` and `FullScreenController` add native fullscreen with a
