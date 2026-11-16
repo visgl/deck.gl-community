@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import {Deck, type Layer} from '@deck.gl/core';
 import {JunctionScatterplotLayer} from '@deck.gl-community/editable-layers';
+import {RainLayer} from '@deck.gl-community/layers';
 import {afterEach, expect, test, vi} from 'vitest';
 import {mountPlaygroundExample} from './app';
 import {mountStandalonePlayground} from './standalone';
@@ -54,18 +55,32 @@ test('gallery and standalone hosts render a registered community layer in the sa
             getStrokeColor: [255, 255, 255],
             radiusUnits: 'pixels',
             coordinateSystem: 'cartesian'
+          },
+          {
+            id: 'rain',
+            '@@type': 'RainLayer',
+            position: [0, 0, 20],
+            size: [120, 120, 40],
+            velocity: [4, 0, -8.5],
+            count: 256,
+            time: 1.25,
+            seed: 7,
+            coordinateSystem: 'cartesian'
           }
         ]
       })
     );
     await vi.waitFor(
       () => {
-        const layer = (deck.props.layers as Layer[])[0];
+        const [layer, rain] = deck.props.layers as Layer[];
         expect(layer).toBeInstanceOf(JunctionScatterplotLayer);
         const sublayers = (layer as JunctionScatterplotLayer).getSubLayers();
         expect(sublayers).toHaveLength(2);
         expect(sublayers.every(sublayer => sublayer.isLoaded)).toBe(true);
         expect(sublayers.every(sublayer => sublayer.state.model)).toBe(true);
+        expect(rain).toBeInstanceOf(RainLayer);
+        expect((rain as RainLayer).props.time).toBe(1.25);
+        expect(rain.getModels()).toHaveLength(1);
       },
       {timeout: 10_000}
     );

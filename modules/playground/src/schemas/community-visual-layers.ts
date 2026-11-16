@@ -55,6 +55,22 @@ export const FlameTrailLayerPropsSchema = TripsLayerPropsSchema;
 /** JSON configuration for FlameTrailLayer. */
 export const FlameTrailLayerSchema = defineLayer('FlameTrailLayer', FlameTrailLayerPropsSchema);
 
+/** JSON props for a world-space rain volume. */
+export const RainLayerPropsSchema = BaseLayerPropsSchema.extend({
+  position: DeckGLPositionSchema.optional(),
+  size: z.tuple([z.number().positive(), z.number().positive(), z.number().positive()]).optional(),
+  velocity: Vector3Schema.optional(),
+  count: nonnegative.int().max(0x7fffffff).optional(),
+  time: z.number().optional(),
+  exposure: nonnegative.optional(),
+  streakWidth: nonnegative.optional(),
+  color: ColorSchema.optional(),
+  seed: nonnegative.int().max(0xffffffff).optional(),
+  shadowEnabled: z.literal(false).optional()
+});
+/** JSON configuration for RainLayer. */
+export const RainLayerSchema = defineLayer('RainLayer', RainLayerPropsSchema);
+
 /** JSON props for a time volume; File/Blob sources and callbacks use host references. */
 export const VolumetricVideoLayerPropsSchema = BaseLayerPropsSchema.extend({
   video: z.string().nullable().optional(),
@@ -641,6 +657,7 @@ export const MarkerLayerSchema = defineLayer('MarkerLayer', MarkerLayerPropsSche
 /** All public visual, information, timeline and graph layer constructors. */
 export const CommunityVisualLayerSchemas = {
   FlameTrailLayer: FlameTrailLayerSchema,
+  RainLayer: RainLayerSchema,
   VolumetricVideoLayer: VolumetricVideoLayerSchema,
   PathOutlineLayer: PathOutlineLayerSchema,
   PathMarkerLayer: PathMarkerLayerSchema,
