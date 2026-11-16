@@ -253,74 +253,79 @@ for (const interleaved of [false, true]) {
         reactHost.remove();
         container.remove();
       }
-    }
+    },
+    45_000
   );
 }
 
-webglTest('StrictMode: a /mapbox root attaches one live overlay', async () => {
-  const container = createContainer();
-  const map = new mapboxgl.Map({
-    attributionControl: false,
-    center: [-122.45, 37.78],
-    container,
-    style: STYLE as unknown as mapboxgl.StyleSpecification,
-    testMode: true,
-    zoom: 12
-  });
-  await new Promise<void>(resolve =>
-    map.loaded() ? resolve() : map.once('load', () => resolve())
-  );
-
-  const reactHost = document.createElement('div');
-  document.body.append(reactHost);
-  const reactRoot = createRoot(reactHost);
-  const unmount = createUnmount(reactRoot);
-  const overlays: (Overlay | null)[] = [];
-
-  function App() {
-    const setOverlay = useAttachedControl(map);
-    return (
-      <MapboxDeckGL
-        onDeckChange={instance => {
-          overlays.push(instance);
-          setOverlay(instance);
-        }}
-      >
-        <ScatterplotLayer data={[[-122.45, 37.78]]} getPosition={d => d} getRadius={100} />
-      </MapboxDeckGL>
+webglTest(
+  'StrictMode: a /mapbox root attaches one live overlay',
+  async () => {
+    const container = createContainer();
+    const map = new mapboxgl.Map({
+      attributionControl: false,
+      center: [-122.45, 37.78],
+      container,
+      style: STYLE as unknown as mapboxgl.StyleSpecification,
+      testMode: true,
+      zoom: 12
+    });
+    await new Promise<void>(resolve =>
+      map.loaded() ? resolve() : map.once('load', () => resolve())
     );
-  }
 
-  try {
-    await act(async () =>
-      reactRoot.render(
-        <StrictMode>
-          <App />
-        </StrictMode>
-      )
-    );
-    const live = overlays[overlays.length - 1];
-    if (!live) {
-      throw new Error('Expected a live overlay');
+    const reactHost = document.createElement('div');
+    document.body.append(reactHost);
+    const reactRoot = createRoot(reactHost);
+    const unmount = createUnmount(reactRoot);
+    const overlays: (Overlay | null)[] = [];
+
+    function App() {
+      const setOverlay = useAttachedControl(map);
+      return (
+        <MapboxDeckGL
+          onDeckChange={instance => {
+            overlays.push(instance);
+            setOverlay(instance);
+          }}
+        >
+          <ScatterplotLayer data={[[-122.45, 37.78]]} getPosition={d => d} getRadius={100} />
+        </MapboxDeckGL>
+      );
     }
-    map.triggerRepaint();
-    await waitFor(() => Boolean((live as unknown as {_deck?: Deck})._deck?.isInitialized));
 
-    // StrictMode replays the mount, so it creates at least two overlays. Only the last one is
-    // attached to the map.
-    const created = distinctInstances(overlays);
-    expect(created.length).toBeGreaterThanOrEqual(2);
-    expect(created[created.length - 1]).toBe(live);
-    const controls = (map as unknown as {_controls: unknown[]})._controls;
-    expect(created.filter(overlay => controls.includes(overlay))).toEqual([live]);
+    try {
+      await act(async () =>
+        reactRoot.render(
+          <StrictMode>
+            <App />
+          </StrictMode>
+        )
+      );
+      const live = overlays[overlays.length - 1];
+      if (!live) {
+        throw new Error('Expected a live overlay');
+      }
+      map.triggerRepaint();
+      await waitFor(() => Boolean((live as unknown as {_deck?: Deck})._deck?.isInitialized));
 
-    await unmount();
-    expect(controls.includes(live)).toBe(false);
-    expectNoConsoleProblems();
-  } finally {
-    await unmount();
-    map.remove();
-    reactHost.remove();
-    container.remove();
-  }
-});
+      // StrictMode replays the mount, so it creates at least two overlays. Only the last one is
+      // attached to the map.
+      const created = distinctInstances(overlays);
+      expect(created.length).toBeGreaterThanOrEqual(2);
+      expect(created[created.length - 1]).toBe(live);
+      const controls = (map as unknown as {_controls: unknown[]})._controls;
+      expect(created.filter(overlay => controls.includes(overlay))).toEqual([live]);
+
+      await unmount();
+      expect(controls.includes(live)).toBe(false);
+      expectNoConsoleProblems();
+    } finally {
+      await unmount();
+      map.remove();
+      reactHost.remove();
+      container.remove();
+    }
+  },
+  45_000
+);

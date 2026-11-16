@@ -42,6 +42,7 @@ owns its map SDK:
 | --- | --- | --- |
 | `@deck.gl-community/react-fiber/mapbox` | `@deck.gl/mapbox` | `mapbox-gl` |
 | `@deck.gl-community/react-fiber/maplibre` | `@deck.gl/maplibre` | `maplibre-gl` |
+| `@deck.gl-community/react-fiber/google-maps` | `@deck.gl/google-maps` | The Maps JavaScript API, for example through `@vis.gl/react-google-maps` |
 
 For example:
 
@@ -51,7 +52,7 @@ yarn add @deck.gl/maplibre maplibre-gl
 
 The package requires React 19 or later and uses the deck.gl 10 prerelease packages, `10.0.0-alpha.1`. `@deck.gl/core`,
 `react` and `react-dom` are the only required peers. The other deck.gl packages are optional
-peers: install `@deck.gl/mapbox` or `@deck.gl/maplibre` for its root, and a layer or widget
+peers: install `@deck.gl/mapbox`, `@deck.gl/maplibre` or `@deck.gl/google-maps` for its root, and a layer or widget
 package for its component subpath, such as `@deck.gl/layers` for `/layers`. The root import loads
 none of them. Install the same deck.gl version for every deck.gl package.
 
@@ -103,13 +104,15 @@ Choose the renderer from its import path. Do not select a provider through a pro
 | `@deck.gl-community/react-fiber` | `Deck` | The application needs a standalone deck.gl canvas. This is the default. |
 | `@deck.gl-community/react-fiber/mapbox` | `MapboxOverlay` | The application owns a Mapbox map and attaches a deck.gl control. |
 | `@deck.gl-community/react-fiber/maplibre` | `MapLibreOverlay` | The application owns a MapLibre map and attaches a deck.gl control. |
+| `@deck.gl-community/react-fiber/google-maps` | `GoogleMapsOverlay` | The application owns a Google map and attaches a deck.gl overlay. |
 
 The root entry point creates only `Deck`. Its props are `DeckProps`, which has no `interleaved`
 option, and `onDeckChange` receives `Deck | null`. Provider roots always create
 their matching overlay and pass `interleaved` to it unchanged. The overlay applies its own default
 (`false` for
 [`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#constructor) and
-[`MapLibreOverlay`](https://deck.gl/docs/api-reference/maplibre/overview)). `false` renders
+[`MapLibreOverlay`](https://deck.gl/docs/api-reference/maplibre/overview), and `true` for
+[`GoogleMapsOverlay`](https://deck.gl/docs/api-reference/google-maps/google-maps-overlay)). `false` renders
 to a separate deck canvas, and `true` shares the map's WebGL context. The prop does not select the
 provider.
 
@@ -253,7 +256,7 @@ covers the overlay requirements, `recreateOverlayOnChange` and host attachment.
 configuration, rendering, and cleanup. Normal React applications should use `DeckGL`, which owns
 that lifecycle.
 
-The package exports the root, `/mapbox`, `/maplibre`, `/reconciler` and the component subpaths
+The package exports the root, `/mapbox`, `/maplibre`, `/google-maps`, `/reconciler` and the component subpaths
 listed above. Internal modules such as the host configuration and root store are not importable.
 
 Warnings and traces go through deck.gl's `log`. Root creation, unmounting and commits log at

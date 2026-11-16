@@ -2521,12 +2521,24 @@ float treeLeafWave(float t, float side, float seed) {
 }
 `;
 
+export const TREE_LEAF_OPTICS_GLSL = /* glsl */ `
+vec3 treeLeafUnderside(vec3 top) {
+  float pigment = dot(top, vec3(0.3, 0.55, 0.15));
+  return mix(top, vec3(pigment) * vec3(1.15, 1.2, 0.65) + vec3(0.012, 0.017, 0.005), 0.5);
+}
+
+vec3 treeLeafTransmission(vec3 top) {
+  return pow(max(top, vec3(0.002)), vec3(0.75)) * vec3(0.95, 1.2, 0.34);
+}
+`;
+
 /**
  * Light on a leaf, in linear space. The coarse blade calls this in its vertex stage, with a few pixels to its
  * name and millions of vertices. The fine and macro blades call it in the fragment stage.
  */
 function getTreeLeafShading(blade: TreeLeafBlade, air = false): string {
   return /* glsl */ `
+${TREE_LEAF_OPTICS_GLSL}
 // The normal that light sees, eased toward the crown's with distance, the surface's own, and the view.
 vec3 gNormal;
 vec3 gSurface;
@@ -2603,11 +2615,9 @@ vec3 treeLeafShade(
   gShininess = max(material.shininess, 2.0);
 
   // The underside is paler, matte and less green.
-  float pigment = dot(top, vec3(0.3, 0.55, 0.15));
-  vec3 under = mix(top, vec3(pigment) * vec3(1.15, 1.2, 0.65) + vec3(0.012, 0.017, 0.005), 0.5);
-  vec3 albedo = upper ? top : under;
+  vec3 albedo = upper ? top : treeLeafUnderside(top);
   // What gets through the blade: yellow-green, from the same pigments.
-  vec3 glowColor = pow(max(top, vec3(0.002)), vec3(0.75)) * vec3(0.95, 1.2, 0.34) * veins;
+  vec3 glowColor = treeLeafTransmission(top) * veins;
 
   for (int i = 0; i < lighting.directionalLightCount; i++) {
     DirectionalLight light = lighting_getDirectionalLight(i);
@@ -2714,6 +2724,23 @@ fn treeShellCoversPixel(position: vec2<f32>, retention: f32) -> bool {
 }
 `;
 
+/** Authored canopy tint is sRGB. Both renderers use the same linear leaf pigment. */
+export const TREE_LEAF_PIGMENT_GLSL = /* glsl */ `
+vec3 treeLeafPigment(vec3 canopy) {
+  vec3 tint = pow(canopy, vec3(2.2));
+  float luminance = dot(tint, vec3(0.3, 0.55, 0.15));
+  return mix(tint, vec3(luminance), 0.45) * vec3(0.82, 0.53, 0.33);
+}
+`;
+
+export const TREE_LEAF_PIGMENT_WGSL = /* wgsl */ `
+fn treeLeafPigment(canopy: vec3<f32>) -> vec3<f32> {
+  let tint = pow(canopy, vec3<f32>(2.2));
+  let luminance = dot(tint, vec3<f32>(0.3, 0.55, 0.15));
+  return mix(tint, vec3<f32>(luminance), 0.45) * vec3<f32>(0.82, 0.53, 0.33);
+}
+`;
+
 function getTreeLeafVertex(
   blade: TreeLeafBlade,
   air = false,
@@ -2789,6 +2816,7 @@ ${getTreeLeafShading(blade, air)}`
     : TREE_LEAF_MARGIN
 }
 ${getTreeLeafVertexBlade(blade, species)}
+${TREE_LEAF_PIGMENT_GLSL}
 
 vec4 treeLeafTexel(int leaf, int texel) {
   int index = leaf * ${LEAF_TEXELS} + texel;
@@ -3391,10 +3419,7 @@ ${
   // A leaf that has left its crown is lit as what it is, and flashes as it turns over.
   look.x *= 1.0 - smoothstep(0.0, 0.2, flight);
 
-  // A tint says how a leaf looks in full light. Leaves reflect little, and little blue.
-  vec3 tint = pow(canopy.rgb, vec3(2.2));
-  float luminance = dot(tint, vec3(0.3, 0.55, 0.15));
-  vec3 top = mix(tint, vec3(luminance), 0.45) * vec3(0.82, 0.53, 0.33);
+  vec3 top = treeLeafPigment(canopy.rgb);
   // Age and exposure run together on a tree: old leaves deep in a crown are dark and blue-green, new ones at
   // its skin lighter and yellower. Leaves on one shoot are much alike, so this reads as patches, not speckle.
   float shoot = fract(float(innerLimb) * 0.61803399);
