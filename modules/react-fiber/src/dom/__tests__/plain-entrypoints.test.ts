@@ -4,6 +4,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 const OPTIONAL_PEERS = [
   '@deck.gl/aggregation-layers',
   '@deck.gl/geo-layers',
+  '@deck.gl/google-maps',
   '@deck.gl/layers',
   '@deck.gl/mapbox',
   '@deck.gl/maplibre',
@@ -42,6 +43,14 @@ describe('plain entrypoint isolation', () => {
     const layers = await import('../../wrappers/layers');
 
     expect(layers.ScatterplotLayer).toBeDefined();
+  });
+
+  it('loads /google-maps without the other optional peers', async () => {
+    blockImports(OPTIONAL_PEERS.filter(name => name !== '@deck.gl/google-maps'));
+
+    const googleMaps = await import('../google-maps');
+
+    expect(googleMaps.DeckGL).toBeDefined();
   });
 
   it('loads /core without any optional peer', async () => {

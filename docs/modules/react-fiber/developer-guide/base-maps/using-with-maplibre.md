@@ -84,44 +84,31 @@ MapLibre loads a same-origin worker URL directly, so a Content Security Policy n
 
 ## Examples
 
+Keep the map in React state and pass it in `map`. `DeckGL` adds its overlay to the map, adds the
+new one when it recreates the overlay because `interleaved` changed, and removes it on unmount.
+It does not wait for the map to load: `MapLibreOverlay` waits for the style before it adds layers.
+
 ### React Map GL
 
 The React Map GL MapLibre component owns all MapLibre options. It can contain provider `DeckGL`
-because that component does not render a host child.
+because that component does not render a host child. Its callback ref stores the map in state.
 
 ```tsx
-import {useEffect, useRef, useState} from 'react';
+import {useState} from 'react';
 import {Map, type MapRef} from 'react-map-gl/maplibre';
-import type {MapLibreOverlay} from '@deck.gl/maplibre';
 import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
 
 export function MapLibreMap() {
-  const mapRef = useRef<MapRef>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [overlay, setOverlay] = useState<MapLibreOverlay | null>(null);
-
-  useEffect(() => {
-    const map = mapRef.current?.getMap();
-    if (!map || !loaded || !overlay) return;
-
-    let attached = false;
-    map.addControl(overlay);
-    attached = true;
-
-    return () => {
-      if (attached) map.removeControl(overlay);
-    };
-  }, [loaded, overlay]);
+  const [map, setMap] = useState<MapRef | null>(null);
 
   return (
     <Map
-      ref={mapRef}
+      ref={setMap}
       mapStyle="https://demotiles.maplibre.org/style.json"
       initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}}
       canvasContextAttributes={{antialias: true}}
-      onLoad={() => setLoaded(true)}
     >
-      <DeckGL interleaved onDeckChange={setOverlay}>
+      <DeckGL map={map} interleaved>
         {/* Layer components, such as <ScatterplotLayer /> */}
       </DeckGL>
     </Map>
@@ -131,23 +118,22 @@ export function MapLibreMap() {
 
 ### Manual map
 
-A manual MapLibre container must have no children before `new Map({container})`. The detached
-provider-root registry key preserves that requirement.
+Create the map once, in an effect, and remove it in the effect's cleanup. A manual MapLibre
+container must have no children before `new Map({container})`; provider `DeckGL` renders none.
 
 ```tsx
 import {useEffect, useRef, useState} from 'react';
 import {Map as MapLibreMap} from 'maplibre-gl';
-import type {MapLibreOverlay} from '@deck.gl/maplibre';
 import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
 
 export function ManualMapLibreMap() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [overlay, setOverlay] = useState<MapLibreOverlay | null>(null);
+  const [map, setMap] = useState<MapLibreMap | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current || !overlay) return;
+    if (!containerRef.current) return;
 
-    const map = new MapLibreMap({
+    const instance = new MapLibreMap({
       canvasContextAttributes: {antialias: true},
       container: containerRef.current,
       center: [-122.4, 37.8],
@@ -155,33 +141,17 @@ export function ManualMapLibreMap() {
       style: 'https://demotiles.maplibre.org/style.json',
       zoom: 12
     });
-    let disposed = false;
-    let attached = false;
-
-    const attachOverlay = () => {
-      if (!disposed) {
-        map.addControl(overlay);
-        attached = true;
-      }
-    };
-
-    if (map.loaded()) {
-      attachOverlay();
-    } else {
-      map.once('load', attachOverlay);
-    }
+    setMap(instance);
 
     return () => {
-      disposed = true;
-      map.off('load', attachOverlay);
-      if (attached) map.removeControl(overlay);
-      map.remove();
+      setMap(null);
+      instance.remove();
     };
-  }, [overlay]);
+  }, []);
 
   return (
     <div ref={containerRef} style={{height: 500}}>
-      <DeckGL interleaved onDeckChange={setOverlay}>
+      <DeckGL map={map} interleaved>
         {/* Layer components, such as <ScatterplotLayer /> */}
       </DeckGL>
     </div>
@@ -191,12 +161,12 @@ export function ManualMapLibreMap() {
 
 ## Additional information
 
-### React Map GL
+### React Map GL `useControl`
 
-deck.gl's guide attaches `MapLibreOverlay` with React Map GL's `useControl` hook. Do not use
-`useControl` with a provider root: its factory runs once when the hook mounts, but the provider
-root creates the overlay itself and delivers it later through `onDeckChange`. Attach the overlay
-in an effect, as in the example above.
+deck.gl's own guides attach the overlay with React Map GL's `useControl` hook. That does not work
+with these roots. `useControl` creates its control once, when it mounts, and keeps it. The root
+creates its own overlay, and creates a new one when `interleaved` changes, so `useControl` would
+hold the wrong instance. Pass the map in `map` instead.
 
 ### Choosing a map tile service
 
