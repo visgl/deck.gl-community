@@ -4,6 +4,17 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+### TreeLayer renderer
+
+Remove `maxCanopySplats`, `maxCanopyPixels`, and `foveationStrength` from `TreeLayer`.
+If you used a preview build, remove its `quality` switch as well. Use `lodBias` to tune how
+far individual leaves remain visible before switching to fitted canopy shells. Replace custom
+Gaussian canopy overrides with TreeLayer materials and accessors. Use standalone `SplatLayer`
+for Gaussian data. See the
+[TreeLayer reference](./modules/layers/api-reference/tree-layer.md#migrating-from-the-gaussian-canopy-renderer).
+
 ## v10.0.0-alpha.1
 
 ### deck.gl v10 prerelease
@@ -39,15 +50,6 @@ Import components for deck.gl's layers, views, widgets and effects from the Reac
 such as `ScatterplotLayer` from `@deck.gl-community/react-fiber/layers`. The types need TypeScript
 5.3 or later. The [React Fiber upgrade guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react)
 lists the changes from `@deck.gl/react`.
-
-### TreeLayer renderer
-
-Remove `maxCanopySplats`, `maxCanopyPixels` and `foveationStrength` from `TreeLayer`.
-If you used a preview build, remove its `quality` switch as well. Use `lodBias` to tune how
-far individual leaves remain visible before switching to fitted canopy shells. Replace custom
-Gaussian-canopy overrides with TreeLayer materials and accessors. Use standalone `SplatLayer`
-for Gaussian data. See the
-[TreeLayer reference](./modules/layers/api-reference/tree-layer.md#migrating-from-the-gaussian-canopy-renderer).
 
 ### Consolidated sidebars
 
