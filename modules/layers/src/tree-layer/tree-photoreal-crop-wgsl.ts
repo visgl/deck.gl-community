@@ -75,6 +75,7 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
   let member = index - f32(parent) * cluster;
   var seed = fract(index * 0.61803399 + life.seed);
   var grown = smoothstep(0.0, 0.02, life.growth);
+  var rank = index;
   var anchor = vec3<f32>(0.0);
   var outer = 0u;
   var inner = 0u;
@@ -84,7 +85,7 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
     let head = treeCropAnchorTexel(treeCropAnchors, parent, 0u);
     let born = ${flower ? `min(head.w, ${TREE_CROP_BLOOM_FROM})` : 'head.w'};
     let age = life.growth - born;
-    let rank = treeCropRankAt(parent, ${flower ? '1.0' : 'life.growth'}) * cluster + member;
+    rank = treeCropRankAt(parent, ${flower ? '1.0' : 'life.growth'}) * cluster + member;
     if (age <= 0.0 || rank >= total) { return output; }
     let tail = treeCropAnchorTexel(treeCropAnchors, parent, 1u);
     anchor = head.xyz;
@@ -119,7 +120,9 @@ fn treeCropRankAt(crop: u32, growth: f32) -> f32 {
   let threshold = 0.02 + 0.96 * hashB;
   let passed = select(crop.w - threshold, 1.0, dropped);
   let settling = 1.0 - smoothstep(0.0, 0.02, unripe.a);
-  let swell = pow(grown, 0.34) * mix(1.0, smoothstep(0.0, 0.02, abs(passed)), settling);
+  // Match WebGL2 by growing the last few crops as their ranks enter the count.
+  let countFade = clamp((total - rank) / max(1.0, 0.06 * total), 0.0, 1.0);
+  let swell = pow(grown * countFade, 0.34) * mix(1.0, smoothstep(0.0, 0.02, abs(passed)), settling);
   let radius = full * swell;
   if (radius <= 0.0) { return output; }
 

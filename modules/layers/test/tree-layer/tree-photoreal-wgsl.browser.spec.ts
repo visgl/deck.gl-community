@@ -611,15 +611,16 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
       {now: 0, clock: 0}
     );
     state.writeData(store.data);
-    const refs = new Float32Array(count * 3);
-    for (let index = 0; index < count; index++) {
+    const instances = Math.ceil(count);
+    const refs = new Float32Array(instances * 3);
+    for (let index = 0; index < instances; index++) {
       refs.set([0, index, dropped ? 1 : 0], index * 3);
     }
     const data: TreeCropData = {
-      length: count,
+      length: instances,
       attributes: {instanceCropRef: {value: refs, size: 3}},
       *[Symbol.iterator]() {
-        for (let index = 0; index < count; index++) yield undefined;
+        for (let index = 0; index < instances; index++) yield undefined;
       }
     };
     const layer = new TreePhotorealCropLayer({
@@ -676,6 +677,9 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
     const tilted = bounds((await capture('fruit', 2, 5.6, -8)).pixels);
     expect.soft(tilted.count, 'tilted fruit pixels').toBeGreaterThan(80);
     expect.soft(tilted.height / tilted.width, 'tilted fruit aspect').toBeGreaterThan(0.8);
+    const growing = bounds((await capture('fruit', 2, 5.6, -8, false, 0.125)).pixels);
+    expect.soft(growing.count, 'fractional attached fruit pixels').toBeGreaterThan(5);
+    expect.soft(growing.count, 'fractional attached fruit area').toBeLessThan(tilted.count * 0.65);
 
     for (const lod of [2, 3]) {
       const ground = await capture('fruit', lod, lod === 2 ? 5.6 : 4.6, 65, true);
@@ -683,6 +687,12 @@ it('draws WebGPU petals, tilted fruit, ground contact and close crop shadows', a
         (value, i) => i % 4 === 3 && value > 2 && value < 230 && ground.pixels[i - 3] < 2
       );
       expect.soft(contact.length, `fallen fruit level ${lod} contact`).toBeGreaterThan(8);
+      if (lod === 2) {
+        const full = bounds(ground.pixels);
+        const partial = bounds((await capture('fruit', lod, 5.6, 65, true, 0.125)).pixels);
+        expect.soft(partial.count, 'fractional dropped fruit pixels').toBeGreaterThan(5);
+        expect.soft(partial.count, 'fractional dropped fruit area').toBeLessThan(full.count * 0.65);
+      }
     }
 
     // This crop is larger than the fine color band's upper bound. Only its caster can draw here.

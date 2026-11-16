@@ -571,6 +571,8 @@ const LOD_WIND_NEAR_METRES = 0.3;
 const LOD_DETAIL_EPSILON = 0.003;
 /** Trees this many heights beyond the frustum stay for the shadows they cast into the view. */
 const SHADOW_CULL_MARGIN_HEIGHTS = 3;
+/** A thin enough crown for branch shadows to show through. */
+const SHADOW_BRANCH_CROWN_DENSITY = 0.25;
 const LOD_FLOATS_PER_ROW = TREE_STATE_TEXELS_PER_ROW * 4;
 const METRES_PER_DEGREE = 111320;
 /** A crop's radius on screen, in pixels, at which its points are shaded by the pixel, then thinned. */
@@ -778,6 +780,10 @@ type PhotorealGroup<DataT> = {
   woodBuckets: PhotorealRow<DataT>[][];
   shadowSlots: SplatRowSlots<PhotorealRow<DataT>>;
   shadowBucket: PhotorealRow<DataT>[];
+  shadowStemSlots: SplatRowSlots<PhotorealRow<DataT>>;
+  shadowStemBucket: PhotorealRow<DataT>[];
+  shadowBranchSlots: SplatRowSlots<PhotorealRow<DataT>>;
+  shadowBranchBucket: PhotorealRow<DataT>[];
   stemSlots: SplatRowSlots<PhotorealRow<DataT>>;
   stemBucket: PhotorealRow<DataT>[];
   /** Rows of LOD 0 that are losing leaves, whose leaves in the air a pass of their own draws, and if it ever had any. */
@@ -1679,6 +1685,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       woodBuckets: [[], [], [], []],
       shadowSlots: new SplatRowSlots<PhotorealRow<DataT>>(),
       shadowBucket: [],
+      shadowStemSlots: new SplatRowSlots<PhotorealRow<DataT>>(),
+      shadowStemBucket: [],
+      shadowBranchSlots: new SplatRowSlots<PhotorealRow<DataT>>(),
+      shadowBranchBucket: [],
       stemSlots: new SplatRowSlots<PhotorealRow<DataT>>(),
       stemBucket: [],
       airSlots: new SplatRowSlots<PhotorealRow<DataT>>(),
@@ -2011,6 +2021,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       const stemKeys: number[] = [];
       const shadowRows: PhotorealRow<DataT>[] = [];
       const shadowKeys: number[] = [];
+      const shadowBranches: PhotorealRow<DataT>[] = [];
+      const shadowBranchKeys: number[] = [];
       group.colorLeafCounts.fill(0);
       group.transitionLeafCounts.fill(0);
       for (const bucket of group.crops.values()) bucket.shedding = false;
@@ -2029,9 +2041,15 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           continue;
         }
         const base = row.stateRow * LOD_FLOATS_PER_ROW;
+        const foliage = data[base + LIFE * 4 + 2];
+        const crownDensity = foliage * data[base + TREE_STATE_TEXEL.CANOPY * 4 + 3];
         if (props.shadowEnabled !== false) {
           shadowRows.push(row);
           shadowKeys.push(row.stateRow);
+          if (crownDensity < SHADOW_BRANCH_CROWN_DENSITY) {
+            shadowBranches.push(row);
+            shadowBranchKeys.push(row.stateRow);
+          }
         }
         const inTransition = row.shellRetention > 0;
         store.setShellRetention(row.stateRow, row.shellRetention);
@@ -2040,11 +2058,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           next[canopyLod].push(row);
           keys[canopyLod].push(row.stateRow);
         }
-        const foliage = data[base + LIFE * 4 + 2];
         const stemOnly =
           (row.shellLevel >= 1 ||
             (row.shellLevel === 0 && data[base + MISC * 4] * row.middlePixelsPerMeter <= 1.6)) &&
-          foliage * data[base + TREE_STATE_TEXEL.CANOPY * 4 + 3] >= 0.75;
+          crownDensity >= 0.75;
         const shedding = data[base + DETAIL * 4 + 2] > 0;
 
         if (row.leafPixels <= 0) {
@@ -2161,6 +2178,19 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       group.airBucket = group.airSlots.update(nextAir, airKeys);
       group.coarseBucket = group.coarseSlots.update(coarse, coarseKeys);
       group.shadowBucket = group.shadowSlots.update(shadowRows, shadowKeys);
+      group.shadowBranchBucket = group.shadowBranchSlots.update(shadowBranches, shadowBranchKeys);
+      if (shadowBranches.length) {
+        const branchKeys = new Set(shadowBranchKeys);
+        const shadowStems = shadowRows.filter(row => !branchKeys.has(row.stateRow));
+        group.shadowStemBucket = group.shadowStemSlots.update(
+          shadowStems,
+          shadowStems.map(row => row.stateRow)
+        );
+      } else {
+        // Dense groves share one stable row list for the canopy and stem casters.
+        group.shadowStemSlots.update([], []);
+        group.shadowStemBucket = group.shadowBucket;
+      }
       this.rebuildNearLeaves(group, photoreal, next[0]);
       this.rebuildCropBuckets(group, photoreal);
     }
@@ -2940,14 +2970,14 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         // near residency and lifecycle updates, so a departing tree fades as before.
         const caster = {
           _shadowPass: 'only',
-          pickable: false,
-          data: group.shadowBucket
+          pickable: false
         };
         leaves.push(
           new TreeShellLayer(
             this.getTreeSubLayerProps({
               ...part,
               ...caster,
+              data: group.shadowBucket,
               lod: 2,
               type: TreeShellLayer,
               id: `canopy-${key}-shadow`,
@@ -2961,10 +2991,24 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             this.getTreeSubLayerProps({
               ...stem,
               ...caster,
+              data: group.shadowStemBucket,
               id: `photoreal-wood-${key}-shadow`
             })
           )
         );
+        if (group.shadowBranchBucket.length > 0) {
+          wood.push(
+            new TreePhotorealWoodLayer(
+              this.getTreeSubLayerProps({
+                ...stem,
+                ...caster,
+                template: model,
+                data: group.shadowBranchBucket,
+                id: `photoreal-wood-${key}-branch-shadow`
+              })
+            )
+          );
+        }
       }
       wood.push(
         new TreePhotorealWoodLayer(
