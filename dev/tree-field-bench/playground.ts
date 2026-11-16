@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {OrbitView, type Deck, type OrbitViewState} from '@deck.gl/core';
+import {LinearInterpolator, OrbitView, type Deck, type OrbitViewState} from '@deck.gl/core';
 import type {TreeLayer, TreeSpec} from '../../modules/layers/src/tree-layer/tree-layer';
 import {
   getFieldMaxZoom,
@@ -21,6 +21,10 @@ type View = 'overview' | 'tree' | 'macro' | 'dive';
 type Point = OrbitViewState['target'];
 
 const numberFormat = new Intl.NumberFormat('en-US');
+// Ground-pivot rotation derives its target from the angles at each step.
+const pivotRotationInertia = new LinearInterpolator({
+  transitionProps: {compare: ['zoom', 'rotationX', 'rotationOrbit'], required: ['zoom']}
+});
 
 export function mountFieldPlayground({
   deck,
@@ -175,6 +179,9 @@ export function mountFieldPlayground({
       if (next === camera) return;
       if (pivot && isRotating && !isPanning && !isZooming) {
         next = orbitFieldCamera(camera, next, pivot, innerHeight, fovy);
+        if (typeof viewState.transitionDuration === 'number' && viewState.transitionDuration > 0) {
+          Object.assign(next, {transitionInterpolator: pivotRotationInertia});
+        }
       } else {
         const followsPan = isPanning && !isZooming;
         if (pivot && (followsPan || pivotFollowsZoom)) {
