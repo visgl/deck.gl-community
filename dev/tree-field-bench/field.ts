@@ -139,6 +139,10 @@ const lighting = new FieldLightingEffect(lights);
 lighting.shadowColor = [0, 0, 0, 0.42];
 
 class FieldDeck extends Deck<OrbitView[]> {
+  // The playground only selects on click. Skip Deck's hover and pointer-down GPU queries.
+  override _onPointerMove = () => {};
+  override _onPointerDown = () => {};
+
   get trees(): TreeLayer<TreeSpec> | undefined {
     return this.layerManager?.getLayers().find(layer => layer.id === 'field') as
       | TreeLayer<TreeSpec>

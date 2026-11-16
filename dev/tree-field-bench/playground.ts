@@ -47,9 +47,9 @@ export function mountFieldPlayground({
   let pivot: Point | null = [0, 0, 0];
   let pivotFollowsZoom = true;
   let camera = normalize(getCamera('overview', 0));
-  let view = new OrbitView({id: 'orchard', orbitAxis: 'Z', fovy, near: 0.005});
   let far = 1000;
   let dive = 0;
+  let selection = 0;
   let lastFrame: number | undefined;
   let lastReadout = 0;
   const intervals: number[] = [];
@@ -70,14 +70,15 @@ export function mountFieldPlayground({
       1000,
       ((distance + Math.hypot(...camera.target) + 900) * 2 ** camera.zoom) / innerHeight
     );
-    if (nextFar !== far) {
-      far = nextFar;
-      view = new OrbitView({id: 'orchard', orbitAxis: 'Z', fovy, near: 0.005, far});
-    }
     deck.setProps({
-      views: [view],
+      ...(nextFar === far
+        ? {}
+        : {
+            views: [new OrbitView({id: 'orchard', orbitAxis: 'Z', fovy, near: 0.005, far: nextFar})]
+          }),
       viewState: {orchard: {...camera, maxZoom: getFieldMaxZoom(innerHeight, fovy)}}
     });
+    far = nextFar;
   }
 
   function showSelection(): void {
@@ -159,6 +160,7 @@ export function mountFieldPlayground({
   };
 
   deck.setProps({
+    views: [new OrbitView({id: 'orchard', orbitAxis: 'Z', fovy, near: 0.005, far})],
     controller: {inertia: 150, doubleClickZoom: false},
     onViewStateChange: ({viewState, interactionState}) => {
       const {isRotating, isPanning, isZooming} = interactionState ?? {};
@@ -187,13 +189,19 @@ export function mountFieldPlayground({
       }
       updateCamera(next);
     },
-    onClick: info => {
-      const index = data.indexOf(info.object);
-      if (index < 0) return;
-      selected = index;
-      if (pivot) pivot = groundPoint();
-      pivotFollowsZoom = false;
-      showSelection();
+    onClick: ({x, y}) => {
+      const request = ++selection;
+      deck
+        .pickObjectAsync({x, y, layerIds: ['field']})
+        .then(info => {
+          const index = data.indexOf(info?.object);
+          if (request !== selection || index < 0) return;
+          selected = index;
+          if (pivot) pivot = groundPoint();
+          pivotFollowsZoom = false;
+          showSelection();
+        })
+        .catch(error => deck.props.onError?.(error));
     }
   });
   showSelection();
