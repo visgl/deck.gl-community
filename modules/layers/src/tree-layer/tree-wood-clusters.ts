@@ -120,7 +120,8 @@ export function getTreeWoodClusterSphere(
   trunkRadius: number,
   forkZ: number,
   yaw: number,
-  force: number
+  force: number,
+  undirected = false
 ) {
   const sphere = getTreeClusterSphere(cluster.bounds, crownX, crownY, height, trunk, forkZ);
   const [x, y, z] = sphere.center;
@@ -144,22 +145,24 @@ export function getTreeWoodClusterSphere(
           limbReach;
         // sqrt(1.35^2 + .35^2 + .25^2) bounds the shader's along/across/up wind push.
         const angle = length * 0.5 * curving * limb.factor * 1.418;
-        reach = Math.max(
-          reach,
-          length * (2 * Math.sin(Math.min(angle * 0.5, Math.PI * 0.5)) + (angle * angle) / 6)
-        );
+        const chord = 2 * Math.sin(Math.min(angle * 0.5, Math.PI * 0.5));
+        const shrink = (angle * angle) / 6;
+        // Expanding |offset - shorter * rotate(offset)|² gives two squared terms:
+        // (1 - shorter)² * length² and at most shorter * chord² * length².
+        reach = Math.max(reach, length * (undirected ? Math.hypot(chord, shrink) : chord + shrink));
       }
       limbReach += reach;
     }
     // Strong-wind combing is excluded. For the ordinary bend, this bounds its chord and sag.
-    const bend = 0.3 * (1 - Math.exp(-force / 0.3)) * Math.hypot(1.35, 0.12);
+    const bendLimit = undirected ? Math.hypot(1, 0.45) : Math.hypot(1.35, 0.12);
+    const bend = 0.3 * (1 - Math.exp(-force / 0.3)) * bendLimit;
     const angle = 3 * bend;
     const across = Math.hypot(x, y) + radius;
     const vertical = Math.abs(z) + radius;
-    radius +=
-      limbReach +
-      2 * across * Math.sin(angle * 0.5) +
-      vertical * (angle * 0.5 + (angle * angle) / 6);
+    // The vertical and along-wind contributions of the trunk arc are orthogonal.
+    const rise = (angle * angle) / 6;
+    const arc = undirected ? Math.hypot(angle * 0.5, rise) : angle * 0.5 + rise;
+    radius += limbReach + 2 * across * Math.sin(angle * 0.5) + vertical * arc;
   }
   rotateTreeClusterCenter(sphere.center, yaw);
   sphere.radius = radius;

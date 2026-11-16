@@ -43,8 +43,7 @@ import {
   getSplatCommonUnits,
   getSplatPixelsPerMeter,
   getSplatProjectionKey,
-  getSplatQueryViews,
-  intersectsSplatFrustum
+  getSplatQueryViews
 } from '../splat-layer/splat-culling';
 import {
   classifySplatHorizon,
@@ -1001,6 +1000,24 @@ function getTreeLeafPressure(
   return high;
 }
 
+/** 0 outside the view and its caster margin, 1 inside the margin, 2 visible. */
+function classifyTreeFrustum(
+  center: number[],
+  radius: number,
+  casterRadius: number,
+  planes: Float64Array
+): 0 | 1 | 2 {
+  let visibility: 1 | 2 = 2;
+  const [x, y, z] = center;
+  for (let offset = 0; offset < 24; offset += 4) {
+    const distance =
+      planes[offset] * x + planes[offset + 1] * y + planes[offset + 2] * z + planes[offset + 3];
+    if (distance < -casterRadius) return 0;
+    if (distance < -radius) visibility = 1;
+  }
+  return visibility;
+}
+
 /** Pixels on screen of something a metre long, a metre from the camera on its axis, or 0 in an orthographic view. */
 function getLeafFocalPixels(view: Viewport): number {
   const matrix = view.viewProjectionMatrix as number[];
@@ -1854,13 +1871,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         for (let i = 0; i < views.length; i++) {
           const horizon = horizons[i];
           if (horizon && classifySplatHorizon(cullCenter, cullRadius, horizon) < 0) continue;
-          if (!intersectsSplatFrustum(cullCenter, cullRadius, frusta[i])) {
-            if (
-              !near &&
-              props.shadowEnabled !== false &&
-              intersectsSplatFrustum(cullCenter, margin, frusta[i])
-            )
-              near = true;
+          const casterRadius = !near && props.shadowEnabled !== false ? margin : cullRadius;
+          const visibility = classifyTreeFrustum(cullCenter, cullRadius, casterRadius, frusta[i]);
+          if (visibility < 2) {
+            near ||= visibility === 1;
             continue;
           }
           near = true;
@@ -1937,10 +1951,13 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           0,
           Math.min(1, (resolvedSpan - SHELL_BLEND_FROM) / (SHELL_DIAMETER - SHELL_BLEND_FROM))
         );
-        const leafWeight =
-          inside > 0
-            ? 1
-            : Math.round(blend * blend * (3 - 2 * blend) * SHELL_BLEND_STEPS) / SHELL_BLEND_STEPS;
+        // Keep the same overlap endpoints. Within them, progress evenly so a fast dive
+        // does not replace most of the canopy in the middle frame.
+        const overlapStep = Math.round(blend * blend * (3 - 2 * blend) * SHELL_BLEND_STEPS);
+        let leafWeight = inside > 0 ? 1 : overlapStep / SHELL_BLEND_STEPS;
+        if (inside === 0 && overlapStep > 0 && overlapStep < SHELL_BLEND_STEPS) {
+          leafWeight = Math.round(blend * SHELL_BLEND_STEPS) / SHELL_BLEND_STEPS;
+        }
         row.shellRetention = leafWeight > 0 && leafWeight < 1 ? 1 - leafWeight : 0;
         row.shellLevel =
           !visible || leafWeight === 1

@@ -642,7 +642,7 @@ const float TREE_WIND_BEND_LIMIT = 0.3;
 
 ${TREE_WIND_GUST_GLSL}
 // Once per vertex: the tree's bend for this frame, faded as a tree tips over, and how its crown takes the wind.
-void treeWindLoad() {
+void treeWindLoad(vec3 commonAnchor) {
   float force = tree.windFlex;
   float strength = force * max(tree.leanCos, 0.0);
   tree.windForce = force;
@@ -660,7 +660,7 @@ void treeWindLoad() {
   tree.windStrength = max(strength, 1e-6);
   // What is read of limbs goes only as far as how they move can be seen: by how tall the tree is on screen.
   mat4 view = project.viewProjectionMatrix;
-  vec3 toCamera = project.cameraPosition - project_position(tree.anchor, tree.anchorLow);
+  vec3 toCamera = project.cameraPosition - commonAnchor;
   float pixels = project_size(1.0) * length(vec3(view[0].y, view[1].y, view[2].y)) * project.viewportSize.y * 0.5 /
     max(project.devicePixelRatio * length(toCamera), 1e-9);
   float tall = pixels * tree.liveHeight;
@@ -711,6 +711,10 @@ void treeWindLoad() {
   } else {
     tree.windBend = vec2(1.0, 0.45) * bend * sin(1.6 * time + tree.windPhase);
   }
+}
+
+void treeWindLoad() {
+  treeWindLoad(project_position(tree.anchor, tree.anchorLow));
 }
 
 // How far a tree coming down has landed.
@@ -963,14 +967,17 @@ vec3 treeDecayPoint(vec3 point) {
 }
 
 // Projects a point in tree-local metres with the anchor's tangent frame, and fills geometry.
-vec4 treeProject(vec3 point) {
+vec4 treeProject(vec3 point, vec3 anchor) {
   geometry.worldPosition = tree.anchor;
-  vec3 anchor = project_position(tree.anchor, tree.anchorLow);
   tree.frame = splatTangentFrame(anchor);
   vec4 commonPosition;
   gl_Position = splatProjectOffset(anchor, tree.frame, project_size(point), commonPosition);
   geometry.position = commonPosition;
   return commonPosition;
+}
+
+vec4 treeProject(vec3 point) {
+  return treeProject(point, project_position(tree.anchor, tree.anchorLow));
 }
 
 vec3 treeToCommonDirection(vec3 direction) {
@@ -1570,7 +1577,8 @@ void main(void) {
   point = treeLeanPoint(point);
   radial = treeLeanTurn(radial);
 
-  treeWindLoad();
+  vec3 anchorCommon = project_position(tree.anchor, tree.anchorLow);
+  treeWindLoad(anchorCommon);
   if (tree.windStrength > 0.0 && !isHidden) {
     vec3 sway = treeLimbSway(outerLimb, innerLimb, point) * (1.0 - swing);
 #ifdef TREE_WOOD_OPAQUE
@@ -1589,7 +1597,7 @@ void main(void) {
   point = treeDecayPoint(point);
   if (!isHidden) point.z = max(point.z, TREE_GROUND);
 
-  vec4 commonPosition = treeProject(point);
+  vec4 commonPosition = treeProject(point, anchorCommon);
   vPosition = commonPosition.xyz;
   DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
 
@@ -3119,7 +3127,7 @@ ${
   axisZ = treeLeanTurn(axisZ);
   outward = treeLeanTurn(outward);
 
-  treeWindLoad();
+  treeWindLoad(anchorCommon);
   float hashA = fract(seed * 13.17);
   float hashB = fract(seed * 29.41);
   float hashC = fract(seed * 53.89);

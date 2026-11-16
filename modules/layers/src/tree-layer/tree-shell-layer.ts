@@ -33,6 +33,11 @@ const STAGE_COUNT = SHELL_STAGES.length;
 const LAST_STAGE = STAGE_COUNT - 1;
 const {CANOPY, CROP_DROPPED} = TREE_STATE_TEXEL;
 
+// Match the near shell's mottling to leaves as the texture becomes resolvable.
+// At larger pixel footprints the unmodified distant shell shading takes over.
+const SHELL_GRAIN_CONTRAST = 1.8;
+const SHELL_GRAIN_FADE = '0.06, 0.17'; // Local metres per pixel.
+
 const vertex = /* glsl */ `#version 300 es
 precision highp float;
 precision highp int;
@@ -169,6 +174,10 @@ void main() {
 #endif
 #else
   float grain = treeNoise(vLocal * 6.0);
+#ifdef TREE_SHELL_TRANSITION
+  vec3 footprint = fwidth(vLocal);
+  float visibleClumps = 1.0 - smoothstep(${SHELL_GRAIN_FADE}, max(footprint.x, max(footprint.y, footprint.z)));
+#endif
   if (pores >= vTint.a * mix(0.72, 1.33, grain)) discard;
 #ifdef TREE_SHELL_TRANSITION
 #ifdef MODULE_SHADOW
@@ -204,6 +213,9 @@ ${TREE_SHADOW_FRAGMENT_GLSL}
       lit += color * treeLightColor(light.color) * material.diffuse * max(dot(normal, normalize(ray)), 0.0) /
         getPointLightAttenuation(light, length(ray));
     }
+#ifdef TREE_SHELL_TRANSITION
+    lit *= 1.0 + (grain - 0.5) * ${SHELL_GRAIN_CONTRAST} * visibleClumps;
+#endif
   }
   fragColor = vec4(treeFilmic(lit), layer.opacity);
   DECKGL_FILTER_COLOR(fragColor, geometry);
@@ -295,6 +307,12 @@ struct HullVaryings {
 
 @fragment fn fragmentMain(input: HullVaryings) -> @location(0) vec4<f32> {
   let grain = treeHash(floor(input.local * 6.0));
+  ${
+    shellTransition
+      ? `let footprint = fwidth(input.local);
+  let visibleClumps = 1.0 - smoothstep(${SHELL_GRAIN_FADE}, max(footprint.x, max(footprint.y, footprint.z)));`
+      : ''
+  }
   let pores = treeHash(floor(input.local * 22.0) + 0.5);
   if (pores >= input.tint.a * mix(0.72, 1.33, grain)) { discard; }
   if (treeIsShadowPass()) { return treeShadowDepth(input.position.z); }
@@ -302,7 +320,15 @@ struct HullVaryings {
   let openness = mix(0.56, 1.0, input.life.z * 0.4 + grain * 0.6);
   var color = mix(input.tint.rgb * vec3<f32>(1.0, 0.68, 0.32), input.tint.rgb, input.life.x);
   color = mix(color, color * vec3<f32>(1.27, 1.46, 0.76), input.life.y * grain);
-  let lit = treeShadeMaterial(color, normalize(input.normal), input.commonPosition, openness, 0.18);
+  ${shellTransition ? 'var' : 'let'} lit = treeShadeMaterial(color, normalize(input.normal), input.commonPosition, openness, 0.18);
+  ${
+    shellTransition
+      ? `if (phongMaterial.unlit == 0u && lighting.enabled != 0) {
+    // Resolved blades scatter less light back than the smooth shell does.
+    lit *= 1.0 - (0.34 + (grain - 0.5) * 0.28) * visibleClumps;
+  }`
+      : ''
+  }
   return treeOutput(lit, layer.opacity, input.pickColor);
 }
 `
