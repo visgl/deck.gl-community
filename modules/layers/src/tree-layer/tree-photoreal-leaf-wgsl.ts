@@ -9,6 +9,7 @@ import {
   getTreeLeafBladeCorners,
   TREE_LEAF_BLADE_MARGIN_MACRO,
   TREE_LEAF_BLADE_MARGIN_MOST,
+  TREE_LEAF_PIGMENT_WGSL,
   TREE_SHELL_COVERAGE_WGSL,
   type TreeLeafBlade
 } from './tree-photoreal-shaders';
@@ -42,6 +43,7 @@ export function getTreeLeafWgslShaders(
     shaderLayout: bindings.shaderLayout,
     source: /* wgsl */ `
 ${bindings.source}
+${TREE_LEAF_PIGMENT_WGSL}
 ${mask ? TREE_SHELL_COVERAGE_WGSL : ''}
 
 const LEAF_OUTLINE = array<vec3<f32>, ${corners.length}>(
@@ -177,9 +179,7 @@ struct LeafVaryings {
   let point = base + bladeOffset * bladeLength;
   let projection = treeProject(vec3<f32>(point.xy, max(point.z, mix(TREE_GROUND, -0.03, lying))), place);
   let normal = normalize(axisZ + axisX * (2.0 * droop * t) - axisY * (fold * bladePoint.z));
-  let tint = pow(canopy.rgb, vec3<f32>(2.2));
-  let luminance = dot(tint, vec3<f32>(0.3, 0.55, 0.15));
-  var color = mix(tint, vec3<f32>(luminance), 0.45) * vec3<f32>(0.82, 0.53, 0.33);
+  var color = treeLeafPigment(canopy.rgb);
   let shoot = fract(f32(u32(tail.y + 0.5)) * 0.61803399);
   let newness = clamp(0.74 * smoothstep(0.1, 0.95, timing.w) + 0.3 * tail.z + 0.34 * (shoot - 0.5) +
     0.14 * (hashA - 0.5), 0.0, 1.0);
