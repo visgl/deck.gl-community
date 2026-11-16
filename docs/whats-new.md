@@ -46,6 +46,12 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
   `position: [0, 0, z]`, as deck.gl's terrain controller sets it, drew, edited and selected
   metres from the cursor, more with pitch and towards the edges of the view.
 
+- Breaking change for v10: editable-layers removes nine standard
+  GeoJSON type re-exports, unused `AnyGeoJson` and `Style` aliases, and the generic
+  `toDeckColor`, `utils`, and `_memoize` exports. Import GeoJSON types from `geojson`;
+  use the package's `Simple*` types for editable data. See the
+  [public export migration](./upgrade-guide.md#public-export-cleanup).
+
 - **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
   independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
   aliases; migrate visibility to `open` / `onOpenChange`. Content stays mounted across modes.
