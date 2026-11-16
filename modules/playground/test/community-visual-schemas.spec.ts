@@ -36,6 +36,40 @@ describe('community visual layer schemas', () => {
     ).toBe(true);
   });
 
+  it('validates grass patches with meter dimensions, density, seed and wind', () => {
+    expect(
+      parseLayer('GrassLayer', {
+        coordinateSystem: 'lnglat',
+        data: [{position: [-122.451, 62.346], seed: 19}],
+        getPosition: '@@=position',
+        getSize: [6, 4],
+        getHeight: 0.3,
+        getBladeWidth: 0.025,
+        getColor: [86, 123, 49, 255],
+        getDensity: 0.8,
+        getSeed: '@@=seed',
+        bladesPerPatch: 1024,
+        windDirection: 55,
+        windStrength: 0.35,
+        windTime: null,
+        shadowEnabled: false
+      }).success
+    ).toBe(true);
+    for (const props of [
+      {getSize: [4, -4]},
+      {getHeight: -1},
+      {getBladeWidth: -1},
+      {getDensity: 1.1},
+      {getSeed: 16777216},
+      {bladesPerPatch: 4097},
+      {windStrength: 1.1},
+      {windTime: '0'},
+      {shadowEnabled: true}
+    ]) {
+      expect(parseLayer('GrassLayer', props).success).toBe(false);
+    }
+  });
+
   // Value: protects=public video settings and host-owned media/callback references survive JSON validation;
   // fails_when=video schema is omitted or accepts invalid reservations, strengths, or live functions;
   // why_new=gallery regressions check registration but do not validate the video prop contract; seam=none

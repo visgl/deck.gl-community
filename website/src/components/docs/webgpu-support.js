@@ -12,6 +12,7 @@ const SUPPORTED_DOC_IDS = new Set([
   'modules/infovis-layers/api-reference/block-layer',
   'modules/infovis-layers/api-reference/time-delta-layer',
   'modules/layers/api-reference/dependency-arrow-layer',
+  'modules/layers/api-reference/grass-layer',
   'modules/layers/api-reference/path-marker-layer',
   'modules/layers/api-reference/path-outline-layer',
   'modules/layers/api-reference/skybox-layer',
