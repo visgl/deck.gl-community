@@ -269,7 +269,7 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
       return;
     }
     const {LIFE, POSE, MISC} = TREE_STATE_TEXEL;
-    // Unsupported deformation keeps precisely the original draw, including every root and collar.
+    // Bounds include limb sway and trunk bend at every force. A directed storm also combs the crown.
     for (const row of rows) {
       if (!row) continue;
       const base = row.stateRow * STATE_STRIDE;
@@ -281,7 +281,7 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
         data[base + POSE * 4] !== 0 ||
         data[base + POSE * 4 + 2] !== 0 ||
         data[base + POSE * 4 + 3] !== 0 ||
-        data[base + MISC * 4 + 1] > TREE_WIND_STRONG_FROM
+        (props.windDirection && data[base + MISC * 4 + 1] > TREE_WIND_STRONG_FROM)
       ) {
         super.drawPreparedModel(model, params, shadowPass);
         return;
@@ -292,6 +292,7 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
     this.state.woodVisibility ??= new Map();
     const cache = this.state.woodVisibility;
     const {SIZE, ANCHOR} = TREE_STATE_TEXEL;
+    const undirected = !props.windDirection;
     const ratio = props.template.trunkRatio ?? 0;
     const cuts = getWoodLevelCuts(props.template)[props.lod];
     this.state.woodCullingActive = true;
@@ -314,6 +315,7 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
         trunkRadius,
         yaw,
         force,
+        Number(undirected),
         ...row.common,
         ...row.units
       ];
@@ -331,7 +333,8 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
             trunkRadius,
             props.template.forkZ,
             yaw,
-            force
+            force,
+            undirected
           );
           const common = offsetSplatCommonPosition(row.common, sphere.center, row.units, null);
           spheres.set([common[0], common[1], common[2], sphere.radius * unit], index * 4);
