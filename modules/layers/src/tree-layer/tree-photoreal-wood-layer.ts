@@ -4,6 +4,7 @@
 
 import {picking, project32, type DefaultProps, type Layer, type Viewport} from '@deck.gl/core';
 import {Buffer} from '@luma.gl/core';
+import type {WEBGLBuffer} from '@luma.gl/core/webgl';
 import {Model} from '@luma.gl/engine';
 import {phongMaterial} from '@luma.gl/shaders';
 import {
@@ -371,6 +372,13 @@ export class TreePhotorealWoodLayer<DataT = unknown> extends TreePhotorealPrimit
             byteLength: entry.capacity * 4,
             indexType: 'uint32'
           });
+        } else if (device.type === 'webgl') {
+          // A prior draw can still be reading this buffer when the camera changes the selection.
+          // Give the upload fresh storage without changing the model's index buffer object.
+          const {gl, handle, byteLength} = entry.buffer as WEBGLBuffer;
+          gl.bindBuffer(gl.COPY_WRITE_BUFFER, handle);
+          gl.bufferData(gl.COPY_WRITE_BUFFER, byteLength, gl.STREAM_DRAW);
+          gl.bindBuffer(gl.COPY_WRITE_BUFFER, null);
         }
         entry.buffer.write(selection.indices);
       }

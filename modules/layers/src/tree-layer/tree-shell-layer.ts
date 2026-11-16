@@ -17,6 +17,9 @@ import {
   TREE_PHOTOREAL_VERTEX_CHUNK,
   TREE_SHADOW_FRAGMENT_GLSL,
   TREE_PICKING_FRAGMENT_GLSL,
+  TREE_LEAF_OPTICS_GLSL,
+  TREE_LEAF_PIGMENT_GLSL,
+  TREE_LEAF_PIGMENT_WGSL,
   TREE_SHELL_COVERAGE_GLSL,
   TREE_SHELL_COVERAGE_WGSL,
   type TreePhotorealUniforms
@@ -42,7 +45,7 @@ out vec4 vTint;
 #ifndef TREE_SHELL_SHADOW_ONLY
 out vec3 vNormal;
 out vec3 vPosition;
-out vec3 vLife;
+out vec2 vLife;
 #ifdef TREE_SHELL_TRANSITION
 flat out float vShellRetention;
 #endif
@@ -50,6 +53,8 @@ flat out float vShellRetention;
 ${TREE_PHOTOREAL_VERTEX_CHUNK}
 #ifndef TREE_SHELL_SHADOW_ONLY
 ${getTreeShadowVertex(true)}
+${TREE_LEAF_PIGMENT_GLSL}
+${TREE_LEAF_OPTICS_GLSL}
 #endif
 const float stages[${STAGE_COUNT}] = float[](${GLSL_STAGES});
 
@@ -96,10 +101,24 @@ void main() {
   geometry.normal = vNormal;
   geometry.uv = vec2(0.0);
   geometry.pickingColor = picking_getPickingColorFromInstanceID();
-  vec4 filtered = vec4(pow(tint.rgb, vec3(2.2)), 1.0);
+  vec4 filtered = vec4(treeLeafPigment(tint.rgb), 1.0);
   DECKGL_FILTER_COLOR(filtered, geometry);
-  vTint = vec4(filtered.rgb, coverage);
-  vLife = vec3(tree.health, tree.flush, sampleNormal.w);
+  vec3 color = mix(filtered.rgb * vec3(1.0, 0.68, 0.32), filtered.rgb, tree.health);
+  bool colorPass = true;
+#ifdef MODULE_SHADOW
+  colorPass = !shadow.drawShadowMap;
+#endif
+  if (colorPass && lighting.enabled != 0 && !material.unlit) {
+    // A shell represents many blade orientations. Average reflected and transmitted
+    // leaf light in the vertex stage so distant crowns keep the same palette.
+    vec3 leaves = 0.76 * mix(color, treeLeafUnderside(color), 0.76) + 0.25 * treeLeafTransmission(color);
+    // The single-leaf model has a minimum amount of scatter. Do not apply that
+    // floor across the whole crown when its tint is nearly black.
+    float visiblePigment = smoothstep(0.0, 0.02, max(color.r, max(color.g, color.b)));
+    color = mix(color, leaves, visiblePigment);
+  }
+  vTint = vec4(color, coverage);
+  vLife = vec2(tree.flush, sampleNormal.w);
 #ifdef TREE_SHELL_TRANSITION
   vShellRetention = treeStateTexel(row, ${CROP_DROPPED}).z;
 #endif
@@ -120,7 +139,7 @@ in vec4 vTint;
 #ifndef TREE_SHELL_SHADOW_ONLY
 in vec3 vNormal;
 in vec3 vPosition;
-in vec3 vLife;
+in vec2 vLife;
 #ifdef TREE_SHELL_TRANSITION
 flat in float vShellRetention;
 ${TREE_SHELL_COVERAGE_GLSL}
@@ -164,9 +183,8 @@ ${TREE_PICKING_FRAGMENT_GLSL}
 ${TREE_SHADOW_FRAGMENT_GLSL}
   vec3 normal = normalize(vNormal);
   vec3 up = treeUp(vPosition);
-  float openness = mix(0.56, 1.0, vLife.z * 0.4 + grain * 0.6);
-  vec3 color = mix(vTint.rgb * vec3(1.0, 0.68, 0.32), vTint.rgb, vLife.x);
-  color = mix(color, color * vec3(1.27, 1.46, 0.76), vLife.y * grain);
+  float openness = mix(0.56, 1.0, vLife.y * 0.4 + grain * 0.6);
+  vec3 color = mix(vTint.rgb, vTint.rgb * vec3(1.27, 1.46, 0.76), vLife.x * grain);
   vec3 lit = color;
   if (lighting.enabled != 0 && !material.unlit) {
     lit = color * treeHemisphere(normal, up) * material.ambient * openness;
@@ -207,6 +225,7 @@ function getShellWgslShaders(shellTransition: boolean) {
     modules: [treePhotorealRenderWgsl],
     source: /* wgsl */ `
 ${source}
+${TREE_LEAF_PIGMENT_WGSL}
 ${shellTransition ? TREE_SHELL_COVERAGE_WGSL : ''}
 @group(0) @binding(5) var treeHull: texture_2d<f32>;
 const stages = array<f32, ${STAGE_COUNT}>(${GLSL_STAGES});
@@ -261,9 +280,13 @@ struct HullVaryings {
   output.normal = splatProjectNormal(moved.turn * treeTurnYaw(normal, place.yaw), projection.frame);
   let tint = treeStateTexel(treeState, row, ${CANOPY}u);
   let alive = (1.0 - smoothstep(samplePoint.w - 0.05, samplePoint.w + 0.15, life.damage)) * (1.0 - 0.33 * life.damage);
-  let tintWithCoverage = vec4<f32>(pow(tint.rgb, vec3<f32>(2.2)), tint.a * life.coverage * life.foliage * alive *
+  let tintWithCoverage = vec4<f32>(treeLeafPigment(tint.rgb), tint.a * life.coverage * life.foliage * alive *
     smoothstep(0.0, 0.16, liveLeaves) * (1.0 - smoothstep(0.0, 0.5, life.decay)));
-  output.tint = treeFilterVertexColor(tintWithCoverage, instanceIndex);
+  let filtered = treeFilterVertexColor(tintWithCoverage, instanceIndex);
+  // The resolved leaf draw has many lit faces where the shell has one normal.
+  let litColorPass = !treeIsShadowPass() && phongMaterial.unlit == 0u && lighting.enabled != 0;
+  let reflectedLight = select(1.0, 1.24, litColorPass);
+  output.tint = vec4<f32>(filtered.rgb * reflectedLight, filtered.a);
   output.life = vec3<f32>(life.health, life.flush, sampleNormal.w);
   output.pickColor = picking_getPickingColorFromIndex(instanceIndex);
   ${shellTransition ? `output.shellRetention = treeStateTexel(treeState, row, ${CROP_DROPPED}u).z;` : ''}
