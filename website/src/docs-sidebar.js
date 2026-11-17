@@ -10,6 +10,7 @@
  */
 
 const layerDocs = require('../../docs/modules/layers/sidebar.json');
+const extensionDocs = require('../../docs/modules/extensions/sidebar.json');
 const basemapLayerDocs = 'modules/basemap-layers/README';
 
 const infovisLayerDocs = require('../../docs/modules/infovis-layers/sidebar.json');
@@ -61,6 +62,13 @@ const sidebars = {
         editableLayerDocs
         // arrowLayerDocs,
       ]
+    },
+    {
+      type: 'category',
+      label: 'Extensions',
+      className: 'heading_bold',
+      collapsed: false,
+      items: [extensionDocs]
     },
     {
       type: 'category',

@@ -16,6 +16,7 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `path` mode | ✅ | ✅ | Browser-verified upstream `PathLayer`, outlines, and native WGSL markers. |
 | `@deck.gl-community/layers` | `PathOutlineLayer` | ✅ | ✅ | Upstream dual-backend `PathLayer`; a local WGSL dash plugin bridges the still-GLSL-only `PathStyleExtension`. |
 | `@deck.gl-community/layers` | `PathMarkerLayer` | ✅ | ✅ | Browser-verified outlined and dashed paths with native WGSL marker geometry. |
+| `@deck.gl-community/extensions` | [`SelectionPulseExtension`](./modules/extensions/api-reference/selection-pulse-extension.md) | ✅ | 🚧 | WebGPU pulses `TreeLayer` and `SplatLayer` through their WGSL color anchor; deck.gl 9.4 core layers have no WGSL color hook and are left unchanged. |
 | `@deck.gl-community/infovis-layers` | `BlockLayer` | ✅ | ✅ | Native WGSL, projection, picking, fills, outlines, and float32 binary attributes. |
 | `@deck.gl-community/infovis-layers` | `AnimationLayer` | ✅ | 🚧 | Depends on the wrapped layer's backend support. |
 | `@deck.gl-community/infovis-layers` | `TimeDeltaLayer` | ✅ | ✅ | Portable interval guides and native WGSL `FastTextLayer` labels. |

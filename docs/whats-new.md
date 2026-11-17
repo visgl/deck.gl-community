@@ -76,6 +76,11 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
   keep an east-north-up pose at each owner, unchanged when the globe switches to Web Mercator above
   zoom 12, and the globe hides its far side.
 
+- New [`@deck.gl-community/extensions`](/docs/modules/extensions) module for deck.gl layer
+  extensions. [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension),
+  released in v9.4.7 from `@deck.gl-community/layers`, moves there and is no longer exported from
+  `layers`; import it from `@deck.gl-community/extensions`. See the [upgrade guide](./upgrade-guide.md).
+
 ## v9.4.8
 
 - `BasemapLayer` reads glyph bitmaps containing only the border without treating their ink as missing.
@@ -118,7 +123,7 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
   (edit handles, drag-to-draw) from the map, so the map pans and clicks while drawing by clicks or
   in `ModifyMode`. Custom drag modes can declare their presses with `EditMode.ownsPointerDown()`.
 
-- [`SelectionPulseExtension`](/docs/modules/layers/api-reference/selection-pulse-extension) (new)
+- [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension) (new)
   pulses selected objects on the GPU. A selection change writes one value per object from
   `getSelected`; each animation frame sets only uniforms, so a pulse reruns no color accessor and
   uploads no attributes. It works on deck.gl layers with the GLSL `DECKGL_FILTER_COLOR` hook, such

@@ -3,21 +3,16 @@
 // Copyright (c) vis.gl contributors
 
 import type {Texture} from '@luma.gl/core';
-import type {ShaderModule, ShaderPlugin} from '@luma.gl/shaders';
+import type {ShaderModule} from '@luma.gl/shaders';
 
-/** Named vertex hook shared by splat and tree mesh shaders. */
+/**
+ * The WGSL vertex hook that `SplatLayer` and `TreeLayer` in `@deck.gl-community/layers` call with
+ * `vertexColor` and `instanceIndex`. The layers declare the `DECKGL_FILTER_INSTANCE_COLOR`
+ * injection target, and this extension injects into it. Must match the literal in
+ * `@deck.gl-community/layers`.
+ */
 export const WGSL_FILTER_COLOR_ANCHOR =
   'DECKGL_FILTER_INSTANCE_COLOR(&vertexColor, instanceIndex);';
-export const INSTANCE_COLOR_PLUGIN: ShaderPlugin = {
-  name: 'instance-color',
-  injectionTargets: [
-    {
-      name: 'DECKGL_FILTER_INSTANCE_COLOR',
-      stage: 'vertex',
-      wgsl: {parameters: 'color: ptr<function, vec4<f32>>, instanceIndex: u32'}
-    }
-  ]
-};
 
 /** The per-object selection weight attribute, written from `getSelected`. */
 export const SELECTION_WEIGHTS_ATTRIBUTE = 'selectionWeights';

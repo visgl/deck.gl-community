@@ -6,16 +6,17 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {Attribute, LayerManager, WebMercatorViewport, type Layer} from '@deck.gl/core';
 import {ScatterplotLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {device} from '@deck.gl/test-utils/vitest';
-import {SelectionPulseExtension, TreeLayer} from '../../src';
+import {SelectionPulseExtension} from '../../src';
 import {getSelectionPulseAmount} from '../../src/selection-pulse-extension/selection-pulse-extension';
 import {WGSL_FILTER_COLOR_ANCHOR} from '../../src/selection-pulse-extension/selection-pulse-shaders';
 import {
   SPLAT_ACCUMULATION_WGSL,
   SPLAT_TRANSMISSION_WGSL,
   SPLAT_WGSL
-} from '../../src/splat-layer/splat.wgsl';
-import {SplatPrimitiveLayer} from '../../src/splat-layer/splat-primitive-layer';
-import {TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
+} from '../../../layers/src/splat-layer/splat.wgsl';
+import {SplatPrimitiveLayer} from '../../../layers/src/splat-layer/splat-primitive-layer';
+import {TreeMeshLayer} from '../../../layers/src/tree-layer/tree-mesh-layer';
+import {TreeLayer} from '../../../layers/src';
 
 type Point = {id: number; position: [number, number]; selected: boolean};
 const POINTS: Point[] = [

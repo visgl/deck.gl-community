@@ -16,7 +16,7 @@ import {prepareShadowDraw} from '../splat-layer/splat-shadow';
 import {
   WGSL_FILTER_COLOR_ANCHOR,
   INSTANCE_COLOR_PLUGIN
-} from '../selection-pulse-extension/selection-pulse-shaders';
+} from '../splat-layer/wgsl-filter-color-anchor';
 
 type WindProps<DataT> = {
   /** [tree height in metres, stable wind phase, flex multiplier]. */

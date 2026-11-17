@@ -36,8 +36,9 @@ import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import 'maplibre-gl';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {SelectionPulseExtension, TreeLayer, type TreeSpec} from '../../src';
-import {requireWebGPUAdapter} from '../webgpu-test-utils';
+import {SelectionPulseExtension} from '../../src';
+import {TreeLayer, type TreeSpec} from '../../../layers/src';
+import {requireWebGPUAdapter} from '../../../layers/test/webgpu-test-utils';
 
 const maplibre = (globalThis as any).maplibregl;
 
