@@ -51,9 +51,17 @@ export abstract class PanelContainer<
     super.onRemove();
   }
 
+  /** Panels whose live updates can affect the shell layout. */
+  protected getObservedPanels(): ReadonlyArray<Panel> {
+    return this.props.panel ? [this.props.panel] : [];
+  }
+
   private observePanel(): void {
     this.stopObservingPanel?.();
-    this.stopObservingPanel = this.props.panel?.subscribe(() => this.updateHTML());
+    const cleanups = [...new Set(this.getObservedPanels())].map(panel =>
+      panel.subscribe(() => this.updateHTML())
+    );
+    this.stopObservingPanel = () => cleanups.forEach(cleanup => cleanup());
   }
 }
 

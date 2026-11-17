@@ -3,7 +3,8 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 import styles from './example-card.module.css';
 
 export default function ExampleCard({item, category, description, getThumbnail}) {
-  const imageUrl = useBaseUrl(getThumbnail(item));
+  const thumbnail = getThumbnail(item);
+  const imageUrl = useBaseUrl(thumbnail || '');
   const [imageFailed, setImageFailed] = useState(false);
   const metadata = item.customProps || {};
   const tags = metadata.tags || [];
@@ -11,7 +12,7 @@ export default function ExampleCard({item, category, description, getThumbnail})
   return (
     <a className={styles.card} href={item.href}>
       <div className={styles.poster}>
-        {!imageFailed ? (
+        {thumbnail && !imageFailed ? (
           <img
             className={styles.image}
             src={imageUrl}
@@ -20,8 +21,8 @@ export default function ExampleCard({item, category, description, getThumbnail})
             onError={() => setImageFailed(true)}
           />
         ) : (
-          <div className={styles.fallback} aria-hidden="true">
-            <span>{item.label}</span>
+          <div className={styles.fallback}>
+            <span>Preview unavailable</span>
           </div>
         )}
         <div className={styles.posterShade} />

@@ -5,9 +5,9 @@
 import {afterEach, beforeEach, describe, expect, inject, it} from 'vitest';
 import {requireWebGPUAdapter} from '../webgpu-test-utils';
 import {luma, Buffer, Texture, type Device, type Framebuffer} from '@luma.gl/core';
-import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
-import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/webgpu';
-import {COORDINATE_SYSTEM, Deck, OrbitView, type Layer} from '@deck.gl/core';
+import {webgl2Adapter, type WebGLDevice} from '@luma.gl/core/webgl';
+import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/core/webgpu';
+import {Deck, OrbitView, type Layer} from '@deck.gl/core';
 import {
   _TerrainExtension as TerrainExtension,
   type TerrainExtensionProps
@@ -85,9 +85,15 @@ class EmberTestLayer extends FlameTrailLayer {
   getShaders() {
     const shaders = super.getShaders();
     if (this.context.device.type === 'webgpu') {
-      shaders.inject['  // DECKGL_FILTER_COLOR'] += '\nif (varyings.vFlame.z < 1.5) { discard; }';
+      shaders.source = shaders.source.replace(
+        'let flameColor = flameTrail_color(varyings);',
+        'let flameColor = flameTrail_color(varyings);\nif (varyings.vFlame.z < 1.5) { discard; }'
+      );
     } else {
-      shaders.inject['fs:DECKGL_FILTER_COLOR'] += '\nif (vFlame.z < 1.5) discard;';
+      shaders.plugins.push({
+        name: 'embers-only',
+        injections: {'glsl:fs:DECKGL_FILTER_COLOR': 'if (vFlame.z < 1.5) discard;'}
+      });
     }
     return shaders;
   }
@@ -120,7 +126,7 @@ function renderFrame(
   const layer = new LayerClass({
     id: `fire-${props.terrainDrawMode ?? 'xyz'}-${embersOnly ? 'embers' : 'volume'}`,
     data: DATA,
-    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     getPath: d => d.path,
     getTimestamps: d => d.timestamps,
     currentTime: 100,
@@ -220,7 +226,7 @@ function createTerrain(height: (x: number, y: number) => number, draw = false, o
       indices: new Uint16Array(indices),
       attributes: {positions: {size: 3, value: new Float32Array(positions)}}
     }),
-    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     _instanced: false,
     getPosition: [0, 0, 0],
     getColor: [0, 0, 0],

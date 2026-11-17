@@ -1,17 +1,10 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {
-  Deck,
-  MapView,
-  COORDINATE_SYSTEM,
-  AmbientLight,
-  DirectionalLight,
-  LightingEffect
-} from '@deck.gl/core';
+import {Deck, MapView, AmbientLight, DirectionalLight, LightingEffect} from '@deck.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {PlaneGeometry} from '@luma.gl/engine';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {expect, it} from 'vitest';
 import {TreeLayer} from '../../src';
 
@@ -29,7 +22,7 @@ it('renders tree parts and removes every part at zero coverage', async () => {
   let coverage = 1,
     ground = true;
   const coordinateProps = {
-    coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+    coordinateSystem: 'meter-offsets',
     coordinateOrigin: [0, 0, 0] as [number, number, number]
   };
   const make = () => [

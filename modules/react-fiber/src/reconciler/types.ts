@@ -1,13 +1,12 @@
-import type {Layer, View} from '@deck.gl/core';
-import type {Store} from '../shared/index';
-import type {DeckglProps} from '../types/index';
+import type {DeckProps, Effect, Layer, View, Widget} from '@deck.gl/core';
+import type {DeckGLRenderer, Store} from '../shared/index';
 import type {ReactNode} from 'react';
 import type {Fiber} from 'react-reconciler';
 
 /**
  * Element type identifier used by the reconciler.
  *
- * Represents the string key used to identify element types (e.g., 'layer', 'view')
+ * Represents the string key used to identify element types (e.g., 'deckLayer', 'deckView')
  * during the reconciliation process.
  */
 export type Type = string;
@@ -19,8 +18,36 @@ export type Type = string;
  * global store for all reconciler operations.
  */
 export interface Container {
-  /** Zustand store instance managing deck.gl state */
+  /** Root store managing deck.gl state */
   store: Store;
+
+  /**
+   * Layers, views and widgets from the most recently committed JSX tree. A prop-only update can
+   * reconfigure the root without a new commit, so configuration reapplies these.
+   *
+   * @internal
+   */
+  jsxDescriptors?: JsxDescriptors;
+
+  /**
+   * Whether the last update sent `views`. The root sends `null` once after its last view is
+   * removed, then leaves deck.gl's views alone.
+   *
+   * @internal
+   */
+  sentViews?: boolean;
+}
+
+/**
+ * Layers, views and widgets collected from one committed JSX tree, in depth-first order.
+ *
+ * @internal
+ */
+export interface JsxDescriptors {
+  effects: Effect[];
+  layers: Layer[];
+  views: View[];
+  widgets: Widget[];
 }
 
 /**
@@ -38,7 +65,7 @@ export type Props = Record<string, unknown>;
  * inside a View element (affects rendering behavior).
  */
 export interface HostContext {
-  /** Zustand store instance for accessing deck.gl state */
+  /** Root store for accessing deck.gl state */
   store: Store;
 
   /** Whether the current element is nested inside a View element */
@@ -52,8 +79,8 @@ export interface HostContext {
  * its children, forming the reconciler's internal tree structure.
  */
 export interface Instance {
-  /** The underlying deck.gl Layer or View object */
-  node: Layer | View;
+  /** The underlying deck.gl Layer, View, Widget or effect object */
+  node: Layer | View | Widget | Effect;
 
   /** Child instances in the reconciler tree */
   children: Instance[];
@@ -129,6 +156,27 @@ export type TransitionStatus = null;
 export type RootElement = HTMLCanvasElement | HTMLDivElement;
 
 /**
+ * Internal configuration accepted by the reconciler.
+ *
+ * Public entry points specialize this broad shape before it reaches the
+ * renderer. The renderer forwards it unchanged to the Deck or external-overlay
+ * constructor and to later `setProps` calls.
+ *
+ * @internal
+ */
+export type DeckGLConfiguration = DeckProps<View | View[] | null>;
+
+/** @internal Factory bound to an external-overlay root at creation time. */
+export type CreateExternalOverlay = (props: DeckGLConfiguration) => DeckGLRenderer;
+
+/** @internal Immutable reconciler-root capability configuration. */
+export interface RootOptions {
+  createExternalOverlay?: CreateExternalOverlay;
+  /** Sends JSX views to the external overlay. See `CreateDeckGLOptions.forwardViews`. */
+  forwardViews?: boolean;
+}
+
+/**
  * Deck.gl View configuration.
  *
  * Accepts a single View, multiple Views, or null for default MapView.
@@ -143,7 +191,7 @@ export type ViewOrViews = View | View[] | null;
  * React elements into the deck.gl scene. Follows React 18 createRoot API.
  */
 export interface ReconcilerRoot {
-  /** Zustand store managing deck.gl state */
+  /** Root store managing deck.gl state */
   store: Store;
 
   /** React Fiber root container (internal reconciler state) */
@@ -152,6 +200,12 @@ export interface ReconcilerRoot {
   /** Renders React elements into the deck.gl scene */
   render: (element: ReactNode) => void;
 
-  /** Configures the underlying Deck or MapboxOverlay instance */
-  configure: (props: DeckglProps) => void;
+  /** Configures the underlying Deck or externally owned overlay instance. */
+  configure: (props: DeckGLConfiguration) => void;
+
+  /** @internal Whether this root was created for an external overlay control. */
+  isExternalOverlay: boolean;
+
+  /** @internal Factory permanently bound to this root, if any. */
+  createExternalOverlay?: CreateExternalOverlay;
 }

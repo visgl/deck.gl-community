@@ -10,7 +10,7 @@ import {
   PANEL_THEME_SLEEK_DARK as DarkTheme,
   PANEL_THEME_SLEEK_LIGHT as LightTheme
 } from '@deck.gl-community/panels';
-import {Stats} from '@probe.gl/stats';
+import {Stats} from 'probe.gl/stats';
 import {render} from 'preact';
 import {
   AccordionPanel,

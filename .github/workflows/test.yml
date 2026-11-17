@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '24'
+          node-version-file: '.nvmrc'
 
       - name: Enable Corepack
         run: corepack enable yarn
@@ -52,7 +52,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '24'
+          node-version-file: '.nvmrc'
 
       - name: Enable Corepack
         run: corepack enable yarn
@@ -205,6 +205,12 @@ jobs:
               });
             }
 
+      # The root projects exclude React Fiber's reconciler tests, which need the package's jsdom
+      # setup, and its type tests. Run independently of root test results and the coverage report.
+      - name: Run React Fiber package tests and type tests
+        if: ${{ !cancelled() }}
+        run: yarn --cwd modules/react-fiber test
+
   test-headless-shard:
     runs-on: ubuntu-26.04
 
@@ -220,7 +226,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '24'
+          node-version-file: '.nvmrc'
 
       - name: Enable Corepack
         run: corepack enable yarn
@@ -240,14 +246,6 @@ jobs:
         id: headless
         run: yarn test-headless --shard=${{ matrix.shard }}/4
 
-      - name: Upload basemap reference-render report
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: basemap-reference-render-${{ matrix.shard }}
-          path: modules/basemap-layers/tests/reference-render/__output__
-          if-no-files-found: ignore
-
   test-webgpu:
     runs-on: ubuntu-26.04
 
@@ -257,7 +255,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '24'
+          node-version-file: '.nvmrc'
 
       - name: Enable Corepack
         run: corepack enable yarn
@@ -284,35 +282,52 @@ jobs:
         env:
           DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
 
-      - name: Check out the upstream WebGPU terrain port
-        if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: visgl/deck.gl
-          # Temporary integration pin until deck.gl#10751 is released.
-          ref: 98dbf01f74641c3d12283522bf2e9561fed00d82
-          path: .terrain-sdk
+      # TODO: Restore the FlameTrailLayer WebGPU terrain integration test when
+      # visgl/deck.gl#10751 can run with the luma.gl version pinned here.
 
-      - name: Verify WebGPU terrain fitting against the upstream port
-        if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
-        run: yarn vitest run --project headless modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts -t webgpu
+  test-panels-fullscreen:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+      - run: corepack enable yarn
+      - run: yarn install --immutable
         env:
-          DECK_GL_SOURCE: ${{ github.workspace }}/.terrain-sdk
-          DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
+          YARN_ENABLE_HARDENED_MODE: 0
+      - name: Cache Playwright browser
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ubuntu24-panels-${{ matrix.browser }}-${{ hashFiles('node_modules/playwright-core/browsers.json') }}
+      - name: Install browser and dependencies
+        run: yarn playwright install --with-deps ${{ matrix.browser }}
+      - name: Verify native fullscreen and viewport fallback
+        run: yarn test:panels-fullscreen
+        env:
+          PANEL_FULLSCREEN_BROWSER: ${{ matrix.browser }}
 
   # Preserve the required check name and fail if any browser job fails or is skipped.
   test-headless:
     runs-on: ubuntu-26.04
-    needs: [test-headless-shard, test-webgpu]
+    needs: [test-headless-shard, test-webgpu, test-panels-fullscreen]
     if: ${{ always() }}
     steps:
       - name: Require all browser checks
         env:
           SHARDS_RESULT: ${{ needs.test-headless-shard.result }}
           WEBGPU_RESULT: ${{ needs.test-webgpu.result }}
+          FULLSCREEN_RESULT: ${{ needs.test-panels-fullscreen.result }}
         run: |
           test "$SHARDS_RESULT" = success
           test "$WEBGPU_RESULT" = success
+          test "$FULLSCREEN_RESULT" = success
 
   website-build:
     runs-on: ubuntu-26.04
@@ -324,7 +339,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '24'
+          node-version-file: '.nvmrc'
 
       - name: Enable Corepack
         run: corepack enable yarn

@@ -6,7 +6,7 @@ import {useEffectivePanelThemeMode} from '../../panels/panel-theme-scope';
 
 import type {PanelTheme} from '../../panels/panel';
 import type {JSX} from 'preact';
-import type {Stats} from '@probe.gl/stats';
+import type {Stats} from 'probe.gl/stats';
 
 /** Props for {@link StatsPanel}. */
 export type StatsPanelProps = PanelProps & {

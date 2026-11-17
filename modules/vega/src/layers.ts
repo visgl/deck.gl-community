@@ -134,7 +134,7 @@ function newSymbolLayer(data: SymbolMark[], config: PresenterConfig) {
   return new SymbolLayer({
     id: layerNames.symbols,
     data,
-    coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     transitions: {
       getPosition: getTiming(config.transitionDurations.position, easing),
       getRadius: config.transitionDurations.size
@@ -178,7 +178,7 @@ function newCubeLayer(
     lightingMix,
     id: layerNames.cubes,
     data: cubeData,
-    coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     pickable: true,
     autoHighlight: true,
     highlightColor,
@@ -209,7 +209,7 @@ function newLineLayer(id: string, data: StyledLine[]) {
     id,
     data,
     widthUnits: 'pixels',
-    coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     getColor: (o: StyledLine) => o.color,
     getWidth: (o: StyledLine) => o.strokeWidth
   });
@@ -226,7 +226,7 @@ function newPathLayer(id: string, data: Path[], geographic = false, config?: Pre
     widthMinPixels: 0,
     pickable: true,
     widthUnits: 'pixels',
-    coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     parameters: geographic ? {depthWriteEnabled: false, depthCompare: 'always'} : undefined,
     transitions: geographic
       ? {
@@ -252,7 +252,7 @@ function newPolygonLayer(
   const newlayer = new base.layers.PolygonLayer<Polygon>({
     id,
     data,
-    coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     parameters: geographic ? {depthWriteEnabled: false, depthCompare: 'always'} : undefined,
     transitions: geographic
       ? {
@@ -294,7 +294,7 @@ function newTextLayer(
     data,
     characterSet,
     _subLayerProps: {characters: {alphaCutoff}},
-    coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     sizeUnits: 'pixels',
     autoHighlight: true,
     pickable: true,

@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 import {z} from 'zod';
+import {ColumnSourceSchema} from './common';
 import {GeoJSONSchema, FeatureSchema} from '../geojson/index';
 import {
   BaseLayerPropsSchema,
@@ -59,6 +60,10 @@ export const PolygonGeometrySchema = z.union([
 ]);
 /** JSON-safe props for LineLayer; compose or extend with Zod. */
 export const LineLayerPropsSchema = BaseLayerPropsSchema.extend({
+  colors: ColumnSourceSchema.optional(),
+  sourcePositions: ColumnSourceSchema.optional(),
+  targetPositions: ColumnSourceSchema.optional(),
+  widths: ColumnSourceSchema.optional(),
   ...widthProps,
   antialiasing: z.boolean().optional(),
   getSourcePosition: position.optional(),
@@ -67,16 +72,27 @@ export const LineLayerPropsSchema = BaseLayerPropsSchema.extend({
   getWidth: number.optional()
 });
 /** JSON-safe props for ArcLayer; compose or extend with Zod. */
-export const ArcLayerPropsSchema = LineLayerPropsSchema.omit({getColor: true}).extend({
-  greatCircle: z.boolean().optional(),
-  numSegments: z.number().int().min(1).optional(),
-  getSourceColor: color.optional(),
-  getTargetColor: color.optional(),
-  getHeight: number.optional(),
-  getTilt: number.optional()
-});
+export const ArcLayerPropsSchema = LineLayerPropsSchema.omit({getColor: true, colors: true}).extend(
+  {
+    heights: ColumnSourceSchema.optional(),
+    sourceColors: ColumnSourceSchema.optional(),
+    targetColors: ColumnSourceSchema.optional(),
+    tilts: ColumnSourceSchema.optional(),
+    greatCircle: z.boolean().optional(),
+    numSegments: z.number().int().min(1).optional(),
+    getSourceColor: color.optional(),
+    getTargetColor: color.optional(),
+    getHeight: number.optional(),
+    getTilt: number.optional()
+  }
+);
 /** JSON-safe props for ScatterplotLayer; compose or extend with Zod. */
 export const ScatterplotLayerPropsSchema = BaseLayerPropsSchema.extend({
+  fillColors: ColumnSourceSchema.optional(),
+  lineColors: ColumnSourceSchema.optional(),
+  lineWidths: ColumnSourceSchema.optional(),
+  positions: ColumnSourceSchema.optional(),
+  radii: ColumnSourceSchema.optional(),
   ...lineWidthProps,
   radiusUnits: UnitSchema.optional(),
   radiusScale: nonnegative.optional(),
@@ -98,6 +114,11 @@ export const ScatterplotLayerPropsSchema = BaseLayerPropsSchema.extend({
 });
 /** JSON-safe props for ColumnLayer; compose or extend with Zod. */
 export const ColumnLayerPropsSchema = BaseLayerPropsSchema.extend({
+  elevations: ColumnSourceSchema.optional(),
+  fillColors: ColumnSourceSchema.optional(),
+  lineColors: ColumnSourceSchema.optional(),
+  lineWidths: ColumnSourceSchema.optional(),
+  positions: ColumnSourceSchema.optional(),
   ...lineWidthProps,
   diskResolution: z.number().int().min(4).optional(),
   radius: nonnegative.optional(),
@@ -126,6 +147,8 @@ export const GridCellLayerPropsSchema = ColumnLayerPropsSchema.extend({
 });
 /** JSON-safe props for PathLayer; compose or extend with Zod. */
 export const PathLayerPropsSchema = BaseLayerPropsSchema.extend({
+  _projectionNoCut: z.boolean().optional(),
+  _projectionTolerance: z.number().nonnegative().optional(),
   ...widthProps,
   jointRounded: z.boolean().optional(),
   capRounded: z.boolean().optional(),
@@ -140,6 +163,7 @@ export const PathLayerPropsSchema = BaseLayerPropsSchema.extend({
 });
 /** JSON-safe props for SolidPolygonLayer; compose or extend with Zod. */
 export const SolidPolygonLayerPropsSchema = BaseLayerPropsSchema.extend({
+  _projectionTolerance: z.number().nonnegative().optional(),
   filled: z.boolean().optional(),
   extruded: z.boolean().optional(),
   wireframe: z.boolean().optional(),
@@ -167,6 +191,9 @@ export const PolygonLayerPropsSchema = CompositeLayerPropsSchema.extend({
 });
 /** JSON-safe props for PointCloudLayer; compose or extend with Zod. */
 export const PointCloudLayerPropsSchema = BaseLayerPropsSchema.extend({
+  colors: ColumnSourceSchema.optional(),
+  normals: ColumnSourceSchema.optional(),
+  positions: ColumnSourceSchema.optional(),
   sizeUnits: UnitSchema.optional(),
   pointSize: nonnegative.optional(),
   antialiasing: z.boolean().optional(),
@@ -178,6 +205,7 @@ export const PointCloudLayerPropsSchema = BaseLayerPropsSchema.extend({
 });
 /** JSON-safe props for BitmapLayer; compose or extend with Zod. */
 export const BitmapLayerPropsSchema = BaseLayerPropsSchema.omit({data: true}).extend({
+  _projectionTolerance: z.number().nonnegative().optional(),
   image: ResourceSchema.nullable().optional(),
   bounds: z
     .union([
@@ -215,6 +243,11 @@ export const IconMappingSchema = z.union([
 ]);
 /** JSON-safe props for IconLayer; compose or extend with Zod. */
 export const IconLayerPropsSchema = BaseLayerPropsSchema.extend({
+  angles: ColumnSourceSchema.optional(),
+  colors: ColumnSourceSchema.optional(),
+  pixelOffsets: ColumnSourceSchema.optional(),
+  positions: ColumnSourceSchema.optional(),
+  sizes: ColumnSourceSchema.optional(),
   ...sizeProps,
   iconAtlas: ResourceSchema.optional(),
   iconMapping: IconMappingSchema.optional(),

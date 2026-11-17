@@ -1,3 +1,4 @@
+import {usePanelPortalTarget} from './use-panel-portal';
 import {getPanelThemeVariables, observePanelTheme} from '../lib/panel-theme';
 /* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
@@ -204,6 +205,7 @@ export function SelectComponent({
   );
   const [listStyle, setListStyle] = useState<JSX.CSSProperties>(SELECT_LIST_STYLE);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const portalTarget = usePanelPortalTarget(rootRef, isOpen);
   const listboxRef = useRef<HTMLDivElement | null>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const listboxId = `${id}-listbox`;
@@ -412,7 +414,7 @@ export function SelectComponent({
       </button>
 
       {isOpen &&
-        rootRef.current?.ownerDocument.body &&
+        portalTarget &&
         createPortal(
           <div
             ref={listboxRef}
@@ -472,7 +474,7 @@ export function SelectComponent({
               );
             })}
           </div>,
-          rootRef.current.ownerDocument.body
+          portalTarget!
         )}
     </div>
   );

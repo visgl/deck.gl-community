@@ -3,8 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, Layer} from '@deck.gl/core';
-import type {SolidPolygonLayer} from '@deck.gl/layers';
-import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {GraphLayer} from '@deck.gl-community/graph-layers';
 import karateDot from '../../modules/graph-layers/test/data/__fixtures__/dot/karate.dot?raw';
 import graphUrlExample from './examples/16-graph-url.json';
@@ -43,11 +41,27 @@ async function mockGalleryResources(): Promise<void> {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
     if (url.startsWith('data:') || url.startsWith('blob:')) return fetchLocalResource(input, init);
-    if (url === 'https://tiles.openfreemap.org/styles/positron') {
+    if (url.endsWith('/ne_110m_admin_0_countries.geojson')) {
       return Response.json({
-        version: 8,
-        sources: {},
-        layers: [{id: 'background', type: 'background', paint: {'background-color': '#e2e8f0'}}]
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'Polygon',
+              coordinates: [
+                [
+                  [-20, 0],
+                  [20, 0],
+                  [20, 40],
+                  [-20, 40],
+                  [-20, 0]
+                ]
+              ]
+            }
+          }
+        ]
       });
     }
     if (url === graphUrlExample.layers[0].data) {
@@ -111,7 +125,6 @@ test('renders the gallery forward, backward, and across different view types', a
           const layer = layers.find(candidate => candidate.id === definition.id);
           expect(layer?.isLoaded, `${name}: ${definition.id} loaded`).toBe(true);
         }
-        // Include the automatically injected basemap as well as the document's own layers.
         for (const layer of layers) {
           if (layer instanceof GraphLayer && layer.id === 'karate-club') {
             expect(layer.state.graphEngine?.getNodes()).toHaveLength(8);
@@ -134,20 +147,6 @@ test('renders the gallery forward, backward, and across different view types', a
           }
           if (layer instanceof SkyboxLayer) {
             expect(layer.state?.cubemapTexture?.isReady, `${name}: cubemap uploaded`).toBe(true);
-          }
-          if (layer instanceof BasemapLayer) {
-            expect(layer.state?.resolvedStyle, `${name}: basemap style loaded`).toBeTruthy();
-            const background = layer
-              .getSubLayers()
-              .find(candidate => candidate.id === `${layer.id}-background`) as
-              | SolidPolygonLayer
-              | undefined;
-            const tessellator = background?.state?.polygonTesselator;
-            expect(tessellator?.vertexCount, `${name}: background mesh`).toBeGreaterThan(0);
-            // A flat map mesh can report loaded while rendering no globe at all.
-            expect(tessellator?.opts.resolution, `${name}: projection tessellation`).toBe(
-              deck.getViewports()[0].resolution
-            );
           }
         }
       },

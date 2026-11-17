@@ -4,7 +4,7 @@
 
 import {Buffer, type Device, type Texture} from '@luma.gl/core';
 import {BufferTransform, Computation} from '@luma.gl/engine';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 
 import {sampleWindField, type WindField} from './wind-data';
 

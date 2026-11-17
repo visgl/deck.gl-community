@@ -1,12 +1,14 @@
+import {Deck, LightingEffect, log, MapView, PostProcessEffect} from '@deck.gl/core';
 import {PolygonLayer, ScatterplotLayer} from '@deck.gl/layers';
 import * as fc from 'fast-check';
 import React from 'react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {PolygonLayer as CompatPolygonLayer} from '../../compat/layers';
+import {createLayerComponent, createViewComponent} from '../../wrappers/factories';
 import {createRoot, roots, unmountAtNode} from '../renderer';
 import type {ReconcilerRoot, RootElement} from '../types';
 import {createTestRoot} from './test-renderer';
+import {TestWidget} from './test-widget';
 
 /**
  * Creates a lightweight RootElement for testing renderer API
@@ -91,6 +93,49 @@ describe('renderer', () => {
     });
   });
 
+  describe('lifecycle traces', () => {
+    it('traces root creation once and unmounting only when a root is torn down', () => {
+      const traceSpy = vi.spyOn(log, 'log').mockReturnValue(() => {});
+      const traced = (message: string) =>
+        traceSpy.mock.calls.filter(([, text]) => text === message).length;
+
+      try {
+        const node = createTestRootElement();
+        createRoot(node);
+        createRoot(node);
+        expect(traced('DeckGL root created')).toBe(1);
+
+        unmountAtNode(createTestRootElement());
+        expect(traced('DeckGL root unmounted')).toBe(0);
+
+        unmountAtNode(node);
+        expect(traced('DeckGL root unmounted')).toBe(1);
+      } finally {
+        traceSpy.mockRestore();
+      }
+    });
+
+    it('traces the props of every configure, not only the first', () => {
+      const traceSpy = vi.spyOn(log, 'log').mockReturnValue(() => {});
+
+      try {
+        const root = createRoot(createTestRootElement());
+        const first = {layers: [new ScatterplotLayer({id: 'first', data: []})]};
+        const second = {layers: [new ScatterplotLayer({id: 'second', data: []})]};
+        root.configure(first);
+        root.configure(second);
+
+        const configures = traceSpy.mock.calls.filter(([, text]) => text === 'DeckGL configure');
+        expect(configures).toStrictEqual([
+          [4, 'DeckGL configure', first],
+          [4, 'DeckGL configure', second]
+        ]);
+      } finally {
+        traceSpy.mockRestore();
+      }
+    });
+  });
+
   describe('configure', () => {
     it('should set _passedLayers when layers prop is provided', () => {
       // Arrange
@@ -116,13 +161,13 @@ describe('renderer', () => {
 
       // Act
       root.configure({});
-      const firstDeckgl = root.store.getState().deckgl;
+      const firstDeckGL = root.store.getState().deckgl;
 
       root.configure({});
-      const secondDeckgl = root.store.getState().deckgl;
+      const secondDeckGL = root.store.getState().deckgl;
 
       // Assert
-      expect(secondDeckgl).toBe(firstDeckgl);
+      expect(secondDeckGL).toBe(firstDeckGL);
     });
 
     it('should update _passedLayers even when already configured', () => {
@@ -146,7 +191,7 @@ describe('renderer', () => {
 
       root.configure({layers});
 
-      expect(deck.setProps).toHaveBeenCalledWith({layers});
+      expect(deck.setProps).toHaveBeenCalledWith({layers, widgets: [], effects: []});
     });
 
     it('should forward replacement controlled view state and callback', () => {
@@ -160,7 +205,10 @@ describe('renderer', () => {
       root.configure({viewState: secondViewState, onViewStateChange: secondHandler});
 
       expect(deck.setProps).toHaveBeenLastCalledWith({
+        layers: [],
         viewState: secondViewState,
+        widgets: [],
+        effects: [],
         onViewStateChange: secondHandler
       });
     });
@@ -175,22 +223,100 @@ describe('renderer', () => {
       expect(root.store.getState()._passedLayers).toStrictEqual([]);
     });
 
-    it('should create MapboxOverlay when interleaved prop is present', () => {
-      // Arrange
-      const node = createTestRootElement();
-      const root = createRoot(node);
+    it('creates a plain Deck root without inspecting interleaved', () => {
+      const canvas = document.createElement('canvas');
+      const root = createRoot(canvas);
 
-      // Act
-      root.configure({
-        interleaved: true
+      expect(() => root.configure({canvas, interleaved: true} as never)).not.toThrow();
+      expect(root.store.getState().deckgl).toBeInstanceOf(Deck);
+    });
+
+    it('restores the default view when the views prop of the first configure is removed', () => {
+      const overlay = {finalize: vi.fn(), setProps: vi.fn()};
+      const root = createRoot(createTestRootElement(), {
+        createExternalOverlay: () => overlay,
+        forwardViews: true
       });
 
-      // Assert
-      const state = root.store.getState();
-      expect(state.deckgl).not.toBeNull();
-      expect(state.deckgl).toBeTypeOf('object');
-      expect(state.deckgl).toHaveProperty('setProps');
-      expect(state.deckgl).toHaveProperty('finalize');
+      root.configure({views: [new MapView({id: 'custom'})]});
+      root.configure({});
+
+      expect(overlay.setProps).toHaveBeenLastCalledWith({
+        layers: [],
+        views: null,
+        widgets: [],
+        effects: []
+      });
+    });
+
+    it('creates a bound external overlay once and forwards later props', () => {
+      const overlay = {finalize: vi.fn(), setProps: vi.fn()};
+      const createExternalOverlay = vi.fn(() => overlay);
+      const root = createRoot(createTestRootElement(), {createExternalOverlay});
+
+      root.configure({interleaved: true});
+      root.configure({interleaved: true, layers: []});
+
+      expect(createExternalOverlay).toHaveBeenCalledExactlyOnceWith({interleaved: true});
+      expect(root.isExternalOverlay).toBe(true);
+      expect(root.store.getState().isExternalOverlay).toBe(true);
+      expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({
+        interleaved: true,
+        layers: [],
+        widgets: [],
+        effects: []
+      });
+    });
+
+    // Recreating the overlay for a construction-only prop is the component's job
+    // (`createDeckGL({recreateOverlayOnChange})`); the root itself only forwards props.
+    it.each([
+      {initialProps: {}, name: 'omitted interleaved', updateProps: {interleaved: false}},
+      {
+        initialProps: {interleaved: false},
+        name: 'interleaved false',
+        updateProps: {interleaved: false}
+      },
+      {
+        initialProps: {interleaved: true},
+        name: 'interleaved true',
+        updateProps: {interleaved: true}
+      },
+      {
+        initialProps: {interleaved: false},
+        name: 'interleaved false then true',
+        updateProps: {interleaved: true}
+      },
+      {
+        initialProps: {interleaved: true},
+        name: 'interleaved true then false',
+        updateProps: {interleaved: false}
+      }
+    ])('creates an external overlay once when $name', ({initialProps, updateProps}) => {
+      const overlay = {finalize: vi.fn(), setProps: vi.fn()};
+      const createExternalOverlay = vi.fn(() => overlay);
+      const root = createRoot(createTestRootElement(), {createExternalOverlay});
+
+      root.configure(initialProps);
+      root.configure({...updateProps, layers: []});
+
+      expect(createExternalOverlay).toHaveBeenCalledExactlyOnceWith(initialProps);
+      expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({
+        ...updateProps,
+        layers: [],
+        widgets: [],
+        effects: []
+      });
+    });
+
+    it('rejects reuse of a root with a different overlay factory', () => {
+      const node = createTestRootElement();
+      const firstFactory = vi.fn(() => ({finalize: vi.fn(), setProps: vi.fn()}));
+      const secondFactory = vi.fn(() => ({finalize: vi.fn(), setProps: vi.fn()}));
+
+      createRoot(node, {createExternalOverlay: firstFactory});
+
+      expect(() => createRoot(node, {createExternalOverlay: secondFactory})).toThrow();
     });
   });
 
@@ -258,8 +384,8 @@ describe('renderer', () => {
       const secondLayer = new ScatterplotLayer({data: [], id: 'second-layer'});
 
       await React.act(async () => {
-        first.root.render(React.createElement('layer', {layer: firstLayer}));
-        second.root.render(React.createElement('layer', {layer: secondLayer}));
+        first.root.render(React.createElement('deckLayer', {layer: firstLayer}));
+        second.root.render(React.createElement('deckLayer', {layer: secondLayer}));
         await Promise.all([first.flush(), second.flush()]);
       });
 
@@ -271,7 +397,7 @@ describe('renderer', () => {
 
       const updatedFirstLayer = new ScatterplotLayer({data: [], id: 'updated-first-layer'});
       await React.act(async () => {
-        first.root.render(React.createElement('layer', {layer: updatedFirstLayer}));
+        first.root.render(React.createElement('deckLayer', {layer: updatedFirstLayer}));
         await first.flush();
       });
 
@@ -293,8 +419,8 @@ describe('renderer', () => {
           React.createElement(
             React.Fragment,
             null,
-            React.createElement('layer', {layer: secondLayer}),
-            React.createElement('layer', {layer: additionalSecondLayer})
+            React.createElement('deckLayer', {layer: secondLayer}),
+            React.createElement('deckLayer', {layer: additionalSecondLayer})
           )
         );
         await second.flush();
@@ -306,8 +432,9 @@ describe('renderer', () => {
       expect(second.deck.finalize).toHaveBeenCalledOnce();
     });
 
-    it('renders native layer primitives and compat layer wrappers together', async () => {
+    it('renders a createLayerComponent component next to native layers', async () => {
       const {deck, flush, root} = createTestRoot();
+      const JsxPolygonLayer = createLayerComponent(PolygonLayer);
       const nativePoints = new ScatterplotLayer({data: [], id: 'native-points'});
 
       await React.act(async () => {
@@ -315,17 +442,288 @@ describe('renderer', () => {
           React.createElement(
             React.Fragment,
             null,
-            React.createElement('layer', {layer: nativePoints}),
-            React.createElement(CompatPolygonLayer, {data: [], id: 'compat-polygons'})
+            React.createElement('deckLayer', {layer: nativePoints}),
+            React.createElement(JsxPolygonLayer, {data: [], id: 'jsx-polygons'})
           )
         );
         await flush();
       });
 
-      expect(deck.getLayerIds()).toStrictEqual(['native-points', 'compat-polygons']);
+      expect(deck.getLayerIds()).toStrictEqual(['native-points', 'jsx-polygons']);
       expect(deck.layers[0]).toBe(nativePoints);
       expect(deck.layers[1]).toBeInstanceOf(PolygonLayer);
-      expect(deck.layers[1]?.id).toBe('compat-polygons');
+      expect(deck.layers[1]?.id).toBe('jsx-polygons');
+    });
+
+    it('keeps layers nested in a createViewComponent component', async () => {
+      const {deck, root} = createTestRoot();
+      const JsxMapView = createViewComponent(MapView);
+      const JsxScatterplotLayer = createLayerComponent(ScatterplotLayer);
+
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            JsxMapView,
+            {id: 'main'},
+            React.createElement(JsxScatterplotLayer, {data: [], id: 'points'})
+          )
+        );
+      });
+
+      expect(deck.views.map(view => view.id)).toStrictEqual(['main']);
+      expect(deck.getLayerIds()).toStrictEqual(['points']);
+    });
+  });
+
+  describe('layer order', () => {
+    function renderLayers(root: ReconcilerRoot, children: React.ReactNode) {
+      return React.act(async () => {
+        root.render(children);
+      });
+    }
+
+    it('places JSX layers before layers passed through the prop', async () => {
+      const {root, deck} = createTestRoot();
+      const passed = new ScatterplotLayer({data: [], id: 'passed'});
+      const jsx = new ScatterplotLayer({data: [], id: 'jsx'});
+
+      root.configure({layers: [passed]});
+      await renderLayers(root, React.createElement('deckLayer', {layer: jsx}));
+
+      expect(deck.getLayerIds()).toStrictEqual(['jsx', 'passed']);
+    });
+
+    it('keeps JSX layers first when only the layers prop changes without a commit', async () => {
+      const {root, deck} = createTestRoot();
+      const jsx = new ScatterplotLayer({data: [], id: 'jsx'});
+      // A stable element: rendering it again does not commit a new JSX tree.
+      const children = React.createElement('deckLayer', {layer: jsx});
+
+      root.configure({layers: [new ScatterplotLayer({data: [], id: 'first'})]});
+      await renderLayers(root, children);
+      const setPropsCalls = deck.setProps.mock.calls.length;
+
+      root.configure({layers: [new ScatterplotLayer({data: [], id: 'second'})]});
+      await renderLayers(root, children);
+
+      expect(deck.setProps.mock.calls.length).toBe(setPropsCalls + 1);
+      expect(deck.getLayerIds()).toStrictEqual(['jsx', 'second']);
+    });
+
+    it('keeps JSX layers when the layers prop is removed', async () => {
+      const {root, deck} = createTestRoot();
+      const children = React.createElement('deckLayer', {
+        layer: new ScatterplotLayer({data: [], id: 'jsx'})
+      });
+
+      root.configure({layers: [new ScatterplotLayer({data: [], id: 'passed'})]});
+      await renderLayers(root, children);
+      root.configure({});
+      await renderLayers(root, children);
+
+      expect(deck.getLayerIds()).toStrictEqual(['jsx']);
+    });
+  });
+
+  describe('views prop', () => {
+    it('keeps the views prop when no JSX view is rendered', async () => {
+      const {root, deck} = createTestRoot();
+      const propView = new MapView({id: 'prop'});
+
+      root.configure({views: [propView]});
+      await React.act(async () => {
+        root.render(
+          React.createElement('deckLayer', {layer: new ScatterplotLayer({data: [], id: 'jsx'})})
+        );
+      });
+
+      expect(deck.views).toStrictEqual([propView]);
+    });
+
+    it('merges a reconfigured views prop with committed JSX views without a commit', async () => {
+      const {root, deck} = createTestRoot();
+      const jsxView = new MapView({id: 'jsx'});
+      const children = React.createElement('deckView', {view: jsxView});
+
+      root.configure({});
+      await React.act(async () => {
+        root.render(children);
+      });
+      expect(deck.views).toStrictEqual([jsxView]);
+
+      const propView = new MapView({id: 'prop'});
+      root.configure({views: propView});
+
+      expect(deck.views).toStrictEqual([jsxView, propView]);
+    });
+  });
+
+  describe('widgets', () => {
+    it('sends JSX widgets to deck.gl in tree order, from any depth', async () => {
+      const {root, deck} = createTestRoot();
+      const first = new TestWidget({id: 'first'});
+      const second = new TestWidget({id: 'second'});
+      function Controls() {
+        return React.createElement('deckWidget', {widget: second});
+      }
+
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            React.Fragment,
+            null,
+            React.createElement('deckWidget', {widget: first}),
+            React.createElement(
+              'deckLayer',
+              {layer: new ScatterplotLayer({data: [], id: 'points'})},
+              React.createElement(Controls)
+            )
+          )
+        );
+      });
+
+      expect(deck.widgets).toStrictEqual([first, second]);
+      expect(deck.getLayerIds()).toStrictEqual(['points']);
+    });
+
+    it('merges the widgets prop with JSX widgets by id, the prop winning', async () => {
+      const {root, deck} = createTestRoot();
+      const jsxZoom = new TestWidget({id: 'zoom'});
+      const jsxCompass = new TestWidget({id: 'compass'});
+      const propZoom = new TestWidget({id: 'zoom'});
+      const propFullscreen = new TestWidget({id: 'fullscreen'});
+
+      root.configure({widgets: [propZoom, propFullscreen]});
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            React.Fragment,
+            null,
+            React.createElement('deckWidget', {widget: jsxZoom}),
+            React.createElement('deckWidget', {widget: jsxCompass})
+          )
+        );
+      });
+
+      expect(deck.widgets).toStrictEqual([propZoom, jsxCompass, propFullscreen]);
+    });
+
+    it('keeps committed JSX widgets when only the widgets prop changes', async () => {
+      const {root, deck} = createTestRoot();
+      const jsxWidget = new TestWidget({id: 'jsx'});
+
+      root.configure({});
+      await React.act(async () => {
+        root.render(React.createElement('deckWidget', {widget: jsxWidget}));
+      });
+
+      const propWidget = new TestWidget({id: 'prop'});
+      root.configure({widgets: [propWidget]});
+
+      expect(deck.widgets).toStrictEqual([jsxWidget, propWidget]);
+    });
+
+    it('removes the last JSX widget from deck.gl', async () => {
+      const {root, deck} = createTestRoot();
+
+      await React.act(async () => {
+        root.render(React.createElement('deckWidget', {widget: new TestWidget({id: 'zoom'})}));
+      });
+      expect(deck.widgets).toHaveLength(1);
+
+      await React.act(async () => {
+        root.render(null);
+      });
+
+      expect(deck.widgets).toStrictEqual([]);
+    });
+  });
+
+  describe('effects', () => {
+    function createPostProcessEffect(name: string) {
+      return new PostProcessEffect({name, fs: '', passes: []} as never, {} as never);
+    }
+
+    it('sends JSX effects to deck.gl in tree order, from any depth', async () => {
+      const {root, deck} = createTestRoot();
+      const lighting = new LightingEffect();
+      const blur = createPostProcessEffect('blur');
+      function PostProcessing() {
+        return React.createElement('deckEffect', {effect: blur});
+      }
+
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            React.Fragment,
+            null,
+            React.createElement('deckEffect', {effect: lighting}),
+            React.createElement(
+              'deckLayer',
+              {layer: new ScatterplotLayer({data: [], id: 'points'})},
+              React.createElement(PostProcessing)
+            )
+          )
+        );
+      });
+
+      expect(deck.effects).toStrictEqual([lighting, blur]);
+      expect(deck.getLayerIds()).toStrictEqual(['points']);
+    });
+
+    it('merges the effects prop with JSX effects by id, the prop winning', async () => {
+      const {root, deck} = createTestRoot();
+      const jsxLighting = new LightingEffect();
+      const jsxBlur = createPostProcessEffect('blur');
+      const propLighting = new LightingEffect();
+      const propVignette = createPostProcessEffect('vignette');
+
+      root.configure({effects: [propLighting, propVignette]});
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            React.Fragment,
+            null,
+            React.createElement('deckEffect', {effect: jsxLighting}),
+            React.createElement('deckEffect', {effect: jsxBlur})
+          )
+        );
+      });
+
+      expect(deck.effects).toStrictEqual([propLighting, jsxBlur, propVignette]);
+    });
+
+    it('keeps committed JSX effects when only the effects prop changes', async () => {
+      const {root, deck} = createTestRoot();
+      const jsxEffect = new LightingEffect();
+
+      root.configure({});
+      await React.act(async () => {
+        root.render(React.createElement('deckEffect', {effect: jsxEffect}));
+      });
+
+      const propEffect = createPostProcessEffect('blur');
+      root.configure({effects: [propEffect]});
+
+      expect(deck.effects).toStrictEqual([jsxEffect, propEffect]);
+    });
+
+    it('removes the last JSX effect, and replaces an undefined effects prop with []', async () => {
+      const {root, deck} = createTestRoot();
+
+      await React.act(async () => {
+        root.render(React.createElement('deckEffect', {effect: new LightingEffect()}));
+      });
+      expect(deck.effects).toHaveLength(1);
+
+      await React.act(async () => {
+        root.render(null);
+      });
+      expect(deck.effects).toStrictEqual([]);
+
+      // deck.gl throws on `effects: undefined`, so the root always sends a list.
+      root.configure({effects: undefined});
+      expect(deck.setProps).toHaveBeenLastCalledWith(expect.objectContaining({effects: []}));
     });
   });
 

@@ -92,8 +92,7 @@ export const GlobeViewStateSchema = MapViewStateSchema.omit({
   pitch: true,
   bearing: true,
   minPitch: true,
-  maxPitch: true,
-  position: true
+  maxPitch: true
 }).meta({id: 'GlobeViewState'});
 export const OrbitViewStateSchema = ViewTransitionPropsSchema.extend({
   target: Vector3Schema,
@@ -131,6 +130,7 @@ export const FirstPersonViewStateSchema = ViewTransitionPropsSchema.extend({
 
 /** Shared view constructor props. Camera state is validated separately per view. */
 export const BaseViewPropsSchema = z.strictObject({
+  resolution: z.number().nonnegative().optional(),
   id: z.string().optional(),
   canvasId: z.string().optional(),
   x: LayoutSchema.optional(),
@@ -168,7 +168,7 @@ export const MapViewPropsSchema = BaseViewPropsSchema.extend({
 /** JSON-safe props for GlobeView; compose or extend with Zod. */
 export const GlobeViewPropsSchema = BaseViewPropsSchema.extend({
   viewState: viewState(GlobeViewStateSchema),
-  resolution: z.number().positive().optional(),
+  resolution: z.number().nonnegative().optional(),
   nearZMultiplier: z.number().optional(),
   farZMultiplier: z.number().optional(),
   altitude: z.number().optional()

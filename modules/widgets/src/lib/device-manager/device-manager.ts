@@ -1,6 +1,6 @@
 import {luma, type Device} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 
 const DEVICE_TYPE_STORAGE_KEY = 'deck.gl-community-device-type';
 const DEFAULT_DEVICE_TYPE: DeviceType = 'webgpu';

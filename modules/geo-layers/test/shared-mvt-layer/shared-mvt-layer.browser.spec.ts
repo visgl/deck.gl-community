@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Deck, MapView, _GlobeView as GlobeView} from '@deck.gl/core';
+import {Deck, MapView, _GlobeView as GlobeView} from '@deck.gl/core';
 import {parse} from '@loaders.gl/core';
-import {MVTLoader} from '@loaders.gl/mvt';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {MVTLoader} from '@loaders.gl/tiles/mvt';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {afterEach, describe, expect, test} from 'vitest';
-import {SharedMVTLayer, SharedTileset2D} from '../../src';
+import {isGlobeViewport, SharedMVTLayer, SharedTileset2D} from '../../src';
 import {encodeBoxTile} from './mvt-test-tile';
 
 const SIZE = 128;
@@ -229,14 +229,12 @@ describe('SharedMVTLayer consumers in the browser', () => {
           await frame;
           expectGeographicBox(pickBoxCenter(view));
         }
-        await waitForTileSubLayers(
-          view === 'globe' ? COORDINATE_SYSTEM.LNGLAT : COORDINATE_SYSTEM.CARTESIAN
-        );
+        await waitForTileSubLayers(view === 'globe' ? 'lnglat' : 'cartesian');
         frame = nextLoadedFrame(view);
         deck.redraw('capture');
         const image = await frame;
         const viewport = deck.getViewports()[0];
-        expect(Boolean(viewport.resolution), `${view} viewport`).toBe(view === 'globe');
+        expect(isGlobeViewport(viewport), `${view} viewport`).toBe(view === 'globe');
         if (index === 0) {
           mapViewport = viewport;
           mapInside = expectBoxAt(image, viewport);

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
+import {CompositeLayer} from '@deck.gl/core';
 import {PathLayer} from '@deck.gl/layers';
 import {getCurvePoints} from 'cardinal-spline-js';
 // const getCurvePoints = () => {};
@@ -13,7 +13,7 @@ const defaultProps = {
   getData: d => d.points,
   getAngle: _x => 0,
   fontSize: 24,
-  coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+  coordinateSystem: 'cartesian',
   fp64: false
 };
 

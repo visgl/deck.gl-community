@@ -3,15 +3,16 @@
 // Copyright (c) vis.gl contributors
 
 import type {Texture} from '@luma.gl/core';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 
 /**
- * deck.gl 9.4 has no WGSL shader hooks. A layer accepts vertex color filters on WebGPU by placing
- * this line in its vertex entry point where `vertexColor` (a mutable `vec4<f32>`) and
- * `instanceIndex` (`u32`) are in scope; filters inject code after it. `SplatLayer` and
- * `TreeLayer` in `@deck.gl-community/layers` expose it.
+ * The WGSL vertex hook that `SplatLayer` and `TreeLayer` in `@deck.gl-community/layers` call with
+ * `vertexColor` and `instanceIndex`. The layers declare the `DECKGL_FILTER_INSTANCE_COLOR`
+ * injection target, and this extension injects into it. Must match the literal in
+ * `@deck.gl-community/layers`.
  */
-export const WGSL_FILTER_COLOR_ANCHOR = '// DECKGL_FILTER_COLOR(vertexColor, instanceIndex)';
+export const WGSL_FILTER_COLOR_ANCHOR =
+  'DECKGL_FILTER_INSTANCE_COLOR(&vertexColor, instanceIndex);';
 
 /** The per-object selection weight attribute, written from `getSelected`. */
 export const SELECTION_WEIGHTS_ATTRIBUTE = 'selectionWeights';
@@ -94,14 +95,20 @@ export function getSelectionPulseShaders(mode: SelectionPulseMode, webgpu: boole
     return mode === 'instance'
       ? {
           modules: [selectionPulse],
-          // The anchor is a line comment: injected code must start on the next line.
-          inject: {
-            [WGSL_FILTER_COLOR_ANCHOR]:
-              '\n  vertexColor = selectionPulse_filterColor(vertexColor, instanceIndex);\n'
-          }
+          plugins: [
+            {
+              name: 'selection-pulse',
+              injections: {
+                'wgsl:vs:DECKGL_FILTER_INSTANCE_COLOR':
+                  '(*color) = selectionPulse_filterColor(*color, instanceIndex);'
+              }
+            }
+          ]
         }
       : null;
-  return mode === 'instance'
-    ? {modules: [selectionPulse], defines: {SELECTION_PULSE_INSTANCES: 1}, inject: GLSL_INJECT}
-    : {modules: [selectionPulse], inject: GLSL_INJECT};
+  return {
+    modules: [selectionPulse],
+    ...(mode === 'instance' && {defines: {SELECTION_PULSE_INSTANCES: 1}}),
+    plugins: [{name: 'selection-pulse', injections: GLSL_INJECT}]
+  };
 }

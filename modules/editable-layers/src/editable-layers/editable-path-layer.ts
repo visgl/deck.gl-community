@@ -4,7 +4,7 @@
 
 import type {PathLayerProps} from '@deck.gl/layers';
 import {PathLayer} from '@deck.gl/layers';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 
 import {insertBefore} from '../utils/utils';
 

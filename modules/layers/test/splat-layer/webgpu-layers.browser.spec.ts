@@ -4,7 +4,6 @@
 
 import {
   AmbientLight,
-  COORDINATE_SYSTEM,
   Deck,
   DirectionalLight,
   LightingEffect,
@@ -13,8 +12,8 @@ import {
   OrthographicView
 } from '@deck.gl/core';
 import {luma, Buffer, Texture, type Device, type Framebuffer} from '@luma.gl/core';
-import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgl2Adapter, type WebGLDevice} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {describe, expect, inject, it} from 'vitest';
 
 import {SplatLayer} from '../../src';
@@ -290,7 +289,7 @@ async function renderSplatLayer(
         id: 'filtered-edge',
         data: [{}],
         getSource: edgeSource,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        coordinateSystem: 'cartesian',
         getPosition: [68, 0, -10],
         kernelVariance: 4,
         material: {unlit: true}
@@ -517,7 +516,7 @@ function sortedLayers(reverseLayerOrder = false): SplatLayer[] {
         id: `parity-order-${index}`,
         data,
         kernelVariance: 0,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        coordinateSystem: 'cartesian',
         getPosition: [0, 0, 0],
         transparency: 'sorted',
         getTranslation: [0, 0, -1],
@@ -562,7 +561,7 @@ async function renderHighlightFixture(
         id: 'parity-highlight',
         data,
         kernelVariance: 0,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        coordinateSystem: 'cartesian',
         getPosition: [0, 0, -1],
         transparency,
         ...(highlighted && {
@@ -605,7 +604,7 @@ async function renderWeightedOverlapFixture(
         id: 'weighted-overlap',
         data: [{}],
         getSource: source,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        coordinateSystem: 'cartesian',
         getPosition: [0, 0, -1],
         kernelVariance: 0,
         material: {unlit: true}
@@ -634,7 +633,7 @@ async function renderLitFixture(type: 'webgl' | 'webgpu'): Promise<number[]> {
         id: 'parity-lit',
         data: [{}],
         getSource: source,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        coordinateSystem: 'cartesian',
         getPosition: [0, 0, -1],
         kernelVariance: 0,
         material: {ambient: 0.35, diffuse: 0.75, shininess: 1, specularColor: [0, 0, 0]}

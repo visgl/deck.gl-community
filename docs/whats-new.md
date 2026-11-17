@@ -2,7 +2,49 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
-## Unreleased
+## v10.0.0-alpha.1
+
+- **Breaking:** adopt deck.gl `10.0.0-alpha.1`, luma.gl `10.0.0-alpha.14`,
+  loaders.gl and math.gl `5.0.0-beta.8`, and probe.gl `5.0.0`.
+  Applications must update their peer dependencies together. See the [upgrade guide](./upgrade-guide.md).
+
+Gallery pages, inline documentation examples, and all 37 standalone HTML examples now share an iPhone-compatible fullscreen button.
+
+- **panels:** `FullScreenComponent` and `FullScreenController` add native fullscreen with a
+  viewport fallback for unsupported or rejected requests, including iPhone browsers. They
+  preserve visualization state, manage focus and background scrolling, and clean up on removal.
+  See [Fullscreen controls](./modules/panels/api-reference/panel-components/full-screen-component.md).
+
+- **react-fiber:** the `DeckGL` root matches `@deck.gl/react`, new `<deckWidget>` and `<deckEffect>`
+  elements add deck.gl widgets and effects from the React tree, and `/mapbox` and `/maplibre` roots attach to map overlays.
+  The elements are now `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`.
+  Every built-in deck.gl layer, view, widget and effect has a component, imported from a subpath named after its
+  module, such as `<ScatterplotLayer>` from `/layers`, and `createLayerComponent` wraps custom classes.
+  The `/mapbox` and `/maplibre` roots take a `map` prop and attach their overlay to it, and `createDeckGL`
+  takes an `attach` option for custom overlays.
+  A new `/google-maps` root renders into a `GoogleMapsOverlay` and attaches it to the `google.maps.Map`
+  in its `map` prop. See [Using with Google Maps](/docs/modules/react-fiber/developer-guide/base-maps/using-with-google-maps).
+  See the [upgrade guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react).
+
+- Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
+
+- **Website:** fix the mobile navigation drawer, replace generic gallery artwork with
+  dedicated example captures, and render the Vega demos on their example pages.
+  Missing previews are labeled explicitly and gallery thumbnail mappings are checked during builds.
+
+- **widgets:** [`DeckPanel`](./modules/widgets/api-reference/deck-panel.md) renders caller-defined
+  scenes in panel canvases on a shared Deck using the 9.4 multi-canvas API, with or without
+  a root canvas. Try the [standalone example](/examples/widgets/deck-panel) or the inline docs demo.
+
+- **Breaking: basemap-layers has moved to [tangram.gl](https://github.com/visgl/tangram.gl).** The community package, style-spec entry point and basemap examples have been removed. See the [migration note](./modules/basemap-layers/README.md). Shared tile/MVT layers remain in geo-layers.
+
+- **editable-layers:** click-to-draw modes work again under React `<DeckGL>` with child base maps
+  such as `<Map>`. Native clicks now use deck.gl's input element instead of only its canvas.
+
+- `EditableGeoJsonLayer` and `SelectionLayer` read the pointer on the level of the point a map
+  camera orbits when no layer is `pickable: '3d'`. Before, a camera lifted with viewState
+  `position: [0, 0, z]`, as deck.gl's terrain controller sets it, drew, edited and selected
+  metres from the cursor, more with pitch and towards the edges of the view.
 
 - **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
   independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
@@ -28,6 +70,11 @@ This page lists module additions and major changes in each release. For detailed
 
 - **Breaking:** `SplatLayer` drops the legacy top-level `source` and `hierarchy` props. Pass
   sources through `getSource`; see the [upgrade guide](./upgrade-guide.md).
+
+- `SplatLayer` and `TreeLayer` render on `GlobeView`, including MapLibre's globe projection through
+  `MapLibreOverlay`. Before, they threw an unsupported-projection error. Gaussians, wood and crops
+  keep an east-north-up pose at each owner, unchanged when the globe switches to Web Mercator above
+  zoom 12, and the globe hides its far side.
 
 - New [`@deck.gl-community/extensions`](/docs/modules/extensions) module for deck.gl layer
   extensions. [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension),
@@ -190,7 +237,7 @@ Released: September 7, 2026
 - **layers:** new dependency arrows, plus WebGPU support for path outlines and directional path markers.
 - **infovis-layers:** new animation, interval-block, and time-delta layers.
 - **widgets and panels:** new color legends, reusable panel components, floating dialogs, and binary and Apache Arrow data previews.
-- **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements.
+- **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements, with a [migration guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react) for `@deck.gl/react` applications.
 - **editable-layers:** isolates edits from interleaved MapLibre/Mapbox pans, keeps `guideType` features selectable, and resumes editing after two-finger navigation.
 
 ## v9.3

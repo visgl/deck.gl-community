@@ -1,6 +1,6 @@
-import {Outlet, createRootRoute} from '@tanstack/react-router';
+import {HeadContent, Outlet, Scripts, createRootRoute} from '@tanstack/react-router';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {TanStackRouterDevtools} from '@tanstack/router-devtools';
+import {TanStackRouterDevtools} from '@tanstack/react-router-devtools';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../styles/globals.css';
 
@@ -24,12 +24,14 @@ function RootComponent() {
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Airports Example - TanStack Start</title>
+        <HeadContent />
       </head>
       <body>
         <QueryClientProvider client={queryClient}>
           <Outlet />
           <TanStackRouterDevtools position="bottom-right" />
         </QueryClientProvider>
+        <Scripts />
       </body>
     </html>
   );

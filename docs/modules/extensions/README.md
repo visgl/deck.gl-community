@@ -1,6 +1,6 @@
 # Overview
 
-![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+![From v10.0](https://img.shields.io/badge/from-v10.0-green.svg?style=flat-square)
 
 This package contains [layer extensions](https://deck.gl/docs/api-reference/extensions/overview)
 for deck.gl. An extension adds props and shader code to existing layers, including deck.gl's own

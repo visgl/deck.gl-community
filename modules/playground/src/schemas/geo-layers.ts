@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 import {z} from 'zod';
+import {ColumnSourceSchema} from './common';
 import {
   PolygonLayerPropsSchema,
   ArcLayerPropsSchema,
@@ -24,22 +25,47 @@ import {
 
 /** JSON-safe props for A5Layer; compose or extend with Zod. */
 export const A5LayerPropsSchema = PolygonLayerPropsSchema.extend({
+  cells: ColumnSourceSchema.optional(),
+  elevations: ColumnSourceSchema.optional(),
+  fillColors: ColumnSourceSchema.optional(),
+  lineColors: ColumnSourceSchema.optional(),
+  lineWidths: ColumnSourceSchema.optional(),
   getPentagon: StringAccessorSchema.optional()
 });
 /** JSON-safe props for S2Layer; compose or extend with Zod. */
 export const S2LayerPropsSchema = PolygonLayerPropsSchema.extend({
+  cells: ColumnSourceSchema.optional(),
+  elevations: ColumnSourceSchema.optional(),
+  fillColors: ColumnSourceSchema.optional(),
+  lineColors: ColumnSourceSchema.optional(),
+  lineWidths: ColumnSourceSchema.optional(),
   getS2Token: StringAccessorSchema.optional()
 });
 /** JSON-safe props for QuadkeyLayer; compose or extend with Zod. */
 export const QuadkeyLayerPropsSchema = PolygonLayerPropsSchema.extend({
+  cells: ColumnSourceSchema.optional(),
+  elevations: ColumnSourceSchema.optional(),
+  fillColors: ColumnSourceSchema.optional(),
+  lineColors: ColumnSourceSchema.optional(),
+  lineWidths: ColumnSourceSchema.optional(),
   getQuadkey: StringAccessorSchema.optional()
 });
 /** JSON-safe props for GeohashLayer; compose or extend with Zod. */
 export const GeohashLayerPropsSchema = PolygonLayerPropsSchema.extend({
+  cells: ColumnSourceSchema.optional(),
+  elevations: ColumnSourceSchema.optional(),
+  fillColors: ColumnSourceSchema.optional(),
+  lineColors: ColumnSourceSchema.optional(),
+  lineWidths: ColumnSourceSchema.optional(),
   getGeohash: StringAccessorSchema.optional()
 });
 /** JSON-safe props for H3HexagonLayer; compose or extend with Zod. */
 export const H3HexagonLayerPropsSchema = PolygonLayerPropsSchema.extend({
+  cells: ColumnSourceSchema.optional(),
+  elevations: ColumnSourceSchema.optional(),
+  fillColors: ColumnSourceSchema.optional(),
+  lineColors: ColumnSourceSchema.optional(),
+  lineWidths: ColumnSourceSchema.optional(),
   highPrecision: z.union([z.boolean(), z.literal('auto')]).optional(),
   coverage: z.number().min(0).max(1).optional(),
   centerHexagon: z.string().nullable().optional(),
@@ -47,6 +73,11 @@ export const H3HexagonLayerPropsSchema = PolygonLayerPropsSchema.extend({
 });
 /** JSON-safe props for H3ClusterLayer; compose or extend with Zod. */
 export const H3ClusterLayerPropsSchema = PolygonLayerPropsSchema.extend({
+  cells: ColumnSourceSchema.optional(),
+  elevations: ColumnSourceSchema.optional(),
+  fillColors: ColumnSourceSchema.optional(),
+  lineColors: ColumnSourceSchema.optional(),
+  lineWidths: ColumnSourceSchema.optional(),
   getHexagons: createAccessorSchema(z.array(z.union([z.string(), Vector2Schema]))).optional()
 });
 /** JSON-safe props for GreatCircleLayer; compose or extend with Zod. */

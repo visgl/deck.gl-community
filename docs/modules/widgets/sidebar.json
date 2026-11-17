@@ -51,7 +51,10 @@
         {
           "type": "category",
           "label": "Panel Widgets",
-          "items": ["modules/widgets/api-reference/panel-widget"]
+          "items": [
+            "modules/widgets/api-reference/panel-widget",
+            "modules/widgets/api-reference/deck-panel"
+          ]
         }
       ]
     }

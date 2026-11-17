@@ -254,15 +254,14 @@ fn flameTrail_color(varyings: Varyings) -> vec4<f32> {
 }
 `;
 
-/** Extend the same WGSL anchors used by TripsLayer, preserving its packed attributes. */
-export function getFlameInjectionsWGSL(inject: Record<string, string>) {
+/** Add flame stage data while retaining the timestamp layout owned by TripsLayer. */
+export function getFlameInjectionsWGSL() {
   const attributes = '  @location(12) rowIndexes: u32,';
   const varyings = '  @location(5) vJointType: f32,';
   const vertex = '    attributes.instanceColors.a * layer.opacity\n  );';
   return {
-    ...inject,
-    [attributes]: `${inject[attributes]}\n  @location(14) flameSlices: vec4<f32>,`,
-    [varyings]: `${inject[varyings]}
+    [attributes]: `  @location(13) instanceTimestamps: vec2<f32>,\n  @location(14) flameSlices: vec4<f32>,`,
+    [varyings]: `  @location(8) vTime: f32,
       @location(9) vFlame: vec3<f32>,
       @location(10) vFlameWeight: f32,
       @location(11) vEmberUV: vec2<f32>,
@@ -278,8 +277,6 @@ export function getFlameInjectionsWGSL(inject: Record<string, string>) {
       }
     `,
     // Derivatives must precede PathLayer/TripsLayer's fragment discards.
-    'fs:#main-start': 'let flameColor = flameTrail_color(varyings);',
-    '  // DECKGL_FILTER_COLOR': `${inject['  // DECKGL_FILTER_COLOR']}
-      if (flameColor.a <= 0.0 || (trips.fadeTrail > 0.5 && trips.trailLength <= 0.0)) { discard; }`
+    'fs:#main-start': 'let flameColor = flameTrail_color(varyings);'
   };
 }

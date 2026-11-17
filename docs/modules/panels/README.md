@@ -87,6 +87,10 @@ const manager = new PanelManager({parentElement, components: [new BoxPanelContai
 })]});
 ```
 
+Set `headerPanel: quickControlsPanel` on a box to keep essential controls available when its
+body is collapsed. The header accepts any panel, remains mounted, and works with pinning too.
+See [persistent header controls](./api-reference/panel-containers/box-panel-container.md#controls-that-remain-visible-when-collapsed).
+
 `PanelManager` mounts panel-module components, reconciles them by id, and owns their DOM lifecycle.
 Boxes, modals, and overlay sidebars can show the same composed content. This overlay-only setup
 needs only an application-positioned `parentElement`; no canvas layout management is required.

@@ -22,6 +22,7 @@
     "modules/geo-layers/api-reference/tile-grid-layer",
     "modules/geo-layers/api-reference/tile-source-layer",
     "modules/geo-layers/api-reference/global-grid-layer",
+    "modules/geo-layers/api-reference/is-globe-viewport",
     {
       "type": "category",
       "label": "Grids",

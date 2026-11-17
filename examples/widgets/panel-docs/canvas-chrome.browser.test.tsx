@@ -33,7 +33,7 @@ it('keeps the canvas and adaptive inspector in sync with the live chrome example
     host.querySelector<HTMLButtonElement>('[aria-label="Show Tools"]')!.click();
     await settle();
     expect(canvas.getBoundingClientRect().width).toBeCloseTo(originalWidth);
-    const input = host.querySelector('input')!;
+    const input = host.querySelector('input:not([type=checkbox])')!;
     input.value = 'Preserved scene';
     inspector.querySelector<HTMLButtonElement>('[aria-label="Pin panel"]')!.click();
     await settle();
@@ -51,6 +51,23 @@ it('keeps the canvas and adaptive inspector in sync with the live chrome example
     await settle();
     expect(canvas.getBoundingClientRect().width).toBeCloseTo(originalWidth);
     expect(inspector.closest('.deck-panel-layout-center')).toBe(center);
+    const quickControl = inspector.querySelector<HTMLInputElement>('input[type=checkbox]')!;
+    expect(quickControl.getBoundingClientRect().height).toBeGreaterThan(0);
+    const readGuidePixel = () =>
+      Array.from(
+        canvas
+          .getContext('2d')!
+          .getImageData(
+            Math.floor(40 * window.devicePixelRatio),
+            Math.floor(40 * window.devicePixelRatio),
+            1,
+            1
+          ).data
+      );
+    const guidePixel = readGuidePixel();
+    quickControl.click();
+    expect(quickControl.checked).toBe(false);
+    expect(readGuidePixel()).not.toEqual(guidePixel);
     host.querySelector<HTMLButtonElement>('[aria-label="Expand Inspector"]')!.click();
     await settle();
     expect(canvas.getBoundingClientRect().width).toBeCloseTo(originalWidth - 280);
@@ -64,7 +81,7 @@ it('keeps the canvas and adaptive inspector in sync with the live chrome example
     await settle();
     expect(center.contains(inspector)).toBe(true);
     expect(getComputedStyle(inspector).borderRadius).toBe('12px');
-    expect(host.querySelector('input')).toBe(input);
+    expect(host.querySelector('input:not([type=checkbox])')).toBe(input);
     expect(input.value).toBe('Preserved scene');
   } finally {
     cleanup();

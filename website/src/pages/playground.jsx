@@ -1,3 +1,4 @@
+import FullscreenExample from '../components/example/fullscreen-example';
 import React, {useEffect, useRef, useState} from 'react';
 import Head from '@docusaurus/Head';
 import {deferImperativeCleanup} from '../components/imperative-cleanup';
@@ -44,7 +45,7 @@ export default function PlaygroundPage() {
         aria-label="deck.gl Playground"
         style={{position: 'fixed', inset: 0, overflow: 'hidden'}}
       >
-        <div ref={hostRef} style={{width: '100%', height: '100%'}} />
+        <FullscreenExample style={{width: '100%', height: '100%'}}><div ref={hostRef} style={{width: '100%', height: '100%'}} /></FullscreenExample>
         {status !== 'ready' && (
           <div
             role={status === 'error' ? 'alert' : 'status'}

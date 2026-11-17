@@ -1,4 +1,4 @@
-import {MapView} from '@deck.gl/core';
+import {LightingEffect, MapView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
@@ -13,7 +13,8 @@ import {
 } from '../config';
 import type {ChildSet, Container, Instance} from '../types';
 import {flattenTree, organizeList} from '../utils';
-import {createMockInstance, setupConsoleSpy} from './test-utils';
+import {TestWidget} from './test-widget';
+import {createMockInstance} from './test-utils';
 
 describe('config-tree-operations', () => {
   let originalEnv: string | undefined;
@@ -165,7 +166,13 @@ describe('config-tree-operations', () => {
       const instance = createMockInstance(layer);
 
       // Act
-      const result = finalizeInitialChildren(instance, 'layer', {layer}, {} as never, {} as never);
+      const result = finalizeInitialChildren(
+        instance,
+        'deckLayer',
+        {layer},
+        {} as never,
+        {} as never
+      );
 
       // Assert
       expect(result).toBeFalsy();
@@ -173,120 +180,9 @@ describe('config-tree-operations', () => {
   });
 
   describe('finalizeContainerChildren()', () => {
-    it('should warn for duplicate layer IDs in dev mode', () => {
-      // Arrange
-      process.env.NODE_ENV = 'development';
-      const {errorSpy} = setupConsoleSpy();
-
-      const layer1 = new ScatterplotLayer({data: [], id: 'duplicate'});
-      const layer2 = new ScatterplotLayer({data: [], id: 'duplicate'});
-      const child1 = createMockInstance(layer1);
-      const child2 = createMockInstance(layer2);
-      const newChildren: ChildSet = [child1, child2];
-
-      const container = {
-        store: {} as never
-      } as Container;
-
-      // Act
-      finalizeContainerChildren(container, newChildren);
-
-      // Assert
-      expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Duplicate layer IDs detected: duplicate')
-      );
-    });
-
-    it('should not warn for unique layer IDs', () => {
-      // Arrange
-      process.env.NODE_ENV = 'development';
-      const {errorSpy} = setupConsoleSpy();
-
-      const layer1 = new ScatterplotLayer({data: [], id: 'layer1'});
-      const layer2 = new ScatterplotLayer({data: [], id: 'layer2'});
-      const child1 = createMockInstance(layer1);
-      const child2 = createMockInstance(layer2);
-      const newChildren: ChildSet = [child1, child2];
-
-      const container = {
-        store: {} as never
-      } as Container;
-
-      // Act
-      finalizeContainerChildren(container, newChildren);
-
-      // Assert
-      expect(errorSpy).not.toHaveBeenCalled();
-    });
-
-    it('should ignore View IDs', () => {
-      // Arrange
-      process.env.NODE_ENV = 'development';
-      const {errorSpy} = setupConsoleSpy();
-
-      const view1 = new MapView({id: 'duplicate'});
-      const view2 = new MapView({id: 'duplicate'});
-      const child1 = createMockInstance(view1);
-      const child2 = createMockInstance(view2);
-      const newChildren: ChildSet = [child1, child2];
-
-      const container = {
-        store: {} as never
-      } as Container;
-
-      // Act
-      finalizeContainerChildren(container, newChildren);
-
-      // Assert
-      expect(errorSpy).not.toHaveBeenCalled();
-    });
-
-    it('should handle nested layers correctly', () => {
-      // Arrange
-      process.env.NODE_ENV = 'development';
-      const {errorSpy} = setupConsoleSpy();
-
-      const layer1 = new ScatterplotLayer({data: [], id: 'parent'});
-      const layer2 = new ScatterplotLayer({data: [], id: 'child1'});
-      const layer3 = new ScatterplotLayer({data: [], id: 'child1'}); // Duplicate with layer2
-      const child2 = createMockInstance(layer2);
-      const child3 = createMockInstance(layer3);
-      const parent = createMockInstance(layer1, [child2, child3]);
-      const newChildren: ChildSet = [parent];
-
-      const container = {
-        store: {} as never
-      } as Container;
-
-      // Act
-      finalizeContainerChildren(container, newChildren);
-
-      // Assert
-      expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Duplicate layer IDs detected: child1')
-      );
-    });
-
-    it('should not warn in production mode', () => {
-      // Arrange
-      process.env.NODE_ENV = 'production';
-      const {errorSpy} = setupConsoleSpy();
-
-      const layer1 = new ScatterplotLayer({data: [], id: 'duplicate'});
-      const layer2 = new ScatterplotLayer({data: [], id: 'duplicate'});
-      const child1 = createMockInstance(layer1);
-      const child2 = createMockInstance(layer2);
-      const newChildren: ChildSet = [child1, child2];
-
-      const container = {
-        store: {} as never
-      } as Container;
-
-      // Act
-      finalizeContainerChildren(container, newChildren);
-
-      // Assert
-      expect(errorSpy).not.toHaveBeenCalled();
+    it('leaves duplicate layer ids to deck.gl', () => {
+      // deck.gl's LayerManager warns about duplicate ids, so the reconciler does not.
+      expect(() => finalizeContainerChildren()).not.toThrow();
     });
   });
 
@@ -299,7 +195,7 @@ describe('config-tree-operations', () => {
       const child2 = createMockInstance(layer2);
       const newChildren: ChildSet = [child1, child2];
 
-      const mockDeckgl = {
+      const mockDeckGL = {
         setProps: vi.fn<(props: {layers: unknown[]; views?: unknown[]}) => void>()
       };
 
@@ -312,7 +208,7 @@ describe('config-tree-operations', () => {
             }
           >(() => ({
             _passedLayers: [],
-            deckgl: mockDeckgl
+            deckgl: mockDeckGL
           }))
         }
       } as unknown as Container;
@@ -321,20 +217,52 @@ describe('config-tree-operations', () => {
       replaceContainerChildren(container, newChildren);
 
       // Assert
-      expect(mockDeckgl.setProps).toHaveBeenCalledExactlyOnceWith({
+      expect(mockDeckGL.setProps).toHaveBeenCalledExactlyOnceWith({
         layers: [layer1, layer2],
-        views: []
+        widgets: [],
+        effects: []
       });
     });
 
-    it('should combine _passedLayers with JSX layers', () => {
+    it('omits JSX views for an external overlay root that does not forward views', () => {
+      const layer = new ScatterplotLayer({data: [], id: 'layer'});
+      const view = new MapView({id: 'view'});
+      const mockDeckGL = {
+        setProps: vi.fn<(props: {layers: unknown[]; views?: unknown[]}) => void>()
+      };
+      const container = {
+        store: {
+          getState: vi.fn(() => ({
+            _passedLayers: [],
+            deckgl: mockDeckGL,
+            isExternalOverlay: true
+          }))
+        }
+      } as unknown as Container;
+
+      replaceContainerChildren(container, [createMockInstance(view), createMockInstance(layer)]);
+      replaceContainerChildren(container, [createMockInstance(layer)]);
+
+      expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(1, {
+        layers: [layer],
+        widgets: [],
+        effects: []
+      });
+      expect(mockDeckGL.setProps).toHaveBeenNthCalledWith(2, {
+        layers: [layer],
+        widgets: [],
+        effects: []
+      });
+    });
+
+    it('should place _passedLayers after JSX layers, as @deck.gl/react does', () => {
       // Arrange
       const passedLayer = new ScatterplotLayer({data: [], id: 'passed'});
       const jsxLayer = new ScatterplotLayer({data: [], id: 'jsx'});
       const child = createMockInstance(jsxLayer);
       const newChildren: ChildSet = [child];
 
-      const mockDeckgl = {
+      const mockDeckGL = {
         setProps: vi.fn<(props: {layers: unknown[]; views?: unknown[]}) => void>()
       };
 
@@ -347,7 +275,7 @@ describe('config-tree-operations', () => {
             }
           >(() => ({
             _passedLayers: [passedLayer],
-            deckgl: mockDeckgl
+            deckgl: mockDeckGL
           }))
         }
       } as unknown as Container;
@@ -356,9 +284,10 @@ describe('config-tree-operations', () => {
       replaceContainerChildren(container, newChildren);
 
       // Assert
-      expect(mockDeckgl.setProps).toHaveBeenCalledWith({
-        layers: [passedLayer, jsxLayer],
-        views: []
+      expect(mockDeckGL.setProps).toHaveBeenCalledWith({
+        layers: [jsxLayer, passedLayer],
+        widgets: [],
+        effects: []
       });
     });
 
@@ -370,7 +299,7 @@ describe('config-tree-operations', () => {
       const viewChild = createMockInstance(view);
       const newChildren: ChildSet = [viewChild, layerChild];
 
-      const mockDeckgl = {
+      const mockDeckGL = {
         setProps: vi.fn<(props: {layers: unknown[]; views?: unknown[]}) => void>()
       };
 
@@ -383,7 +312,7 @@ describe('config-tree-operations', () => {
             }
           >(() => ({
             _passedLayers: [],
-            deckgl: mockDeckgl
+            deckgl: mockDeckGL
           }))
         }
       } as unknown as Container;
@@ -392,19 +321,22 @@ describe('config-tree-operations', () => {
       replaceContainerChildren(container, newChildren);
 
       // Assert
-      expect(mockDeckgl.setProps).toHaveBeenCalledWith({
+      expect(mockDeckGL.setProps).toHaveBeenCalledWith({
         layers: [layer],
-        views: [view]
+        views: [view],
+        widgets: [],
+        effects: []
       });
     });
 
-    it('should reset views prop if empty', () => {
+    // `null` restores deck.gl's default view; an empty list would leave it with no view.
+    it("leaves deck.gl's views alone without JSX views or a views prop", () => {
       // Arrange
       const layer = new ScatterplotLayer({data: [], id: 'layer'});
       const child = createMockInstance(layer);
       const newChildren: ChildSet = [child];
 
-      const mockDeckgl = {
+      const mockDeckGL = {
         setProps: vi.fn<(props: {layers: unknown[]; views?: unknown[]}) => void>()
       };
 
@@ -417,7 +349,7 @@ describe('config-tree-operations', () => {
             }
           >(() => ({
             _passedLayers: [],
-            deckgl: mockDeckgl
+            deckgl: mockDeckGL
           }))
         }
       } as unknown as Container;
@@ -426,9 +358,170 @@ describe('config-tree-operations', () => {
       replaceContainerChildren(container, newChildren);
 
       // Assert
-      expect(mockDeckgl.setProps).toHaveBeenCalledWith({
+      // A widget such as SplitterWidget may have set deck.gl's views, as in @deck.gl/react.
+      expect(mockDeckGL.setProps).toHaveBeenCalledExactlyOnceWith({
         layers: [layer],
-        views: []
+        widgets: [],
+        effects: []
+      });
+    });
+
+    describe('views prop', () => {
+      function createViewsContainer(
+        passedViews: unknown,
+        isExternalOverlay = false,
+        forwardViews = false
+      ) {
+        const deckgl = {setProps: vi.fn<(props: {layers: unknown[]; views?: unknown}) => void>()};
+        const container = {
+          store: {
+            getState: vi.fn(() => ({
+              _passedLayers: [],
+              _passedViews: passedViews,
+              deckgl,
+              forwardViews,
+              isExternalOverlay
+            }))
+          }
+        } as unknown as Container;
+        return {container, deckgl};
+      }
+
+      it('uses the views prop unchanged without JSX views', () => {
+        const propView = new MapView({id: 'prop'});
+        const {container, deckgl} = createViewsContainer(propView);
+
+        replaceContainerChildren(container, []);
+
+        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
+          layers: [],
+          views: propView,
+          widgets: [],
+          effects: []
+        });
+      });
+
+      it('falls back to the views prop when the last JSX view is removed', () => {
+        const propViews = [new MapView({id: 'prop'})];
+        const {container, deckgl} = createViewsContainer(propViews);
+
+        replaceContainerChildren(container, [createMockInstance(new MapView({id: 'jsx'}))]);
+        replaceContainerChildren(container, []);
+
+        expect(deckgl.setProps).toHaveBeenLastCalledWith({
+          layers: [],
+          views: propViews,
+          widgets: [],
+          effects: []
+        });
+      });
+
+      it('merges JSX views with the views prop, which wins on an id clash', () => {
+        const jsxMain = new MapView({id: 'main'});
+        const jsxMinimap = new MapView({id: 'minimap'});
+        const propMain = new MapView({id: 'main', controller: true});
+        const propExtra = new MapView({id: 'extra'});
+        const {container, deckgl} = createViewsContainer([propMain, propExtra]);
+
+        replaceContainerChildren(container, [
+          createMockInstance(jsxMain),
+          createMockInstance(jsxMinimap)
+        ]);
+
+        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
+          layers: [],
+          views: [propMain, jsxMinimap, propExtra],
+          widgets: [],
+          effects: []
+        });
+      });
+
+      it('merges a single View passed as the views prop', () => {
+        const jsxView = new MapView({id: 'jsx'});
+        const propView = new MapView({id: 'prop'});
+        const {container, deckgl} = createViewsContainer(propView);
+
+        replaceContainerChildren(container, [createMockInstance(jsxView)]);
+
+        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
+          layers: [],
+          views: [jsxView, propView],
+          widgets: [],
+          effects: []
+        });
+      });
+
+      it('omits views for an external overlay root that does not forward views', () => {
+        const {container, deckgl} = createViewsContainer(new MapView({id: 'prop'}), true);
+
+        replaceContainerChildren(container, [createMockInstance(new MapView({id: 'jsx'}))]);
+
+        expect(deckgl.setProps).toHaveBeenCalledExactlyOnceWith({
+          layers: [],
+          widgets: [],
+          effects: []
+        });
+      });
+
+      it('merges and sends views for an external overlay root that forwards them', () => {
+        // The Mapbox and MapLibre roots forward views; the overlay adds its map view when the
+        // list has no view with the reserved id.
+        const mapView = new MapView({id: 'mapbox'});
+        const minimap = new MapView({id: 'minimap'});
+        const propExtra = new MapView({id: 'extra'});
+        const {container, deckgl} = createViewsContainer(propExtra, true, true);
+
+        replaceContainerChildren(container, [
+          createMockInstance(mapView),
+          createMockInstance(minimap)
+        ]);
+        replaceContainerChildren(container, []);
+
+        expect(deckgl.setProps).toHaveBeenNthCalledWith(1, {
+          layers: [],
+          views: [mapView, minimap, propExtra],
+          widgets: [],
+          effects: []
+        });
+        // Without JSX views, the views prop is used unchanged.
+        expect(deckgl.setProps).toHaveBeenNthCalledWith(2, {
+          layers: [],
+          views: propExtra,
+          widgets: [],
+          effects: []
+        });
+      });
+
+      it('sends null once after the last JSX view is removed, then leaves views alone', () => {
+        const {container, deckgl} = createViewsContainer(undefined);
+
+        replaceContainerChildren(container, [createMockInstance(new MapView({id: 'minimap'}))]);
+        replaceContainerChildren(container, []);
+        // null restores deck.gl's default view.
+        expect(deckgl.setProps).toHaveBeenLastCalledWith({
+          layers: [],
+          views: null,
+          widgets: [],
+          effects: []
+        });
+
+        replaceContainerChildren(container, []);
+        expect(deckgl.setProps).toHaveBeenLastCalledWith({layers: [], widgets: [], effects: []});
+      });
+
+      it('sends null to a view-forwarding overlay after its last JSX view is removed', () => {
+        const {container, deckgl} = createViewsContainer(undefined, true, true);
+
+        replaceContainerChildren(container, [createMockInstance(new MapView({id: 'minimap'}))]);
+        replaceContainerChildren(container, []);
+
+        // null makes the overlay fall back to its own map view.
+        expect(deckgl.setProps).toHaveBeenLastCalledWith({
+          layers: [],
+          views: null,
+          widgets: [],
+          effects: []
+        });
       });
     });
 
@@ -466,6 +559,30 @@ describe('config-tree-operations', () => {
       // Assert
       expect(result.views).toStrictEqual([view]);
       expect(result.layers).toStrictEqual([layer1, layer2]);
+    });
+
+    it('should separate widgets from layers and views', () => {
+      const view = new MapView({id: 'view-1'});
+      const layer = new ScatterplotLayer({data: [], id: 'layer-1'});
+      const widget = new TestWidget({id: 'widget-1'});
+
+      const result = organizeList([widget, view, layer]);
+
+      expect(result.widgets).toStrictEqual([widget]);
+      expect(result.views).toStrictEqual([view]);
+      expect(result.layers).toStrictEqual([layer]);
+    });
+
+    it('should separate effects from layers, views and widgets', () => {
+      const layer = new ScatterplotLayer({data: [], id: 'layer-1'});
+      const widget = new TestWidget({id: 'widget-1'});
+      const effect = new LightingEffect();
+
+      const result = organizeList([effect, widget, layer]);
+
+      expect(result.effects).toStrictEqual([effect]);
+      expect(result.widgets).toStrictEqual([widget]);
+      expect(result.layers).toStrictEqual([layer]);
     });
 
     it('should handle list with only views', () => {

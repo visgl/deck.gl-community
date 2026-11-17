@@ -2,6 +2,7 @@
 import {describe, expect, it, vi} from 'vitest';
 import {
   BoxPanelContainer,
+  MarkdownPanel,
   FullScreenPanelContainer,
   ModalPanelContainer,
   PanelComponent,
@@ -176,6 +177,19 @@ describe('PanelWidget', () => {
     expect(new FullScreenPanelWidget().component).toBeInstanceOf(FullScreenPanelContainer);
     expect(new ToolbarWidget().component).toBeInstanceOf(ToolbarComponent);
     expect(new ToastWidget().component).toBeInstanceOf(ToastComponent);
+  });
+
+  it('forwards persistent Infobox headers through construction and updates', () => {
+    const headerPanel = new MarkdownPanel({title: 'Quick controls', markdown: 'Quick action'});
+    const widget = new BoxPanelWidget({title: 'Info', defaultOpen: false, headerPanel});
+    const root = widget.onAdd({deck: {}, viewId: null});
+    widget.rootElement = root;
+    widget.onRenderHTML(root);
+    expect(root.querySelector('[data-panel-header]')?.textContent).toContain('Quick action');
+    expect(widget.component.isOpen).toBe(false);
+    widget.setProps({headerPanel: undefined});
+    expect(root.querySelector('[data-panel-header]')).toBeNull();
+    widget.onRemove();
   });
 
   it('shows modal widget triggers by default and honors explicit trigger hiding', () => {

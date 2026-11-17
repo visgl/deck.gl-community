@@ -4,7 +4,7 @@
 // Copyright (c) vis.gl contributors
 
 import {tableFromArrays} from 'apache-arrow';
-import {Stats} from '@probe.gl/stats';
+import {Stats} from 'probe.gl/stats';
 import {
   AccordionPanel,
   ArrowBatchesPanel,

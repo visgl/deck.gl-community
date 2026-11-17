@@ -100,6 +100,19 @@ const config = {
         redirects: [
           {
             from: [
+              '/docs/modules/basemap-layers/api-reference/basemap-layer',
+              '/docs/modules/basemap-layers/api-reference/map-style-loader',
+              '/docs/modules/basemap-layers/api-reference/map-style',
+              '/docs/modules/basemap-layers/developer-guide/get-started',
+              '/docs/modules/basemap-layers/developer-guide/style-specification-support',
+              '/docs/modules/basemap-layers/whats-new',
+              '/examples/layers/basemap-layer-map-view',
+              '/examples/basemap-layers/split-view'
+            ],
+            to: '/docs/modules/basemap-layers'
+          },
+          {
+            from: [
               '/docs/modules/three',
               '/docs/modules/three/README',
               '/docs/modules/three/api-reference/tree-layer'
@@ -143,7 +156,6 @@ const config = {
           modules: ['node_modules', resolve('node_modules'), resolve('../node_modules')],
           alias: {
             '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
-            '@deck.gl-community/basemap-layers': resolve('../modules/basemap-layers/src'),
             '@deck.gl-community/leaflet': resolve('../modules/leaflet/src'),
             '@deck.gl-community/geo-layers': resolve('../modules/geo-layers/src'),
             '@deck.gl-community/graph-layers': resolve('../modules/graph-layers/src'),
@@ -171,21 +183,9 @@ const config = {
             '@deck.gl/mapbox': resolve('../node_modules/@deck.gl/mapbox'),
             '@deck.gl/mesh-layers': resolve('../node_modules/@deck.gl/mesh-layers'),
             '@deck.gl/react': resolve('node_modules/@deck.gl/react'),
-            '@luma.gl/webgl/constants': resolve('../node_modules/@luma.gl/webgl/dist/constants/index.js'),
-            '@math.gl': resolve('../node_modules/@math.gl'),
             // Force the hoisted ESM entry. Webpack otherwise resolves to the
             // package's UMD main, which breaks default imports in vis.gl S2 code.
             long: resolve('../node_modules/long/index.js'),
-            '@loaders.gl/csv': resolve('node_modules/@loaders.gl/csv'),
-            '@loaders.gl/graphs/dot-loader$': resolve(
-              'node_modules/@loaders.gl/graphs/dist/dot-loader.js'
-            ),
-            '@loaders.gl/json': resolve('node_modules/@loaders.gl/json'),
-            '@loaders.gl/i3s': resolve('node_modules/@loaders.gl/i3s'),
-            '@loaders.gl/las': resolve('node_modules/@loaders.gl/las'),
-            '@loaders.gl/obj': resolve('node_modules/@loaders.gl/obj'),
-            '@loaders.gl/ply': resolve('node_modules/@loaders.gl/ply'),
-            '@loaders.gl': resolve('../node_modules/@loaders.gl'),
             'preact$': resolve('node_modules/preact/dist/preact.module.js'),
             'preact/hooks': resolve('node_modules/preact/hooks/dist/hooks.module.js'),
             'preact/jsx-runtime': resolve(

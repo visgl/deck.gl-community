@@ -1,3 +1,4 @@
+import FullscreenExample from '../example/fullscreen-example';
 import React, {useEffect, useRef} from 'react';
 import {EXAMPLE_PANEL_STYLE} from '../../../../examples/utils/panel-theme';
 import BrowserOnly from '@docusaurus/BrowserOnly';
@@ -104,7 +105,9 @@ function LayerLiveExampleHost({highlight, height}) {
     };
   }, [highlight]);
 
-  return <div ref={hostRef} style={{...WRAPPER_STYLE, height}} />;
+  return <FullscreenExample style={{...WRAPPER_STYLE, height}}>
+    <div ref={hostRef} style={{width: '100%', height: '100%'}} />
+  </FullscreenExample>;
 }
 
 export default function LayerLiveExample({highlight, size = 'narrow', height}) {
@@ -124,12 +127,6 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
         '../../../../examples/layers/skybox-map-view/app'
       );
       return mountSkyboxMapViewExample(container, {showInfoOverlay: false, ...mountProps});
-    }
-    case 'basemap-layer': {
-      const {mountBasemapLayerMapViewExample} = await import(
-        '../../../../examples/layers/basemap-layer-map-view/app'
-      );
-      return mountBasemapLayerMapViewExample(container, mountProps);
     }
     case 'dependency-arrow-layer':
     case 'path-marker-layer':
@@ -322,7 +319,7 @@ async function mountTileSourceLayerExample(container, mountProps = {}) {
 }
 
 async function mountGraphLayerDocsExample(container, highlight, mountProps = {}) {
-  const {Deck, OrthographicView, COORDINATE_SYSTEM} = await import('@deck.gl/core');
+  const {Deck, OrthographicView} = await import('@deck.gl/core');
   const {LineLayer, TextLayer} = await import('@deck.gl/layers');
   const rootElement = createRoot(container);
   rootElement.style.background =
@@ -330,7 +327,6 @@ async function mountGraphLayerDocsExample(container, highlight, mountProps = {})
 
   const layer = await createGraphDocsLayer({
     highlight,
-    COORDINATE_SYSTEM,
     LineLayer,
     TextLayer
   });
@@ -356,7 +352,7 @@ async function mountGraphLayerDocsExample(container, highlight, mountProps = {})
   };
 }
 
-async function createGraphDocsLayer({highlight, COORDINATE_SYSTEM, LineLayer, TextLayer}) {
+async function createGraphDocsLayer({highlight, LineLayer, TextLayer}) {
   switch (highlight) {
     case 'graph-layer': {
       const {GraphLayer, SimpleLayout} = await import('@deck.gl-community/graph-layers');
@@ -397,13 +393,13 @@ async function createGraphDocsLayer({highlight, COORDINATE_SYSTEM, LineLayer, Te
           getLineWidth: 2,
           getRadius: (node) => node.radius
         }),
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+        coordinateSystem: 'cartesian'
       });
     }
     case 'rectangle-layer':
     case 'rounded-rectangle-layer':
     case 'path-rounded-rectangle-layer':
-      return createGraphDocsRectangleLayer({highlight, COORDINATE_SYSTEM});
+      return createGraphDocsRectangleLayer({highlight});
     case 'label-layer': {
       const {LabelLayer} = await import(
         '../../../../modules/graph-layers/src/layers/node-layers/label-layer'
@@ -421,7 +417,7 @@ async function createGraphDocsLayer({highlight, COORDINATE_SYSTEM, LineLayer, Te
           getAngle: 0,
           scaleWithZoom: false
         }),
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+        coordinateSystem: 'cartesian'
       });
     }
     case 'zoomable-text-layer': {
@@ -440,13 +436,13 @@ async function createGraphDocsLayer({highlight, COORDINATE_SYSTEM, LineLayer, Te
         getAngle: 0,
         scaleWithZoom: true,
         updateTriggers: {},
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+        coordinateSystem: 'cartesian'
       });
     }
     case 'marker-layer':
     case 'zoomable-marker-layer':
     case 'image-layer':
-      return createGraphDocsMarkerLayer({highlight, COORDINATE_SYSTEM});
+      return createGraphDocsMarkerLayer({highlight});
     case 'grid-layer': {
       const {GridLayer} = await import(
         '../../../../modules/graph-layers/src/layers/common-layers/grid-layer/grid-layer'
@@ -479,16 +475,16 @@ async function createGraphDocsLayer({highlight, COORDINATE_SYSTEM, LineLayer, Te
     case 'spline-layer':
     case 'edge-label-layer':
     case 'edge-arrow-layer':
-      return createGraphDocsEdgeLayer({highlight, COORDINATE_SYSTEM});
+      return createGraphDocsEdgeLayer({highlight});
     case 'flow-layer':
     case 'flow-path-layer':
-      return createStaticFlowDocsLayers({highlight, LineLayer, TextLayer, COORDINATE_SYSTEM});
+      return createStaticFlowDocsLayers({highlight, LineLayer, TextLayer});
     default:
-      return createStaticFlowDocsLayers({highlight, LineLayer, TextLayer, COORDINATE_SYSTEM});
+      return createStaticFlowDocsLayers({highlight, LineLayer, TextLayer});
   }
 }
 
-async function createGraphDocsRectangleLayer({highlight, COORDINATE_SYSTEM}) {
+async function createGraphDocsRectangleLayer({highlight}) {
   const module =
     highlight === 'rounded-rectangle-layer'
       ? await import(
@@ -515,11 +511,11 @@ async function createGraphDocsRectangleLayer({highlight, COORDINATE_SYSTEM}) {
       getLineWidth: 2,
       getCornerRadius: 12
     }),
-    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+    coordinateSystem: 'cartesian'
   });
 }
 
-async function createGraphDocsMarkerLayer({highlight, COORDINATE_SYSTEM}) {
+async function createGraphDocsMarkerLayer({highlight}) {
   const {AtlasDataURL} = await import(
     '../../../../modules/graph-layers/src/layers/common-layers/marker-layer/atlas-data-url'
   );
@@ -538,7 +534,7 @@ async function createGraphDocsMarkerLayer({highlight, COORDINATE_SYSTEM}) {
       getMarker: (node) => node.marker,
       getColor: (node) => node.color,
       getSize: 42,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+      coordinateSystem: 'cartesian'
     });
   }
 
@@ -561,7 +557,7 @@ async function createGraphDocsMarkerLayer({highlight, COORDINATE_SYSTEM}) {
           iconMapping: MarkerMapping
         }
       ),
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+      coordinateSystem: 'cartesian'
     });
   }
 
@@ -578,11 +574,11 @@ async function createGraphDocsMarkerLayer({highlight, COORDINATE_SYSTEM}) {
       getSize: 38,
       scaleWithZoom: true
     }),
-    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+    coordinateSystem: 'cartesian'
   });
 }
 
-async function createGraphDocsEdgeLayer({highlight, COORDINATE_SYSTEM}) {
+async function createGraphDocsEdgeLayer({highlight}) {
   if (highlight === 'edge-layer') {
     const {EdgeLayer} = await import('../../../../modules/graph-layers/src/layers/edge-layer');
     return new EdgeLayer({
@@ -593,7 +589,7 @@ async function createGraphDocsEdgeLayer({highlight, COORDINATE_SYSTEM}) {
         getColor: [30, 41, 59, 210],
         getWidth: 4
       }),
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+      coordinateSystem: 'cartesian'
     });
   }
 
@@ -607,7 +603,7 @@ async function createGraphDocsEdgeLayer({highlight, COORDINATE_SYSTEM}) {
       getLayoutInfo: getGraphEdgeLayoutInfo,
       getColor: [37, 99, 235, 230],
       getWidth: 5,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+      coordinateSystem: 'cartesian'
     });
   }
 
@@ -622,7 +618,7 @@ async function createGraphDocsEdgeLayer({highlight, COORDINATE_SYSTEM}) {
       getColor: [14, 116, 144, 230],
       getWidth: 6,
       widthUnits: 'pixels',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+      coordinateSystem: 'cartesian'
     });
   }
 
@@ -636,7 +632,7 @@ async function createGraphDocsEdgeLayer({highlight, COORDINATE_SYSTEM}) {
       getLayoutInfo: getGraphEdgeLayoutInfo,
       getColor: [124, 58, 237, 235],
       getWidth: 6,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+      coordinateSystem: 'cartesian'
     });
   }
 
@@ -652,7 +648,7 @@ async function createGraphDocsEdgeLayer({highlight, COORDINATE_SYSTEM}) {
       getControlPoints: (edge) => edge.controlPoints,
       getColor: [124, 58, 237, 235],
       getWidth: 6,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+      coordinateSystem: 'cartesian'
     });
   }
 
@@ -672,7 +668,7 @@ async function createGraphDocsEdgeLayer({highlight, COORDINATE_SYSTEM}) {
         getAlignmentBaseline: 'center',
         scaleWithZoom: false
       }),
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+      coordinateSystem: 'cartesian'
     });
   }
 
@@ -688,11 +684,11 @@ async function createGraphDocsEdgeLayer({highlight, COORDINATE_SYSTEM}) {
       getSize: 28,
       getOffset: [6, 0]
     }),
-    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+    coordinateSystem: 'cartesian'
   });
 }
 
-function createStaticFlowDocsLayers({highlight, LineLayer, TextLayer, COORDINATE_SYSTEM}) {
+function createStaticFlowDocsLayers({highlight, LineLayer, TextLayer}) {
   return [
     new LineLayer({
       id: `${highlight}-docs-flow-bands`,
@@ -702,7 +698,7 @@ function createStaticFlowDocsLayers({highlight, LineLayer, TextLayer, COORDINATE
       getColor: (segment) => segment.color,
       getWidth: (segment) => segment.width,
       widthUnits: 'pixels',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+      coordinateSystem: 'cartesian'
     }),
     new TextLayer({
       id: `${highlight}-docs-flow-label`,
@@ -715,7 +711,7 @@ function createStaticFlowDocsLayers({highlight, LineLayer, TextLayer, COORDINATE
       getColor: [15, 23, 42, 230],
       getTextAnchor: 'middle',
       getAlignmentBaseline: 'center',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+      coordinateSystem: 'cartesian'
     })
   ];
 }

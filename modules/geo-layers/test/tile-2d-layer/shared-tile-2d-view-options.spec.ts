@@ -4,7 +4,7 @@
 
 import {describe, expect, it} from 'vitest';
 import {WebMercatorViewport} from '@deck.gl/core';
-import type {TileSource} from '@loaders.gl/loader-utils';
+import type {TileSource} from '@loaders.gl/core/loader-utils';
 import {SharedTileset2D} from '../../src';
 import {SharedTile2DView} from '../../src/shared-tile-2d-layer/shared-tile-2d-view';
 

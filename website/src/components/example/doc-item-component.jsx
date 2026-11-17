@@ -1,5 +1,6 @@
 import React from 'react';
 import useBaseUrl from '@docusaurus/useBaseUrl';
+import FullscreenExample from './fullscreen-example';
 import styles from './doc-item-component.module.css';
 
 /** Passed to @docusaurus/plugin-content-docs to render the mdx content */
@@ -16,8 +17,8 @@ export default function DocItem({content, route}) {
   }
 
   return (
-    <div className={styles.demoContainer} key="demo">
+    <FullscreenExample className={styles.demoContainer} key={route.path}>
       <MDXComponent />
-    </div>
+    </FullscreenExample>
   );
 }

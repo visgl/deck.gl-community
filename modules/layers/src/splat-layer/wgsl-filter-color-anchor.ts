@@ -2,11 +2,21 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {ShaderPlugin} from '@luma.gl/shaders';
+
 /**
- * deck.gl 9.4 has no WGSL shader hooks. A layer accepts vertex color filters on WebGPU by placing
- * this line in its vertex entry point where `vertexColor` (a mutable `vec4<f32>`) and
- * `instanceIndex` (`u32`) are in scope; filters inject code after it. The splat canopy and tree
- * mesh layers expose it for `SelectionPulseExtension` in `@deck.gl-community/extensions`, which
- * matches this literal.
+ * Named vertex hook shared by splat and tree mesh shaders. `SelectionPulseExtension` in
+ * `@deck.gl-community/extensions` injects into it and matches this literal.
  */
-export const WGSL_FILTER_COLOR_ANCHOR = '// DECKGL_FILTER_COLOR(vertexColor, instanceIndex)';
+export const WGSL_FILTER_COLOR_ANCHOR =
+  'DECKGL_FILTER_INSTANCE_COLOR(&vertexColor, instanceIndex);';
+export const INSTANCE_COLOR_PLUGIN: ShaderPlugin = {
+  name: 'instance-color',
+  injectionTargets: [
+    {
+      name: 'DECKGL_FILTER_INSTANCE_COLOR',
+      stage: 'vertex',
+      wgsl: {parameters: 'color: ptr<function, vec4<f32>>, instanceIndex: u32'}
+    }
+  ]
+};

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Layer, project32} from '@deck.gl/core';
+import {Layer, project32} from '@deck.gl/core';
 import type {DefaultProps, LayerProps, UpdateParameters} from '@deck.gl/core';
 import {Geometry, Model} from '@luma.gl/engine';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 import {
   getFrameCapacity,
   getFrameHistoryBytes,
@@ -89,7 +89,7 @@ export type VolumetricVideoLayerProps = VideoProps & LayerProps;
 const defaultProps: DefaultProps<VolumetricVideoLayerProps> = {
   video: {type: 'object', value: null, compare: false},
   parameters: {depthWriteEnabled: false, depthCompare: 'less-equal'},
-  coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+  coordinateSystem: 'cartesian',
   currentFrame: {type: 'number', value: 0, min: 0},
   frameTrail: {type: 'number', value: 24, min: 0},
   maxFrameTrail: {
@@ -424,7 +424,7 @@ export class VolumetricVideoLayer<
   private supportsRaster(): boolean {
     return (
       this.props.renderMode === 'auto' &&
-      this.props.coordinateSystem === COORDINATE_SYSTEM.CARTESIAN &&
+      this.props.coordinateSystem === 'cartesian' &&
       this.props.splatSize < 2 &&
       !this.props.extensions.length
     );

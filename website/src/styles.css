@@ -296,9 +296,16 @@ html[data-theme='dark']:not(#community-theme):not(#community-theme):not(#communi
   --ifm-background-color: #120e1c;
 }
 .navbar:not(#community-theme):not(#community-theme):not(#community-theme) {
-  backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--docs-border-subtle);
   box-shadow: none;
+}
+
+/* A backdrop filter makes the navbar the containing block for its fixed mobile
+   drawer and backdrop, confining them to the navbar height instead of the viewport. */
+@media (min-width: 997px) {
+  .navbar:not(#community-theme):not(#community-theme):not(#community-theme) {
+    backdrop-filter: blur(18px);
+  }
 }
 .navbar__title:not(#community-theme):not(#community-theme):not(#community-theme) { font-family: var(--ifm-heading-font-family); letter-spacing: -0.035em; }
 .community-label:not(#community-theme):not(#community-theme):not(#community-theme) {

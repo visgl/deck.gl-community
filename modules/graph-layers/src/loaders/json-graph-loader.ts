@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {LoaderOptions, LoaderWithParser} from '@loaders.gl/loader-utils';
+import type {LoaderOptions, LoaderWithParser} from '@loaders.gl/core/loader-utils';
 
 import type {PlainGraphData} from '../graph-data/graph-data';
 // import {PlainGraphDataBuilder} from '../graph-data/plain-graph-data-builder';

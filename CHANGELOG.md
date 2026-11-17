@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## v10.0.0-alpha.1
+
+- **Breaking:** Require deck.gl `10.0.0-alpha.1` and luma.gl `10.0.0-alpha.14`.
+  Update loaders.gl and math.gl to `5.0.0-beta.8` and probe.gl to `5.0.0` (#1079).
+- Migrate to string coordinate systems, consolidated loader packages, and shader
+  plugins. See the [upgrade guide](docs/upgrade-guide.md#v1000-alpha1).
+- Temporarily skip the unreleased WebGPU terrain height-map integration check.
+  FlameTrailLayer WebGPU tests continue to run against the published SDK.
+
+## v9.4.10
+
+- Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
+
+## v9.4.9
+
 - **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
   independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
   aliases; migrate visibility to `open` / `onOpenChange`. Content stays mounted across modes.
@@ -14,6 +29,7 @@
 - Simplify standalone panel setup with initial components and automatic resize handling; expose accordion state and initial tab selection on panel classes. Refresh panel guides and references, and defer the Monaco runtime bridge until editor content mounts.
 
 - Use current panel containers, React/HTML content bridges, and shared sleek-dark styling throughout community examples and inline demos. Add an optional Playground theme for sidebar, editor, and picker styling.
+- Render `SplatLayer` and `TreeLayer` on `GlobeView`, including MapLibre's globe through `MapLibreOverlay`, instead of throwing. Gaussians, wood and crops keep an east-north-up pose at each owner across the zoom-12 switch to Web Mercator, and the globe hides its far side (#985).
 
 ## v9.4.8
 

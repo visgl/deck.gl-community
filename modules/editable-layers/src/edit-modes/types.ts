@@ -33,6 +33,8 @@ export type Viewport = {
   zoom: number;
   bearing?: number;
   pitch?: number;
+  /** Meter offset of the camera target, as in deck.gl viewState; `position[2]` lifts it. */
+  position?: number[];
 };
 
 export type BasePointerEvent = {

@@ -1,13 +1,22 @@
-import {Map as MaplibreMap} from 'maplibre-gl';
+import {Map as MaplibreMap, setWorkerUrl} from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import {INITIAL_VIEW_STATE} from './constants';
 
+// MapLibre v6 cannot locate its worker inside a bundle. Vite's `?worker&url` emits a bundled,
+// same-origin worker; see https://maplibre.org/maplibre-gl-js/docs/#esm.
+setWorkerUrl(workerUrl);
+
 /**
- * Connect deck.gl to a Maplibre map instance for interleaved rendering
+ * Creates the Maplibre map in `container`. deck.gl attaches to it through the `map` prop of
+ * `DeckGL`, so the map is created once and outlives any overlay the root recreates.
  */
-export function connect(deckgl: unknown) {
-  const map = new MaplibreMap({
+export function createMap(container: HTMLElement): MaplibreMap {
+  return new MaplibreMap({
+    canvasContextAttributes: {antialias: true},
     center: [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
-    container: 'maplibre',
+    container,
+    pixelRatio: window.devicePixelRatio,
     style: {
       layers: [
         {
@@ -31,13 +40,4 @@ export function connect(deckgl: unknown) {
     },
     zoom: INITIAL_VIEW_STATE.zoom
   });
-
-  map.once('load', () => {
-    map.addControl(deckgl as Parameters<MaplibreMap['addControl']>[0]);
-  });
-
-  return () => {
-    map.removeControl(deckgl as Parameters<MaplibreMap['removeControl']>[0]);
-    map.remove();
-  };
 }

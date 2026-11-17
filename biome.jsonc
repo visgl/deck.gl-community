@@ -9,7 +9,6 @@
       "!**/.cache/**",
       "!**/public/**",
       "!modules/arrow-layers/**",
-      "!modules/basemaps/**",
       "modules/**/*.js",
       "modules/**/*.jsx",
       "modules/**/*.ts",
@@ -25,7 +24,8 @@
       "examples/**/*.js",
       "examples/**/*.jsx",
       "examples/**/*.ts",
-      "examples/**/*.tsx"
+      "examples/**/*.tsx",
+      "!**/routeTree.gen.ts"
     ]
   },
   "formatter": {

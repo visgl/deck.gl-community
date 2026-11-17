@@ -3,7 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import {
-  COORDINATE_SYSTEM,
   Deck,
   OrthographicView,
   type Color,
@@ -111,7 +110,7 @@ function createLayers(highlight: InfovisLayerHighlight) {
   const blockLayer = new BlockLayer<TraceBlock>({
     id: `${highlight}-example-blocks`,
     data: TRACE_BLOCKS,
-    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     sizeUnits: 'common',
     lineWidthUnits: 'pixels',
     getPosition: datum => datum.position,
@@ -123,7 +122,7 @@ function createLayers(highlight: InfovisLayerHighlight) {
   const labelLayer = new FastTextLayer<TraceBlock>({
     id: `${highlight}-example-labels`,
     data: TRACE_BLOCKS,
-    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+    coordinateSystem: 'cartesian',
     getPosition: datum => [datum.position[0] + datum.size[0] / 2, datum.position[1] + 27],
     getText: datum => datum.label,
     size: 17,
@@ -162,7 +161,7 @@ function createTimeDeltaLayers() {
     new LineLayer({
       id: 'time-delta-example-range',
       data: [{sourcePosition: [-240, 28], targetPosition: [240, 28]}],
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       getSourcePosition: datum => datum.sourcePosition,
       getTargetPosition: datum => datum.targetPosition,
       getColor: [99, 102, 241, 160],
@@ -170,7 +169,7 @@ function createTimeDeltaLayers() {
     }),
     new TimeDeltaLayer({
       id: 'time-delta-example-header',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       header: true,
       startTimeMs: -160,
       endTimeMs: 160,
@@ -179,7 +178,7 @@ function createTimeDeltaLayers() {
     }),
     new TimeDeltaLayer({
       id: 'time-delta-example-guides',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       header: false,
       startTimeMs: -160,
       endTimeMs: 160,
@@ -193,7 +192,7 @@ function createTimeDeltaLayers() {
         {position: [-160, 54], label: 'selection start'},
         {position: [160, 54], label: 'selection end'}
       ],
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       getPosition: datum => datum.position,
       getText: datum => datum.label,
       size: 15,

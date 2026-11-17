@@ -1,63 +1,76 @@
 # @deck.gl-community/react-fiber
 
-![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+![From v10.0](https://img.shields.io/badge/from-v10.0-green.svg?style=flat-square)
 
 `@deck.gl-community/react-fiber` is a client-side React 19 renderer for deck.gl. It lets an application describe deck.gl layers and views in a React tree while keeping deck.gl's normal descriptor objects and ID-based diffing model.
 
-The package has two deliberately different public surfaces:
+The package has four public surfaces:
 
 | Use case | Import | What it provides |
 | --- | --- | --- |
-| New applications and renderer-level control | `@deck.gl-community/react-fiber` | The native `DeckGL` root plus the `<layer>` and `<view>` elements. |
-| A gradual move from `@deck.gl/react` | `@deck.gl-community/react-fiber/compat` | A bounded `DeckGL` adapter and a supported set of JSX layer and view wrappers. |
+| Applications | `@deck.gl-community/react-fiber` | The `DeckGL` root. |
+| Built-in deck.gl classes | `/core`, `/layers`, `/geo-layers`, `/aggregation-layers`, `/mesh-layers`, `/widgets` | A component for each view, layer, widget and effect shipped natively in deck.gl. |
+| Custom classes | `@deck.gl-community/react-fiber` | The factories for custom classes, and the `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>` elements. Used by apps and libraries that write their own classes. |
 | Direct reconciler integration | `@deck.gl-community/react-fiber/reconciler` | Advanced root-management APIs. Most applications should use the native root instead. |
 
 ## Client-only renderer
 
-The native root creates a canvas-backed deck.gl renderer. In an application that uses React Server Components, put `'use client'` at the beginning of the module that imports and renders `DeckGL`, or import it from an existing client-marked module. This React directive marks that module and its transitive dependencies as client code; Next.js is one framework that supports it. In a traditional SSR application without React Server Components, create the map or overlay after hydration in an effect.
+The native root creates a canvas-backed deck.gl renderer. In an application that uses React Server Components, put `'use client'` at the beginning of the module that imports and renders `DeckGL`, or import it from an existing client-marked module. This React directive marks that module and its transitive dependencies as client code; Next.js is one framework that supports it. In a traditional SSR application without React Server Components, create the map or overlay after hydration in an effect. Server rendering a `DeckGL` root does not require `ssr: false`: the standalone root renders its wrapper and canvas markup, provider roots render no markup, and deck.gl or the overlay is created only after hydration.
 
-## How the native API works
+## How it works
 
-`DeckGL` owns one `Deck` instance for standalone rendering, or one `MapboxOverlay` when `interleaved` is present. Its children use two intrinsic React elements:
-
-- `<layer>` receives a constructed deck.gl `Layer` instance.
-- `<view>` receives a constructed deck.gl `View` instance.
-
-The renderer flattens the committed React tree into deck.gl's `layers` and `views` arrays. React components may be nested for application composition, but nesting a `<layer>` inside a `<view>` does not assign that layer to that view. Keep view-specific behavior in normal deck.gl configuration such as a layer filter, and give every layer and view a stable, explicit `id`.
+Import the root, then import a component for each deck.gl class from the subpath named after its
+deck.gl module. The JSX looks like deck.gl's own constructors:
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';
-import {MapView} from '@deck.gl/core';
-import {ScatterplotLayer} from '@deck.gl/layers';
+import {MapView} from '@deck.gl-community/react-fiber/core';
+import {ScatterplotLayer} from '@deck.gl-community/react-fiber/layers';
 
-export function Map({data}: {data: Array<{coordinates: [number, number]}>) {
+type Point = {coordinates: [number, number]};
+
+export function Map({data}: {data: Point[]}) {
   return (
     <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}} controller>
-      <view view={new MapView({id: 'map'})} />
-      <layer
-        layer={
-          new ScatterplotLayer({
-            id: 'points',
-            data,
-            getPosition: point => point.coordinates,
-            getRadius: 100
-          })
-        }
-      />
+      <MapView id="map" />
+      <ScatterplotLayer id="points" data={data} getPosition={d => d.coordinates} getRadius={100} />
     </DeckGL>
   );
 }
 ```
 
+Each component builds a new instance from its props on every render, and deck.gl matches it with
+the previous one by `id`. Props are type-checked against the class, and layer components infer
+their data type from `data`. Components can sit at any depth inside your own components, which can
+use hooks and context.
+
+Every component renders one of four elements: `<deckLayer>`, `<deckView>`, `<deckWidget>` or
+`<deckEffect>`.
+
+You would use these when working directly with instances or when authoring your own classes.
+
+For your own classes you may also create JSX components with `createLayerComponent` and its view, widget and effect
+counterparts, with no registration.
+
+See [Components](./api-reference/components.md)
+and [Native elements](./api-reference/native-elements.md).
+
+The renderer flattens the committed tree into deck.gl's `layers`, `views`, `widgets` and `effects`
+arrays. Nesting a layer inside a view does not assign the layer to that view: use a layer filter
+for view-specific layers, and give every layer and view a stable, explicit `id`. The root
+`DeckGL` owns one standalone `Deck`; import `/mapbox`, `/maplibre` or `/google-maps` for a map overlay.
+
 ## Installation
 
-Install React 19 or later, the package, and the deck.gl packages that your application uses. This example installs the packages needed for the native scatterplot example:
+Install React 19 or later, the package, and the deck.gl packages that your application uses. This example installs the packages for the scatterplot example above:
 
 ```bash
-npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers @deck.gl/mapbox
+npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers
 ```
 
-The package is built against the deck.gl 9.4 package family. It has non-optional deck.gl, loaders.gl, and luma.gl peer dependencies, including `@deck.gl/mapbox`, because the renderer imports `MapboxOverlay` for its root implementation. Let your package manager satisfy that peer-dependency contract and install the matching deck.gl layer package before importing a compatibility wrapper from that layer family.
+The package is built against the deck.gl 10 prerelease packages, `10.0.0-alpha.1`. Every deck.gl package except `@deck.gl/core` is an optional peer: install `@deck.gl/mapbox`, `@deck.gl/maplibre` or `@deck.gl/google-maps` for its root, and the layer or widget package behind each component subpath you import. The plain root imports none of them.
+
+TypeScript users need TypeScript 5.3 or later.
 
 ## Standalone layout
 
@@ -65,8 +78,11 @@ Without `canvas`, a standalone root renders an unstyled wrapper and canvas. Give
 
 ## Guides and API reference
 
-- [Get started](./developer-guide/get-started.md) explains the native root, client boundaries, layers, views, and instance access.
-- [Migrate from `@deck.gl/react`](./developer-guide/migrate-from-deckgl-react.md) lists the supported compatibility wrappers and their limits.
+- [Get started](./developer-guide/get-started.md) explains the root, client boundaries, layer and view components, and instance access.
+- [Using with maps](./developer-guide/using-with-maps.md) explains provider roots and links the [Mapbox](./developer-guide/base-maps/using-with-mapbox.md) and [MapLibre](./developer-guide/base-maps/using-with-maplibre.md) and [Google Maps](./developer-guide/base-maps/using-with-google-maps.md) guides.
+- [Upgrade guide](./developer-guide/migrate-from-deckgl-react.md) lists the changes to make when coming from `@deck.gl/react`.
+- [Debugging](./developer-guide/debugging.md) explains how to trace a problem through the renderer, with logs, React DevTools and error boundaries.
 - [DeckGL API](./api-reference/deckgl.md) documents root ownership and lifecycle behavior.
-- [Native elements](./api-reference/native-elements.md) documents `<layer>` and `<view>`.
+- [Components](./api-reference/components.md) lists the component subpaths and the factories for custom classes.
+- [Native elements](./api-reference/native-elements.md) documents `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`.
 - [React Fiber examples](/examples/react-fiber/overview) link to the maintained Vite, Next.js, React Router, and TanStack Start applications.

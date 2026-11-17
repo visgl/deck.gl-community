@@ -100,6 +100,7 @@ export abstract class DockedPanelContainer<
               {this.renderPinControl()}
             </header>
           ) : null}
+          {this.renderHeaderPanel()}
           <div className="deck-panel-chrome-content" hidden={!this.isContentOpen}>
             {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
           </div>
@@ -232,6 +233,11 @@ export abstract class DockedPanelContainer<
 
   protected get isContentOpen(): boolean {
     return true;
+  }
+
+  /** Optional persistent controls outside the collapsible body. */
+  protected renderHeaderPanel(): ComponentChildren {
+    return null;
   }
 
   protected renderHeaderTitle() {

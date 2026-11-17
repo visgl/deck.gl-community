@@ -1,0 +1,5 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><title>Panels fullscreen regression</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>body{margin:0;min-height:2400px}#clip{transform:translateX(0);overflow:hidden;width:320px;height:220px;margin:500px auto 0}#target{position:relative;width:100%;height:100%;background:#123;color:white}canvas{width:100%;height:100%}input{position:absolute;left:8px;top:8px}</style></head>
+<body><div id="clip"><div id="target" aria-label="Example visualization" role="region"><canvas></canvas><input aria-label="Example value" value="initial" /><div id="control"></div></div></div><script type="module" src="./main.ts"></script></body></html>

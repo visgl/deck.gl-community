@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {TextureCubeManifest, TextureCubeLoaderOptions} from '@loaders.gl/textures';
+import type {TextureCubeManifest, TextureCubeLoaderOptions} from '@loaders.gl/images';
 import type {TextureCubeData, TextureCubeFace} from '@luma.gl/engine';
 
 const CUBE_FACES: TextureCubeFace[] = ['+X', '-X', '+Y', '-Y', '+Z', '-Z'];

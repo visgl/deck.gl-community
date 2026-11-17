@@ -2,7 +2,7 @@
 import {render} from 'preact';
 import {useState} from 'preact/hooks';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {Stats} from '@probe.gl/stats';
+import {Stats} from 'probe.gl/stats';
 import {Panel, type PanelProps} from './panel';
 import {mountPanel} from './mount-panel';
 import {PanelManager} from './panel-manager';

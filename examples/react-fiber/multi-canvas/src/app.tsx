@@ -1,7 +1,7 @@
 import {Deck, MapView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {ZoomWidget} from '@deck.gl/widgets';
-import {BasemapLayer} from '@deck.gl-community/basemap-layers';
+import {createRasterBasemap} from '../../../utils/raster-basemap';
 import {DeckCanvas} from '@deck.gl-community/react-fiber';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {CITY_PANELS} from './cities';
@@ -30,7 +30,7 @@ function CityCanvas({
   );
   const layers = useMemo(
     () => [
-      new BasemapLayer({id: `${city.id}-basemap`, style: city.mapStyle}),
+      createRasterBasemap(`${city.id}-basemap`),
       new ScatterplotLayer<Landmark>({
         id: `${city.id}-landmarks`,
         data: city.landmarks,
@@ -77,15 +77,15 @@ export function App() {
   const [hoveredLandmark, setHoveredLandmark] = useState<Landmark | null>(null);
   const [showSydney, setShowSydney] = useState(true);
   useEffect(() => {
-    const instance = new Deck({
+    const deckInstance = new Deck({
       parent: mapGrid.current!,
       _canvases: [],
       views: [],
       initialViewState: INITIAL_VIEW_STATE,
       getTooltip: ({object}) => (object ? `${object.name}\n${CITY_TITLES[object.cityId]}` : null)
     });
-    setDeck(instance);
-    return () => instance.finalize();
+    setDeck(deckInstance);
+    return () => deckInstance.finalize();
   }, []);
 
   return (
@@ -131,7 +131,9 @@ export function App() {
         <a href="https://github.com/visgl/deck.gl/pull/10492">
           deck.gl's multi-canvas cities example
         </a>
-        . <a href="https://github.com/visgl/deck.gl/issues/10392">DeckCanvas RFC</a>
+        . Raster tiles © <a href="https://carto.com/attributions">CARTO</a>, ©{' '}
+        <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>.{' '}
+        <a href="https://github.com/visgl/deck.gl/issues/10392">DeckCanvas RFC</a>
       </footer>
     </main>
   );

@@ -1,9 +1,9 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import type {ReactNode} from 'react';
-import {DeckGL} from '@deck.gl-community/react-fiber';
-import type {DeckglInstance} from '@deck.gl-community/react-fiber';
+import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
+import type {Map as MaplibreMap} from 'maplibre-gl';
 import {PARAMETERS} from './constants';
-import {connect} from './maplibre';
+import {createMap} from './maplibre';
 import {useSelected} from '@/hooks/use-selected';
 
 interface MapClientProps {
@@ -14,7 +14,8 @@ interface MapClientProps {
  * Map component with deck.gl + Maplibre integration
  */
 export function MapClient({children}: MapClientProps) {
-  const [deckglInstance, setDeckglInstance] = useState<DeckglInstance | null>(null);
+  const container = useRef<HTMLDivElement>(null);
+  const [map, setMap] = useState<MaplibreMap | null>(null);
   const [, setSelected] = useSelected();
 
   const handleClick = (pickInfo: {picked?: boolean}) => {
@@ -23,21 +24,22 @@ export function MapClient({children}: MapClientProps) {
     }
   };
 
+  // Create the map once. `DeckGL` attaches its overlay to it, and re-attaches a recreated one.
   useEffect(() => {
-    if (deckglInstance) {
-      const cleanup = connect(deckglInstance);
-      return cleanup;
+    if (!container.current) {
+      return;
     }
-  }, [deckglInstance]);
+    const instance = createMap(container.current);
+    setMap(instance);
+    return () => {
+      setMap(null);
+      instance.remove();
+    };
+  }, []);
 
   return (
-    <div id="maplibre" style={{inset: 0, position: 'absolute'}}>
-      <DeckGL
-        interleaved
-        parameters={PARAMETERS}
-        onClick={handleClick}
-        onDeckglChange={setDeckglInstance}
-      >
+    <div id="maplibre" ref={container} style={{inset: 0, position: 'absolute'}}>
+      <DeckGL interleaved parameters={PARAMETERS} onClick={handleClick} map={map}>
         {children}
       </DeckGL>
     </div>

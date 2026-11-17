@@ -12,7 +12,7 @@ import type {Device, Framebuffer, Texture, Parameters, Sampler, RenderPass} from
 import {ClipSpace, type Model} from '@luma.gl/engine';
 import {SplatSortedRenderer} from './splat-sorted-renderer';
 import type {SplatPrimitiveLayer} from './splat-primitive-layer';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 
 const isSplat = (layer: Layer) =>
   (layer.constructor as {layerName?: string}).layerName === 'SplatPrimitiveLayer';

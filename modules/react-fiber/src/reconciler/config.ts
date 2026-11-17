@@ -1,7 +1,6 @@
-import type {Layer, LayersList, View} from '@deck.gl/core';
-import {log} from '../shared/index';
-import {globalScope} from '../shared/constants';
-import {MapboxOverlay} from '@deck.gl/mapbox';
+import type {Layer, View} from '@deck.gl/core';
+import {assert, log} from '@deck.gl/core';
+import {RENDERER_PACKAGE_NAME, RENDERER_VERSION, globalScope} from '../shared/constants';
 import {createContext} from 'react';
 import type {Fiber, ReactContext} from 'react-reconciler';
 import {
@@ -22,7 +21,15 @@ import type {
   Type,
   UpdatePayload
 } from './types';
-import {flattenTree, isView, organizeList} from './utils';
+import {
+  combineRootDescriptors,
+  flattenTree,
+  isLayer,
+  isView,
+  isEffect,
+  isWidget,
+  organizeList
+} from './utils';
 
 type EventPriority = number;
 
@@ -95,6 +102,13 @@ export const supportsMicrotasks = true;
  */
 export const isPrimaryRenderer = false;
 
+/** The renderer name and version that React DevTools reads when the renderer registers. */
+export const rendererPackageName = RENDERER_PACKAGE_NAME;
+export const rendererVersion = RENDERER_VERSION;
+
+/** No custom inspection config for React DevTools. */
+export const extraDevToolsConfig = null;
+
 /**
  * You can proxy this to `setTimeout` or its equivalent in your environment.
  */
@@ -110,80 +124,62 @@ export const cancelTimeout = clearTimeout;
  */
 export const scheduleMicrotask = queueMicrotask;
 
+/** Names a value for an error message: its class name, or `undefined` / `null`. */
+function describeValue(value: unknown): string {
+  return (value as object | null | undefined)?.constructor?.name ?? String(value);
+}
+
+/** Warns, outside production builds, when a layer or view keeps a default id. */
+function warnIfDefaultId(descriptor: Layer | View): void {
+  if (process.env.NODE_ENV !== 'production' && (!descriptor.id || descriptor.id === 'unknown')) {
+    log.warn(`${descriptor.constructor.name} needs a stable id`)();
+  }
+}
+
 /**
  * Creates the supported native deck.gl elements.
  *
- * The reconciler accepts only pre-instantiated descriptors through `<layer>`
- * and `<view>`, so JavaScript callers receive the same runtime contract as
- * TypeScript callers.
+ * The reconciler accepts only pre-instantiated descriptors through `<deckLayer>`,
+ * `<deckView>`, `<deckWidget>` and `<deckEffect>`, each of its own kind, so JavaScript
+ * callers receive the same runtime contract as TypeScript callers. A wrong or missing
+ * descriptor throws in every build.
  */
-function createDeckglObject(type: Type, props: Props): Instance {
-  if (type === 'view') {
-    if (!props.view) {
-      throw new Error("<view> element requires a 'view' prop");
+function createDeckGLObject(type: Type, props: Props): Instance {
+  if (type === 'deckView') {
+    const view = props.view;
+    if (!isView(view)) {
+      throw new Error(`<deckView> needs a View, got ${describeValue(view)}`);
     }
-
-    // Development-mode warning for missing or default view ID
-    if (process.env.NODE_ENV === 'development') {
-      const view = props.view as View;
-
-      if (!view.id || view.id === 'unknown') {
-        const viewName = view.constructor.name;
-
-        console.warn(
-          `⚠️  View missing explicit "id" prop. deck.gl requires stable IDs ` +
-            `for efficient diffing.\n\n` +
-            `Add a stable ID:\n` +
-            `<view view={new ${viewName}({ id: "my-view", ... })} />\n`
-        );
-      }
-    }
-
-    return {
-      children: [],
-      node: props.view as View
-    };
+    warnIfDefaultId(view);
+    return {children: [], node: view};
   }
 
-  if (type === 'layer') {
-    if (!props.layer) {
-      throw new Error("<layer> element requires a 'layer' prop");
+  if (type === 'deckLayer') {
+    const layer = props.layer;
+    if (!isLayer(layer)) {
+      throw new Error(`<deckLayer> needs a Layer, got ${describeValue(layer)}`);
     }
-
-    // Development-mode warning for missing or default layer ID
-    if (process.env.NODE_ENV === 'development') {
-      const layer = props.layer as Layer;
-
-      if (!layer.id || layer.id === 'unknown') {
-        const layerName = layer.constructor.name;
-
-        console.warn(
-          `⚠️  Layer missing explicit "id" prop. This causes expensive ` +
-            `reinitialization on every render.\n\n` +
-            `Add a stable ID:\n` +
-            `<layer layer={new ${layerName}({ id: "my-layer", ... })} />\n`
-        );
-      }
-
-      // Development-mode error if View passed to <layer>
-      if (isView(props.layer as Layer | View)) {
-        console.error(
-          `❌  View instance passed to <layer> element. Use <view view={...} /> instead.\n\n` +
-            `Change:\n` +
-            `<layer layer={new ${layer.constructor.name}(...)} />\n\n` +
-            `To:\n` +
-            `<view view={new ${layer.constructor.name}(...)} />\n`
-        );
-      }
-    }
-
-    return {
-      children: [],
-      node: props.layer as Layer
-    };
+    warnIfDefaultId(layer);
+    return {children: [], node: layer};
   }
 
-  throw new Error(`Unsupported element type: "${type}". Only <layer> and <view> are supported.`);
+  if (type === 'deckWidget') {
+    const widget = props.widget;
+    if (!isWidget(widget)) {
+      throw new Error(`<deckWidget> needs a Widget, got ${describeValue(widget)}`);
+    }
+    return {children: [], node: widget};
+  }
+
+  if (type === 'deckEffect') {
+    const effect = props.effect;
+    if (!isEffect(effect)) {
+      throw new Error(`<deckEffect> needs a deck.gl effect, got ${describeValue(effect)}`);
+    }
+    return {children: [], node: effect};
+  }
+
+  throw new Error(`Unsupported element <${type}>`);
 }
 
 /**
@@ -209,9 +205,9 @@ function createDeckglObject(type: Type, props: Props): Instance {
  * We don't need `commitMount` because Deck.gl layers don't have initialization side effects
  * that depend on being in the tree. They're just data descriptors.
  *
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param props - Initial props for the instance
- * @param rootContainerInfo - Root container with Zustand store
+ * @param rootContainerInfo - Root container with its root store
  * @param hostContext - Context from parent (tracks View nesting, provides store access)
  * @param fiber - React Fiber node for debugging/error messages
  * @returns Instance wrapper with Deck.gl node and empty children array
@@ -219,11 +215,11 @@ function createDeckglObject(type: Type, props: Props): Instance {
  * @example
  * ```tsx
  * // React calls this when rendering:
- * <layer layer={new ScatterplotLayer({ id: "points", data: [...] })} />
+ * <deckLayer layer={new ScatterplotLayer({ id: "points", data: [...] })} />
  *
  * // Results in:
  * const instance = createInstance(
- *   "layer",
+ *   "deckLayer",
  *   { layer: ScatterplotLayer {...} },
  *   rootContainer,
  *   hostContext,
@@ -243,9 +239,7 @@ export function createInstance(
   hostContext: HostContext,
   fiber: Fiber
 ): Instance {
-  log.withMetadata({fiber, hostContext, props, rootContainerInfo, type}).debug('createInstance');
-
-  return createDeckglObject(type, props);
+  return createDeckGLObject(type, props);
 }
 
 /**
@@ -273,18 +267,16 @@ export function createInstance(
  * @example
  * ```typescript
  * // ❌ This will throw an error in Deck.gl renderer:
- * // <layer>Some text</layer>
+ * // <deckLayer>Some text</deckLayer>
  *
  * // ✅ Instead, use TextLayer for labels:
- * // <layer layer={new TextLayer({ id: 'labels', data: [...] })} />
+ * // <deckLayer layer={new TextLayer({ id: 'labels', data: [...] })} />
  * ```
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberCompleteWork.js Text Node Creation}
  * @see {@link https://deck.gl/docs/api-reference/layers/text-layer TextLayer for rendering text in Deck.gl}
  */
 export function createTextInstance() {
-  log.debug('createTextInstance');
-
   throw new Error('Text nodes are not supported');
 }
 
@@ -325,14 +317,14 @@ export function createTextInstance() {
  * @example
  * ```tsx
  * // Component updates from:
- * <layer layer={new ScatterplotLayer({ id: "p", getRadius: 5 })} />
+ * <deckLayer layer={new ScatterplotLayer({ id: "p", getRadius: 5 })} />
  * // To:
- * <layer layer={new ScatterplotLayer({ id: "p", getRadius: 10 })} />
+ * <deckLayer layer={new ScatterplotLayer({ id: "p", getRadius: 10 })} />
  *
  * // React calls:
  * const cloned = cloneInstance(
  *   oldInstance,
- *   "layer",
+ *   "deckLayer",
  *   { layer: ScatterplotLayer {getRadius: 5} },
  *   { layer: ScatterplotLayer {getRadius: 10} },
  *   true, // children unchanged
@@ -353,23 +345,12 @@ export function cloneInstance(
   keepChildren: boolean,
   recyclableInstance: Instance | null | undefined
 ): Instance | undefined {
-  log
-    .withMetadata({
-      instance,
-      keepChildren,
-      newProps,
-      oldProps,
-      recyclableInstance,
-      type
-    })
-    .debug('cloneInstance');
-
   // If instance is undefined, we can't clone it
   if (!instance) {
     return undefined;
   }
 
-  const cloned = createDeckglObject(type, newProps);
+  const cloned = createDeckGLObject(type, newProps);
 
   // Handle children based on keepChildren flag
   // If we're not keeping children and there's a recyclable instance with children, use those
@@ -403,7 +384,7 @@ export function cloneInstance(
  * diffing handles visibility updates automatically when `unhideInstance` is called.
  *
  * @param instance - The instance to hide while Suspense is active
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param props - Current props for the instance
  * @returns Instance structure with same node and children (Deck.gl handles visibility internally)
  *
@@ -419,14 +400,6 @@ export function cloneInstance(
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-native-renderer/src/ReactFiberConfigFabric.js#L280 Reference Implementation}
  */
 export function cloneHiddenInstance(instance: Instance, type: Type, props: Props): Instance {
-  log
-    .withMetadata({
-      instance,
-      props,
-      type
-    })
-    .debug('cloneHiddenInstance');
-
   return {
     children: instance.children,
     node: instance.node
@@ -447,9 +420,8 @@ export function cloneHiddenInstance(instance: Instance, type: Type, props: Props
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberCompleteWork.js Suspense Implementation}
  */
 export function cloneHiddenTextInstance(): void {
-  log.debug('cloneHiddenTextInstance');
-
-  throw new Error('Text nodes are not supported in deck.gl renderer');
+  // Unreachable: createTextInstance throws, so no text instance exists.
+  assert(false);
 }
 
 /**
@@ -477,13 +449,6 @@ export function cloneHiddenTextInstance(): void {
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-native-renderer/src/ReactFiberConfigFabric.js#L289 Reference Implementation}
  */
 export function unhideInstance(instance: Instance, props: Props): void {
-  log
-    .withMetadata({
-      instance,
-      props
-    })
-    .debug('unhideInstance');
-
   // No-op: deck.gl handles visibility through its `visible` prop
 }
 
@@ -501,9 +466,8 @@ export function unhideInstance(instance: Instance, props: Props): void {
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberCommitWork.js Commit Phase Implementation}
  */
 export function unhideTextInstance(): void {
-  log.debug('unhideTextInstance');
-
-  throw new Error('Text nodes are not supported in deck.gl renderer');
+  // Unreachable: createTextInstance throws, so no text instance exists.
+  assert(false);
 }
 
 /**
@@ -535,8 +499,6 @@ export function unhideTextInstance(): void {
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-native-renderer/src/ReactFiberConfigFabric.js#L237 React Native Fabric Reference}
  */
 export function createContainerChildSet(): ChildSet {
-  log.debug('createContainerChildSet');
-
   return [];
 }
 
@@ -566,13 +528,6 @@ export function createContainerChildSet(): ChildSet {
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-native-renderer/src/ReactFiberConfigFabric.js#L245 React Native Fabric Reference}
  */
 export function appendChildToContainerChildSet(childSet: ChildSet, child: Instance): void {
-  log
-    .withMetadata({
-      child,
-      childSet
-    })
-    .debug('appendChildToContainerChildSet');
-
   childSet.push(child);
 }
 
@@ -593,80 +548,18 @@ export function appendChildToContainerChildSet(childSet: ChildSet, child: Instan
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-native-renderer/src/ReactFiberConfigFabric.js React Native Fabric Implementation}
  */
 export function appendChildToSet(childSet: ChildSet, child: Instance): ChildSet {
-  log
-    .withMetadata({
-      child,
-      childSet
-    })
-    .debug('appendChildToSet');
-
   return [...childSet, child];
 }
 
 /**
  * Called after building the new container child set but before committing it.
  *
- * This is where we perform development-mode validation, including duplicate
- * layer ID detection. Runs before the tree is committed to the renderer,
- * making it safe to check for structural issues.
- *
- * In development mode, validates that no two layers share the same ID,
- * as duplicate IDs break Deck.gl's layer diffing algorithm.
- *
- * @param container - Root container being updated
- * @param newChildren - New child set that will replace current children
+ * No-op: deck.gl's LayerManager already warns when two layers share an id.
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/README.md#persistence-mode React Persistence Mode}
  */
-export function finalizeContainerChildren(container: Container, newChildren: ChildSet): void {
-  log
-    .withMetadata({
-      container,
-      newChildren
-    })
-    .debug('finalizeContainerChildren');
-
-  // Development-mode validation: detect duplicate layer IDs
-  if (process.env.NODE_ENV === 'development') {
-    // Pass 1: Flatten tree and count layer IDs in single traversal
-    const idCounts = new Map<string, number>();
-
-    // oxlint-disable-next-line no-inner-declarations
-    function countLayerIds(instances: Instance[]): void {
-      for (const instance of instances) {
-        // Check if node is a Layer (not a View)
-        if (!isView(instance.node)) {
-          const layer = instance.node;
-          if (layer.id) {
-            idCounts.set(layer.id, (idCounts.get(layer.id) ?? 0) + 1);
-          }
-        }
-
-        // Recurse into children
-        if (instance.children.length > 0) {
-          countLayerIds(instance.children);
-        }
-      }
-    }
-
-    countLayerIds(newChildren);
-
-    // Pass 2: Extract duplicates during Map iteration
-    const duplicates: string[] = [];
-    for (const [id, count] of idCounts) {
-      if (count > 1) {
-        duplicates.push(id);
-      }
-    }
-
-    if (duplicates.length > 0) {
-      console.error(
-        `❌ Duplicate layer IDs detected: ${duplicates.join(', ')}\n\n` +
-          `Deck.gl uses layer IDs for diffing. Duplicate IDs cause incorrect updates.\n` +
-          `Each layer must have a unique ID.\n`
-      );
-    }
-  }
+export function finalizeContainerChildren(): void {
+  // deck.gl's LayerManager warns about duplicate layer ids, so there is nothing to validate here.
 }
 
 /**
@@ -692,10 +585,11 @@ export function finalizeContainerChildren(container: Container, newChildren: Chi
  *
  * **Hybrid Layers:**
  * Supports "mix mode" where layers come from both:
- * - JSX children: `<layer layer={...} />`
+ * - JSX children: `<deckLayer layer={...} />`
  * - Direct prop: `<DeckGL layers={[...]} />`
  *
- * The `_passedLayers` from the store are prepended to JSX layers.
+ * As in `@deck.gl/react`, JSX layers come first and the `_passedLayers` from the store
+ * follow them. See {@link combineRootDescriptors}.
  *
  * **Deck.gl Integration:**
  * Calls `deckgl.setProps({ layers, views })` which triggers Deck.gl's ID-based diffing.
@@ -715,13 +609,6 @@ export function finalizeContainerChildren(container: Container, newChildren: Chi
  * @see {@link https://deck.gl/docs/developer-guide/using-layers Layer Lifecycle in Deck.gl}
  */
 export function replaceContainerChildren(container: Container, newChildren: ChildSet): void {
-  log
-    .withMetadata({
-      container,
-      newChildren
-    })
-    .debug('replaceContainerChildren');
-
   const state = container.store.getState();
   const {deckgl} = state;
 
@@ -733,37 +620,15 @@ export function replaceContainerChildren(container: Container, newChildren: Chil
     // NOTE: splits views and layers into separate arrays
     const types = organizeList(list);
 
-    // NOTE: apply layers passed to the `layers` prop on `<DeckGL />` component
-    // oxlint-disable-next-line unicorn/prefer-spread
-    const combinedLayers = state._passedLayers.concat(types.layers);
+    // NOTE: keep the committed descriptors so a prop-only reconfigure can reapply them,
+    // then combine them with the `layers` prop on `<DeckGL />` (JSX layers first)
+    container.jsxDescriptors = types;
+    const propsUpdate = combineRootDescriptors(state, types, container.sentViews);
+    container.sentViews = Boolean(propsUpdate.views);
 
-    log
-      .withMetadata({
-        layers: combinedLayers,
-        views: types.views
-      })
-      .debug('deck.setProps views and layers');
+    log.log(3, 'DeckGL commit', propsUpdate)();
 
-    const propsUpdate: {layers: LayersList; views?: View[]} = {
-      layers: combinedLayers
-    };
-
-    // MapboxOverlay owns its views through the external map renderer. Standalone
-    // Deck must receive an explicit empty list when the last JSX view is removed
-    // so that ViewManager restores its default view.
-    if (!(deckgl instanceof MapboxOverlay)) {
-      propsUpdate.views = types.views;
-    }
-
-    // Type assertion: The deckgl instance is typed as Deck<null> | MapboxOverlay, where the
-    // generic ViewsT defaults to null, making views?: null. However, deck.gl's runtime
-    // implementation (view-manager.ts) accepts ViewOrViews = View | View[] | null.
-    // When instantiating without specifying the type parameter, the type system is overly
-    // restrictive. This assertion is safe because:
-    // 1. deck.gl's ViewManager.setProps accepts Partial<ViewManagerProps<ViewsT>> where views: ViewsT
-    // 2. ViewsT extends ViewOrViews which includes View[]
-    // 3. Our tests in replace-container-children.test.ts confirm this works at runtime
-    deckgl.setProps(propsUpdate as Parameters<typeof deckgl.setProps>[0]);
+    deckgl.setProps(propsUpdate);
   }
 }
 
@@ -804,13 +669,6 @@ export function replaceContainerChildren(container: Container, newChildren: Chil
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/README.md#appendinitialchild Official Reconciler Docs}
  */
 export function appendInitialChild(parentInstance: Instance, child: Instance): void {
-  log
-    .withMetadata({
-      child,
-      parentInstance
-    })
-    .debug('appendInitialChild');
-
   parentInstance.children.push(child);
 }
 
@@ -865,16 +723,6 @@ export function finalizeInitialChildren(
   rootContainer: Container,
   hostContext: HostContext
 ): boolean {
-  log
-    .withMetadata({
-      hostContext,
-      instance,
-      props,
-      rootContainer,
-      type
-    })
-    .debug('finalizeInitialChildren');
-
   return false;
 }
 
@@ -922,17 +770,6 @@ export function prepareUpdate(
   rootContainer: Container,
   hostContext: HostContext
 ): UpdatePayload | null {
-  log
-    .withMetadata({
-      hostContext,
-      instance,
-      newProps,
-      oldProps,
-      rootContainer,
-      type
-    })
-    .debug('prepareUpdate');
-
   return null;
 }
 
@@ -964,12 +801,6 @@ export function prepareUpdate(
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-dom-bindings/src/client/ReactFiberConfigDOM.js DOM Implementation Example}
  */
 export function prepareForCommit(container: Container): Record<string, unknown> | null {
-  log
-    .withMetadata({
-      container
-    })
-    .debug('prepareForCommit');
-
   return null;
 }
 
@@ -1000,13 +831,7 @@ export function prepareForCommit(container: Container): Record<string, unknown> 
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberCommitWork.js Commit Phase}
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-dom-bindings/src/client/ReactFiberConfigDOM.js DOM Implementation Example}
  */
-export function resetAfterCommit(container: Container): void {
-  log
-    .withMetadata({
-      container
-    })
-    .debug('resetAfterCommit');
-}
+export function resetAfterCommit(container: Container): void {}
 
 /**
  * Called when a React Portal is mounted to prepare the target container.
@@ -1023,7 +848,7 @@ export function resetAfterCommit(container: Container): void {
  * **What are Portals:**
  * Portals let you render children into a different part of the tree:
  * ```tsx
- * ReactDOM.createPortal(<LayerGroup />, differentDeckglContainer)
+ * ReactDOM.createPortal(<LayerGroup />, differentDeckGLContainer)
  * ```
  *
  * **Deck.gl Implementation:**
@@ -1034,9 +859,7 @@ export function resetAfterCommit(container: Container): void {
  * @see {@link https://react.dev/reference/react-dom/createPortal React Portals Documentation}
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberCommitWork.js Portal Mounting}
  */
-export function preparePortalMount(): void {
-  log.debug('preparePortalMount');
-}
+export function preparePortalMount(): void {}
 
 /**
  * Determines if an element's children should be set as text content instead of child nodes.
@@ -1074,13 +897,6 @@ export function preparePortalMount(): void {
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-dom-bindings/src/client/ReactFiberConfigDOM.js DOM Text Optimization Example}
  */
 export function shouldSetTextContent(type: Type, props: Props): boolean {
-  log
-    .withMetadata({
-      props,
-      type
-    })
-    .debug('shouldSetTextContent');
-
   return false;
 }
 
@@ -1105,7 +921,7 @@ export function shouldSetTextContent(type: Type, props: Props): boolean {
  *
  * **Deck.gl Context Usage:**
  * We use context to:
- * 1. Provide Zustand store access to all instances
+ * 1. Provide root store access to all instances
  * 2. Track View nesting (via `insideView` flag added in `getChildHostContext`)
  *
  * The root context contains just the store. As React renders the tree, `getChildHostContext`
@@ -1117,12 +933,12 @@ export function shouldSetTextContent(type: Type, props: Props): boolean {
  * @example
  * ```tsx
  * // When creating the reconciler root:
- * const container = { store: zustandStore };
+ * const container = { store: rootStore };
  * const fiber = reconciler.createContainer(container, ...);
  *
  * // React calls getRootHostContext:
  * const rootContext = getRootHostContext(container);
- * // Returns: { store: zustandStore }
+ * // Returns: { store: rootStore }
  *
  * // This context is passed to createInstance for root elements
  * // and flows down via getChildHostContext
@@ -1133,12 +949,6 @@ export function shouldSetTextContent(type: Type, props: Props): boolean {
  * @see {@link getChildHostContext} How context propagates to children
  */
 export function getRootHostContext(rootContainer: Container): HostContext {
-  log
-    .withMetadata({
-      rootContainer
-    })
-    .debug('getRootHostContext');
-
   return rootContainer;
 }
 
@@ -1163,7 +973,7 @@ export function getRootHostContext(rootContainer: Container): HostContext {
  * Similar to how DOM tracks whether you're inside SVG vs HTML context, we track
  * whether we're inside a View element.
  *
- * The native `<view>` element marks its descendants as being inside a view.
+ * The native `<deckView>` element marks its descendants as being inside a view.
  *
  * @param parentHostContext - Context from parent element
  * @param type - Type of element being created
@@ -1171,22 +981,15 @@ export function getRootHostContext(rootContainer: Container): HostContext {
  *
  * @example
  * ```tsx
- * <view view={new MapView({id: 'main'})}> // insideView: true
- *   <layer layer={new ScatterplotLayer({id: 'points'})} />
- * </view>
+ * <deckView view={new MapView({id: 'main'})}> // insideView: true
+ *   <deckLayer layer={new ScatterplotLayer({id: 'points'})} />
+ * </deckView>
  * ```
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/README.md#getchildhostcontext React Reconciler Docs}
  */
 export function getChildHostContext(parentHostContext: HostContext, type: Type): HostContext {
-  log
-    .withMetadata({
-      parentHostContext,
-      type
-    })
-    .debug('getChildHostContext');
-
-  const isViewInstance = type === 'view';
+  const isViewInstance = type === 'deckView';
 
   // Avoids redundant allocations in nested view hierarchies
   if (isViewInstance && !parentHostContext.insideView) {
@@ -1212,7 +1015,7 @@ export function getChildHostContext(parentHostContext: HostContext, type: Type):
  * const layerRef = useRef<ScatterplotLayer>(null);
  *
  * // After render, layerRef.current contains the actual ScatterplotLayer
- * <layer ref={layerRef} layer={new ScatterplotLayer({ id: "points" })} />
+ * <deckLayer ref={layerRef} layer={new ScatterplotLayer({ id: "points" })} />
  *
  * // Access Deck.gl layer properties and methods
  * useEffect(() => {
@@ -1226,12 +1029,6 @@ export function getChildHostContext(parentHostContext: HostContext, type: Type):
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/README.md#getpublicinstance React Reconciler Docs}
  */
 export function getPublicInstance(instance: Instance): Instance['node'] {
-  log
-    .withMetadata({
-      instance
-    })
-    .debug('getPublicInstance');
-
   return instance.node;
 }
 
@@ -1247,12 +1044,6 @@ export function getPublicInstance(instance: Instance): Instance['node'] {
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/README.md#detachdeletedinstance React Reconciler Docs}
  */
 export function detachDeletedInstance(instance: Instance): void {
-  log
-    .withMetadata({
-      instance
-    })
-    .debug('detachDeletedInstance');
-
   // Clear children array to help garbage collection
   instance.children.length = 0;
 }
@@ -1284,8 +1075,6 @@ export function detachDeletedInstance(instance: Instance): void {
  */
 // oxlint-disable-next-line complexity
 export function getCurrentEventPriority(): number {
-  log.debug('getCurrentEventPriority');
-
   if (!globalScope) {
     return DefaultEventPriority;
   }
@@ -1399,12 +1188,6 @@ export function resolveEventTimeStamp(): number {
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js Update Batching}
  */
 export function setCurrentUpdatePriority(newPriority: EventPriority): void {
-  log
-    .withMetadata({
-      newPriority
-    })
-    .debug('setCurrentUpdatePriority');
-
   currentUpdatePriority = newPriority;
 }
 
@@ -1421,8 +1204,6 @@ export function setCurrentUpdatePriority(newPriority: EventPriority): void {
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js Update Batching}
  */
 export function getCurrentUpdatePriority(): EventPriority {
-  log.debug('getCurrentUpdatePriority');
-
   return currentUpdatePriority;
 }
 
@@ -1446,8 +1227,6 @@ export function getCurrentUpdatePriority(): EventPriority {
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js Priority Resolution}
  */
 export function resolveUpdatePriority(): EventPriority {
-  log.debug('resolveUpdatePriority');
-
   if (currentUpdatePriority !== DefaultEventPriority) {
     return currentUpdatePriority;
   }
@@ -1472,20 +1251,13 @@ export function resolveUpdatePriority(): EventPriority {
  * (e.g., tile layers loading tiles, data layers loading resources). The layer creation
  * itself is synchronous - layers are descriptor objects that don't block.
  *
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param props - Props for the instance
  * @returns `false` - Deck.gl layers never block commits
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberBeginWork.js Async Loading Check}
  */
 export function maySuspendCommit(type: Type, props: Props): boolean {
-  log
-    .withMetadata({
-      props,
-      type
-    })
-    .debug('maySuspendCommit');
-
   return false;
 }
 
@@ -1515,8 +1287,6 @@ export function maySuspendCommit(type: Type, props: Props): boolean {
  * @see {@link waitForCommitToBeReady}
  */
 export function startSuspendingCommit(): SuspendedState {
-  log.debug('startSuspendingCommit');
-
   return {pendingCount: 0};
 }
 
@@ -1538,20 +1308,13 @@ export function startSuspendingCommit(): SuspendedState {
  *
  * @param state - Suspended state object from startSuspendingCommit
  * @param instance - The instance being suspended
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param props - Props for the instance
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-noop-renderer/src/createReactNoop.js#L367 React Noop Renderer implementation}
  * @see {@link startSuspendingCommit}
  */
 export function suspendInstance(type: Type, props: Props): void {
-  log
-    .withMetadata({
-      props,
-      type
-    })
-    .debug('suspendInstance');
-
   // No-op: deck.gl layers never suspend
 }
 
@@ -1585,13 +1348,6 @@ export function waitForCommitToBeReady(
   state: SuspendedState,
   timeoutMs: number
 ): ((commit: () => void) => () => void) | null {
-  log
-    .withMetadata({
-      state,
-      timeoutMs
-    })
-    .debug('waitForCommitToBeReady');
-
   return null;
 }
 
@@ -1611,7 +1367,7 @@ export function waitForCommitToBeReady(
  * props reference URLs or Promises, the layer descriptor is created synchronously
  * and deck.gl manages loading behind the scenes.
  *
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param oldProps - Previous props
  * @param newProps - New props
  * @returns `false` - Updates never suspend
@@ -1620,14 +1376,6 @@ export function waitForCommitToBeReady(
  * @see {@link maySuspendCommit}
  */
 export function maySuspendCommitOnUpdate(type: Type, oldProps: Props, newProps: Props): boolean {
-  log
-    .withMetadata({
-      newProps,
-      oldProps,
-      type
-    })
-    .debug('maySuspendCommitOnUpdate');
-
   return false;
 }
 
@@ -1646,7 +1394,7 @@ export function maySuspendCommitOnUpdate(type: Type, oldProps: Props, newProps: 
  * Returns `false` because deck.gl layer creation is always synchronous. Layers are
  * lightweight descriptor objects that don't block rendering even with async data.
  *
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param props - Props for the instance
  * @returns `false` - Never suspends in sync renders
  *
@@ -1654,13 +1402,6 @@ export function maySuspendCommitOnUpdate(type: Type, oldProps: Props, newProps: 
  * @see {@link maySuspendCommit}
  */
 export function maySuspendCommitInSyncRender(type: Type, props: Props): boolean {
-  log
-    .withMetadata({
-      props,
-      type
-    })
-    .debug('maySuspendCommitInSyncRender');
-
   return false;
 }
 
@@ -1680,7 +1421,7 @@ export function maySuspendCommitInSyncRender(type: Type, props: Props): boolean 
  * descriptors that can be committed immediately. Async loading (if any) happens
  * after the layer is created, managed by deck.gl internally.
  *
- * @param type - Element type (`"layer"` or `"view"`)
+ * @param type - Element type (`"deckLayer"` or `"deckView"`)
  * @param props - Props for the instance
  * @returns `true` - Layers are always ready
  *
@@ -1688,13 +1429,6 @@ export function maySuspendCommitInSyncRender(type: Type, props: Props): boolean 
  * @see {@link maySuspendCommit}
  */
 export function preloadInstance(type: Type, props: Props): boolean {
-  log
-    .withMetadata({
-      props,
-      type
-    })
-    .debug('preloadInstance');
-
   return true;
 }
 
@@ -1725,13 +1459,6 @@ export function getSuspendedCommitReason(
   state: SuspendedState,
   rootContainer: Container
 ): string | null {
-  log
-    .withMetadata({
-      rootContainer,
-      state
-    })
-    .debug('getSuspendedCommitReason');
-
   return null;
 }
 
@@ -1763,12 +1490,6 @@ export function requestPostPaintCallback(
   // oxlint-disable-next-line promise/prefer-await-to-callbacks
   callback: (time: number) => void
 ): void {
-  log
-    .withMetadata({
-      callback
-    })
-    .debug('requestPostPaintCallback');
-
   requestAnimationFrame(() => {
     // oxlint-disable-next-line promise/prefer-await-to-callbacks
     setTimeout(() => callback(performance.now()), 0);
@@ -1796,12 +1517,6 @@ export function requestPostPaintCallback(
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberHostConfig.js Scope API}
  */
 export function getInstanceFromNode(node: Fiber): Fiber | null | undefined {
-  log
-    .withMetadata({
-      node
-    })
-    .debug('getInstanceFromNode');
-
   return null;
 }
 
@@ -1822,9 +1537,7 @@ export function getInstanceFromNode(node: Fiber): Fiber | null | undefined {
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-dom-bindings/src/client/ReactFiberConfigDOM.js DOM Focus Management}
  */
-export function beforeActiveInstanceBlur(): void {
-  log.debug('beforeActiveInstanceBlur');
-}
+export function beforeActiveInstanceBlur(): void {}
 
 /**
  * Called after an instance loses focus (Focus Management API).
@@ -1842,9 +1555,7 @@ export function beforeActiveInstanceBlur(): void {
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-dom-bindings/src/client/ReactFiberConfigDOM.js DOM Focus Management}
  */
-export function afterActiveInstanceBlur(): void {
-  log.debug('afterActiveInstanceBlur');
-}
+export function afterActiveInstanceBlur(): void {}
 
 /**
  * Retrieves an instance from a scope object (Scope API).
@@ -1867,12 +1578,6 @@ export function afterActiveInstanceBlur(): void {
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberHostConfig.js Scope API}
  */
 export function getInstanceFromScope(scopeInstance: Instance): Instance | null {
-  log
-    .withMetadata({
-      scopeInstance
-    })
-    .debug('getInstanceFromScope');
-
   return null;
 }
 
@@ -1894,14 +1599,7 @@ export function getInstanceFromScope(scopeInstance: Instance): Instance | null {
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberHostConfig.js Scope API}
  */
-export function prepareScopeUpdate(scopeInstance: Instance, instance: Instance): void {
-  log
-    .withMetadata({
-      instance,
-      scopeInstance
-    })
-    .debug('prepareScopeUpdate');
-}
+export function prepareScopeUpdate(scopeInstance: Instance, instance: Instance): void {}
 
 /**
  * Determines if React should attempt eager transitions for this renderer.
@@ -1933,8 +1631,6 @@ export function prepareScopeUpdate(scopeInstance: Instance, instance: Instance):
  * @see {@link https://react.dev/reference/react/startTransition React Transitions Documentation}
  */
 export function shouldAttemptEagerTransition(): boolean {
-  log.debug('shouldAttemptEagerTransition');
-
   return false;
 }
 
@@ -1976,6 +1672,4 @@ export const HostTransitionContext = createContext<TransitionStatus>(
  *
  * @see {@link https://github.com/facebook/react/pull/28804 PR Adding Form Support}
  */
-export function resetFormInstance(_form: FormInstance): void {
-  log.debug('resetFormInstance');
-}
+export function resetFormInstance(_form: FormInstance): void {}

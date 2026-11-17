@@ -5,8 +5,8 @@
 import {Deck, MapView} from '@deck.gl/core';
 import {GeoJsonLayer} from '@deck.gl/layers';
 import {luma, type Device} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {describe, expect, it} from 'vitest';
 
 import {GpuParticleSimulation} from '../../src/wind-layer/gpu-particle-simulation';

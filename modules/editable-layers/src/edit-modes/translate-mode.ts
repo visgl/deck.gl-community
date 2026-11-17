@@ -16,6 +16,7 @@ import {
 } from './types';
 import {mapCoords, toWebMercatorViewport} from './utils';
 import {translateFromCenter} from '../utils/translate-from-center';
+import {projectOnTargetPlane, unprojectOnTargetPlane} from '../utils/camera-target';
 import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 import {getEditModeCoordinateSystem} from './coordinate-system';
@@ -116,8 +117,9 @@ export class TranslateMode extends GeoJsonEditMode implements SnappableEditMode 
     if (viewportDesc && screenSpace) {
       const viewport = toWebMercatorViewport(viewportDesc);
 
-      const from = viewport.project(startDragPoint);
-      const to = viewport.project(currentPoint);
+      // 2D positions move on the camera target's plane, where the pointer's map coordinates lie.
+      const from = projectOnTargetPlane(viewport, startDragPoint);
+      const to = projectOnTargetPlane(viewport, currentPoint);
       const dx = to[0] - from[0];
       const dy = to[1] - from[1];
 
@@ -128,11 +130,11 @@ export class TranslateMode extends GeoJsonEditMode implements SnappableEditMode 
         let coordinates = feature.geometry.coordinates;
         if (coordinates) {
           coordinates = mapCoords(coordinates, coord => {
-            const pixels = viewport.project(coord);
+            const pixels = projectOnTargetPlane(viewport, coord);
             if (pixels) {
               pixels[0] += dx;
               pixels[1] += dy;
-              return viewport.unproject(pixels);
+              return unprojectOnTargetPlane(viewport, pixels);
             }
             return null;
           });
