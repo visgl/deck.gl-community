@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, type Color, type OrbitViewState} from '@deck.gl/core';
+import {type Color, type OrbitViewState} from '@deck.gl/core';
 import {_TerrainExtension as TerrainExtension} from '@deck.gl/extensions';
 import {FlameTrailLayer} from '@deck.gl-community/layers';
 import {createTerrainLayer, sampleTerrainHeight} from './terrain';
@@ -52,7 +52,7 @@ export function createSceneLayers(options: SceneOptions, backend: 'webgl' | 'web
           id: `flame-trail-${index}`,
           data: gpuTerrain ? TRIPS : ELEVATED_TRIPS,
           ...(gpuTerrain ? TERRAIN_PROPS : {}),
-          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          coordinateSystem: 'cartesian',
           getPath: d => d.path,
           getTimestamps: d => d.timestamps,
           getWidth: 1,

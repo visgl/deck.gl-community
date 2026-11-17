@@ -1,15 +1,9 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {
-  COORDINATE_SYSTEM,
-  Deck,
-  MapView,
-  WebMercatorViewport,
-  type MapViewState
-} from '@deck.gl/core';
+import {Deck, MapView, WebMercatorViewport, type MapViewState} from '@deck.gl/core';
 import {Model} from '@luma.gl/engine';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {expect, it, vi} from 'vitest';
 import {
   SplatLayer,
@@ -110,7 +104,7 @@ it('keeps mixed canopy passes bounded without destroying models during camera re
   const trees = new TreeLayer<TreeSpec>({
     id: 'mixed-trees',
     data: forest,
-    coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+    coordinateSystem: 'meter-offsets',
     coordinateOrigin: [0, 0, 0]
   });
   const deck: Deck<MapView> = new Deck({

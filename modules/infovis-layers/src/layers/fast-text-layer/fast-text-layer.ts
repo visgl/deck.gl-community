@@ -4,7 +4,7 @@
 import {color, createIterable, Layer, project32, UNIT} from '@deck.gl/core';
 import {Buffer, Texture} from '@luma.gl/core';
 import {Geometry, Model} from '@luma.gl/engine';
-import {Log} from '@probe.gl/log';
+import {Log} from 'probe.gl/log';
 
 import {
   buildFastTextGlyphData,
@@ -40,7 +40,7 @@ import type {
   Unit,
   UpdateParameters
 } from '@deck.gl/core';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 
 /** Fast text layer props that intentionally cover dense timeline-style span labels. */
 export type _FastTextLayerProps<DataT> = {

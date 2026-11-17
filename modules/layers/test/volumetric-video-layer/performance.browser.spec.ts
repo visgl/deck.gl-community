@@ -5,7 +5,7 @@
 import {it, expect, vi} from 'vitest';
 import {Deck, OrbitView} from '@deck.gl/core';
 import {luma} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {getFrameHistoryBytes} from '../../src/volumetric-video-layer/frame-utils';
 import {VolumetricVideoLayer} from '../../src/volumetric-video-layer/volumetric-video-layer';
 

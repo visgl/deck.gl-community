@@ -178,21 +178,9 @@ const config = {
             '@deck.gl/mapbox': resolve('../node_modules/@deck.gl/mapbox'),
             '@deck.gl/mesh-layers': resolve('../node_modules/@deck.gl/mesh-layers'),
             '@deck.gl/react': resolve('node_modules/@deck.gl/react'),
-            '@luma.gl/webgl/constants': resolve('../node_modules/@luma.gl/webgl/dist/constants/index.js'),
-            '@math.gl': resolve('../node_modules/@math.gl'),
             // Force the hoisted ESM entry. Webpack otherwise resolves to the
             // package's UMD main, which breaks default imports in vis.gl S2 code.
             long: resolve('../node_modules/long/index.js'),
-            '@loaders.gl/csv': resolve('node_modules/@loaders.gl/csv'),
-            '@loaders.gl/graphs/dot-loader$': resolve(
-              'node_modules/@loaders.gl/graphs/dist/dot-loader.js'
-            ),
-            '@loaders.gl/json': resolve('node_modules/@loaders.gl/json'),
-            '@loaders.gl/i3s': resolve('node_modules/@loaders.gl/i3s'),
-            '@loaders.gl/las': resolve('node_modules/@loaders.gl/las'),
-            '@loaders.gl/obj': resolve('node_modules/@loaders.gl/obj'),
-            '@loaders.gl/ply': resolve('node_modules/@loaders.gl/ply'),
-            '@loaders.gl': resolve('../node_modules/@loaders.gl'),
             'preact$': resolve('node_modules/preact/dist/preact.module.js'),
             'preact/hooks': resolve('node_modules/preact/hooks/dist/hooks.module.js'),
             'preact/jsx-runtime': resolve(

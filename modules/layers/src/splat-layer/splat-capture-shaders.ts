@@ -1,7 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 import {SPLAT_CAPTURE_COLOR_RANGE} from './splat-capture';
 
 const DECLARATION = `uniform splatCaptureUniforms {

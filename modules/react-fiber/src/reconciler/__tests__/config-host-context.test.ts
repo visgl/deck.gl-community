@@ -31,25 +31,25 @@ describe('config-host-context', () => {
     it('should set insideView=true for the view element', () => {
       const parentContext = createMockHostContext({insideView: false});
 
-      expect(getChildHostContext(parentContext, 'view').insideView).toBeTruthy();
+      expect(getChildHostContext(parentContext, 'deckView').insideView).toBeTruthy();
     });
 
     it('should preserve insideView=true in nested views', () => {
       const parentContext = createMockHostContext({insideView: true});
 
-      expect(getChildHostContext(parentContext, 'view')).toBe(parentContext);
+      expect(getChildHostContext(parentContext, 'deckView')).toBe(parentContext);
     });
 
     it('should return parent context for layers and unsupported elements', () => {
       const parentContext = createMockHostContext({insideView: false});
 
-      expect(getChildHostContext(parentContext, 'layer')).toBe(parentContext);
+      expect(getChildHostContext(parentContext, 'deckLayer')).toBe(parentContext);
       expect(getChildHostContext(parentContext, 'View')).toBe(parentContext);
     });
 
     it('should create a new context object when entering a view', () => {
       const parentContext = createMockHostContext({insideView: false});
-      const result = getChildHostContext(parentContext, 'view');
+      const result = getChildHostContext(parentContext, 'deckView');
 
       expect(result).not.toBe(parentContext);
       expect(result.store).toBe(parentContext.store);
@@ -72,8 +72,8 @@ describe('config-host-context', () => {
 
   describe('shouldSetTextContent()', () => {
     it('should always return false', () => {
-      expect(shouldSetTextContent('layer', {})).toBeFalsy();
-      expect(shouldSetTextContent('view', {})).toBeFalsy();
+      expect(shouldSetTextContent('deckLayer', {})).toBeFalsy();
+      expect(shouldSetTextContent('deckView', {})).toBeFalsy();
     });
   });
 });

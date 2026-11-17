@@ -1,5 +1,5 @@
 import {expect, test} from 'vitest';
-import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
+import {Deck, OrthographicView} from '@deck.gl/core';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
 import {DrawPolygonMode} from '../../src/edit-modes/draw-polygon-mode';
 
@@ -20,7 +20,7 @@ test('real canvas clicks update polygon vertices immediately and double-click fi
   const makeLayer = () =>
     new EditableGeoJsonLayer({
       id: 'draw-polygon',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data,
       mode: DrawPolygonMode,
       selectedFeatureIndexes: [],
@@ -112,7 +112,7 @@ test('clicks on React DeckGL children reach the layer through the events root', 
   const makeLayer = () =>
     new EditableGeoJsonLayer({
       id: 'draw-polygon',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      coordinateSystem: 'cartesian',
       data,
       mode: DrawPolygonMode,
       selectedFeatureIndexes: [],

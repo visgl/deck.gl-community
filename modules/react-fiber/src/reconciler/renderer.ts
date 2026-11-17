@@ -1,22 +1,26 @@
 import type {Layer, View} from '@deck.gl/core';
-import {Deck} from '@deck.gl/core';
-import {MapboxOverlay} from '@deck.gl/mapbox';
-import {createStore, noop, log} from '../shared/index';
-import type {DeckglProps} from '../types/index';
+import {Deck, assert, log} from '@deck.gl/core';
+import {RENDERER_PACKAGE_NAME, RENDERER_VERSION} from '../shared/constants';
+import {createStore, noop} from '../shared/index';
 import type {ReactNode} from 'react';
 import reactReconciler from 'react-reconciler';
 import type {HostConfig} from 'react-reconciler';
 import {ConcurrentRoot} from 'react-reconciler/constants.js';
 
 import * as config from './config';
+import {RootErrorBoundary} from './error-boundary';
+import {combineRootDescriptors} from './utils';
 import type {
   ChildSet,
   Container,
+  DeckGLConfiguration,
   HostContext,
   Instance,
+  JsxDescriptors,
   Props,
   ReconcilerRoot,
-  RootElement
+  RootElement,
+  RootOptions
 } from './types';
 
 /**
@@ -74,6 +78,14 @@ export const renderer: ReturnType<typeof reactReconciler> = reactReconciler(
   >
 );
 
+// Lets React DevTools show the tree inside each `DeckGL` root. react-reconciler@0.33 reads the
+// name and version from the host config; the argument only satisfies older typings.
+renderer.injectIntoDevTools({
+  bundleType: process.env.NODE_ENV === 'production' ? 0 : 1,
+  rendererPackageName: RENDERER_PACKAGE_NAME,
+  version: RENDERER_VERSION
+});
+
 /**
  * Active reconciler roots registry
  *
@@ -93,8 +105,19 @@ export const renderer: ReturnType<typeof reactReconciler> = reactReconciler(
  */
 export const roots = new Map<RootElement, ReconcilerRoot>();
 
+const EMPTY_JSX_DESCRIPTORS: JsxDescriptors = {effects: [], layers: [], views: [], widgets: []};
+
 function reportError(error: unknown): void {
-  console.error(error);
+  log.error('DeckGL error', error)();
+}
+
+function reportCaughtError(error: unknown, info: object): void {
+  // `DeckGL` rethrows what its own boundary catches, so React reports that error in the host tree.
+  // React passes the catching boundary in `info`, although @types/react-reconciler omits it.
+  if ((info as {errorBoundary?: unknown}).errorBoundary instanceof RootErrorBoundary) {
+    return;
+  }
+  reportError(error);
 }
 
 /**
@@ -131,14 +154,8 @@ function reportError(error: unknown): void {
 export function unmountAtNode(node: RootElement) {
   const root = roots.get(node);
 
-  log
-    .withMetadata({
-      node,
-      root
-    })
-    .debug('renderer.unmountAtNode');
-
   if (root?.container) {
+    log.log(3, 'DeckGL root unmounted')();
     renderer.updateContainer(null, root.container, null, noop);
 
     const state = root.store.getState();
@@ -149,7 +166,7 @@ export function unmountAtNode(node: RootElement) {
       deckgl?.finalize();
     } finally {
       // Always clear state and remove from registry, even on error
-      state.setDeckgl(null);
+      state.setDeckGL(null);
       roots.delete(node);
     }
   }
@@ -186,25 +203,29 @@ export function unmountAtNode(node: RootElement) {
  *
  * // Render layers
  * root.render(
- *   <layer layer={new ScatterplotLayer({ id: 'points', data })} />
+ *   <deckLayer layer={new ScatterplotLayer({ id: 'points', data })} />
  * );
  * ```
  */
-export function createRoot(node: RootElement): ReconcilerRoot {
-  log
-    .withMetadata({
-      node
-    })
-    .debug('renderer.createRoot');
+export function createRoot(node: RootElement, options: RootOptions = {}): ReconcilerRoot {
+  const createExternalOverlay = options.createExternalOverlay;
+  const isExternalOverlay = Boolean(createExternalOverlay);
 
-  // Early return if root already exists for this node
   const existingRoot = roots.get(node);
   if (existingRoot) {
+    // A registry key has one immutable rendering capability. Reusing it with a
+    // different provider could otherwise retain the wrong external control.
+    assert(
+      existingRoot.isExternalOverlay === isExternalOverlay &&
+        existingRoot.createExternalOverlay === createExternalOverlay
+    );
     return existingRoot;
   }
 
   // Create new root
-  const store = createStore();
+  log.log(3, 'DeckGL root created')();
+  const store = createStore(isExternalOverlay, Boolean(options.forwardViews));
+  const containerInfo: Container = {store};
 
   /**
    * Create a new React reconciler container with the following configuration:
@@ -214,72 +235,79 @@ export function createRoot(node: RootElement): ReconcilerRoot {
    * - concurrentUpdatesByDefaultOverride: null
    * - identifierPrefix: empty string
    * - onUncaughtError: reportError handler
-   * - onCaughtError: reportError handler
+   * - onCaughtError: reportCaughtError, which skips errors that `DeckGL` rethrows
    * - onRecoverableError: reportError handler
    * - transitionCallbacks: null
    *
    * @see https://github.com/facebook/react/blob/main/packages/react-noop-renderer/src/createReactNoop.js#L1159
    */
   const container = renderer.createContainer(
-    {store},
+    containerInfo,
     ConcurrentRoot,
     null,
     false,
     null,
     '',
     reportError,
-    reportError,
+    reportCaughtError,
     reportError,
     () => null
   );
 
   let configured = false;
 
-  function configure(props: DeckglProps) {
+  function configure(props: DeckGLConfiguration) {
+    log.log(4, 'DeckGL configure', props)();
+
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
     store.setState({
-      _passedLayers: props?.layers ?? []
+      _passedLayers: props.layers ?? [],
+      _passedViews: props.views,
+      _passedWidgets: props.widgets,
+      _passedEffects: props.effects
     });
 
     if (configured) {
       const deckgl = store.getState().deckgl;
       if (deckgl) {
-        deckgl.setProps(props as Parameters<typeof deckgl.setProps>[0]);
+        // A prop-only update need not commit the JSX tree again, so reapply its last
+        // committed layers, views, widgets and effects in the same order that a commit uses.
+        const descriptors = combineRootDescriptors(
+          store.getState(),
+          containerInfo.jsxDescriptors ?? EMPTY_JSX_DESCRIPTORS,
+          containerInfo.sentViews
+        );
+        containerInfo.sentViews = Boolean(descriptors.views);
+        deckgl.setProps({...props, ...descriptors});
       }
       return;
     }
 
-    if (props?.layers && props.layers.length > 0) {
-      // IDEA: we could do some complex diffing logic here but since we don't expose the full store there are
-      // no footguns to just updating it all the time.
-      store.setState({_passedLayers: props.layers});
-    }
-
-    log.withMetadata(props).debug('renderer.configure');
-
     const state = store.getState();
+    const deckgl = createExternalOverlay
+      ? createExternalOverlay(props)
+      : new Deck<View | View[] | null>(props);
 
-    // NOTE: interleaved prop is a hint that we are utilizing an external renderer such as Mapbox/Maplibre
-    const isOverlay = 'interleaved' in props;
-    const deckgl = isOverlay ? new MapboxOverlay(props) : new Deck(props);
-
-    state.setDeckgl(deckgl);
+    state.setDeckGL(deckgl);
+    // The instance starts with the `views` prop, so removing it later must send `null`.
+    containerInfo.sentViews = Boolean(props.views);
 
     configured = true;
   }
 
   function render(children: ReactNode) {
-    log
-      .withMetadata({
-        children
-      })
-      .debug('renderer.render');
-
     renderer.updateContainer(children, container, null, noop);
   }
 
-  const root: ReconcilerRoot = {configure, container, render, store};
+  const root: ReconcilerRoot = {
+    configure,
+    container,
+    createExternalOverlay,
+    isExternalOverlay,
+    render,
+    store
+  };
   roots.set(node, root);
 
   return root;

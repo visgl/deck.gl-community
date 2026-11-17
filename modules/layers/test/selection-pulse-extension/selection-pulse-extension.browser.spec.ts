@@ -5,7 +5,6 @@
 import {
   AmbientLight,
   Attribute,
-  COORDINATE_SYSTEM,
   Deck,
   DirectionalLight,
   LightingEffect,
@@ -33,8 +32,8 @@ import {MapboxOverlay} from '@deck.gl/mapbox';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {Buffer, Texture, luma, type Device, type Framebuffer} from '@luma.gl/core';
 import {CubeGeometry} from '@luma.gl/engine';
-import {webgl2Adapter} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import 'maplibre-gl';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {SelectionPulseExtension, TreeLayer, type TreeSpec} from '../../src';
@@ -166,7 +165,7 @@ function getIconAtlas(): HTMLCanvasElement {
   return iconAtlas;
 }
 
-const cartesian = {coordinateSystem: COORDINATE_SYSTEM.CARTESIAN};
+const cartesian = {coordinateSystem: 'cartesian'};
 const BLUE = [40, 160, 240];
 const YELLOW = [250, 220, 60];
 

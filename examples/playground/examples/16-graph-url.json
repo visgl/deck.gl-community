@@ -22,6 +22,7 @@
       "loaders": [
         "@@#DOTLoader"
       ],
+      "loadOptions": {"dot": {"shape": "plain-graph-data"}},
       "layout": {
         "@@function": "D3ForceLayout"
       },

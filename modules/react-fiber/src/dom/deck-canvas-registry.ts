@@ -45,7 +45,7 @@ export class DeckCanvasRegistry {
     this.baseline = Object.fromEntries(MANAGED_KEYS.map(key => [key, deck.props[key]]));
     this.originalSetProps = deck.setProps;
     this.hadOwnSetProps = Object.hasOwn(deck, 'setProps');
-    // deck.gl 9.4 has no prop-source seam. Keep this adapter instance-local and
+    // deck.gl has no prop-source seam yet. Keep this adapter instance-local and
     // restore the original method when the last contribution unmounts.
     this.wrappedSetProps = props => {
       const nextBaseline = {...this.baseline};

@@ -93,7 +93,11 @@ describe('SelectionPulseExtension on deck.gl layers', () => {
     const {layer} = mount(scatterplot());
     const shaders = layer.getShaders({});
     expect(shaders.modules.map(module => module.name)).toContain('selectionPulse');
-    expect(shaders.inject['vs:DECKGL_FILTER_COLOR']).toContain('selectionPulse_filterColor');
+    expect(
+      shaders.plugins.find(plugin => plugin.name === 'selection-pulse').injections[
+        'vs:DECKGL_FILTER_COLOR'
+      ]
+    ).toContain('selectionPulse_filterColor');
   });
 
   it('writes one weight per object from getSelected', () => {
@@ -219,7 +223,7 @@ describe('SelectionPulseExtension WebGPU support', () => {
       expect(source.split(WGSL_FILTER_COLOR_ANCHOR)).toHaveLength(2);
     const mesh = Object.create(TreeMeshLayer.prototype);
     Object.assign(mesh, {
-      context: {device: {type: 'webgpu'}, defaultShaderModules: []},
+      context: {viewport: {projectionMode: 1}, device: {type: 'webgpu'}, defaultShaderModules: []},
       props: {extensions: []}
     });
     const {source} = mesh.getShaders();
@@ -236,7 +240,7 @@ describe('SelectionPulseExtension WebGPU support', () => {
       return Object.assign(layer, {
         id: Type.layerName,
         state: {},
-        context: {device: {type}},
+        context: {viewport: {projectionMode: 1}, device: {type}},
         props: {extensions: [extension]},
         setState: (state: object) => Object.assign(layer.state, state),
         getAttributeManager: () => ({add: () => {}})
@@ -245,9 +249,13 @@ describe('SelectionPulseExtension WebGPU support', () => {
     for (const Type of [SplatPrimitiveLayer, TreeMeshLayer]) {
       const webgl = extension.getShaders.call(make(Type, 'webgl'), extension);
       expect(webgl.defines).toEqual({SELECTION_PULSE_INSTANCES: 1});
-      expect(webgl.inject['vs:DECKGL_FILTER_COLOR']).toContain('selectionPulse_filterColor');
+      expect(webgl.plugins[0].injections['vs:DECKGL_FILTER_COLOR']).toContain(
+        'selectionPulse_filterColor'
+      );
       const webgpu = extension.getShaders.call(make(Type, 'webgpu'), extension);
-      expect(webgpu.inject[WGSL_FILTER_COLOR_ANCHOR]).toMatch(/^\n\s*vertexColor = /);
+      expect(webgpu.plugins[0].injections['wgsl:vs:DECKGL_FILTER_INSTANCE_COLOR']).toContain(
+        'selectionPulse_filterColor'
+      );
     }
     const attribute = extension.getShaders.call(make(ScatterplotLayer, 'webgl'), extension);
     expect(attribute.defines).toBeUndefined();

@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/infovis-layers",
-  "version": "9.4.10",
+  "version": "10.0.0-alpha.1",
   "description": "Infovis layers (non-geospatial) for deck.gl",
   "license": "MIT",
   "repository": {
@@ -37,14 +37,14 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@luma.gl/shadertools": "~9.4.2",
-    "@probe.gl/log": "^4.1.1"
+    "@luma.gl/shaders": "10.0.0-alpha.14",
+    "probe.gl": "^5.0.0"
   },
   "peerDependencies": {
-    "@deck.gl/core": "~9.4.1",
-    "@deck.gl/layers": "~9.4.1",
-    "@luma.gl/core": "~9.4.2",
-    "@luma.gl/engine": "~9.4.2",
+    "@deck.gl/core": "10.0.0-alpha.1",
+    "@deck.gl/layers": "10.0.0-alpha.1",
+    "@luma.gl/core": "10.0.0-alpha.14",
+    "@luma.gl/engine": "10.0.0-alpha.14",
     "apache-arrow": ">=17"
   },
   "peerDependenciesMeta": {
@@ -53,11 +53,10 @@
     }
   },
   "devDependencies": {
-    "@deck.gl/core": "~9.4.1",
-    "@deck.gl/test-utils": "~9.4.1",
-    "@luma.gl/core": "~9.4.2",
-    "@luma.gl/engine": "~9.4.2",
-    "@luma.gl/webgpu": "~9.4.2",
-    "@probe.gl/test-utils": "^4.1.1"
+    "@deck.gl/core": "10.0.0-alpha.1",
+    "@deck.gl/test-utils": "10.0.0-alpha.1",
+    "@luma.gl/core": "10.0.0-alpha.14",
+    "@luma.gl/engine": "10.0.0-alpha.14",
+    "probe.gl": "^5.0.0"
   }
 }

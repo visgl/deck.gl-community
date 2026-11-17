@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, WebMercatorViewport} from '@deck.gl/core';
+import {WebMercatorViewport} from '@deck.gl/core';
 import type {Layer} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core';
 import {
@@ -30,15 +30,14 @@ export function createLayerProjection(layer: Layer): EditModeProjection | undefi
     coordinateOrigin[2] ?? 0
   ];
   const coordinateSystem =
-    layer.props.coordinateSystem === COORDINATE_SYSTEM.DEFAULT
+    layer.props.coordinateSystem === 'default'
       ? viewport.isGeospatial
-        ? COORDINATE_SYSTEM.LNGLAT
-        : COORDINATE_SYSTEM.CARTESIAN
+        ? 'lnglat'
+        : 'cartesian'
       : layer.props.coordinateSystem;
   const matrix = modelMatrix ? new Matrix4(modelMatrix) : undefined;
   const inverse = matrix && matrix.determinant() !== 0 ? matrix.invert() : undefined;
-  const originWorld =
-    coordinateSystem === COORDINATE_SYSTEM.METER_OFFSETS ? lngLatToWorld(origin) : undefined;
+  const originWorld = coordinateSystem === 'meter-offsets' ? lngLatToWorld(origin) : undefined;
   const scales = originWorld
     ? getDistanceScales({longitude: origin[0], latitude: origin[1], highPrecision: true})
     : undefined;
@@ -47,7 +46,7 @@ export function createLayerProjection(layer: Layer): EditModeProjection | undefi
       worldToPixels(
         layer.projectPosition(position, {
           viewport,
-          fromCoordinateOrigin: origin,
+          coordinateOrigin: origin,
           autoOffset: false
         }),
         viewport.pixelProjectionMatrix
@@ -56,7 +55,7 @@ export function createLayerProjection(layer: Layer): EditModeProjection | undefi
       if (matrix && !inverse) return undefined;
       const common = pixelsToWorld(screenPosition, viewport.pixelUnprojectionMatrix).slice(0, 3);
       let position: Position;
-      if (coordinateSystem === COORDINATE_SYSTEM.CARTESIAN) {
+      if (coordinateSystem === 'cartesian') {
         position = viewport.isGeospatial
           ? common.map((value, index) => value - origin[index])
           : viewport.unprojectPosition(common);
@@ -67,9 +66,9 @@ export function createLayerProjection(layer: Layer): EditModeProjection | undefi
           viewport.projectPosition([longitude, latitude, 1])[2] -
           viewport.projectPosition([longitude, latitude, 0])[2];
         const altitude = common[2] / altitudeScale;
-        if (coordinateSystem === COORDINATE_SYSTEM.LNGLAT_OFFSETS) {
+        if (coordinateSystem === 'lnglat-offsets' || coordinateSystem === 'lnglat') {
           position = [longitude - origin[0], latitude - origin[1], altitude - (origin[2] || 0)];
-        } else if (coordinateSystem === COORDINATE_SYSTEM.METER_OFFSETS && originWorld && scales) {
+        } else if (coordinateSystem === 'meter-offsets' && originWorld && scales) {
           // Invert addMetersToLngLat's latitude-dependent common-space offsets.
           const dx = common[0] - originWorld[0];
           const dy = common[1] - originWorld[1];

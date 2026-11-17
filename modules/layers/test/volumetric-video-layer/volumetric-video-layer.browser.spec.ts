@@ -5,8 +5,8 @@
 import {describe, expect, it, vi} from 'vitest';
 import {Deck, OrbitView} from '@deck.gl/core';
 import {luma, Buffer, Texture, type Device, type Framebuffer} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
-import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/webgpu';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/core/webgpu';
 import {ClipSpace} from '@luma.gl/engine';
 import {VideoSample} from 'mediabunny';
 import {requireWebGPUAdapter} from '../webgpu-test-utils';

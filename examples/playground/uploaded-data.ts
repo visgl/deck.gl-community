@@ -1,9 +1,9 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 import {load} from '@loaders.gl/core';
-import {ArrowLoader} from '@loaders.gl/arrow';
-import {CSVLoader} from '@loaders.gl/csv';
-import {JSONLoader} from '@loaders.gl/json';
+import {ArrowLoader} from '@loaders.gl/tables';
+import {CSVLoader} from '@loaders.gl/tables';
+import {JSONLoader} from '@loaders.gl/tables';
 import {Table, tableFromJSON} from 'apache-arrow';
 import {GeoJSONSchema} from '@deck.gl-community/playground';
 

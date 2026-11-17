@@ -13,7 +13,7 @@ import {
   type SettingsSchema
 } from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
-import {webgpuAdapter} from '@luma.gl/webgpu';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {
   VolumetricVideoLayer,
   getVolumetricVideoHistoryBytes,

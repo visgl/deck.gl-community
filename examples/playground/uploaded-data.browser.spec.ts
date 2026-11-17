@@ -87,10 +87,12 @@ test('upload state assigns unique IDs, reports invalid files, and stops registra
     ['broken', 'error']
   ]);
   expect(sources.entries.map(entry => entry.tableName)).toEqual(['points', 'points-2', 'broken']);
-  expect(manager.listDataSources().map(entry => entry.dataSourceId)).toEqual([
-    'points',
-    'points-2'
-  ]);
+  expect(
+    manager
+      .listDataSources()
+      .map(entry => entry.dataSourceId)
+      .sort()
+  ).toEqual(['points', 'points-2']);
   const late = sources.upload([new File(['[]'], 'late.json')]);
   sources.finalize();
   await late;

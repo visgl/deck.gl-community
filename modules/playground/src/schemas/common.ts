@@ -48,6 +48,10 @@ export const CoordinateSystemSchema = z.union([
   z.enum(['default', 'lnglat', 'meter-offsets', 'lnglat-offsets', 'cartesian']),
   ConstantSchema
 ]);
+/** JSON column data or a host-registered Arrow/GPU column reference. */
+export const ColumnSourceSchema: z.ZodType<
+  string | JsonValue[] | {[key: string]: JsonValue} | null
+> = z.union([ConstantSchema, z.array(JsonValueSchema), JsonObjectSchema]).nullable();
 export const NumberAccessorSchema = createAccessorSchema(z.number());
 export const ColorAccessorSchema = createAccessorSchema(ColorSchema);
 export const PositionAccessorSchema = createAccessorSchema(DeckGLPositionSchema);

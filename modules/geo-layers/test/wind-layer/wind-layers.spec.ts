@@ -5,7 +5,7 @@
 import {LineLayer, ScatterplotLayer} from '@deck.gl/layers';
 import {TerrainLayer} from '@deck.gl/geo-layers';
 import * as loaderCore from '@loaders.gl/core';
-import {TerrainLoader} from '@loaders.gl/terrain';
+import {TerrainLoader} from '@loaders.gl/raster';
 import {describe, expect, it, vi} from 'vitest';
 
 import {

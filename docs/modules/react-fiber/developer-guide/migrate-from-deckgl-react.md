@@ -1,155 +1,105 @@
-# Migrate from `@deck.gl/react`
+# Upgrade guide
 
-`@deck.gl-community/react-fiber/compat` is an additive migration API for a supported subset of `@deck.gl/react` applications. It lowers approved React layer and view components to React Fiber's native `<layer>` and `<view>` primitives. It is not full `@deck.gl/react` parity.
+This page lists the changes to make when you move to `@deck.gl-community/react-fiber` from
+[`@deck.gl/react`](#from-deckglreact). Start with [Write JSX](#write-jsx), which shows the syntax
+you end up with.
 
-The adapter uses the local DOM renderer. In an application that uses React Server Components, import it from the same React `'use client'` module as `DeckGL`, or from that module's client-marked dependency tree. In traditional SSR without React Server Components, initialize browser-only map work after hydration. New applications should normally use the native root and elements described in [Get started](./get-started.md) and [Native elements](../api-reference/native-elements.md). Use this adapter when its explicit wrapper matrix lets an existing application migrate without rewriting every supported layer at once.
+## Requirements
 
-## Replace the root import
+- React 19 or later.
+- The deck.gl 10 prerelease packages, `10.0.0-alpha.1`.
+- TypeScript 5.3 or later, if you use TypeScript.
+- A client module: in an app that uses React Server Components, import `DeckGL` from a
+  `'use client'` module. See [Get started](./get-started.md).
 
-Change this:
+## Write JSX
 
-```tsx
-import {DeckGL} from '@deck.gl/react';
-```
-
-To this:
-
-```tsx
-import {DeckGL} from '@deck.gl-community/react-fiber/compat';
-```
-
-Layer wrappers are explicit subpath imports owned by this package. They are not subpaths of `@deck.gl/react`.
+Import the root, and import a component for each deck.gl class from the subpath named after its
+deck.gl module. Install the deck.gl package behind each subpath you import.
 
 ```tsx
-import {MapView} from '@deck.gl-community/react-fiber/compat';
-import {ScatterplotLayer} from '@deck.gl-community/react-fiber/compat/layers';
+import {DeckGL} from '@deck.gl-community/react-fiber';
+import {MapView} from '@deck.gl-community/react-fiber/core';
+import {ScatterplotLayer} from '@deck.gl-community/react-fiber/layers';
+import {ZoomWidget} from '@deck.gl-community/react-fiber/widgets';
+
+<DeckGL initialViewState={INITIAL_VIEW_STATE} controller>
+  <MapView id="main" />
+  <ScatterplotLayer id="points" data={data} getPosition={d => d.position} />
+  <ZoomWidget id="zoom" />
+</DeckGL>;
 ```
 
-## Supported exports
-
-| Import | Exports |
+| Subpath | Components |
 | --- | --- |
-| `@deck.gl-community/react-fiber/compat` | `DeckGL`, `MapView`, `OrthographicView`, `OrbitView`, `FirstPersonView`, `GlobeView`; types `DeckGLProps`, `DeckGLRef`, `DeckGLContextValue` |
-| `/compat/layers` | `ArcLayer`, `BitmapLayer`, `IconLayer`, `LineLayer`, `PointCloudLayer`, `ScatterplotLayer`, `ColumnLayer`, `GridCellLayer`, `PathLayer`, `PolygonLayer`, `GeoJsonLayer`, `TextLayer`, `SolidPolygonLayer` |
-| `/compat/geo-layers` | `S2Layer`, `QuadkeyLayer`, `TileLayer`, `H3ClusterLayer`, `H3HexagonLayer`, `Tile3DLayer`, `TerrainLayer`, `GeohashLayer`, `GreatCircleLayer`, `TripsLayer`, `MVTLayer`, `WMSLayer` |
-| `/compat/aggregation-layers` | `ScreenGridLayer`, `HexagonLayer`, `ContourLayer`, `GridLayer`, `HeatmapLayer` |
-| `/compat/mesh-layers` | `ScenegraphLayer`, `SimpleMeshLayer` |
+| `/core` | The views, `LightingEffect` and `PostProcessEffect` |
+| `/layers`, `/geo-layers`, `/aggregation-layers`, `/mesh-layers` | Every layer in that deck.gl module |
+| `/widgets` | Every widget in `@deck.gl/widgets` |
 
+Components can sit at any depth inside your own components, which can use hooks and context.
+Props are checked against the class, and layer components take its type parameters. For a custom
+class, make a component once with `createLayerComponent`, `createViewComponent`,
+`createWidgetComponent` or `createEffectComponent`, exported from the root. To render an instance
+you built yourself, use `<deckLayer layer={layer} />`, `<deckView>`, `<deckWidget>` or
+`<deckEffect>`. See [Components](../api-reference/components.md) and
+[Native elements](../api-reference/native-elements.md).
 
-The compatibility subpaths export only this matrix. They do not export aggregation internals, aggregators, widgets, or `useWidget`.
+## From `@deck.gl/react`
 
-## Render layers and views
+### Change the imports
 
-Give each layer a stable ID and each view an explicit ID. The wrappers create the matching deck.gl descriptor and lower it to the native reconciler:
-
-```tsx
-import {DeckGL, MapView} from '@deck.gl-community/react-fiber/compat';
-import {ScatterplotLayer} from '@deck.gl-community/react-fiber/compat/layers';
-
-export function Map({data}: {data: Array<{position: [number, number]}>}) {
-  return (
-    <DeckGL
-      controller
-      initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}}
-    >
-      <MapView id="main-map">
-        <ScatterplotLayer
-          id="points"
-          data={data}
-          getPosition={point => point.position}
-          getRadius={100}
-        />
-      </MapView>
-    </DeckGL>
-  );
-}
-```
-
-## Mix native and compat APIs during migration
-
-Compat components turn into the same native `<layer>` and `<view>` elements used by React Fiber. You can use both styles in the same `DeckGL` tree. This lets you move to compat one layer at a time:
+The root is a named export. Import layers, views and widgets from the React Fiber subpaths
+instead of the deck.gl modules; the JSX stays the same.
 
 ```tsx
+// Before
+import DeckGL from '@deck.gl/react';
+import {MapView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {DeckGL} from '@deck.gl-community/react-fiber/compat';
-import {PolygonLayer} from '@deck.gl-community/react-fiber/compat/layers';
+import {ZoomWidget} from '@deck.gl/react';
 
-export function MixedLayers() {
-  return (
-    <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}}>
-      <layer layer={new ScatterplotLayer({id: 'native-points', data: []})} />
-      <PolygonLayer id="compat-polygons" data={[]} />
-    </DeckGL>
-  );
-}
+// After
+import {DeckGL} from '@deck.gl-community/react-fiber';
+import {MapView} from '@deck.gl-community/react-fiber/core';
+import {ScatterplotLayer} from '@deck.gl-community/react-fiber/layers';
+import {ZoomWidget} from '@deck.gl-community/react-fiber/widgets';
 ```
 
-Keep the native `<layer>` form when you already have a deck.gl layer instance, or when you need behavior that compat does not support. Change supported layers to compat components when you are ready.
+The root takes the same deck.gl props, renders the same wrapper and canvas, and orders the
+`layers` and `views` props against JSX the same way. See
+[Root DOM and sizing](../api-reference/deckgl.md#root-dom-and-sizing).
 
-Use the native root `DeckGL` when you need to control the renderer with props such as `gl`, `canvas`, `parent`, or `_customRender`.
+For a `MapboxOverlay` or `MapLibreOverlay`, import `DeckGL` from `/mapbox` or `/maplibre` and
+attach the overlay to the map you create. See [Using with maps](./using-with-maps.md).
 
-Using both styles does not add compat support for other APIs. Unsupported wrappers, widgets, function children, and renderer-control props are still not available from compat.
+### Replace `DeckGLRef`
 
-The native `DeckGL`, `<layer>`, and `<view>` APIs remain available from the root package. Both the native renderer and the compatibility adapter are named `DeckGL`; choose the intended component by its import path. Use the native component when you need a renderer feature that compat does not support. The native root can also combine the ordinary `layers` prop with `<layer>` children; compat wrappers are only a JSX-to-native-element migration aid.
-
-## Ref and context
-
-The `/compat` adapter supports an imperative `ref` and optional `ContextProvider` as its instance-access paths. It does not accept the native `onDeckglChange` lifecycle notification.
-
-`DeckGLRef` has exactly these members:
-
-- `deck`
-- `pickObject`
-- `pickObjects`
-- `pickMultipleObjects`
-- `pickObjectAsync`
-- `pickObjectsAsync`
-
-`deck` is `null` before initialization. Wait until it is available before calling a picking method; calling one before initialization throws. Async picking is unavailable for interleaved `MapboxOverlay` roots because that deck.gl integration exposes only synchronous picking methods.
+The root's `ref` receives the `Deck` instance, or the overlay on a map root. Picking calls stay
+the same; replace `deckRef.current.deck` with `deckRef.current`:
 
 ```tsx
-import {createContext, useContext, useEffect, useRef} from 'react';
-import {
-  DeckGL,
-  type DeckGLContextValue,
-  type DeckGLRef
-} from '@deck.gl-community/react-fiber/compat';
+// Before
+const deckRef = useRef<DeckGLRef>(null);
+deckRef.current?.pickObject({x, y});
 
-const DeckContext = createContext<DeckGLContextValue>({deck: null});
-
-function PickOnReady() {
-  const {deck} = useContext(DeckContext);
-
-  useEffect(() => {
-    if (deck) {
-      deck.pickObject({x: 10, y: 10});
-    }
-  }, [deck]);
-
-  return null;
-}
-
-export function PickableMap() {
-  const deckRef = useRef<DeckGLRef>(null);
-
-  return (
-    <DeckGL ref={deckRef} ContextProvider={DeckContext.Provider}>
-      <PickOnReady />
-    </DeckGL>
-  );
-}
+// After
+const deckRef = useRef<Deck>(null);
+deckRef.current?.pickObject({x, y});
 ```
 
-A supplied `ContextProvider` receives only `{deck}`. It is the reliable way to run an effect when the compat instance becomes available. Keep a ref local to the component when an interaction handler needs imperative picking access; changing a ref does not by itself rerun an effect. Compat does not provide official context fields such as `viewport`, `container`, `eventManager`, `onViewStateChange`, or widgets.
+To re-render when the instance is created or torn down, store it in state with `onDeckChange`.
+`DeckGLContext` has no equivalent; pass the instance through your own context or props.
 
-## Review unsupported patterns
+### Remove unsupported children
 
-Before changing imports, review the application for these patterns:
+- **HTML and function children.** `DeckGL` children may only be deck.gl components, native
+  elements, and components that render them. Render HTML overlays as siblings of `DeckGL` in a
+  positioned container. For per-view content, read viewports with `deck.getViewports()`.
+- **react-map-gl `<Map>` as a child.** Create the map yourself and use a map root. See
+  [Reverse-controlled maps](./using-with-maps.md#reverse-controlled-maps).
+- **`useWidget`.** Make a component for a custom widget with `createWidgetComponent`.
+- **A custom `Deck` class.** For a custom overlay, use
+  [`createDeckGL`](../api-reference/deckgl.md#custom-compatible-overlays).
 
-- `gl`, `canvas`, `parent`, and `_customRender`: compat does not accept these low-level renderer ownership props. Continue using the native `DeckGL` component when they are required.
-- Function children: compat does not support function-child render callbacks. Render supported layers and views directly instead.
-- Widgets, JSX widget wrappers, and `useWidget`: these APIs are deferred and unavailable from compat.
-- Extra layer or view components: only the export matrix above is supported.
-- Interleaved rendering: `MapboxOverlay` owns its views. Compat view wrappers do not change the existing interleaved view limitation.
-
-In development, detectable unsupported low-level props and function children issue concise migration warnings. Production is silent; a missing warning does not make an unsupported pattern work.
+Nesting a layer inside a view does not assign it to that view, as in `@deck.gl/react`. Use
+deck.gl's `layerFilter` for per-view layers.

@@ -287,3 +287,13 @@ export {
   type PanelContainerState,
   type PanelDockSide
 } from './panels/panel-container-state';
+
+export {
+  FullScreenController,
+  type FullScreenMode,
+  type FullScreenControllerOptions
+} from './lib/full-screen-controller';
+export {
+  FullScreenComponent,
+  type FullScreenComponentProps
+} from './components/full-screen-component';

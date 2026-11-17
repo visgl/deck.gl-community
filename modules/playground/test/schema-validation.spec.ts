@@ -110,7 +110,7 @@ test('coordinate systems use deck.gl string values in Zod and JSON Schema', () =
     'meter-offsets',
     'lnglat-offsets',
     'cartesian',
-    '@@#COORDINATE_SYSTEM.CARTESIAN'
+    'cartesian'
   ]) {
     const document = {layers: [{...base('ScatterplotLayer'), coordinateSystem}]};
     expect(DeckGLDocumentSchema.safeParse(document).success).toBe(true);

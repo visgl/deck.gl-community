@@ -29,7 +29,7 @@ import {
   type UpdateParameters
 } from '@deck.gl/core';
 import {CubeGeometry, Model} from '@luma.gl/engine';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 import fs from './cube-layer-fragment-shader';
 import vs from './cube-layer-vertex-shader';
 import type {Cube} from '../interfaces';

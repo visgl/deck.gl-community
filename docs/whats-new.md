@@ -2,7 +2,29 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
-## Unreleased
+## v10.0.0-alpha.1
+
+- **Breaking:** adopt deck.gl `10.0.0-alpha.1`, luma.gl `10.0.0-alpha.14`,
+  loaders.gl and math.gl `5.0.0-beta.8`, and probe.gl `5.0.0`.
+  Applications must update their peer dependencies together. See the [upgrade guide](./upgrade-guide.md).
+
+Gallery pages, inline documentation examples, and all 37 standalone HTML examples now share an iPhone-compatible fullscreen button.
+
+- **panels:** `FullScreenComponent` and `FullScreenController` add native fullscreen with a
+  viewport fallback for unsupported or rejected requests, including iPhone browsers. They
+  preserve visualization state, manage focus and background scrolling, and clean up on removal.
+  See [Fullscreen controls](./modules/panels/api-reference/panel-components/full-screen-component.md).
+
+- **react-fiber:** the `DeckGL` root matches `@deck.gl/react`, new `<deckWidget>` and `<deckEffect>`
+  elements add deck.gl widgets and effects from the React tree, and `/mapbox` and `/maplibre` roots attach to map overlays.
+  The elements are now `<deckLayer>`, `<deckView>`, `<deckWidget>` and `<deckEffect>`.
+  Every built-in deck.gl layer, view, widget and effect has a component, imported from a subpath named after its
+  module, such as `<ScatterplotLayer>` from `/layers`, and `createLayerComponent` wraps custom classes.
+  The `/mapbox` and `/maplibre` roots take a `map` prop and attach their overlay to it, and `createDeckGL`
+  takes an `attach` option for custom overlays.
+  A new `/google-maps` root renders into a `GoogleMapsOverlay` and attaches it to the `google.maps.Map`
+  in its `map` prop. See [Using with Google Maps](/docs/modules/react-fiber/developer-guide/base-maps/using-with-google-maps).
+  See the [upgrade guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react).
 
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
@@ -214,7 +236,7 @@ Released: September 7, 2026
 - **layers:** new dependency arrows, plus WebGPU support for path outlines and directional path markers.
 - **infovis-layers:** new animation, interval-block, and time-delta layers.
 - **widgets and panels:** new color legends, reusable panel components, floating dialogs, and binary and Apache Arrow data previews.
-- **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements.
+- **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements, with a [migration guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react) for `@deck.gl/react` applications.
 - **editable-layers:** isolates edits from interleaved MapLibre/Mapbox pans, keeps `guideType` features selectable, and resumes editing after two-finger navigation.
 
 ## v9.3

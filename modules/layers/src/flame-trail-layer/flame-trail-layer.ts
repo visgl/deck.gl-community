@@ -5,7 +5,7 @@
 import {TripsLayer, type TripsLayerProps} from '@deck.gl/geo-layers';
 import type {DefaultProps} from '@deck.gl/core';
 import {Model} from '@luma.gl/engine';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 import {FLAME_FUNCTIONS, FLAME_COLOR} from './flame-trail-layer-fragment';
 import {FLAME_VERTEX, FLAME_VERTEX_DECLARATIONS} from './flame-trail-layer-vertex';
 import {createFlameGeometry} from './flame-trail-geometry';
@@ -50,30 +50,44 @@ export class FlameTrailLayer<DataT = any, ExtraProps extends {} = {}> extends Tr
 
   getShaders() {
     const shaders = super.getShaders();
+    const tripsPlugin = shaders.plugins.find(plugin => plugin.name === 'trips');
     if (this.context.device.type === 'webgpu') {
-      const inject = getFlameInjectionsWGSL(shaders.inject);
+      const inject = getFlameInjectionsWGSL();
       let source = shaders.source;
-      // Declare stage I/O before luma allocates extension varying locations.
-      for (const anchor of [
-        '  @location(12) rowIndexes: u32,',
-        '  @location(5) vJointType: f32,'
-      ]) {
-        source = source.replace(anchor, `${anchor}\n${inject[anchor]}`);
-        delete inject[anchor];
+      for (const [anchor, code] of Object.entries(inject)) {
+        if (!anchor.includes('#')) {
+          source = source.replace(anchor, `${anchor}\n${code}`);
+        }
       }
-      return {
-        ...shaders,
-        // Preserve both PathLayer antialiasing variants, then apply flame tint and picking.
-        source: source.replace(
+      source = source
+        .replace(
+          '  DECKGL_FILTER_PATH_COLOR_VERTEX(&varyings.vColor, varyings.vPathPosition, varyings.vPathLength);',
+          ''
+        )
+        .replace(
+          'fn fragmentMain(varyings: Varyings) -> @location(0) vec4<f32> {',
+          `fn fragmentMain(varyings: Varyings) -> @location(0) vec4<f32> {\n${inject['fs:#main-start']}`
+        )
+        .replace(
+          '  DECKGL_FILTER_PATH_COLOR();',
+          `
+          if (varyings.vTime > trips.currentTime ||
+              (trips.fadeTrail > 0.5 && varyings.vTime < trips.currentTime - trips.trailLength)) { discard; }
+          if (flameColor.a <= 0.0 || (trips.fadeTrail > 0.5 && trips.trailLength <= 0.0)) { discard; }`
+        )
+        .replace(
           /return deckgl_premultiplied_alpha\((color|varyings.vColor)\);/g,
           'return flameTrail_output($1, flameColor, varyings.flamePickingColor);'
-        ),
-        modules: [...shaders.modules, FLAME_UNIFORMS],
+        );
+      return {
+        ...shaders,
+        source: `${inject['vs:#decl']}\n${source}`,
+        modules: [...shaders.modules, tripsPlugin.module, FLAME_UNIFORMS],
+        plugins: shaders.plugins.filter(plugin => plugin !== tripsPlugin),
         defines: {
           ...shaders.defines,
           ...(shaders.modules.some(module => module.name === 'terrain') && {FLAME_TRAIL_TERRAIN: 1})
-        },
-        inject
+        }
       };
     }
     return {
@@ -83,19 +97,20 @@ export class FlameTrailLayer<DataT = any, ExtraProps extends {} = {}> extends Tr
         ...shaders.defines,
         ...(shaders.modules.some(module => module.name === 'terrain') && {FLAME_TRAIL_TERRAIN: 1})
       },
-      inject: {
-        ...shaders.inject,
-        'vs:#decl': `${shaders.inject['vs:#decl']}\n${FLAME_VERTEX_DECLARATIONS}`,
-        'vs:#main-end': `${shaders.inject['vs:#main-end']}\n${FLAME_VERTEX}`,
-        'fs:#decl': `${shaders.inject['fs:#decl']}\n${FLAME_FUNCTIONS}`,
-        'fs:DECKGL_FILTER_COLOR': `
-          // Evaluate PathLayer's coverage derivatives before discarding fragments.
-          // A zero-length fading trail is empty; avoid upstream division by zero.
-          if (trips.fadeTrail && trips.trailLength <= 0.0) discard;
-          ${shaders.inject['fs:DECKGL_FILTER_COLOR']}
-          ${FLAME_COLOR}
-        `
-      }
+      plugins: [
+        ...shaders.plugins,
+        {
+          name: 'flame-trail',
+          injections: {
+            'glsl:vs:#decl': FLAME_VERTEX_DECLARATIONS,
+            'glsl:vs:#main-end': FLAME_VERTEX,
+            'glsl:fs:#decl': FLAME_FUNCTIONS,
+            'glsl:fs:DECKGL_FILTER_COLOR': `
+            if (trips.fadeTrail && trips.trailLength <= 0.0) discard;
+            ${FLAME_COLOR}`
+          }
+        }
+      ]
     };
   }
 

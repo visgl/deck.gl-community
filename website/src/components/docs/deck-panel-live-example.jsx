@@ -1,3 +1,4 @@
+import FullscreenExample from '../example/fullscreen-example';
 import React, {useEffect, useRef} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 import {mountDeckPanelExample} from '../../../../examples/widgets/deck-panel/app';
@@ -12,7 +13,7 @@ function DeckPanelExampleHost() {
     const cleanup = mountDeckPanelExample(host.current);
     return () => deferImperativeCleanup(cleanup);
   }, []);
-  return <div ref={host} style={STYLE} />;
+  return <FullscreenExample style={STYLE}><div ref={host} style={{width: '100%', height: '100%'}} /></FullscreenExample>;
 }
 
 export default function DeckPanelLiveExample() {

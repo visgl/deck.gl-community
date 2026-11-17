@@ -1,3 +1,4 @@
+import FullscreenExample from '../example/fullscreen-example';
 import React, {useEffect, useRef} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 
@@ -45,7 +46,9 @@ function WidgetLiveExampleHost({highlight, height}) {
     };
   }, [highlight]);
 
-  return <div ref={hostRef} style={{...WRAPPER_STYLE, height}} />;
+  return <FullscreenExample style={{...WRAPPER_STYLE, height}}>
+    <div ref={hostRef} style={{width: '100%', height: '100%'}} />
+  </FullscreenExample>;
 }
 
 export default function WidgetLiveExample({highlight, size = 'narrow', height}) {

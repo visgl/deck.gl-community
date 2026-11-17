@@ -122,11 +122,13 @@ function createDocumentSchema<L extends z.ZodType, V extends z.ZodType, S extend
   });
 }
 /** JSON-safe configuration, not a validator for live Layer instances or every Deck constructor option. */
-export const DeckGLDocumentSchema = createDeckGLDocumentSchema(DeckGLLayerSchema, DeckGLViewSchema);
+export const DeckGLDocumentSchema: ReturnType<
+  typeof createDeckGLDocumentSchema<typeof DeckGLLayerSchema, typeof DeckGLViewSchema>
+> = createDeckGLDocumentSchema(DeckGLLayerSchema, DeckGLViewSchema);
 export type DeckGLDocument = z.infer<typeof DeckGLDocumentSchema>;
 
 /** Builds the standalone editor artifact from the same schemas used for runtime validation. */
-export function createDeckGLJSONSchema() {
+export function createDeckGLJSONSchema(): z.core.JSONSchema.JSONSchema {
   const schema = z.toJSONSchema(DeckGLDocumentSchema, {
     target: 'draft-2020-12',
     reused: 'ref',

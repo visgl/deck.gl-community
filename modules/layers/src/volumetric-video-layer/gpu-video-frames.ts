@@ -4,7 +4,7 @@
 
 import {Texture, type Device, type Framebuffer, type TextureView} from '@luma.gl/core';
 import {ClipSpace} from '@luma.gl/engine';
-import type {ShaderModule} from '@luma.gl/shadertools';
+import type {ShaderModule} from '@luma.gl/shaders';
 import {GPUVideoResources, assertGPUVideoResources} from './gpu-video-resources';
 import type {VideoSample} from 'mediabunny';
 import {getFrameSize, type FrameWindow} from './frame-utils';

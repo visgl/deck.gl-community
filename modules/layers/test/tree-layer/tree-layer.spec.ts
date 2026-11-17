@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {describe, it, expect, vi} from 'vitest';
-import {COORDINATE_SYSTEM, LayerExtension, LayerManager, WebMercatorViewport} from '@deck.gl/core';
+import {LayerExtension, LayerManager, WebMercatorViewport} from '@deck.gl/core';
 import {device} from '@deck.gl/test-utils/vitest';
 import {TreeLayer, type TreeType} from '../../src/tree-layer/tree-layer';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
@@ -787,11 +787,7 @@ it('applies a prepared getSource override while sharing one canopy quota', () =>
 });
 
 it('rejects compositional layer transforms that would detach foliage from wood', () => {
-  for (const coordinateSystem of [
-    COORDINATE_SYSTEM.CARTESIAN,
-    COORDINATE_SYSTEM.METER_OFFSETS,
-    COORDINATE_SYSTEM.DEFAULT
-  ]) {
+  for (const coordinateSystem of ['cartesian', 'meter-offsets', 'default']) {
     const {layer} = createLayer([OAK], {
       coordinateSystem,
       modelMatrix: [2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]

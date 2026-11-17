@@ -5,7 +5,7 @@
 import {PathLayer} from '@deck.gl/layers';
 
 import type {NumericArray} from '@math.gl/core';
-import type {ShaderModule, ShaderPlugin} from '@luma.gl/shadertools';
+import type {ShaderModule, ShaderPlugin} from '@luma.gl/shaders';
 
 type WebGpuPathStyleProps = {
   dashAlignMode: number;
@@ -35,27 +35,28 @@ struct WebGpuPathStyleUniforms {
 
 const webgpuPathStylePlugin: ShaderPlugin = {
   name: 'webgpu-path-style',
-  wgsl: {
-    modules: [webgpuPathStyleUniforms],
-    vertexInputs: {
-      instanceDashArrays: 'vec2<f32>',
-      instanceDashOffsets: 'f32'
-    },
-    varyings: {
-      webgpuDashArray: {type: 'vec2<f32>'},
-      webgpuDashOffset: {type: 'f32'}
-    },
-    injections: [
-      {
-        target: 'vs:#main-end',
-        injection: /* wgsl */ `\
+  module: webgpuPathStyleUniforms,
+  vertexInputs: {
+    instanceDashArrays: 'vec2<f32>',
+    instanceDashOffsets: 'f32'
+  },
+  interStageVariables: {
+    webgpuDashArray: {type: 'vec2<f32>'},
+    webgpuDashOffset: {type: 'f32'}
+  },
+  injections: [
+    {
+      stage: 'vertex',
+      target: '#main-end',
+      wgsl: /* wgsl */ `\
 webgpuDashArray = instanceDashArrays;
 webgpuDashOffset = instanceDashOffsets / max(widthPixels, 0.0001);
 `
-      },
-      {
-        target: 'fs:#main-start',
-        injection: /* wgsl */ `\
+    },
+    {
+      stage: 'fragment',
+      target: '#main-start',
+      wgsl: /* wgsl */ `\
 let solidLength = webgpuDashArray.x;
 let gapLength = webgpuDashArray.y;
 var unitLength = solidLength + gapLength;
@@ -87,9 +88,8 @@ if (unitLength > 0.0) {
   }
 }
 `
-      }
-    ]
-  }
+    }
+  ]
 };
 
 /**

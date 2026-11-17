@@ -6,7 +6,7 @@ import {CompositeLayer, Layer} from '@deck.gl/core';
 import type {TileLayerProps} from '@deck.gl/geo-layers';
 import {TileLayer} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, PathLayer} from '@deck.gl/layers';
-import type {TileSource} from '@loaders.gl/loader-utils';
+import type {TileSource} from '@loaders.gl/core/loader-utils';
 
 /* global window */
 const devicePixelRatio = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;

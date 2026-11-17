@@ -38,7 +38,9 @@ function makeSplatFile(): ArrayBuffer {
 }
 
 async function loadTable() {
-  return SPLATLoader.parse(makeSplatFile());
+  // loaders.gl 5 exports loader metadata; preload returns the parser
+  const loader = await SPLATLoader.preload();
+  return loader.parse(makeSplatFile());
 }
 
 it('converts a decoded @loaders.gl/splats table into prepared source columns', async () => {

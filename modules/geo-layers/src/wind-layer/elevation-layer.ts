@@ -5,7 +5,7 @@
 import {CompositeLayer, type Color, type DefaultProps, type LayerProps} from '@deck.gl/core';
 import {TerrainLayer} from '@deck.gl/geo-layers';
 import {load} from '@loaders.gl/core';
-import {TerrainLoader} from '@loaders.gl/terrain';
+import {TerrainLoader} from '@loaders.gl/raster';
 
 /** Configuration for the work-in-progress, height-map-based {@link ElevationLayer}. */
 export type ElevationLayerProps = {

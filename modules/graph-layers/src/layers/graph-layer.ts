@@ -5,7 +5,7 @@
 /* eslint-disable no-continue */
 
 import type {CompositeLayerProps} from '@deck.gl/core';
-import {COORDINATE_SYSTEM, CompositeLayer} from '@deck.gl/core';
+import {CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 
 import type {Graph, NodeInterface} from '../graph/graph';
@@ -87,7 +87,7 @@ export type RankGridConfig = {
 };
 
 const SHARED_LAYER_PROPS = {
-  coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+  coordinateSystem: 'cartesian',
   parameters: {
     depthTest: false
   }

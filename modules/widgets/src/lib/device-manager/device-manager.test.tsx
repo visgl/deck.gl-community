@@ -11,11 +11,11 @@ vi.mock('@luma.gl/core', () => ({
   }
 }));
 
-vi.mock('@luma.gl/webgl', () => ({
+vi.mock('@luma.gl/core/webgl', () => ({
   webgl2Adapter: {type: 'webgl'}
 }));
 
-vi.mock('@luma.gl/webgpu', () => ({
+vi.mock('@luma.gl/core/webgpu', () => ({
   webgpuAdapter: {type: 'webgpu'}
 }));
 

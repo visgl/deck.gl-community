@@ -3,8 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, MapView} from '@deck.gl/core';
-import type {TileSource} from '@loaders.gl/loader-utils';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import type {TileSource} from '@loaders.gl/core/loader-utils';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {afterEach, describe, expect, test} from 'vitest';
 import {SharedTile2DLayer} from '../../src';
 

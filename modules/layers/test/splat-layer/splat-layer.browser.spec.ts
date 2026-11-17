@@ -1,8 +1,8 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {COORDINATE_SYSTEM, CompositeLayer, Deck, MapView, type Layer} from '@deck.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {CompositeLayer, Deck, MapView, type Layer} from '@deck.gl/core';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {describe, expect, it, vi} from 'vitest';
 import {SplatLayer, type SplatSource} from '../../src';
 
@@ -35,7 +35,7 @@ describe('Gaussian canopy rendering', () => {
         data,
         getSource: SOURCE,
         pixelError,
-        coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+        coordinateSystem: 'meter-offsets',
         coordinateOrigin: [0, 0, 0],
         getTranslation: [0, 0, 5],
         getDeformation: [10, 0.7, 1],
@@ -214,7 +214,7 @@ it('truncates culled owner tails without re-uploading unchanged instance attribu
     id: 'tail',
     data,
     getSource: SOURCE,
-    coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+    coordinateSystem: 'meter-offsets',
     coordinateOrigin: [0, 0, 0],
     getTranslation: [0, 0, 5],
     material: {unlit: true}
@@ -275,7 +275,7 @@ it('moves drawing and picking when a new data array reuses a mutated owner', asy
       scales: new Float32Array([0.35, 0.35, 0.35]),
       colors: new Uint8Array([255, 255, 255, 255])
     },
-    coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+    coordinateSystem: 'meter-offsets',
     coordinateOrigin: [0, 0, 0],
     getTranslation: [0, 0, 5],
     getColor: owner => owner.color,

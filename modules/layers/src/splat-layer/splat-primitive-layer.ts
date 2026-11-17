@@ -1,3 +1,4 @@
+import {INSTANCE_COLOR_PLUGIN} from '../selection-pulse-extension/selection-pulse-shaders';
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
@@ -14,7 +15,7 @@ import {
   type UpdateParameters
 } from '@deck.gl/core';
 import {Model} from '@luma.gl/engine';
-import {phongMaterial, type PhongMaterialProps} from '@luma.gl/shadertools';
+import {phongMaterial, type PhongMaterialProps} from '@luma.gl/shaders';
 import {acquireSplatGeometry, type SplatSource} from './splat-source';
 import {getSplatTransform} from './splat-transform';
 import {
@@ -186,7 +187,8 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
       vs: SPLAT_VERTEX,
       fs: SPLAT_FRAGMENT,
       source: SPLAT_WGSL,
-      modules: [project32, picking, phongMaterial, splatUniforms]
+      modules: [project32, picking, phongMaterial, splatUniforms],
+      plugins: [INSTANCE_COLOR_PLUGIN]
     });
   }
 

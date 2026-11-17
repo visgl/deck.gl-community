@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import {render} from 'preact';
 import {afterEach, describe, expect, it} from 'vitest';
-import {Stats} from '@probe.gl/stats';
+import {Stats} from 'probe.gl/stats';
 
 import {StatsPanel} from './stats-panel';
 

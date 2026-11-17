@@ -1,3 +1,4 @@
+import {usePanelPortalTarget} from './use-panel-portal';
 import {getPanelThemeVariables, observePanelTheme} from '../lib/panel-theme';
 /** @jsxImportSource preact */
 
@@ -76,6 +77,7 @@ export function PanelSelect({
   const listboxRef = useRef<HTMLDivElement | null>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [open, setOpen] = useState(false);
+  const portalTarget = usePanelPortalTarget(shellRef, open);
   const [activeOptionIndex, setActiveOptionIndex] = useState(() =>
     findSelectedOptionIndex(options, value)
   );
@@ -227,7 +229,7 @@ export function PanelSelect({
         <span>{selectedOption?.label ?? String(value)}</span>
         {trailingIcon ?? <PanelSelectChevron />}
       </button>
-      {open && shellRef.current?.ownerDocument.body
+      {open && portalTarget
         ? createPortal(
             <div
               ref={listboxRef}
@@ -272,7 +274,7 @@ export function PanelSelect({
                 );
               })}
             </div>,
-            shellRef.current.ownerDocument.body
+            portalTarget!
           )
         : null}
     </div>
@@ -294,6 +296,7 @@ export function PanelMultiSelect({
   const shellRef = useRef<HTMLDivElement | null>(null);
   const listboxRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
+  const portalTarget = usePanelPortalTarget(shellRef, open);
   const [query, setQuery] = useState('');
   const [menuStyle, setMenuStyle] = useState<JSX.CSSProperties>(PANEL_SELECT_STYLES.menu);
   const selectedValues = useMemo(
@@ -424,7 +427,7 @@ export function PanelMultiSelect({
         <span style={PANEL_SELECT_STYLES.summaryText}>{summaryLabel}</span>
         {trailingIcon ?? <PanelSelectChevron />}
       </button>
-      {open && shellRef.current?.ownerDocument.body
+      {open && portalTarget
         ? createPortal(
             <div
               ref={listboxRef}
@@ -503,7 +506,7 @@ export function PanelMultiSelect({
                 </button>
               ) : null}
             </div>,
-            shellRef.current.ownerDocument.body
+            portalTarget!
           )
         : null}
     </div>

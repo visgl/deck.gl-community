@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v10.0.0-alpha.1
+
+- **Breaking:** Require deck.gl `10.0.0-alpha.1` and luma.gl `10.0.0-alpha.14`.
+  Update loaders.gl and math.gl to `5.0.0-beta.8` and probe.gl to `5.0.0` (#1079).
+- Migrate to string coordinate systems, consolidated loader packages, and shader
+  plugins. See the [upgrade guide](docs/upgrade-guide.md#v1000-alpha1).
+- Temporarily skip the unreleased WebGPU terrain height-map integration check.
+  FlameTrailLayer WebGPU tests continue to run against the published SDK.
+
 ## v9.4.10
 
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
