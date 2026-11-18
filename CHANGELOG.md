@@ -13,6 +13,10 @@
 - Add a React Fiber Google Maps root, attach map overlays through a `map` prop, and
   cover widget and StrictMode behavior (#1085, #1089, #1090, #1091).
 
+- **Breaking:** Replace the Gaussian `TreeLayer` canopy with procedural wood, foliage, and crops
+  across all eight species on WebGL2 and WebGPU. Use `lodBias` in place of the Gaussian canopy
+  budget controls. Fitted canopies and individual leaves share a foliage palette across detail levels.
+
 ## v10.0.0-alpha.1
 
 - **Breaking:** Require deck.gl `10.0.0-alpha.1` and luma.gl `10.0.0-alpha.14`.
