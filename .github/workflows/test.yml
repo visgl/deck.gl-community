@@ -307,7 +307,9 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-ubuntu24-panels-${{ matrix.browser }}-${{ hashFiles('node_modules/playwright-core/browsers.json') }}
       - name: Install browser and dependencies
-        run: yarn playwright install --with-deps ${{ matrix.browser }}
+        uses: ./.github/actions/setup-browser
+        with:
+          browser: ${{ matrix.browser }}
       - name: Verify native fullscreen and viewport fallback
         run: yarn test:panels-fullscreen
         env:
