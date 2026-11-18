@@ -42,7 +42,7 @@
     "supercluster": "^8.0.1"
   },
   "peerDependencies": {
-    "@deck.gl-community/panels": "10.0.0-alpha.1",
+    "@deck.gl-community/panels": "10.0.0-alpha.2",
     "@deck.gl/core": "10.0.0-alpha.1",
     "@luma.gl/core": "10.0.0-alpha.14"
   }
