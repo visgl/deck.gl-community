@@ -7,5 +7,6 @@ Work-in-progress modules and examples. Not published to npm or indexed by the do
 | `timeline-layers/` | module + examples | in progress — see #517, #379 |
 | `arrow-layers/` | examples | arrow-layers WIP examples |
 | `basemap-conformance/` | test-only | MapLibre reference renderer and render metrics for basemap renderer harnesses |
+| `tree-field-bench/` | benchmark + playground | Reproducible 20,000-tree field for WebGL2 and WebGPU |
 
 Design proposals and RFCs belong in [GitHub Issues/Discussions](https://github.com/visgl/deck.gl-community/issues).
