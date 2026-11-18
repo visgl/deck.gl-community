@@ -4,6 +4,17 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+### TreeLayer renderer
+
+Remove `maxCanopySplats`, `maxCanopyPixels`, and `foveationStrength` from `TreeLayer`.
+If you used a preview build, remove its `quality` switch as well. Use `lodBias` to tune how
+far individual leaves remain visible before switching to fitted canopy shells. Replace custom
+Gaussian canopy overrides with TreeLayer materials and accessors. Use standalone `SplatLayer`
+for Gaussian data. See the
+[TreeLayer reference](./modules/layers/api-reference/tree-layer.md#migrating-from-the-gaussian-canopy-renderer).
+
 ## v10.0.0-alpha.1
 
 ### deck.gl v10 prerelease
@@ -100,9 +111,6 @@ new SplatLayer({data: rows, source, hierarchy});
 // After
 new SplatLayer({data: rows, getSource: {type: 'prepared-splats', source, hierarchy}});
 ```
-
-TreeLayer canopy overrides follow the same rule: set `getSource` in `_subLayerProps` instead of
-`source` or `hierarchy`.
 
 ## v9.4.7
 

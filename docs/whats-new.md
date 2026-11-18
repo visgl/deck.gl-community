@@ -2,6 +2,13 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- **Breaking:** [TreeLayer](./modules/layers/api-reference/tree-layer.md) uses procedural wood,
+  foliage, and crops for all eight species on WebGL2 and WebGPU. Fitted canopies and individual
+  leaves share a foliage palette as detail changes. Replace the Gaussian canopy controls with
+  `lodBias` as described in the [upgrade guide](./upgrade-guide.md#treelayer-renderer).
+
 ## v10.0.0-alpha.1
 
 - **Breaking:** adopt deck.gl `10.0.0-alpha.1`, luma.gl `10.0.0-alpha.14`,

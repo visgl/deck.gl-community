@@ -4,6 +4,8 @@
 
 import {
   Deck,
+  DirectionalLight,
+  LightingEffect,
   MapController,
   type MapView,
   type MapViewState,
@@ -52,24 +54,33 @@ describe('Seasonal Farm integration', () => {
       let instantCamera = false;
       const errors: Error[] = [];
       const frames = vi.fn(() => deck!.getViewports()[0] as WebMercatorViewport);
+      // WebGPU may compile a fresh batch after cycling a season for the first time.
+      // Wait for the requested season to render instead of racing three prop changes.
+      const renderedSeasons = new Set<string>();
       const mount = () =>
         mountSeasonalFarmExample(parent, {
           device,
           initialViewState: savedView,
           onViewStateChange(params) {
-            // Clamp contracts should inspect the authored target independently of
-            // software-GPU animation cadence. Earlier inputs still exercise transitions.
-            savedView = instantCamera
+            // Run the wheel transition at its normal cadence. Apply later keyboard and limit
+            // checks immediately so the software GPU only draws the poses being asserted.
+            const nextView = instantCamera
               ? {...params.viewState, transitionDuration: 0}
               : params.viewState;
-            return savedView;
+            savedView = nextView;
+            return nextView;
           },
           onDeckInitialized(instance) {
             deck = instance;
             deck.setProps({
               useDevicePixels: 0.5,
               onError: error => errors.push(error),
-              onAfterRender: frames
+              onAfterRender: () => {
+                if (errors.length) return;
+                const season = root().dataset.season;
+                if (season) renderedSeasons.add(season);
+                frames();
+              }
             });
           }
         });
@@ -112,6 +123,13 @@ describe('Seasonal Farm integration', () => {
         cleanup = mount();
         await expect.poll(() => frames.mock.calls.length, {timeout: 5000}).toBeGreaterThan(0);
         expect(deck!.props.device).toBe(device);
+        const lighting = deck!.props.effects?.find(effect => effect instanceof LightingEffect);
+        expect(lighting?.shadowColor[3]).toBe(0.42);
+        expect(
+          Object.values(lighting?.props ?? {}).some(
+            light => light instanceof DirectionalLight && light.shadow
+          )
+        ).toBe(true);
         expect(deck!.props.controller).toMatchObject({type: MapController});
         await expect
           .poll(() => parent.querySelector('#settings-panel-input-season'), {timeout: 5000})
@@ -126,9 +144,18 @@ describe('Seasonal Farm integration', () => {
         const cherryTree = data.find(tree => tree.species === 'cherry')!;
         const corkOak = data.find(tree => tree.species === 'cork-oak')!;
         expect(getCrop(cherryTree)!.count).toBeGreaterThan(0);
-        frames.mockClear();
-        for (const season of ['summer', 'autumn', 'winter']) await select(season);
-        await expect.poll(() => frames.mock.calls.length, {timeout: 5000}).toBeGreaterThan(0);
+        for (const season of ['summer', 'autumn', 'winter']) {
+          await select(season);
+          await expect
+            .poll(
+              () => {
+                expect(errors.map(error => error.cause ?? error.message)).toEqual([]);
+                return renderedSeasons.has(season);
+              },
+              {timeout: 15_000}
+            )
+            .toBe(true);
+        }
         expect(trees().props.data).toBe(data);
         expect(getSeason(cherryTree)).toBe('winter');
         expect(getSeason(corkOak)).toBe('summer');
@@ -142,18 +169,35 @@ describe('Seasonal Farm integration', () => {
         await expect.poll(() => trees().props.windStrength).toBe(0.05);
         setNumber('Size', 1.2);
         await expect.poll(() => trees().props.sizeScale).toBe(1.2);
-        Array.from(parent.querySelectorAll<HTMLButtonElement>('button'))
-          .find(button => button.textContent?.includes('Rendering'))!
-          .click();
+        const crown = Array.from(
+          parent.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')
+        ).find(button => button.textContent?.includes('Crown'));
+        expect(crown).toBeDefined();
+        if (crown?.getAttribute('aria-expanded') === 'false') crown.click();
         await expect
-          .poll(() => parent.querySelector('#settings-panel-input-maxCanopySplats'))
+          .poll(() => parent.querySelector('input[aria-label="Branch wander numeric value"]'))
           .not.toBeNull();
-        await selectOption('maxCanopySplats', '5,000');
-        await expect.poll(() => trees().props.maxCanopySplats).toBe(5_000);
-        await selectOption('maxCanopyPixels', '1 MP');
-        await expect.poll(() => trees().props.maxCanopyPixels).toBe(1_000_000);
-        setNumber('Foveation', 0.5);
-        await expect.poll(() => trees().props.foveationStrength).toBe(0.5);
+        setNumber('Branch wander', 1.3);
+        setNumber('Twig droop', 0.7);
+        await expect
+          .poll(() => trees().props.characteristics)
+          .toMatchObject({
+            branchWander: 1.3,
+            twigDroop: 0.7
+          });
+        const rendering = Array.from(
+          parent.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')
+        ).find(button => button.textContent?.includes('Rendering'));
+        expect(rendering).toBeDefined();
+        if (rendering?.getAttribute('aria-expanded') === 'false') rendering.click();
+        await expect
+          .poll(() => parent.querySelector('#settings-panel-input-lodBias'))
+          .not.toBeNull();
+        setNumber('LOD bias', 1);
+        await expect.poll(() => trees().props.lodBias).toBe(1);
+        setNumber('LOD bias', -1);
+        await expect.poll(() => trees().props.lodBias).toBe(-1);
+        setNumber('LOD bias', 0);
         setNumber('Wind', 0);
         setNumber('Size', 1);
         parent.querySelector<HTMLInputElement>('#settings-panel-input-crops')!.click();
@@ -178,14 +222,16 @@ describe('Seasonal Farm integration', () => {
         expect(deck!.props.getTooltip!({x: 0, y: 0} as PickingInfo)).toBeNull();
         expect(viewport().zoom).toBe(view.zoom);
         const bounds = canvas.getBoundingClientRect();
-        canvas.dispatchEvent(
-          new WheelEvent('wheel', {
-            bubbles: true,
-            deltaY: -240,
-            clientX: bounds.left + bounds.width / 2,
-            clientY: bounds.top + bounds.height / 2
-          })
-        );
+        const wheel = (deltaY: number) =>
+          canvas.dispatchEvent(
+            new WheelEvent('wheel', {
+              bubbles: true,
+              deltaY,
+              clientX: bounds.left + bounds.width / 2,
+              clientY: bounds.top + bounds.height / 2
+            })
+          );
+        wheel(-240);
         await expect.poll(() => viewport().zoom, {timeout: 5000}).toBeGreaterThan(view.zoom + 0.5);
         instantCamera = true;
         canvas.dispatchEvent(
@@ -225,6 +271,14 @@ describe('Seasonal Farm integration', () => {
             .poll(() => frames.mock.results.at(-1)?.value[property], {timeout: 5000})
             .toBe(limit);
         }
+        // Exercise the zoom clamp through wheel input at the maximum pitch.
+        wheel(120);
+        await expect.poll(() => viewport().zoom, {timeout: 5000}).toBeLessThan(23);
+        for (let attempt = 0; attempt < 3; attempt++) {
+          wheel(-240);
+          await expect.poll(() => viewport().zoom, {timeout: 5000}).toBe(23);
+        }
+        expect(viewport().pitch).toBe(80);
         const navigated = {...savedView!};
         // Ignore the transient canvas size reported during a website device handoff.
         deck!.props.onResize!({width: 1, height: 1});
@@ -269,7 +323,9 @@ describe('Seasonal Farm integration', () => {
             })
             .toBe(true);
         }
-        expect(errors).toEqual([]);
+        expect(
+          errors.map(error => (error.cause as Error | undefined)?.stack ?? error.stack)
+        ).toEqual([]);
       } finally {
         cleanup?.();
         device?.destroy();
