@@ -2,7 +2,7 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
-## Unreleased
+## v10.0.0-alpha.2
 
 - **Breaking:** [TreeLayer](./modules/layers/api-reference/tree-layer.md) uses procedural wood,
   foliage, and crops for all eight species on WebGL2 and WebGPU. Fitted canopies and individual

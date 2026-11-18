@@ -1,10 +1,17 @@
 # deck.gl-community CHANGELOG
 
-## Unreleased
+## v10.0.0-alpha.2
 
 - **Breaking:** Replace the Gaussian `TreeLayer` canopy with procedural wood, foliage, and crops
   across all eight species on WebGL2 and WebGPU. Use `lodBias` in place of the Gaussian canopy
   budget controls. Fitted canopies and individual leaves share a foliage palette across detail levels.
+
+- Keep tree shadows stable through zoom and LOD changes, retain nearby small-tree detail,
+  and reduce branch and foliage render work while preserving conservative culling.
+- Update Seasonal Farm and the TreeLayer API and migration documentation (#1065).
+- Add a 20,000-tree development playground and repeatable WebGL2/WebGPU benchmark (#1078).
+- Add a React Fiber Google Maps root, attach map overlays through a `map` prop, and
+  cover widget and StrictMode behavior (#1085, #1089, #1090, #1091).
 
 ## v10.0.0-alpha.1
 
