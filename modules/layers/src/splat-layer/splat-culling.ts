@@ -166,7 +166,8 @@ export function getSplatBoundedPixelsPerMeter(
   position: number[],
   radius: number,
   viewport: Viewport,
-  units = getSplatCommonUnits(position, viewport)
+  units = getSplatCommonUnits(position, viewport),
+  centerPixels?: number
 ): number {
   const scales = getSplatViewScales(viewport);
   const maximum =
@@ -201,7 +202,10 @@ export function getSplatBoundedPixelsPerMeter(
     vv += v * v;
   }
   const upperBound = Math.sqrt((uu + vv + Math.sqrt((uu - vv) ** 2 + 4 * uv * uv)) / 2);
-  return Math.min(maximum, Math.max(getSplatPixelsPerMeter(position, viewport, units), upperBound));
+  return Math.min(
+    maximum,
+    Math.max(centerPixels ?? getSplatPixelsPerMeter(position, viewport, units), upperBound)
+  );
 }
 
 function containsSplatProjectedPoint(

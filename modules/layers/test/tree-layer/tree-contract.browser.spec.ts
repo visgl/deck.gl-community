@@ -1,31 +1,25 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {Deck, MapView, AmbientLight, DirectionalLight, LightingEffect} from '@deck.gl/core';
+import {MapView, AmbientLight, DirectionalLight, LightingEffect} from '@deck.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {PlaneGeometry} from '@luma.gl/engine';
-import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {expect, it} from 'vitest';
 import {TreeLayer} from '../../src';
+import {mountTreeBrowserScene} from './tree-browser-frame-reader';
+
+const SIZE = 256;
 
 it('renders tree parts and removes every part at zero coverage', async () => {
-  const parent = document.createElement('div');
-  parent.style.cssText = 'width:256px;height:256px';
-  document.body.append(parent);
   const data = [
     {position: [0, 0, 0], species: 'oak'},
     {position: [8, 0, 0], species: 'pine'}
   ];
-  const errors: string[] = [];
-  let frames = 0;
-  let pixels = new Uint8Array();
-  let coverage = 1,
-    ground = true;
   const coordinateProps = {
     coordinateSystem: 'meter-offsets',
     coordinateOrigin: [0, 0, 0] as [number, number, number]
   };
-  const make = () => [
+  const make = (coverage: number, ground = false) => [
     ...(ground
       ? [
           new SimpleMeshLayer({
@@ -52,56 +46,34 @@ it('renders tree parts and removes every part at zero coverage', async () => {
       windStrength: 0,
       getCoverageWeight: coverage,
       // Retain coarse crowns so software adapters focus on the tree parts and coverage.
-      maxCanopySplats: 0,
-      maxCanopyPixels: 256 * 256,
       pickable: true
     })
   ];
-  const deck = new Deck({
-    parent,
-    width: 256,
-    height: 256,
-    useDevicePixels: false,
-    _animate: true,
-    deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
+  const scene = mountTreeBrowserScene({
+    size: SIZE,
+    staticFrames: true,
     views: new MapView(),
-    initialViewState: {longitude: 0.00004, latitude: 0, zoom: 20, pitch: 45, bearing: 20},
+    viewState: {longitude: 0.00004, latitude: 0, zoom: 20, pitch: 45, bearing: 20},
     effects: [
       new LightingEffect({
         ambient: new AmbientLight({intensity: 1}),
         directional: new DirectionalLight({direction: [-1, -1, -1], intensity: 0.5})
       })
-    ],
-    layers: make(),
-    onError: error => errors.push(error.message),
-    onAfterRender({gl}) {
-      pixels = new Uint8Array(256 * 256 * 4);
-      gl.readPixels(0, 0, 256, 256, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      frames++;
-    }
+    ]
   });
-  const settle = async () => {
-    const before = frames;
-    await expect.poll(() => frames, {timeout: 30000}).toBeGreaterThan(before + 5);
-    await expect
-      .poll(() => (deck.props.layers as TreeLayer[]).at(-1)!.isLoaded, {timeout: 30000})
-      .toBe(true);
+  const capture = async (coverage: number, ground = false) => {
+    const layers = make(coverage, ground);
+    const pixels = await scene.render(layers, 2);
+    expect(layers.at(-1)!.isLoaded).toBe(true);
+    return pixels;
   };
-  try {
-    await settle();
-    ground = false;
-    deck.setProps({layers: make()});
-    await settle();
-    expect(pixels.some((value, index) => index % 4 === 3 && value > 0)).toBe(true);
-    expect(deck.pickObjects({x: 0, y: 0, width: 256, height: 256}).length).toBeGreaterThan(0);
-    coverage = 0;
-    deck.setProps({layers: make()});
-    await settle();
-    expect(pixels.some((value, index) => index % 4 === 3 && value > 0)).toBe(false);
-    expect(deck.pickObjects({x: 0, y: 0, width: 256, height: 256})).toEqual([]);
-    expect(errors).toEqual([]);
-  } finally {
-    deck.finalize();
-    parent.remove();
-  }
+  const hasColor = (pixels: Uint8Array) =>
+    pixels.some((value, index) => index % 4 === 3 && value > 0);
+  const pickTrees = () => scene.deck.pickObjects({x: 0, y: 0, width: SIZE, height: SIZE});
+  await capture(1, true);
+  expect(hasColor(await capture(1))).toBe(true);
+  expect(pickTrees().length).toBeGreaterThan(0);
+  expect(hasColor(await capture(0))).toBe(false);
+  expect(pickTrees()).toEqual([]);
+  expect(scene.errors).toEqual([]);
 }, 60000);

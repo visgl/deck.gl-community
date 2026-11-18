@@ -13,13 +13,20 @@ export type PalmFrond = {
 
 const FROND_COUNT = 12;
 const SPEAR_COUNT = 1;
+export const PALM_LEAFLET_COUNT = 15;
+const PALM_RACHIS_RADIUS = 0.0075;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 export const PALM_LEADER_TOP = 0.68;
+export const PALM_SPEAR_TOP = 1.14;
+const PALM_SHAFT_SCARS = 22;
+export const PALM_SHAFT_SCAR_FREQUENCY =
+  (PALM_SHAFT_SCARS * (PALM_SPEAR_TOP + 1)) / (PALM_LEADER_TOP + 1);
 
 /** Keep the authored frond bases on the same crownshaft surface as the wood mesh. */
-export function getPalmTrunkRadius(z: number, aggregate = false): number {
+export function getPalmTrunkRadius(z: number): number {
   const progress = Math.max(0, Math.min(1, (z + 1) / (PALM_LEADER_TOP + 1)));
-  const scar = aggregate ? 0 : Math.pow((1 + Math.cos(progress * Math.PI * 44)) / 2, 10) * 0.012;
+  const scar =
+    Math.pow((1 + Math.cos(progress * Math.PI * (PALM_SHAFT_SCARS * 2))) / 2, 10) * 0.012;
   const baseRadius = 0.074 - progress * 0.018 + scar;
   const crownProgress = Math.max(0, Math.min(1, (z - 0.48) / (PALM_LEADER_TOP - 0.48)));
   const crownTaper = crownProgress ** 2 * (3 - 2 * crownProgress);
@@ -55,7 +62,7 @@ const PALM_FRONDS: PalmFrond[] = Array.from({length: FROND_COUNT + SPEAR_COUNT},
         [0, 0, 0.6],
         [0.008, -0.004, 0.78],
         [0.025, -0.002, 0.98],
-        [0.052, 0.012, 1.14]
+        [0.052, 0.012, PALM_SPEAR_TOP]
       ]
     : [
         radial(getPalmTrunkRadius(baseHeight), baseHeight),
@@ -69,6 +76,16 @@ const PALM_FRONDS: PalmFrond[] = Array.from({length: FROND_COUNT + SPEAR_COUNT},
 /** Shared rachis paths keep the splat leaflets aligned with their woody frond stems. */
 export function getPalmFronds(): readonly PalmFrond[] {
   return PALM_FRONDS;
+}
+
+/** Return nominal leaflet anchors along the rachis without extrapolating past its tip. */
+export function getPalmFrondLeafletT(index: number): number {
+  return 0.15 + (index / (PALM_LEAFLET_COUNT - 1)) * 0.71;
+}
+
+/** Keep the frond stalk narrow and taper it towards the tip. */
+export function getPalmRachisRadius(t: number): number {
+  return PALM_RACHIS_RADIUS * (1 - t * 0.82);
 }
 
 /** Evaluate a normalized point along a shared cubic frond centerline. */

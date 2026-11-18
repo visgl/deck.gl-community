@@ -42,9 +42,9 @@ const OAK: TreeSpec = {
   crop: {count: 12, droppedCount: 6, radius: 0.08, color: [220, 60, 30, 255]}
 };
 
-function lighting(shadow: boolean) {
+function lighting(shadow: boolean, ambientIntensity = 0.6) {
   return new LightingEffect({
-    ambient: new AmbientLight({intensity: 0.6}),
+    ambient: new AmbientLight({intensity: ambientIntensity}),
     sun: new DirectionalLight({direction: SUN_DIRECTION, intensity: 0.8, _shadow: shadow})
   });
 }
@@ -365,6 +365,9 @@ describe('TreeLayer deck.gl shadows (WebGL2)', () => {
       expect(brightness(pulsing, CROWN)).toBeGreaterThan(brightness(still, CROWN) + 20);
       // The pulse changes colors only; the shadow pass writes the same depth.
       expect(Math.abs(brightness(pulsing, SHADOW) - brightness(still, SHADOW))).toBeLessThan(1);
+      // Isolate direct light on the white pulsed receiver. At the default exposure the
+      // filmic curve compresses the visible contrast even when the slab blocks the sun.
+      scene.deck.setProps({effects: [lighting(true, 0.15)]});
       const occludedPulse = await scene.render([occluder(true), trees(pulse(true))]);
       const sunlitPulse = await scene.render([occluder(false), trees(pulse(true))]);
       expect(brightness(occludedPulse, CROWN)).toBeLessThan(brightness(sunlitPulse, CROWN) * 0.85);

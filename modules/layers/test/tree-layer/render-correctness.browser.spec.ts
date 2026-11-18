@@ -1,11 +1,12 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
-import {Deck, OrbitView} from '@deck.gl/core';
+import {Deck, OrbitView, type Layer} from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {expect, it} from 'vitest';
 import {SplatLayer, TreeLayer, type TreeSpec} from '../../src';
+import {TreePhotorealWoodLayer} from '../../src/tree-layer/tree-photoreal-wood-layer';
 
-function mount(layers, view, initialViewState, layerFilter?) {
+function mount(layers, view, initialViewState) {
   const parent = document.createElement('div');
   parent.style.cssText = 'width:256px;height:256px';
   document.body.append(parent);
@@ -21,7 +22,6 @@ function mount(layers, view, initialViewState, layerFilter?) {
     views: view,
     initialViewState,
     layers,
-    layerFilter,
     _animate: true,
     onError: error => errors.push(error.message),
     onAfterRender({gl}) {
@@ -111,48 +111,55 @@ it('composites interleaved prepared sources in depth order and reverses with the
 }, 60000);
 class WoodOnlyTreeLayer extends TreeLayer<TreeSpec> {
   static layerName = 'WoodOnlyTreeLayer';
-  filterSubLayer({layer}) {
-    return !layer.id.includes('canopy');
+  filterSubLayer({layer}: {layer: Layer}) {
+    return layer instanceof TreePhotorealWoodLayer;
   }
 }
-it('keeps the interior of the banyan bole solid during woody refinement', async () => {
+it('keeps the interior of the banyan bole solid as wood detail changes', async () => {
   const rows: TreeSpec[] = [
     {species: 'banyan', position: [0, 0, 0], height: 12, crownRadius: 5, trunkRadius: 0.4}
   ];
-  const scene = mount(
-    [
-      new WoodOnlyTreeLayer({
-        id: 'solid-banyan',
-        data: rows,
-        getTree: row => row,
-        coordinateSystem: 'cartesian',
-        windStrength: 0
-      })
-    ],
-    new OrbitView({orbitAxis: 'Z', orthographic: true}),
-    {target: [0, 0, 5], rotationX: 80, rotationOrbit: 0, zoom: 4},
-    ({layer}) => !layer.id.includes('canopy')
-  );
+  const tree = (lodBias: number) =>
+    new WoodOnlyTreeLayer({
+      id: 'solid-banyan',
+      data: rows,
+      getTree: row => row,
+      coordinateSystem: 'cartesian',
+      getFoliage: 0,
+      lodBias,
+      shadowEnabled: false,
+      windStrength: 0
+    });
+  const scene = mount([tree(-3)], new OrbitView({orbitAxis: 'Z', orthographic: true}), {
+    target: [0, 0, 5],
+    rotationX: 80,
+    rotationOrbit: 0,
+    zoom: 5
+  });
+  const woodLevel = () =>
+    scene.deck['layerManager']!.getLayers().find(
+      (layer): layer is TreePhotorealWoodLayer<TreeSpec> =>
+        layer instanceof TreePhotorealWoodLayer && layer.getNumInstances() > 0
+    )?.props.lod;
   try {
     await scene.settle();
-    const wood = scene.deck
-      .layerManager!.getLayers()
-      .find(layer => layer.constructor.layerName === 'TreeWoodLayer')!;
-    expect(wood.state.owners[0].weight).toBeGreaterThan(0);
-    expect(wood.state.owners[0].weight).toBeLessThan(1);
-    const blended = scene.pixels().slice();
-    const fine = scene.deck.layerManager!.getLayers().find(layer => layer.id.endsWith('-near'))!;
-    scene.deck.setProps({
-      layers: [fine.clone({id: 'opaque-reference', getCoverageRange: [0, 1]})]
-    });
+    expect(woodLevel()).toBe(0);
+    const reference = scene.pixels().slice();
+    const [x, y] = scene.deck.getViewports()[0].project([0, 0, 1]);
+    scene.deck.setProps({layers: [tree(2)]});
     await scene.settle();
+    expect(woodLevel()).toBeGreaterThan(0);
+    const coarse = scene.pixels();
     let occupied = 0,
       total = 0;
-    const reference = scene.pixels();
-    for (let i = 0; i < 256 * 256; i++) {
-      if (reference[i * 4 + 3] > 250) {
-        total++;
-        if (blended[i * 4 + 3] > 200) occupied++;
+    // Sample the projected bole interior so branch details may change outside this region.
+    for (let row = Math.round(y) - 8; row < Math.round(y) + 8; row++) {
+      for (let column = Math.round(x) - 8; column < Math.round(x) + 8; column++) {
+        const alpha = ((255 - row) * 256 + column) * 4 + 3;
+        if (reference[alpha] > 250) {
+          total++;
+          if (coarse[alpha] > 200) occupied++;
+        }
       }
     }
     expect(total).toBeGreaterThan(100);

@@ -8,14 +8,18 @@ import {
   DirectionalLight,
   LightingEffect,
   MapView,
-  type Effect
+  OrbitView,
+  type Effect,
+  type FilterContext
 } from '@deck.gl/core';
 import {luma, Buffer, Texture, type Device, type Framebuffer} from '@luma.gl/core';
 import {webgl2Adapter, type WebGLDevice} from '@luma.gl/core/webgl';
 import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {describe, expect, inject, it} from 'vitest';
 
-import {TreeLayer} from '../../src';
+import {TreeLayer, type TreeSpec} from '../../src';
+import {TreePhotorealLeafLayer} from '../../src/tree-layer/tree-photoreal-leaf-layer';
+import {TreeShellLayer} from '../../src/tree-layer/tree-shell-layer';
 
 type BrowserGpu = {requestAdapter: () => Promise<unknown>};
 type NativeGpuError = {error?: {message?: string}};
@@ -58,6 +62,143 @@ async function readFrame(
 }
 
 type CanopyMetrics = {greenPixels: number; meanAlpha: number};
+
+async function checkCanopyHandoff(type: 'webgl' | 'webgpu'): Promise<void> {
+  const size = 128;
+  const parent = document.createElement('div');
+  document.body.append(parent);
+  const device = await luma.createDevice({
+    type,
+    adapters: [webgl2Adapter, webgpuAdapter],
+    createCanvasContext: {container: parent, width: size, height: size, useDevicePixels: false}
+  });
+  const texture = device.createTexture({
+    width: size,
+    height: size,
+    format: 'rgba8unorm',
+    usage: Texture.RENDER_ATTACHMENT | Texture.COPY_SRC
+  });
+  const framebuffer = device.createFramebuffer({
+    width: size,
+    height: size,
+    colorAttachments: [texture],
+    depthStencilAttachment: 'depth24plus'
+  });
+  const viewState = {target: [0, 0, 3], rotationOrbit: 20, rotationX: 15, zoom: 3.4};
+  const errors: string[] = [];
+  const drawn = new Set<'shell' | 'leaf'>();
+  class CanopyTreeLayer extends TreeLayer<TreeSpec> {
+    static componentName = 'CanopyTreeLayer';
+
+    filterSubLayer(context: FilterContext): boolean {
+      const {layer, renderPass} = context;
+      if (!super.filterSubLayer(context)) return false;
+      if (renderPass === 'shadow') return true;
+      if (!layer.getNumInstances()) return false;
+      if (layer instanceof TreeShellLayer) {
+        drawn.add('shell');
+        return true;
+      }
+      if (layer instanceof TreePhotorealLeafLayer) {
+        drawn.add('leaf');
+        return true;
+      }
+      return false;
+    }
+  }
+  const deck = new Deck({
+    device,
+    parent,
+    _framebuffer: framebuffer,
+    width: size,
+    height: size,
+    useDevicePixels: false,
+    views: new OrbitView({orbitAxis: 'Z', fovy: 50, near: 0.005, far: 1000}),
+    viewState: viewState as never,
+    effects: [
+      new LightingEffect({
+        ambient: new AmbientLight({color: [184, 209, 239], intensity: 1.2}),
+        sun: new DirectionalLight({
+          color: [255, 246, 221],
+          intensity: 2,
+          direction: [-1, -2, -3],
+          _shadow: true
+        })
+      })
+    ],
+    onError: error => errors.push(error.message)
+  });
+  try {
+    await expect.poll(() => deck.isInitialized, {timeout: 30_000}).toBe(true);
+    deck['animationLoop']!.stop();
+    async function render(zoom: number, expected: ('shell' | 'leaf')[]) {
+      drawn.clear();
+      deck.setProps({viewState: {...viewState, zoom} as never});
+      deck.layerManager!.updateLayers();
+      deck.redraw('compare shell and resolved canopy colors');
+      expect([...drawn].sort()).toEqual(expected);
+      const pixels = await readFrame(device, texture, framebuffer);
+      const channels = [0, 0, 0];
+      let opaque = 0;
+      for (let offset = 0; offset < pixels.length; offset += 4) {
+        if (pixels[offset + 3] < 245) continue;
+        opaque++;
+        for (let channel = 0; channel < 3; channel++) channels[channel] += pixels[offset + channel];
+      }
+      expect(opaque).toBeGreaterThan(1000);
+      return channels.map(sum => sum / opaque);
+    }
+    function setCanopy(canopyColor: [number, number, number, number]) {
+      deck.setProps({
+        layers: [
+          new CanopyTreeLayer({
+            id: 'canopy-handoff',
+            coordinateSystem: 'cartesian',
+            data: [
+              {
+                position: [0, 0, 0] as [number, number, number],
+                species: 'citrus' as const,
+                height: 6,
+                crownRadius: 2.6,
+                canopyColor,
+                wind: false,
+                characteristics: {seed: 5, leafDensity: 0.55}
+              }
+            ],
+            getTree: tree => tree,
+            windTime: 0
+          })
+        ]
+      });
+    }
+    const colors: [number, number, number, number][] = [
+      [67, 112, 42, 255],
+      [182, 121, 32, 255],
+      [67, 139, 152, 255]
+    ];
+    for (const canopyColor of colors) {
+      setCanopy(canopyColor);
+      const shell = await render(3.4, ['shell']);
+      const overlap = await render(3.5, ['leaf', 'shell']);
+      const leaves = await render(3.6, ['leaf']);
+      for (let channel = 0; channel < 3; channel++) {
+        expect(Math.abs(shell[channel] - leaves[channel])).toBeLessThan(12);
+        expect(Math.abs(overlap[channel] - leaves[channel])).toBeLessThan(12);
+      }
+    }
+    setCanopy([0, 0, 0, 255]);
+    // WebGPU's material can still show a specular highlight on black foliage.
+    const black = await render(3.4, ['shell']);
+    expect(Math.max(...black)).toBeLessThan(2);
+    expect(errors).toEqual([]);
+  } finally {
+    deck.finalize();
+    framebuffer.destroy();
+    texture.destroy();
+    device.destroy();
+    parent.remove();
+  }
+}
 
 function getCanopyMetrics(pixels: Uint8Array): CanopyMetrics {
   let greenPixels = 0;
@@ -146,11 +287,9 @@ async function renderDenseCanopy(type: 'webgl' | 'webgpu'): Promise<CanopyMetric
               wind: false,
               canopyColor: [33, 112, 29, 255] as [number, number, number, number]
             })),
-            getTree: datum => datum,
+            getTree: datum => datum
             // One coarse cluster per visible crown forces TreeLayer's hierarchy representation,
             // whose sources carry opticalDepths rather than the authored leaf opacities.
-            maxCanopySplats: 4,
-            maxCanopyPixels: Infinity
           })
         ],
         onAfterRender: () => {
@@ -196,9 +335,11 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
 
   let device: Device | undefined;
   let deck: Deck | undefined;
-  let frames = 0;
   let nativeDevice: NativeGpuDevice | undefined;
+  let frames = 0;
+  const errors: string[] = [];
   const validationErrors: string[] = [];
+  const passes = new Set<string>();
   const captureValidationError = (event: NativeGpuError): void => {
     validationErrors.push(event.error?.message ?? 'Unknown WebGPU validation error.');
   };
@@ -214,79 +355,82 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
       nativeDevice?.addEventListener('uncapturederror', captureValidationError);
     }
 
-    await new Promise<void>((resolve, reject) => {
-      // Cold software shader compilation can exceed 10 seconds on a busy CI host.
-      // This gate verifies rendering/validation; hardware frame pacing is measured separately.
-      const timeout = window.setTimeout(() => {
-        reject(new Error(`Timed out while rendering TreeLayer with ${type}.`));
-      }, 30_000);
-
-      deck = new Deck({
-        device,
-        parent,
-        width: 128,
-        height: 128,
-        _animate: true,
-        views: new MapView({id: 'tree-webgpu-test'}),
-        initialViewState: {longitude: 0, latitude: 0, zoom: 15, pitch: 45},
-        effects,
-        layers: [
-          new TreeLayer({
-            id: `tree-${type}`,
-            // Local metre coordinates under MapView: in WebGPU, the first
-            // TreeMesh pipeline must support its high/low position layout without exceeding
-            // the device's eight-vertex-buffer limit.
-            coordinateSystem: 'meter-offsets',
-            coordinateOrigin: [0, 0, 0],
-            data: (
-              ['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove', 'citrus'] as const
-            ).flatMap((species, i) =>
-              (['summer', 'winter'] as const).map(season => ({
-                position: [i * 12, 0] as [number, number],
-                species,
-                season
-              }))
-            ),
-            getTree: datum => ({
-              position: datum.position,
-              species: datum.species,
-              season: datum.season,
-              height: 12,
-              wind: true,
-              characteristics: {seed: 19, branchLift: 0.8, leafSize: 1.1},
-              crop: {
-                kind:
-                  datum.species === 'citrus'
-                    ? 'lemon'
-                    : datum.species === 'pine'
-                      ? 'cone'
-                      : 'fruit',
-                color: [210, 70, 40, 255],
-                count: 2,
-                droppedCount: 1,
-                radius: 0.05
-              }
-            }),
-            maxCanopyPixels: 64 * 64,
-            windTime: 1.25,
-            pickable: true
-          })
-        ],
-        onAfterRender: () => {
-          if (++frames < 8) return;
-          window.clearTimeout(timeout);
-          resolve();
-        },
-        onError: error => {
-          window.clearTimeout(timeout);
-          reject(error);
-        }
-      });
+    const scene = new Deck({
+      device,
+      parent,
+      width: 128,
+      height: 128,
+      useDevicePixels: false,
+      views: new MapView({id: 'tree-webgpu-test'}),
+      initialViewState: {longitude: 0, latitude: 0, zoom: 15, pitch: 45},
+      layerFilter: ({renderPass}) => {
+        passes.add(renderPass);
+        return true;
+      },
+      onAfterRender: () => frames++,
+      onError: error => errors.push(error.message)
+    });
+    deck = scene;
+    await expect.poll(() => scene.isInitialized, {timeout: 30_000}).toBe(true);
+    scene['animationLoop']!.stop();
+    scene.setProps({
+      layers: [
+        new TreeLayer({
+          id: `tree-${type}`,
+          // Exercise WebGPU's high/low position layout for local metres under MapView.
+          coordinateSystem: 'meter-offsets',
+          coordinateOrigin: [0, 0, 0],
+          data: (
+            ['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove', 'citrus'] as const
+          ).flatMap((species, i) =>
+            (['summer', 'winter'] as const).map(season => ({
+              position: [i * 12, 0] as [number, number],
+              species,
+              season
+            }))
+          ),
+          getTree: datum => ({
+            position: datum.position,
+            species: datum.species,
+            season: datum.season,
+            height: 12,
+            wind: true,
+            characteristics: {seed: 19, branchLift: 0.8, leafSize: 1.1},
+            crop: {
+              kind:
+                datum.species === 'citrus' ? 'lemon' : datum.species === 'pine' ? 'cone' : 'fruit',
+              color: [210, 70, 40, 255],
+              count: 2,
+              droppedCount: 1,
+              radius: 0.05
+            }
+          }),
+          windTime: 1.25,
+          pickable: true
+        })
+      ]
     });
 
-    await nativeDevice?.queue.onSubmittedWorkDone();
+    const render = async (withShadows: boolean) => {
+      const before = frames;
+      passes.clear();
+      // Refresh the models after changing lighting, then submit one complete frame.
+      scene.layerManager!.updateLayers();
+      scene.redraw('verify TreeLayer backend compatibility');
+      expect(frames).toBe(before + 1);
+      expect(passes.has('screen')).toBe(true);
+      expect(passes.has('shadow')).toBe(withShadows);
+      device!.submit();
+      await nativeDevice?.queue.onSubmittedWorkDone();
+      expect(errors).toEqual([]);
+      expect(validationErrors).toEqual([]);
+    };
     expect(device.type).toBe(type);
-    expect(validationErrors).toEqual([]);
+    await render(false);
+    if (effects.length) {
+      scene.setProps({effects});
+      await render(true);
+    }
   } finally {
     nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
@@ -296,19 +440,30 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
 }
 
 describe('TreeLayer graphics backend compatibility', () => {
-  it('renders connected mesh wood and Gaussian foliage on WebGL2', async () => {
+  it('keeps canopy shell and individual leaves in the same palette on WebGL2', async () => {
+    await checkCanopyHandoff('webgl');
+  }, 40_000);
+
+  it('keeps canopy shell and individual leaves in the same palette on WebGPU', async ({skip}) => {
+    const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
+    if (!gpu || !(await gpu.requestAdapter())) {
+      if (inject('requireWebGPU')) throw new Error('A WebGPU adapter is required for this gate.');
+      skip('This browser does not expose an available WebGPU adapter.');
+    }
+    await checkCanopyHandoff('webgpu');
+  }, 60_000);
+
+  it('renders connected wood and foliage on WebGL2', async () => {
     await renderTreeLayer('webgl');
   }, 40_000);
 
-  it('renders connected mesh wood and Gaussian foliage on WebGPU', async ({skip}) => {
+  it('renders connected wood and foliage on WebGPU', async ({skip}) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
     if (!gpu || !(await gpu.requestAdapter())) {
       if (inject('requireWebGPU')) throw new Error('A WebGPU adapter is required for this gate.');
       skip('This browser does not expose an available WebGPU adapter.');
     }
 
-    await renderTreeLayer('webgpu');
-    // deck.gl 9.4's shadow module has no WGSL: trees skip its shadow pass and render without error.
     await renderTreeLayer('webgpu', [
       new LightingEffect({
         ambient: new AmbientLight({intensity: 0.6}),
@@ -317,7 +472,7 @@ describe('TreeLayer graphics backend compatibility', () => {
     ]);
   }, 60_000);
 
-  it('keeps a dense hierarchical canopy opaque on both WebGL2 and WebGPU', async ({skip}) => {
+  it('keeps a dense canopy opaque on both WebGL2 and WebGPU', async ({skip}) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
     if (!gpu || !(await gpu.requestAdapter())) {
       if (inject('requireWebGPU')) throw new Error('A WebGPU adapter is required for this gate.');
