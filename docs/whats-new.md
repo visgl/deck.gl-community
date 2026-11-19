@@ -2,7 +2,7 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
-## Unreleased
+## v10.0.0-alpha.3
 
 - **layers:** TreeLayer honors authored canopy RGB through `getCanopyColor` and
   `TreeSpec.canopyColor`, while `null` retains the natural species/season palette.

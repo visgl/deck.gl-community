@@ -1,5 +1,16 @@
 # deck.gl-community CHANGELOG
 
+## v10.0.0-alpha.3
+
+- `TreeLayer` now preserves authored canopy hues through `getCanopyColor` and
+  `TreeSpec.canopyColor`; return `null` for natural species and season colors.
+  Natural and authored colors can share one layer, without a separate mode property (#1095).
+- **Behavior change:** explicit canopy colors bypass botanical pigment and lifecycle recoloring.
+  Unlit foliage displays authored RGB directly. See the [upgrade guide](docs/upgrade-guide.md#v1000-alpha3).
+- Keep cached tree geometry and detail selection during RGB updates and transitions, and retain
+  mature-leaf shading, conservative culling and opaque blending with `SelectionPulseExtension`.
+- Correct premultiplied WebGPU transparency and match authored shell lighting to resolved leaves.
+
 ## v10.0.0-alpha.2
 
 - **Breaking:** Replace the Gaussian `TreeLayer` canopy with procedural wood, foliage, and crops
