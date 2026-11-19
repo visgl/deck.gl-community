@@ -16,8 +16,9 @@ Use the same viewport and frame counts for both revisions. Pass `--frame-timing-
 
 ## Matched comparisons
 
-See the [M2 comparison and analytical palette captures](./results/2026-11-19-m2.md)
-for recorded alpha.1, alpha.2 and branch measurements.
+See [PR #1095](https://github.com/visgl/deck.gl-community/pull/1095) for the compact
+comparison, validation and measurement limitations. Raw frames and full-resolution
+captures are kept outside the source diff.
 
 `--width` and `--height` are CSS pixels. `--dpr` controls the physical drawing buffer.
 For a 1312 × 779 viewport rendered at 2624 × 1558, use:
@@ -56,11 +57,12 @@ The selection extension is resolved from the same source tree or published packa
 package version or commit. Older renderers without photoreal
 tiers require `--profile` so submitted draws can be verified.
 
-`--theme bright` and `--theme realistic` use the same synthetic yellow/green classes with
-normal opacities of 1 and 0.7. `--opacity 1` holds transparency constant for shader
-comparisons; `--color-mode natural|analytical` selects the canopy palette. These are
-public synthetic classes, not customer field data. `--screenshot /tmp/bright` saves a
-PNG per path after timing, e.g. `/tmp/bright-tree.png`.
+`--theme bright` supplies synthetic yellow/green canopy classes through TreeSpec colors.
+`--theme realistic` leaves canopy colors unset, retaining the botanical palette at opacity
+0.7. Bright defaults to opacity 1. `--opacity 1` holds transparency constant for shader
+comparisons. Explicit colors automatically use the authored-color path; no color-mode
+property is required. These are public synthetic classes, not customer field data.
+`--screenshot /tmp/bright` saves a PNG per path after timing, e.g. `/tmp/bright-tree.png`.
 Use `--wind-time 12` for the same wind phase in before/after captures. Leave it unset
 for timing runs with animated wind.
 

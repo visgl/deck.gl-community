@@ -57,6 +57,7 @@ struct LeafInput {
 };
 
 struct LeafVaryings {
+  @location(7) @interpolate(flat) authoredCanopy: f32,
   @builtin(position) position: vec4<f32>,
   @location(0) commonPosition: vec3<f32>,
   @location(1) normal: vec3<f32>,
@@ -71,6 +72,8 @@ struct LeafVaryings {
   var output: LeafVaryings;
   output.position = TREE_CULLED;
   let row = u32(${usesReferences ? 'input.instanceLeafRef.x' : 'input.instanceTreeRow'} + 0.5);
+  treeCanopyColorAuthored = treeStateTexel(treeState, row, ${TREE_STATE_TEXEL.CROP_DROPPED}u).y;
+  output.authoredCanopy = treeCanopyColorAuthored;
   let leaf = ${usesReferences ? 'u32(input.instanceLeafRef.y + 0.5)' : `input.vertexIndex / ${corners.length}u`};
   let corner = input.vertexIndex % ${corners.length}u;
   let life = treeReadLife(treeState, row);
@@ -189,7 +192,7 @@ struct LeafVaryings {
   color = mix(color, vec3<f32>(0.115, 0.066, 0.026) * mix(0.75, 1.25, hashC), brown);
   color = mix(color, vec3<f32>(0.05, 0.032, 0.014), lying * mix(0.55, 1.0, hashC));
   color = mix(color, vec3<f32>(0.075, 0.058, 0.04), smoothstep(0.02, 0.4, life.decay));
-  if (treePhotoreal.canopyColorMode > 0.5) { color = treeLeafPigment(canopy.rgb); }
+  if (treeCanopyColorAuthored > 0.5) { color = treeLeafPigment(canopy.rgb); }
   output.position = treeShadowPosition(projection.clipPosition, projection.commonPosition);
   output.commonPosition = projection.commonPosition.xyz;
   output.normal = splatProjectNormal(normal, projection.frame);
@@ -203,6 +206,7 @@ struct LeafVaryings {
 }
 
 @fragment fn fragmentMain(input: LeafVaryings, @builtin(front_facing) front: bool) -> @location(0) vec4<f32> {
+  treeCanopyColorAuthored = input.authoredCanopy;
   if (treeIsShadowPass()) { return treeShadowDepth(input.position.z); }
   let t = input.blade.x;
   ${
@@ -213,7 +217,7 @@ struct LeafVaryings {
   let modulation = select(
     1.0 + vein * 0.14 + detail * 0.035 * sin(95.0 * t + input.optics.y * 21.0),
     1.0,
-    treePhotoreal.canopyColorMode > 0.5 && phongMaterial.unlit != 0u
+    treeCanopyColorAuthored > 0.5 && phongMaterial.unlit != 0u
   );`
   }
   ${mask ? 'if (input.shellRetention > 0.0 && treeShellCoversPixel(input.position.xy, input.shellRetention)) { discard; }' : ''}

@@ -549,7 +549,6 @@ describe('TreeLayer photoreal rendering', () => {
       windTime: 12,
       windStrength: 0.035,
       lodBias: -2,
-      canopyColorMode: 'analytical',
       getCanopyColor: [255, 220, 0, 255],
       extensions: [new SelectionPulseExtension()],
       getSelected: () => true,

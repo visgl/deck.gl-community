@@ -45,7 +45,7 @@ export const TREE_STATE_TEXEL = {
   CROP_COLOR: 10,
   /** Unripe crop tint: sRGB 0-1 RGB; alpha is the fallen rate (/s). */
   CROP_UNRIPE: 11,
-  /** Dropped crop count, unused, canopy shell retention, unused. */
+  /** Dropped crop count, authored canopy color, canopy shell retention, unused. */
   CROP_DROPPED: 12
 } as const;
 

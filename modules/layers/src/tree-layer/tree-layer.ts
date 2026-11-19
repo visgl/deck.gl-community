@@ -194,7 +194,7 @@ export type TreeSpec = {
   wind?: boolean | number;
   /** Explicit bark tint. */
   trunkColor?: Color | null;
-  /** Explicit foliage tint. */
+  /** Authored foliage RGBA; null or unset retains the natural species/season palette. */
   canopyColor?: Color | null;
   /** Pine tier count, clamped to 1–5. */
   branchLevels?: number;
@@ -334,19 +334,12 @@ type _TreeLayerProps<DataT> = {
   getTrunkColor?: Accessor<DataT, Color | null>;
 
   /**
-   * Explicit canopy colour [r, g, b, a].
-   * When null the species × season default is used.
+   * Authored canopy RGB [r, g, b, a], preserving hue under neutral lighting.
+   * Return null for botanical species/season colors. Alpha controls optical coverage.
+   * With the default accessor, TreeSpec.canopyColor supplies the authored override.
    * @default null
    */
   getCanopyColor?: Accessor<DataT, Color | null>;
-
-  /**
-   * Foliage palette. `natural` applies botanical pigment and lifecycle colors. `analytical`
-   * preserves the supplied RGB hue with neutral lighting and display encoding across all canopy
-   * detail levels. Alpha remains optical coverage; layer opacity remains transparency.
-   * @default 'natural'
-   */
-  canopyColorMode?: 'natural' | 'analytical';
 
   /**
    * Season controls default foliage colour and deciduous foliage visibility; wood is unchanged.
@@ -459,7 +452,6 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   getCanopyRadius: {type: 'accessor', value: (_d: any) => 3},
   getTrunkColor: {type: 'accessor', value: (_d: any) => null},
   getCanopyColor: {type: 'accessor', value: (_d: any) => null},
-  canopyColorMode: 'natural',
   getSeason: {type: 'accessor', value: (_d: any) => 'summer' as Season},
   getBranchLevels: {type: 'accessor', value: (_d: any) => 3},
   getCrop: {type: 'accessor', value: (_d: any) => null},
@@ -1490,11 +1482,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const info = {index: -1, data: props.data, target: []} as unknown as AccessorContext<DataT>;
     for (const source of sources) {
       info.index = source.index;
-      update.canopyColor =
-        (isDefaultTreeAccessor(props, 'getCanopyColor')
-          ? source.canopyColor
-          : getTreeAccessorValue(props.getCanopyColor, source.object, info)) ??
-        DEFAULT_CANOPY_COLORS[source.type][source.season];
+      const authoredCanopyColor = isDefaultTreeAccessor(props, 'getCanopyColor')
+        ? source.canopyColor
+        : getTreeAccessorValue(props.getCanopyColor, source.object, info);
+      update.canopyColor = authoredCanopyColor ?? DEFAULT_CANOPY_COLORS[source.type][source.season];
       update.trunkColor =
         (isDefaultTreeAccessor(props, 'getTrunkColor')
           ? source.trunkColor
@@ -1505,6 +1496,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         1
       );
       store.setRow(source.stateRow, update, options);
+      store.setCanopyColorAuthored(source.stateRow, authoredCanopyColor != null);
     }
   }
 
@@ -1562,11 +1554,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       update.leanBearing = source.leanBearing;
       update.damage = source.damage;
       update.decay = source.decay;
-      update.canopyColor =
-        (isDefaultTreeAccessor(props, 'getCanopyColor')
-          ? source.canopyColor
-          : getTreeAccessorValue(props.getCanopyColor, source.object, objectInfo)) ??
-        DEFAULT_CANOPY_COLORS[type][source.season];
+      const authoredCanopyColor = isDefaultTreeAccessor(props, 'getCanopyColor')
+        ? source.canopyColor
+        : getTreeAccessorValue(props.getCanopyColor, source.object, objectInfo);
+      update.canopyColor = authoredCanopyColor ?? DEFAULT_CANOPY_COLORS[type][source.season];
       update.trunkColor =
         (isDefaultTreeAccessor(props, 'getTrunkColor')
           ? source.trunkColor
@@ -1602,6 +1593,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           }
         : null;
       store.setRow(source.stateRow, update, options);
+      store.setCanopyColorAuthored(source.stateRow, authoredCanopyColor != null);
     }
   }
 
@@ -3002,7 +2994,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const {windTime, shadowEnabled, pickable, visible, extensions} = this.props;
     const shared = {
       stateTexture,
-      canopyColorMode: this.props.canopyColorMode,
       _stateData: this.state.store?.data ?? null,
       _sourceDataRevision: extensions.length ? this.state.sourceDataRevision : 0,
       _woodCulling: (this.props as unknown as {_woodCulling?: boolean})._woodCulling !== false,

@@ -13,6 +13,10 @@ import {
   type TreeType
 } from '../../src';
 import {mountTreeScene} from './tree-layer-test-utils';
+import {
+  TREE_STATE_TEXEL,
+  TREE_STATE_TEXELS_PER_ROW
+} from '../../src/tree-layer/tree-photoreal-layout';
 
 const SPECIES: TreeType[] = [
   'oak',
@@ -36,6 +40,32 @@ function load(data: TreeSpec[] = [OAK], props: Partial<TreeLayerProps<TreeSpec>>
 }
 
 describe('TreeLayer species and attributes', () => {
+  it('keeps per-tree authored color intent separate from resolved RGB for the color accessor', () => {
+    const data: TreeSpec[] = [
+      {...OAK, characteristics: {leafDensity: 0.1}},
+      {...OAK, characteristics: {leafDensity: 0.1}, canopyColor: [255, 220, 0, 255]},
+      {...OAK, characteristics: {leafDensity: 0.1}}
+    ];
+    const getCanopyColor = (tree: TreeSpec) => tree.canopyColor ?? null;
+    const props = {...baseProps, data, getCanopyColor};
+    const scene = load(data, props);
+    const store = scene.layer().state.store!;
+    const flags = () =>
+      data.map(
+        (_, index) =>
+          store.data[index * TREE_STATE_TEXELS_PER_ROW * 4 + TREE_STATE_TEXEL.CROP_DROPPED * 4 + 1]
+      );
+    expect(flags()).toEqual([0, 1, 0]);
+    const revision = store.detailRevision;
+    const bounds = scene.layer().state.photoreal!.rows[0].bounds;
+    // Equal RGB can still change intent from natural fallback to explicit override.
+    data[0].canopyColor = [...scene.row().canopyColor] as [number, number, number, number];
+    scene.render({...props, updateTriggers: {getCanopyColor: 1}});
+    expect(flags()).toEqual([1, 1, 0]);
+    expect(store.detailRevision).toBe(revision);
+    expect(scene.layer().state.photoreal!.rows[0].bounds).toBe(bounds);
+  });
+
   it('refreshes spatial leaf selection when only the extension implementation changes', () => {
     const scene = mountTreeScene<TreeSpec>(
       new OrbitViewport({

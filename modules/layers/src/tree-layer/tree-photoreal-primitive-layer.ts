@@ -362,7 +362,6 @@ export type TreePhotorealLayerProps<DataT = unknown> = LayerProps & {
   /** Standard Phong material. */
   material?: PhongMaterialProps;
   shadowEnabled?: boolean;
-  canopyColorMode?: 'natural' | 'analytical';
   /** Keep a dedicated caster draw independent of the color and picking batches. */
   _shadowPass?: 'only' | 'skip' | null;
 };
@@ -382,7 +381,6 @@ const defaultProps: DefaultProps<TreePhotorealLayerProps> = {
   windUnits: {type: 'array', value: [1, 1], compare: true},
   material: {type: 'object', value: null, compare: 2, optional: true},
   shadowEnabled: true,
-  canopyColorMode: 'natural',
   _shadowPass: null
 };
 
@@ -592,7 +590,6 @@ export abstract class TreePhotorealPrimitiveLayer<DataT = unknown> extends Layer
         shape,
         look,
         shadowHistoryWeight: this.state.shadowHistoryWeight,
-        canopyColorMode: this.props.canopyColorMode === 'analytical' ? 1 : 0,
         leafBlades: leafBlades ?? [0, 0, 0, 0],
         woodLevel: woodLevel ?? [0, 0, 0, 0],
         // How much of a flip's paleness shows: more where a storm holds a blade over and shows its underside. That

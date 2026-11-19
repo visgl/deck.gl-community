@@ -14,6 +14,7 @@ export const treePhotorealRenderWgsl = {
   name: 'treePhotorealRender',
   dependencies: [treePhotorealWgsl, picking as ShaderModule, phongMaterial],
   source: /* wgsl */ `
+var<private> treeCanopyColorAuthored: f32;
 const TREE_PI = 3.14159265;
 const TREE_TWO_PI = 6.2831853;
 const TREE_CULLED = vec4<f32>(2.0, 2.0, 2.0, 1.0);
@@ -279,7 +280,7 @@ fn treeShadeMaterial(
 }
 
 fn treeShadeFoliage(color: vec3<f32>, normal: vec3<f32>, position: vec3<f32>, openness: f32, transmission: f32) -> vec3<f32> {
-  if (treePhotoreal.canopyColorMode < 0.5) { return treeShadeMaterial(color, normal, position, openness, transmission); }
+  if (treeCanopyColorAuthored < 0.5) { return treeShadeMaterial(color, normal, position, openness, transmission); }
   if (phongMaterial.unlit != 0u || lighting.enabled == 0) { return color; }
   let light = treeShadeMaterial(vec3<f32>(1.0), normal, position, openness, transmission);
   return color * dot(light, vec3<f32>(0.3, 0.55, 0.15));
@@ -290,16 +291,16 @@ fn treeOutput(color: vec3<f32>, alpha: f32, pickColor: vec3<f32>) -> vec4<f32> {
 }
 
 fn treeFoliageOutput(color: vec3<f32>, alpha: f32, pickColor: vec3<f32>) -> vec4<f32> {
-  return treeOutputDisplay(color, alpha, pickColor, treePhotoreal.canopyColorMode > 0.5);
+  return treeOutputDisplay(color, alpha, pickColor, treeCanopyColorAuthored > 0.5);
 }
 
-fn treeOutputDisplay(color: vec3<f32>, alpha: f32, pickColor: vec3<f32>, analytical: bool) -> vec4<f32> {
+fn treeOutputDisplay(color: vec3<f32>, alpha: f32, pickColor: vec3<f32>, authored: bool) -> vec4<f32> {
   if (picking.isActive > 0.5) {
     if (!picking_isColorValid(pickColor)) { discard; }
     return vec4<f32>(pickColor, 1.0);
   }
   var display = treeFilmic(color);
-  if (analytical) {
+  if (authored) {
     display = pow(max(color, vec3<f32>(0.0)), vec3<f32>(1.0 / 2.2));
     display /= max(1.0, max(display.r, max(display.g, display.b)));
   }

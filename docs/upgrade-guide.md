@@ -6,14 +6,16 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
-### TreeLayer analytical palettes
+### TreeLayer canopy colors
 
-Applications using canopy colors for metric classes can opt into
-`canopyColorMode: 'analytical'`. Keep `getCanopyColor`, opacity and selection extensions as
-before. WebGPU transparency now follows Deck’s premultiplied blend convention, avoiding
-excess brightness through overlapping surfaces. Natural rendering remains the default;
-no change is required for botanical scenes.
-See [analytical canopy colors](./modules/layers/api-reference/tree-layer.md#analytical-canopy-colors).
+Explicit `getCanopyColor` results and `TreeSpec.canopyColor` now preserve authored hues,
+with neutral lighting instead of botanical pigment and lifecycle recoloring. Return
+`null` from a custom accessor, or leave `TreeSpec.canopyColor` unset, for the natural
+species/season palette. Existing applications using explicit colors as botanical tints
+will see a different result. No additional color-mode property is needed.
+
+WebGPU transparency now follows Deck's premultiplied blend convention, avoiding excessive
+brightness through overlapping surfaces. See [canopy colors](./modules/layers/api-reference/tree-layer.md#canopy-colors).
 
 ## v10.0.0-alpha.2
 

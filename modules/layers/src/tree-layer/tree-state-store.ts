@@ -920,6 +920,15 @@ export class TreeStateStore {
     this.markLines(row, row + 1);
   }
 
+  /** Preserve explicit-color intent without invalidating geometry or detail selection. */
+  setCanopyColorAuthored(row: number, authored: boolean): void {
+    const offset = row * FLOATS_PER_ROW + TREE_STATE_TEXEL.CROP_DROPPED * 4 + 1;
+    const value = authored ? 1 : 0;
+    if (this.data[offset] === value) return;
+    this.data[offset] = value;
+    this.markRowChanged(row, false);
+  }
+
   /**
    * Advances every tween to `now` and every loss rate to `clock`. A paused timeline holds tweens, and
    * a paused clock holds rates, so things in flight wait rather than land.

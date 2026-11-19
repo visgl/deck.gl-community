@@ -35,7 +35,6 @@ const shadows = params.get('shadows') !== '0';
 const ground = params.get('ground') !== '0';
 const selection = params.has('selection');
 if (!ground) document.body.style.backgroundColor = '#736c4f';
-const colorMode = params.get('colorMode') === 'analytical' ? 'analytical' : 'natural';
 const theme = params.get('theme') ?? 'default';
 const opacity = Number(params.get('opacity') ?? (theme === 'realistic' ? 0.7 : 1));
 const LOD_BIAS = 0;
@@ -54,7 +53,7 @@ const trees: TreeSpec[] = Array.from({length: COUNT}, (_, index) => {
     height: 3 * (1 + variation * 0.05),
     crownRadius: 2.25 * (1 + variation * 0.04),
     characteristics: SEEDS[mixed ? 0 : index % SEEDS.length],
-    ...(theme !== 'default' && {canopyColor: index % 2 ? [255, 220, 0, 255] : [30, 200, 40, 255]})
+    ...(theme === 'bright' && {canopyColor: index % 2 ? [255, 220, 0, 255] : [30, 200, 40, 255]})
   };
 });
 
@@ -202,7 +201,6 @@ const deck = new FieldDeck({
       windStrength: 0.035,
       ...(params.has('windTime') && {windTime: Number(params.get('windTime'))}),
       shadowEnabled: shadows,
-      canopyColorMode: colorMode,
       ...(selection && {extensions: [new SelectionPulseExtension()], getSelected: () => false}),
       opacity
     })
@@ -361,7 +359,6 @@ async function measure(
     selection,
     theme,
     opacity,
-    colorMode,
     windTime: params.has('windTime') ? Number(params.get('windTime')) : null,
     diagnostics,
     shadowFit: lighting.shadowDiagnostics,

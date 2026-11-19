@@ -22,14 +22,14 @@ const YELLOW = [255, 220, 0, 255] as const;
 const GREEN = [30, 200, 40, 255] as const;
 
 class CanopyLayer extends TreeLayer<TreeSpec> {
-  static layerName = 'AnalyticalCanopyTestLayer';
+  static layerName = 'CanopyColorTestLayer';
   filterSubLayer({layer}: {layer: Layer}) {
     return !layer.id.endsWith('-shadow') && /-(canopy|photoreal-leaves)-/.test(layer.id);
   }
 }
 
 for (const backend of ['webgl', 'webgpu'] as const) {
-  it(`${backend}: preserves analytical hues, opacity, picking and selection across canopy detail`, async ({
+  it(`${backend}: preserves authored hues, opacity, picking and selection across canopy detail`, async ({
     skip
   }) => {
     if (backend === 'webgpu') await requireWebGPUAdapter(skip);
@@ -92,10 +92,9 @@ for (const backend of ['webgl', 'webgpu'] as const) {
     });
     const layer = (props = {}) =>
       new CanopyLayer({
-        id: 'analytical',
+        id: 'canopy-colors',
         data,
         coordinateSystem: 'cartesian',
-        canopyColorMode: 'analytical',
         shadowEnabled: false,
         pickable: true,
         windTime: 0,
@@ -171,9 +170,49 @@ for (const backend of ['webgl', 'webgpu'] as const) {
         const lodBias = level === 'transition' ? transitionBias : level;
         const plain = sample(await render({lodBias, foliageMaterial: {unlit: true}}), YELLOW);
         expect(plain.brightness).toBeCloseTo(220, 0);
+        // Equal RGB with different intent must preserve the natural fallback or authored override.
+        const fallbackPixels = await render({
+          lodBias,
+          getCanopyColor: null,
+          foliageMaterial: {unlit: true}
+        });
+        const defaultRgb = [33, 112, 29, 255] as const;
+        const authoredPixels = await render({
+          lodBias,
+          getCanopyColor: defaultRgb,
+          foliageMaterial: {unlit: true}
+        });
+        sample(authoredPixels, defaultRgb, true);
+        let maxIntentDelta = 0;
+        for (let i = 0; i < fallbackPixels.length; i++)
+          maxIntentDelta = Math.max(
+            maxIntentDelta,
+            Math.abs(fallbackPixels[i] - authoredPixels[i])
+          );
+        expect(maxIntentDelta).toBeGreaterThan(10);
+        if (level === 3) {
+          // The unlit shell pins the existing species-default pigment and display behavior.
+          const linear = defaultRgb.slice(0, 3).map(channel => (channel / 255) ** 2.2);
+          const luminance = linear[0] * 0.3 + linear[1] * 0.55 + linear[2] * 0.15;
+          const expected = linear.map((channel, index) => {
+            const value = (channel * 0.55 + luminance * 0.45) * [0.82, 0.53, 0.33][index];
+            const mapped = (value * (2.51 * value + 0.03)) / (value * (2.43 * value + 0.59) + 0.14);
+            return Math.round(Math.max(0, Math.min(1, mapped)) ** (1 / 2.2) * 255);
+          });
+          let maxDefaultError = 0;
+          for (let i = 0; i < fallbackPixels.length; i += 4) {
+            if (!fallbackPixels[i + 3]) continue;
+            for (let channel = 0; channel < 3; channel++)
+              maxDefaultError = Math.max(
+                maxDefaultError,
+                Math.abs(fallbackPixels[i + channel] - expected[channel])
+              );
+          }
+          expect(maxDefaultError).toBeLessThanOrEqual(1);
+        }
         const parentLayer = deck['layerManager']
           .getLayers()
-          .find(child => child.id === 'analytical') as TreeLayer<TreeSpec>;
+          .find(child => child.id === 'canopy-colors') as TreeLayer<TreeSpec>;
         const row = parentLayer.state.photoreal!.rows[0];
         // Put the measured projected crown in the middle of the 56–64 px overlap.
         if (level === 3)
@@ -214,11 +253,35 @@ for (const backend of ['webgl', 'webgpu'] as const) {
         expect(errors).toEqual([]);
       }
       expect(coverage).toEqual({shell: true, leaves: true, transition: true});
+      // The same batched layer must carry natural and authored material intent per tree.
+      for (const lodBias of [3, -3]) {
+        const pixels = await render({
+          lodBias,
+          data: [
+            {...data[0], position: [-1.6, 0, 0]},
+            {...data[0], position: [1.6, 0, 0]}
+          ],
+          getCanopyColor: (_tree: TreeSpec, {index}: {index: number}) => (index ? GREEN : null),
+          foliageMaterial: {unlit: true}
+        });
+        let authored = 0,
+          natural = 0;
+        for (let i = 0; i < pixels.length; i += 4) {
+          if (!pixels[i + 3]) continue;
+          const literal = GREEN.slice(0, 3).every(
+            (channel, c) => Math.abs(pixels[i + c] - channel) <= 1
+          );
+          if (literal) authored++;
+          else natural++;
+        }
+        expect(authored).toBeGreaterThan(100);
+        expect(natural).toBeGreaterThan(100);
+      }
       deck.setProps({viewState: {target: [0, 0, 3.4], zoom: 8, rotationX: 25, rotationOrbit: 0}});
       sample(await render({lodBias: -3, getHealth: 0.5, getFlush: 1}), YELLOW);
       const close = deck['layerManager']
         .getLayers()
-        .find(child => child.id === 'analytical') as TreeLayer<TreeSpec>;
+        .find(child => child.id === 'canopy-colors') as TreeLayer<TreeSpec>;
       const group = [...close.state.photoreal!.groups.values()][0];
       expect(group.fineData.length).toBeGreaterThan(0);
       expect(group.macroData.length).toBeGreaterThan(0);
