@@ -305,8 +305,9 @@ struct HullVaryings {
     smoothstep(0.0, 0.16, liveLeaves) * (1.0 - smoothstep(0.0, 0.5, life.decay)));
   let filtered = treeFilterVertexColor(tintWithCoverage, instanceIndex);
   // The resolved leaf draw has many lit faces where the shell has one normal.
+  // Neutral authored shading needs its own intensity compensation without changing hue.
   let litColorPass = !treeIsShadowPass() && phongMaterial.unlit == 0u && lighting.enabled != 0;
-  let reflectedLight = select(1.0, 1.24, litColorPass && treeCanopyColorAuthored < 0.5);
+  let reflectedLight = select(1.0, select(1.24, 1.5, treeCanopyColorAuthored > 0.5), litColorPass);
   output.tint = vec4<f32>(filtered.rgb * reflectedLight, filtered.a);
   output.life = vec3<f32>(life.health, life.flush, sampleNormal.w);
   output.pickColor = picking_getPickingColorFromIndex(instanceIndex);
