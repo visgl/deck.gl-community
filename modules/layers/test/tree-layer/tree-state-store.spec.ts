@@ -2061,3 +2061,21 @@ describe('TreeStateStore repeated updates', () => {
     }
   });
 });
+
+it('marks RGB updates for upload without invalidating culling and detail state', () => {
+  const store = createStore({getCanopyColor: 100}, {canopyColor: [255, 220, 0, 255]});
+  const revision = store.detailRevision;
+  set(store, {canopyColor: [30, 200, 40, 255], trunkColor: [80, 60, 30, 255]});
+  for (const time of [50, 100]) {
+    store.tick(time, time / 1000);
+    expect(store.isDirty).toBe(true);
+    expect(store.detailRevision).toBe(revision);
+    store.clearDirty();
+  }
+  set(store, {canopyColor: [30, 200, 40, 100]}, 100, 0.1);
+  store.tick(150, 0.15);
+  expect(store.detailRevision).toBeGreaterThan(revision);
+  const alphaRevision = store.detailRevision;
+  set(store, {height: 20, coverage: 0.5}, 150, 0.15);
+  expect(store.detailRevision).toBeGreaterThan(alphaRevision);
+});

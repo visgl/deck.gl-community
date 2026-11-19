@@ -530,6 +530,67 @@ describe('TreeLayer photoreal rendering', () => {
     expect(scene.glErrors).toEqual([]);
   }, 120000);
 
+  it('keeps the mature shader and pulse colors with SelectionPulseExtension', async () => {
+    const scene = mount({staticFrames: true});
+    const prototype = TreePhotorealLeafLayer.prototype as any;
+    const getDrawModel = prototype.getDrawModel;
+    let reference = false;
+    const usedMature = new Set<string>();
+    const select = vi.spyOn(prototype, 'getDrawModel').mockImplementation(function (
+      this: TreePhotorealLeafLayer,
+      params
+    ) {
+      const model = getDrawModel.call(this, params);
+      if (model && model === this.state.matureModel) usedMature.add(this.id);
+      return reference ? this.state.model : model;
+    });
+    const data = [{...CITRUS, characteristics: {branchDensity: 0.5, leafDensity: 0.25}}];
+    const props = {
+      windTime: 12,
+      windStrength: 0.035,
+      lodBias: -2,
+      canopyColorMode: 'analytical',
+      getCanopyColor: [255, 220, 0, 255],
+      extensions: [new SelectionPulseExtension()],
+      getSelected: () => true,
+      pulsePeriod: 0,
+      pulseStrength: 0.4
+    };
+    try {
+      const layers = [trees(props, data)];
+      const optimized = await scene.render(layers, 1);
+      expect(usedMature.size).toBeGreaterThan(0);
+      reference = true;
+      const general = await scene.render([trees({...props, _leafCulling: false}, data)], 1);
+      expect(optimized.every((value, i) => Math.abs(value - general[i]) <= 2)).toBe(true);
+      reference = false;
+      await scene.render([trees(props, data)], 1);
+      expect(treeLayer(scene).state.photoreal!.rows[0].leafSelection).not.toBeNull();
+      // Unknown subclasses may add position hooks. Changing only extensions must clear
+      // the cached spatial selection and retain the general shader in that same view.
+      class CustomPulse extends SelectionPulseExtension {}
+      usedMature.clear();
+      const custom = await scene.render(
+        [trees({...props, extensions: [new CustomPulse()]}, data)],
+        1
+      );
+      expect(usedMature.size).toBe(0);
+      expect(treeLayer(scene).state.photoreal!.rows[0].leafSelection).toBeNull();
+      expect(custom.every((value, i) => Math.abs(value - general[i]) <= 2)).toBe(true);
+      await scene.render([trees(props, data)], 1);
+      // Picking still uses the general shader, and returns the source object.
+      const picks = scene.deck.pickObjects({x: 0, y: 0, width: SIZE, height: SIZE});
+      expect(picks.some(pick => pick.object === data[0])).toBe(true);
+      await scene.render([trees({...props, pickable: false}, data)], 1);
+      expect(scene.deck.pickObjects({x: 0, y: 0, width: SIZE, height: SIZE})).toEqual([]);
+      expect(scene.errors).toEqual([]);
+      expect(scene.glErrors).toEqual([]);
+    } finally {
+      select.mockRestore();
+      scene.cleanup();
+    }
+  }, 60000);
+
   it('preserves individual leaves when specializing upright trees in undirected wind', async () => {
     const scene = mount({staticFrames: true, effects: [lighting(true)]});
     const prototype = TreePhotorealLeafLayer.prototype as unknown as {

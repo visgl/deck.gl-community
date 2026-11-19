@@ -189,6 +189,7 @@ struct LeafVaryings {
   color = mix(color, vec3<f32>(0.115, 0.066, 0.026) * mix(0.75, 1.25, hashC), brown);
   color = mix(color, vec3<f32>(0.05, 0.032, 0.014), lying * mix(0.55, 1.0, hashC));
   color = mix(color, vec3<f32>(0.075, 0.058, 0.04), smoothstep(0.02, 0.4, life.decay));
+  if (treePhotoreal.canopyColorMode > 0.5) { color = treeLeafPigment(canopy.rgb); }
   output.position = treeShadowPosition(projection.clipPosition, projection.commonPosition);
   output.commonPosition = projection.commonPosition.xyz;
   output.normal = splatProjectNormal(normal, projection.frame);
@@ -217,8 +218,8 @@ struct LeafVaryings {
     air
       ? `if (picking.isActive > 0.5) { discard; }
   let cover = input.optics.z * (1.0 - smoothstep(0.6, 1.0, abs(input.blade.y)));
-  ${air === 'depth' ? 'if (treeHash(input.position.xyz) >= cover) { discard; } return vec4<f32>(0.0);' : 'if (cover <= 0.001) { discard; } return treeOutput(treeShadeMaterial(input.color, normal, input.commonPosition, 1.0, 0.25), cover * layer.opacity, input.pickingColor);'}`
-      : 'return treeOutput(treeShadeMaterial(input.color * modulation, normal, input.commonPosition, input.optics.x, 0.22), layer.opacity, input.pickingColor);'
+  ${air === 'depth' ? 'if (treeHash(input.position.xyz) >= cover) { discard; } return vec4<f32>(0.0);' : 'if (cover <= 0.001) { discard; } return treeFoliageOutput(treeShadeFoliage(input.color, normal, input.commonPosition, 1.0, 0.25), cover * layer.opacity, input.pickingColor);'}`
+      : 'return treeFoliageOutput(treeShadeFoliage(input.color * modulation, normal, input.commonPosition, input.optics.x, 0.22), layer.opacity, input.pickingColor);'
   }
 }
 `

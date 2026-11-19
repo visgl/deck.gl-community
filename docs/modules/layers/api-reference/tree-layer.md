@@ -51,6 +51,7 @@ properties. Picking, `autoHighlight` and `highlightedObjectIndex` use the source
 | `getTree` | `d => d` | Returns the [`TreeSpec`](#treespec) for a row. |
 | `characteristics` | `{}` | Shared template characteristics. See [Characteristics](#characteristics). |
 | `sizeScale` | `1` | Multiplier for all tree and crop dimensions. |
+| `canopyColorMode` | `'natural'` | `'analytical'` preserves authored canopy hues under neutral shading; `'natural'` applies botanical pigment and lifecycle colors. |
 | `lodBias` | `0` | Positive values switch to simpler crown detail closer to the camera. Negative values retain individual detail farther away. |
 | `windStrength` | `0` | Wind bend as a fraction of tree height. `0.025` is a gentle breeze, and `1` a hurricane. |
 | `windDirection` | `null` | Compass bearing in degrees, clockwise from +y (north), that the wind blows toward. Gusts then travel across the grove. `null` sways trees in no particular direction. |
@@ -85,6 +86,40 @@ global season, without rebuilding your data. Function accessors follow deck.gl's
 
 `getCanopyRadius` uses a legacy scale: broadleaf crowns render at about half its value. For a
 crown radius in metres, set `crownRadius` in `getTree` instead.
+
+## Analytical canopy colors
+
+For metric classes or a chart palette, set `canopyColorMode: 'analytical'` and supply
+`getCanopyColor` or `TreeSpec.canopyColor`. The same palette applies to distant shells,
+transitions, and coarse, fine and macro leaves on WebGL2 and WebGPU.
+
+```ts
+new TreeLayer({
+  data: records,
+  getTree: record => record.tree,
+  getCanopyColor: record => record.classColor,
+  canopyColorMode: 'analytical',
+  updateTriggers: {getCanopyColor: paletteRevision}
+});
+```
+
+Analytical mode uses neutral light intensity and preserves RGB channel ratios through
+lighting and display encoding. Surfaces retain shading, specular form and shadows;
+`foliageMaterial: {unlit: true}` displays the supplied RGB values directly. Botanical
+pigment, age, health, flush and underside **color** shifts are disabled. Growth, foliage,
+health-related shape changes, wind and other lifecycle geometry still apply. Bark and
+crops keep their own colors and materials. The default `'natural'` appearance is unchanged.
+
+Canopy alpha remains optical coverage, and `opacity` retains deck.gl's per-surface
+transparency semantics, including gamma encoding and accumulation through overlapping
+surfaces. Changing only RGB updates the state texture without selecting detail again;
+alpha or coverage changes can update wood and shadow residency. Keep source data stable
+and use `updateTriggers` for function accessors.
+
+`SelectionPulseExtension` retains mature-leaf shading and conservative spatial culling.
+Its color-only pulse preserves alpha, so opaque attached leaves also retain opaque blending.
+Other extension implementations keep the general rendering path; changing extensions
+refreshes cached leaf selections.
 
 ## Types
 

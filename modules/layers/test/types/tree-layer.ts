@@ -20,6 +20,9 @@ const props: TreeLayerProps<(typeof data)[number]> = {
   lodBias: 0
 };
 new TreeLayer(props);
+new TreeLayer({...props, canopyColorMode: 'analytical'});
+// @ts-expect-error TreeLayer has two canopy palettes.
+new TreeLayer({...props, canopyColorMode: 'bright'});
 new TreeLayer({data, getTreeType: 'oak', getElevation: -10, getTrunkColor: null});
 // @ts-expect-error The Gaussian canopy budget has been removed.
 new TreeLayer({data, maxCanopySplats: 20_000});

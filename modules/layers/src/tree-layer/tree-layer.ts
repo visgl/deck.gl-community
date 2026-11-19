@@ -75,7 +75,11 @@ import {
   TreePhotorealCropLayer,
   type TreeCropData
 } from './tree-photoreal-crop-layer';
-import {TreePhotorealLeafLayer, type TreeLeafData} from './tree-photoreal-leaf-layer';
+import {
+  TreePhotorealLeafLayer,
+  supportsTreeLeafOptimizations,
+  type TreeLeafData
+} from './tree-photoreal-leaf-layer';
 import {
   getTreeLeafClusters,
   getTreeLeafClusterSphere,
@@ -337,6 +341,14 @@ type _TreeLayerProps<DataT> = {
   getCanopyColor?: Accessor<DataT, Color | null>;
 
   /**
+   * Foliage palette. `natural` applies botanical pigment and lifecycle colors. `analytical`
+   * preserves the supplied RGB hue with neutral lighting and display encoding across all canopy
+   * detail levels. Alpha remains optical coverage; layer opacity remains transparency.
+   * @default 'natural'
+   */
+  canopyColorMode?: 'natural' | 'analytical';
+
+  /**
    * Season controls default foliage colour and deciduous foliage visibility; wood is unchanged.
    * @default 'summer'
    */
@@ -447,6 +459,7 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   getCanopyRadius: {type: 'accessor', value: (_d: any) => 3},
   getTrunkColor: {type: 'accessor', value: (_d: any) => null},
   getCanopyColor: {type: 'accessor', value: (_d: any) => null},
+  canopyColorMode: 'natural',
   getSeason: {type: 'accessor', value: (_d: any) => 'summer' as Season},
   getBranchLevels: {type: 'accessor', value: (_d: any) => 3},
   getCrop: {type: 'accessor', value: (_d: any) => null},
@@ -1206,11 +1219,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       triggers?.[key];
     this.updateWithStore(
       props,
-      dataChanged ||
-        GEOMETRY_PROPS.some(accessorChanged) ||
-        STORE_ONLY_PROPS.some(accessorChanged) ||
-        !this.state.store,
+      dataChanged || GEOMETRY_PROPS.some(accessorChanged) || !this.state.store,
+      STORE_ONLY_PROPS.some(accessorChanged),
       Boolean(changeFlags.viewportChanged) ||
+        Boolean(changeFlags.extensionsChanged) ||
         props.lodBias !== oldProps.lodBias ||
         props._leafCulling !== oldProps._leafCulling ||
         props.shadowEnabled !== oldProps.shadowEnabled,
@@ -1382,6 +1394,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   private updateWithStore(
     props,
     accessorsChanged: boolean,
+    appearanceChanged: boolean,
     viewChanged: boolean,
     placementChanged: boolean,
     windChanged: boolean
@@ -1392,6 +1405,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     let store = this.state.store;
     const firstRead = !store;
     if (!store) store = this.state.store = new TreeStateStore();
+    const detailRevision = store.detailRevision;
     store.setTransitions(props.transitions);
 
     let regrouped = false;
@@ -1408,6 +1422,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     }
     if (accessorsChanged || firstRead || windChanged) {
       this.writeStateRows(props, sources, store, now, clock);
+    } else if (appearanceChanged) {
+      this.writeAppearanceRows(props, sources, store, now, clock);
     }
     if (accessorsChanged || firstRead) {
       regrouped = this.groupPhotorealRows(props, sources);
@@ -1415,7 +1431,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
 
     const {photoreal} = this.state;
     const {changed, active} = store.tick(now, clock);
-    if (store.isDirty || accessorsChanged) {
+    const detailChanged = store.detailRevision !== detailRevision;
+    if (detailChanged || firstRead) {
       let strength = 0;
       const data = store.data;
       for (let row = 0; row < store.rowCount; row++) {
@@ -1426,22 +1443,44 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       }
       this.state.currentWindStrength = strength;
     }
-    if (
-      photoreal &&
-      (viewChanged ||
-        placementChanged ||
-        accessorsChanged ||
-        regrouped ||
-        firstRead ||
-        windChanged ||
-        changed)
-    ) {
-      this.updatePhotorealDetail(props, photoreal, store, placementChanged);
+    if (photoreal && (viewChanged || placementChanged || regrouped || firstRead || detailChanged)) {
+      this.updatePhotorealDetail(props, photoreal, store, placementChanged, detailChanged);
     }
     this.uploadStateTexture(store);
     // A tween's last tick can still change a bucket, and nothing says to render it once it stops.
     if (changed && photoreal) this.setNeedsUpdate();
     this.state.ticking = active;
+  }
+
+  /** Tint accessors need neither the source geometry accessors nor template regrouping. */
+  private writeAppearanceRows(
+    props,
+    sources: TreeSource<DataT>[],
+    store: TreeStateStore,
+    now: number,
+    clock: number
+  ): void {
+    const update: TreeStateUpdate = {};
+    const options = {now, clock, isNew: false, cropKindChanged: false};
+    const info = {index: -1, data: props.data, target: []} as unknown as AccessorContext<DataT>;
+    for (const source of sources) {
+      info.index = source.index;
+      update.canopyColor =
+        (isDefaultTreeAccessor(props, 'getCanopyColor')
+          ? source.canopyColor
+          : getTreeAccessorValue(props.getCanopyColor, source.object, info)) ??
+        DEFAULT_CANOPY_COLORS[source.type][source.season];
+      update.trunkColor =
+        (isDefaultTreeAccessor(props, 'getTrunkColor')
+          ? source.trunkColor
+          : getTreeAccessorValue(props.getTrunkColor, source.object, info)) ??
+        DEFAULT_TRUNK_COLORS[source.type];
+      update.coverage = getUnitValue(
+        getTreeAccessorValue(props.getCoverageWeight, source.object, info) as number,
+        1
+      );
+      store.setRow(source.stateRow, update, options);
+    }
   }
 
   /** Accessor values as targets of the state rows. */
@@ -1733,7 +1772,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     props,
     photoreal: PhotorealState<DataT>,
     store: TreeStateStore,
-    placementChanged: boolean
+    placementChanged: boolean,
+    shapeChanged: boolean
   ): void {
     const viewport = this.context?.viewport;
     if (!viewport) return;
@@ -1752,7 +1792,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     );
     const horizons = views.map(view => getSplatHorizon(view));
     const data = store.data;
-    const shapeChanged = store.isDirty;
     const lodBias = getFiniteValue(props.lodBias, 0);
     const {SIZE, LIFE, POSE, MISC, DETAIL, ANCHOR_LOW} = TREE_STATE_TEXEL;
     const center = [0, 0, 0];
@@ -2234,7 +2273,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       props._leafCulling !== false &&
       view &&
       !props.modelMatrix &&
-      !props.extensions?.length &&
+      supportsTreeLeafOptimizations(props.extensions ?? []) &&
       data[base + LIFE * 4] >= 1 &&
       data[base + LIFE * 4 + 2] >= 1 &&
       data[base + POSE * 4] === 0 &&
@@ -2938,6 +2977,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const {windTime, shadowEnabled, pickable, visible, extensions} = this.props;
     const shared = {
       stateTexture,
+      canopyColorMode: this.props.canopyColorMode,
       _stateData: this.state.store?.data ?? null,
       _sourceDataRevision: extensions.length ? this.state.sourceDataRevision : 0,
       _woodCulling: (this.props as unknown as {_woodCulling?: boolean})._woodCulling !== false,
@@ -2965,7 +3005,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     };
     const parameters = {...this.props.parameters, cullMode: 'none'};
     const leafParameters = {
-      blend: this.props.opacity !== 1 || extensions.length > 0,
+      // The pulse preserves alpha. Opaque attached leaves can retain early depth rejection.
+      blend: this.props.opacity !== 1 || !supportsTreeLeafOptimizations(extensions),
       ...parameters
     };
     const highlightedObjectIndex = this.getHighlightedStateRow();
@@ -3155,7 +3196,13 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               type: TreePhotorealLeafLayer,
               id: `photoreal-leaves-${key}-air-${pass}`,
               material: foliageMaterial,
-              parameters: {...parameters, ...AIR_PARAMETERS[pass]}
+              parameters: {
+                ...parameters,
+                ...AIR_PARAMETERS[pass],
+                ...(this.context.device.type === 'webgpu' && pass === 'blend'
+                  ? {blendColorSrcFactor: 'one'}
+                  : {})
+              }
             }),
             // Not for picking, and an empty one keeps its model and costs a frame nothing.
             pickable: false,

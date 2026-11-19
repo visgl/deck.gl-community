@@ -62,6 +62,7 @@ float selectionPulse_getWeight() {
 #endif
 
 vec4 selectionPulse_filterColor(vec4 color) {
+  if (selectionPulse.amount <= 0.0) return color;
   return vec4(mix(color.rgb, selectionPulse.color, selectionPulse.amount * selectionPulse_getWeight()), color.a);
 }
 `;
@@ -76,6 +77,7 @@ struct SelectionPulseUniforms {
 @group(0) @binding(auto) var selectionPulseTexture: texture_2d<f32>;
 
 fn selectionPulse_filterColor(color: vec4<f32>, instanceIndex: u32) -> vec4<f32> {
+  if (selectionPulse.amount <= 0.0) { return color; }
   let width = textureDimensions(selectionPulseTexture).x;
   let weight = textureLoad(selectionPulseTexture, vec2<u32>(instanceIndex % width, instanceIndex / width), 0).r;
   return vec4<f32>(mix(color.rgb, selectionPulse.color, selectionPulse.amount * weight), color.a);

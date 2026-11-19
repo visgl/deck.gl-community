@@ -3,15 +3,38 @@
 // Copyright (c) vis.gl contributors
 
 import {fileURLToPath} from 'node:url';
+import {dirname, extname, resolve} from 'node:path';
 import {defineConfig} from 'vite';
 
+const treeEntry =
+  process.env.TREE_LAYER_ENTRY ??
+  fileURLToPath(new URL('../../modules/layers/src/tree-layer/tree-layer.ts', import.meta.url));
+const selectionEntry =
+  process.env.TREE_SELECTION_ENTRY ??
+  resolve(
+    dirname(treeEntry),
+    `../selection-pulse-extension/selection-pulse-extension${extname(treeEntry)}`
+  );
+
 export default defineConfig({
+  resolve: {
+    alias: {
+      '../../modules/layers/src/tree-layer/tree-layer': treeEntry,
+      '../../modules/layers/src/selection-pulse-extension/selection-pulse-extension': selectionEntry
+    }
+  },
   root: fileURLToPath(new URL('.', import.meta.url)),
   cacheDir: fileURLToPath(new URL('../../.cache/vite-tree-field', import.meta.url)),
   appType: 'mpa',
   server: {
     host: '127.0.0.1',
     hmr: false,
-    fs: {allow: [fileURLToPath(new URL('../..', import.meta.url))]}
+    fs: {
+      allow: [
+        fileURLToPath(new URL('../..', import.meta.url)),
+        resolve(dirname(treeEntry), '..'),
+        dirname(selectionEntry)
+      ]
+    }
   }
 });

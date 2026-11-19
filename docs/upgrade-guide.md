@@ -4,6 +4,17 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+### TreeLayer analytical palettes
+
+Applications using canopy colors for metric classes can opt into
+`canopyColorMode: 'analytical'`. Keep `getCanopyColor`, opacity and selection extensions as
+before. WebGPU transparency now follows Deck’s premultiplied blend convention, avoiding
+excess brightness through overlapping surfaces. Natural rendering remains the default;
+no change is required for botanical scenes.
+See [analytical canopy colors](./modules/layers/api-reference/tree-layer.md#analytical-canopy-colors).
+
 ## v10.0.0-alpha.2
 
 ### TreeLayer renderer

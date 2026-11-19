@@ -278,16 +278,37 @@ fn treeShadeMaterial(
   return lit;
 }
 
+fn treeShadeFoliage(color: vec3<f32>, normal: vec3<f32>, position: vec3<f32>, openness: f32, transmission: f32) -> vec3<f32> {
+  if (treePhotoreal.canopyColorMode < 0.5) { return treeShadeMaterial(color, normal, position, openness, transmission); }
+  if (phongMaterial.unlit != 0u || lighting.enabled == 0) { return color; }
+  let light = treeShadeMaterial(vec3<f32>(1.0), normal, position, openness, transmission);
+  return color * dot(light, vec3<f32>(0.3, 0.55, 0.15));
+}
+
 fn treeOutput(color: vec3<f32>, alpha: f32, pickColor: vec3<f32>) -> vec4<f32> {
+  return treeOutputDisplay(color, alpha, pickColor, false);
+}
+
+fn treeFoliageOutput(color: vec3<f32>, alpha: f32, pickColor: vec3<f32>) -> vec4<f32> {
+  return treeOutputDisplay(color, alpha, pickColor, treePhotoreal.canopyColorMode > 0.5);
+}
+
+fn treeOutputDisplay(color: vec3<f32>, alpha: f32, pickColor: vec3<f32>, analytical: bool) -> vec4<f32> {
   if (picking.isActive > 0.5) {
     if (!picking_isColorValid(pickColor)) { discard; }
     return vec4<f32>(pickColor, 1.0);
   }
   var display = treeFilmic(color);
+  if (analytical) {
+    display = pow(max(color, vec3<f32>(0.0)), vec3<f32>(1.0 / 2.2));
+    display /= max(1.0, max(display.r, max(display.g, display.b)));
+  }
   if (picking.isHighlightActive > 0.5 && picking_isColorZero(abs(pickColor - picking_normalizeColor(picking.highlightedObjectColor)))) {
     display = mix(display, picking.highlightColor.rgb, picking.highlightColor.a);
   }
-  return vec4<f32>(display, alpha);
+  // Deck's WebGPU color pass blends premultiplied output. Straight RGB would add too
+  // much light through overlapping translucent shells and leaves, clipping their hue.
+  return vec4<f32>(display * alpha, alpha);
 }
 `
 } as const satisfies ShaderModule;

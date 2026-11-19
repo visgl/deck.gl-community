@@ -46,6 +46,7 @@ const DECLARATION = `uniform treePhotorealUniforms {
   vec4 woodLevel;
   vec3 leafPaleness;
   float shadowHistoryWeight;
+  float canopyColorMode;
 } treePhotoreal;`;
 
 /** Values of the `treePhotoreal` shader module, one set per draw. */
@@ -81,6 +82,8 @@ export type TreePhotorealUniforms = {
   leafPaleness: [number, number, number];
   /** Weight of a cached shadow map during a projection transition. */
   shadowHistoryWeight: number;
+  /** 1 preserves authored canopy hues; 0 keeps botanical pigmentation. */
+  canopyColorMode: number;
 };
 
 /**
@@ -103,7 +106,8 @@ export const treePhotoreal = {
     leafBlades: 'vec4<f32>',
     woodLevel: 'vec4<f32>',
     leafPaleness: 'vec3<f32>',
-    shadowHistoryWeight: 'f32'
+    shadowHistoryWeight: 'f32',
+    canopyColorMode: 'f32'
   }
 } as const satisfies ShaderModule<TreePhotorealUniforms>;
 
@@ -1100,6 +1104,14 @@ vec3 treeFilmic(vec3 x) {
   x = max(x, vec3(0.0));
   vec3 mapped = clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
   return pow(mapped, vec3(1.0 / 2.2));
+}
+
+// Analytical colors retain their channel ratios, including bright yellow and green. Compress
+// out-of-gamut values together instead of applying a separate filmic curve to each channel.
+vec3 treeFoliageDisplay(vec3 color) {
+  if (treePhotoreal.canopyColorMode < 0.5) return treeFilmic(color);
+  vec3 display = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
+  return display / max(1.0, max(display.r, max(display.g, display.b)));
 }
 
 // Away from the ground: common space's z, or away from the center of the globe.
@@ -2531,11 +2543,13 @@ float treeLeafWave(float t, float side, float seed) {
 
 export const TREE_LEAF_OPTICS_GLSL = /* glsl */ `
 vec3 treeLeafUnderside(vec3 top) {
+  if (treePhotoreal.canopyColorMode > 0.5) return top;
   float pigment = dot(top, vec3(0.3, 0.55, 0.15));
   return mix(top, vec3(pigment) * vec3(1.15, 1.2, 0.65) + vec3(0.012, 0.017, 0.005), 0.5);
 }
 
 vec3 treeLeafTransmission(vec3 top) {
+  if (treePhotoreal.canopyColorMode > 0.5) return top;
   return pow(max(top, vec3(0.002)), vec3(0.75)) * vec3(0.95, 1.2, 0.34);
 }
 `;
@@ -2654,6 +2668,11 @@ vec3 treeLeafShade(
   vec3 specular = gSpecular * floatColors_normalize(material.specularColor) * ${floatLiteral(TREE_LEAF_SPECULAR_SCALE)};
   vec3 color = albedo * (sky * material.ambient + gDiffuse * material.diffuse) +
     glowColor * (gGlow * material.diffuse + skyThrough * material.ambient) + specular + sheen;
+  if (treePhotoreal.canopyColorMode > 0.5) {
+    vec3 light = sky * material.ambient + gDiffuse * material.diffuse +
+      (gGlow * material.diffuse + skyThrough * material.ambient) * veins;
+    color = top * dot(light + specular + sheen, vec3(0.3, 0.55, 0.15));
+  }
   if (material.unlit || lighting.enabled == 0) color = albedo;
   return color;
 }
@@ -2736,6 +2755,7 @@ fn treeShellCoversPixel(position: vec2<f32>, retention: f32) -> bool {
 export const TREE_LEAF_PIGMENT_GLSL = /* glsl */ `
 vec3 treeLeafPigment(vec3 canopy) {
   vec3 tint = pow(canopy, vec3(2.2));
+  if (treePhotoreal.canopyColorMode > 0.5) return tint;
   float luminance = dot(tint, vec3(0.3, 0.55, 0.15));
   return mix(tint, vec3(luminance), 0.45) * vec3(0.82, 0.53, 0.33);
 }
@@ -2744,6 +2764,7 @@ vec3 treeLeafPigment(vec3 canopy) {
 export const TREE_LEAF_PIGMENT_WGSL = /* wgsl */ `
 fn treeLeafPigment(canopy: vec3<f32>) -> vec3<f32> {
   let tint = pow(canopy, vec3<f32>(2.2));
+  if (treePhotoreal.canopyColorMode > 0.5) { return tint; }
   let luminance = dot(tint, vec3<f32>(0.3, 0.55, 0.15));
   return mix(tint, vec3<f32>(luminance), 0.45) * vec3<f32>(0.82, 0.53, 0.33);
 }
@@ -3475,6 +3496,7 @@ ${
     crown.xyz *= mix(1.0, mix(0.45, 1.0, smoothstep(-0.01, 0.03, point.z)), lying);
   }
 
+  if (treePhotoreal.canopyColorMode > 0.5) top = treeLeafPigment(canopy.rgb);
   // Extensions filter the color the leaf is made of, and light shades the result.
   vec4 filtered = vec4(top, 1.0);
   DECKGL_FILTER_COLOR(filtered, geometry);
@@ -3522,7 +3544,7 @@ ${
   vInfo = vec3(seed, dead, shadowBias);
   // Close up, a leaf is the dark green its glossy top is. From further, what a coarser blade stands for is paler, as
   // it has the sheen and the bright light of many leaves in it, and a leaf goes to that as it gets smaller.
-  vTop = top * mix(vec3(1.0), ${'vec3(' + TREE_LEAF_NEAR_TOP.map(floatLiteral).join(', ') + ')'}, nearness);
+  vTop = top * mix(vec3(1.0), ${'vec3(' + TREE_LEAF_NEAR_TOP.map(floatLiteral).join(', ') + ')'}, nearness * (1.0 - treePhotoreal.canopyColorMode));
   // A storm holds the blade over, and what shows is its paler underside, as top has it already: matte, and facing
   // the open sky, which in a storm is far brighter than the light among the leaves. Its frame turns that way. Only
   // the layer's storm does this, so a breeze runs none of it.
@@ -3609,7 +3631,7 @@ ${
     ? /* glsl */ `  if (treeHash(vec3(gl_FragCoord.xy, fract(treePhotoreal.clock.x * 61.7) * 997.0)) >= cover) discard;
   fragColor = vec4(0.0);`
     : /* glsl */ `  if (cover <= 0.002) discard;
-  fragColor = vec4(treeFilmic(vColor), cover * layer.opacity);
+  fragColor = vec4(treeFoliageDisplay(vColor), cover * layer.opacity);
   DECKGL_FILTER_COLOR(fragColor, geometry);`
 }
 }
@@ -3654,7 +3676,7 @@ void main(void) {
   geometry.uv = vec2(0.0);
 ${TREE_LEAF_PICKING_FRAGMENT_GLSL}
 ${TREE_SHADOW_FRAGMENT_GLSL}
-  fragColor = vec4(treeFilmic(vColor), layer.opacity);
+  fragColor = vec4(treeFoliageDisplay(vColor), layer.opacity);
   DECKGL_FILTER_COLOR(fragColor, geometry);
 }
 `;
@@ -3747,7 +3769,7 @@ ${TREE_SHADOW_FRAGMENT_GLSL}
   float wave = treeLeafWave(t, side, seed) * smoothstep(0.1, 0.18, t);
   slopeAcross += ${floatLiteral(2 * surface.ruffle)} * wave * place / max(halfWidth, 0.01);
   vec3 smoothNormal = normalize(axisZ - axisX * slopeAlong - axisY * slopeAcross);
-  if (midrib > 0.0) {
+  if (midrib > 0.0 && treePhotoreal.canopyColorMode < 0.5) {
     // Slopes over a pixel and a half: the midrib's keel narrows to well under a pixel toward the tip, and a slope read
     // closer than that would flip it from side to side from pixel to pixel.
     float h = max(footprint * 1.5, 0.0008);
@@ -3793,7 +3815,7 @@ ${TREE_SHADOW_FRAGMENT_GLSL}
     gl_FrontFacing,
     vInfo.z
   );
-  fragColor = vec4(treeFilmic(color), layer.opacity);
+  fragColor = vec4(treeFoliageDisplay(color), layer.opacity);
   DECKGL_FILTER_COLOR(fragColor, geometry);
 }
 `;

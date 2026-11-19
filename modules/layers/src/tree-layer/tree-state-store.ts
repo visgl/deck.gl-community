@@ -691,6 +691,8 @@ export class TreeStateStore {
   rowCount = 0;
   /** Texture height: lines needed to hold `rowCount`, and at least 1. */
   lineCount = 1;
+  /** Changes to state used by culling or detail selection. RGB-only edits leave this unchanged. */
+  detailRevision = 0;
 
   private dirtyStart = 1;
   private dirtyEnd = 0;
@@ -832,6 +834,7 @@ export class TreeStateStore {
     const count = Number.isFinite(rowCount) ? Math.max(0, Math.floor(rowCount)) : 0;
     const previous = this.rowCount;
     if (count === previous) return;
+    this.detailRevision++;
     if (count < previous) this.dropRows(count);
     const lineCount = Math.max(1, Math.ceil(count / TREE_STATE_ROWS_PER_LINE));
     if (lineCount !== this.lineCount) this.reallocate(lineCount, Math.min(previous, count));
@@ -990,13 +993,18 @@ export class TreeStateStore {
   }
 
   private writeRowChannel(row: number, channel: number, source: Float64Array, index: number): void {
-    if (writeChannel(this.data, row * FLOATS_PER_ROW, channel, source, index))
-      this.markRowChanged(row);
+    if (writeChannel(this.data, row * FLOATS_PER_ROW, channel, source, index)) {
+      const tintOnly =
+        (channel >= CHANNEL_CANOPY && channel < CHANNEL_CANOPY + 3) ||
+        (channel >= CHANNEL_BARK && channel < CHANNEL_BARK + 3);
+      this.markRowChanged(row, !tintOnly);
+    }
   }
 
-  private markRowChanged(row: number): void {
+  private markRowChanged(row: number, detailChanged = true): void {
     this.markLines(row, row + 1);
     this.changedSinceTick = true;
+    if (detailChanged) this.detailRevision++;
   }
 
   private reallocate(lineCount: number, keepRows: number): void {

@@ -108,12 +108,13 @@ void main() {
   geometry.pickingColor = picking_getPickingColorFromInstanceID();
   vec4 filtered = vec4(treeLeafPigment(tint.rgb), 1.0);
   DECKGL_FILTER_COLOR(filtered, geometry);
-  vec3 color = mix(filtered.rgb * vec3(1.0, 0.68, 0.32), filtered.rgb, tree.health);
+  vec3 color = filtered.rgb;
+  if (treePhotoreal.canopyColorMode < 0.5) color = mix(color * vec3(1.0, 0.68, 0.32), color, tree.health);
   bool colorPass = true;
 #ifdef MODULE_SHADOW
   colorPass = !shadow.drawShadowMap;
 #endif
-  if (colorPass && lighting.enabled != 0 && !material.unlit) {
+  if (treePhotoreal.canopyColorMode < 0.5 && colorPass && lighting.enabled != 0 && !material.unlit) {
     // A shell represents many blade orientations. Average reflected and transmitted
     // leaf light in the vertex stage so distant crowns keep the same palette.
     vec3 leaves = 0.76 * mix(color, treeLeafUnderside(color), 0.76) + 0.25 * treeLeafTransmission(color);
@@ -193,7 +194,8 @@ ${TREE_SHADOW_FRAGMENT_GLSL}
   vec3 normal = normalize(vNormal);
   vec3 up = treeUp(vPosition);
   float openness = mix(0.56, 1.0, vLife.y * 0.4 + grain * 0.6);
-  vec3 color = mix(vTint.rgb, vTint.rgb * vec3(1.27, 1.46, 0.76), vLife.x * grain);
+  vec3 color = vTint.rgb;
+  if (treePhotoreal.canopyColorMode < 0.5) color = mix(color, color * vec3(1.27, 1.46, 0.76), vLife.x * grain);
   vec3 lit = color;
   if (lighting.enabled != 0 && !material.unlit) {
     lit = color * treeHemisphere(normal, up) * material.ambient * openness;
@@ -217,7 +219,10 @@ ${TREE_SHADOW_FRAGMENT_GLSL}
     lit *= 1.0 + (grain - 0.5) * ${SHELL_GRAIN_CONTRAST} * visibleClumps;
 #endif
   }
-  fragColor = vec4(treeFilmic(lit), layer.opacity);
+  if (treePhotoreal.canopyColorMode > 0.5) {
+    lit = color * (dot(lit, vec3(0.3, 0.55, 0.15)) / max(dot(color, vec3(0.3, 0.55, 0.15)), 1e-8));
+  }
+  fragColor = vec4(treeFoliageDisplay(lit), layer.opacity);
   DECKGL_FILTER_COLOR(fragColor, geometry);
 #endif
 }
@@ -297,7 +302,7 @@ struct HullVaryings {
   let filtered = treeFilterVertexColor(tintWithCoverage, instanceIndex);
   // The resolved leaf draw has many lit faces where the shell has one normal.
   let litColorPass = !treeIsShadowPass() && phongMaterial.unlit == 0u && lighting.enabled != 0;
-  let reflectedLight = select(1.0, 1.24, litColorPass);
+  let reflectedLight = select(1.0, 1.24, litColorPass && treePhotoreal.canopyColorMode < 0.5);
   output.tint = vec4<f32>(filtered.rgb * reflectedLight, filtered.a);
   output.life = vec3<f32>(life.health, life.flush, sampleNormal.w);
   output.pickColor = picking_getPickingColorFromIndex(instanceIndex);
@@ -320,7 +325,8 @@ struct HullVaryings {
   let openness = mix(0.56, 1.0, input.life.z * 0.4 + grain * 0.6);
   var color = mix(input.tint.rgb * vec3<f32>(1.0, 0.68, 0.32), input.tint.rgb, input.life.x);
   color = mix(color, color * vec3<f32>(1.27, 1.46, 0.76), input.life.y * grain);
-  ${shellTransition ? 'var' : 'let'} lit = treeShadeMaterial(color, normalize(input.normal), input.commonPosition, openness, 0.18);
+  if (treePhotoreal.canopyColorMode > 0.5) { color = input.tint.rgb; }
+  ${shellTransition ? 'var' : 'let'} lit = treeShadeFoliage(color, normalize(input.normal), input.commonPosition, openness, 0.18);
   ${
     shellTransition
       ? `if (phongMaterial.unlit == 0u && lighting.enabled != 0) {
@@ -329,7 +335,7 @@ struct HullVaryings {
   }`
       : ''
   }
-  return treeOutput(lit, layer.opacity, input.pickColor);
+  return treeFoliageOutput(lit, layer.opacity, input.pickColor);
 }
 `
   };

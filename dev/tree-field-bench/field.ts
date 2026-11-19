@@ -10,6 +10,8 @@ import {
   type TreeSpec,
   type TreeType
 } from '../../modules/layers/src/tree-layer/tree-layer';
+import {createFieldProfile} from './field-profile';
+import {SelectionPulseExtension} from '../../modules/layers/src/selection-pulse-extension/selection-pulse-extension';
 import {FieldLightingEffect} from './field-lighting';
 import {FieldGroundLayer} from './field-ground-layer';
 
@@ -28,7 +30,14 @@ const species: TreeType[] = [
   'mangrove'
 ];
 const mixed = params.get('field') === 'mixed';
-const COUNT = 20_000;
+const COUNT = Number(params.get('count') ?? 20_000);
+const shadows = params.get('shadows') !== '0';
+const ground = params.get('ground') !== '0';
+const selection = params.has('selection');
+if (!ground) document.body.style.backgroundColor = '#736c4f';
+const colorMode = params.get('colorMode') === 'analytical' ? 'analytical' : 'natural';
+const theme = params.get('theme') ?? 'default';
+const opacity = Number(params.get('opacity') ?? (theme === 'realistic' ? 0.7 : 1));
 const LOD_BIAS = 0;
 const COLUMNS = 177;
 const ROWS = Math.ceil(COUNT / COLUMNS);
@@ -44,7 +53,8 @@ const trees: TreeSpec[] = Array.from({length: COUNT}, (_, index) => {
     species: mixed ? species[index % species.length] : 'citrus',
     height: 3 * (1 + variation * 0.05),
     crownRadius: 2.25 * (1 + variation * 0.04),
-    characteristics: SEEDS[mixed ? 0 : index % SEEDS.length]
+    characteristics: SEEDS[mixed ? 0 : index % SEEDS.length],
+    ...(theme !== 'default' && {canopyColor: index % 2 ? [255, 220, 0, 255] : [30, 200, 40, 255]})
   };
 });
 
@@ -69,10 +79,10 @@ const macro: OrbitViewState = {
   rotationOrbit: 0
 };
 
-type Path = 'overview' | 'tree' | 'dive' | 'macro';
+type Path = 'overview' | 'tree' | 'dive' | 'macro' | 'tint';
 
 function getCamera(path: Path, phase: number): OrbitViewState {
-  if (path === 'overview') return overview;
+  if (path === 'overview' || path === 'tint') return overview;
   if (path === 'tree') return tree;
   if (path === 'macro') return macro;
   // Travel down and back on the same path, including both endpoints in the measured run.
@@ -99,6 +109,7 @@ let measuredDraws = 0;
 type LodCounts = Partial<Record<TreeType, number[]>>;
 let lodCounts: LodCounts = {};
 let transitionLodCounts: LodCounts = {};
+let shadowCasters = 0;
 
 function addLodCounts(
   counts: LodCounts,
@@ -132,7 +143,7 @@ const lights = {
     color: [255, 246, 221],
     intensity: 2,
     direction: [-1, -2, -3],
-    _shadow: true
+    _shadow: shadows
   })
 };
 const lighting = new FieldLightingEffect(lights);
@@ -157,35 +168,41 @@ class FieldDeck extends Deck<OrbitView[]> {
 const deck = new FieldDeck({
   parent: document.querySelector<HTMLDivElement>('#scene')!,
   deviceProps: {type: backend, adapters: [webgl2Adapter, webgpuAdapter]},
-  useDevicePixels: 1,
+  useDevicePixels: Number(params.get('dpr') ?? 1),
   views: [new OrbitView({id: 'orchard', orbitAxis: 'Z', fovy: FOVY})],
   viewState: {orchard: overview},
   effects: [lighting],
   layers: [
-    new FieldGroundLayer<[number, number, number][]>({
-      id: 'ground',
-      coordinateSystem: 'cartesian',
-      data: [
-        [
-          [-600, -600, groundZ],
-          [600, -600, groundZ],
-          [600, 600, groundZ],
-          [-600, 600, groundZ]
-        ]
-      ],
-      getPolygon: polygon => polygon,
-      getFillColor: [115, 108, 79],
-      shadowEnabled: false,
-      pickable: false,
-      material: false
-    }),
+    ground
+      ? new FieldGroundLayer<[number, number, number][]>({
+          id: 'ground',
+          coordinateSystem: 'cartesian',
+          data: [
+            [
+              [-600, -600, groundZ],
+              [600, -600, groundZ],
+              [600, 600, groundZ],
+              [-600, 600, groundZ]
+            ]
+          ],
+          getPolygon: polygon => polygon,
+          getFillColor: [115, 108, 79],
+          shadowEnabled: false,
+          pickable: false,
+          material: false
+        })
+      : null,
     new TreeLayer<TreeSpec>({
       id: 'field',
       coordinateSystem: 'cartesian',
       data: trees,
       lodBias: LOD_BIAS,
       pickable: Boolean(interactive),
-      windStrength: 0.035
+      windStrength: 0.035,
+      shadowEnabled: shadows,
+      canopyColorMode: colorMode,
+      ...(selection && {extensions: [new SelectionPulseExtension()], getSelected: () => false}),
+      opacity
     })
   ],
   onError: error => {
@@ -213,6 +230,13 @@ const deck = new FieldDeck({
           addLodCounts(totals, group.species, group.buckets);
           addLodCounts(transitions, group.species, group.transitionBuckets);
         }
+        shadowCasters = Math.max(
+          shadowCasters,
+          [...tree.state.photoreal.groups.values()].reduce(
+            (sum, group) => sum + group.shadowBucket.length,
+            0
+          )
+        );
         retainPeakLodCounts(lodCounts, totals);
         retainPeakLodCounts(transitionLodCounts, transitions);
       }
@@ -235,6 +259,8 @@ const deck = new FieldDeck({
     }
   }
 });
+
+let profile: ReturnType<typeof createFieldProfile> | undefined;
 
 if (interactive) {
   const {mountFieldPlayground} = await import('./playground');
@@ -262,6 +288,7 @@ async function measure(
         .join(' ');
   lodCounts = {};
   transitionLodCounts = {};
+  shadowCasters = 0;
   const frameMs: number[] = [];
   measuredDraws = 0;
   if (path === 'dive') {
@@ -271,19 +298,48 @@ async function measure(
       await getFrameTime();
     }
   }
+  const warmupGlErrors: number[] = [];
   let previous = await getFrameTime();
   for (let index = -warmup; index < frames; index++) {
     deck.setProps({viewState: {orchard: getCamera(path, Math.max(0, index) / (frames - 1))}});
+    if (path === 'tint') {
+      deck.setProps({
+        layers: deck.props.layers.map(layer =>
+          layer?.id === 'field'
+            ? layer.clone({
+                getCanopyColor: () => [100 + ((index + warmup) % 100), 200, 40, 255],
+                updateTriggers: {getCanopyColor: index}
+              })
+            : layer
+        )
+      });
+    }
     sampleGpu = index >= 0;
+    if (index === 0) {
+      let error = gl?.getError() ?? 0;
+      for (let i = 0; error && i < 8; i++) {
+        warmupGlErrors.push(error);
+        error = gl?.getError() ?? 0;
+      }
+      if (params.has('profile'))
+        profile = createFieldProfile(deck, TreeLayer, gl, params.has('glDebug'));
+    }
     const next = await getFrameTime();
-    if (sampleGpu) frameMs.push(next - previous);
+    if (sampleGpu) {
+      frameMs.push(next - previous);
+      profile?.frame();
+    }
     previous = next;
   }
   sampleGpu = false;
+  const diagnostics = profile?.finish();
+  profile = undefined;
   // Leave time for the asynchronous query results without stalling the measured frames.
   for (let index = 0; index < 12 && pending.length; index++) await getFrameTime();
   for (const query of pending.splice(0)) gl?.deleteQuery(query);
   const canvas = deck.getCanvas()!;
+  const glError = gl?.getError() ?? 0;
+  if (glError) errors.push(`WebGL error: ${glError}`);
   return {
     renderer,
     backend: deck.backend,
@@ -292,9 +348,19 @@ async function measure(
       : Boolean(adapterInfo && !adapterInfo.isFallbackAdapter),
     lodCounts,
     transitionLodCounts,
+    shadowCasters,
+    glError,
+    warmupGlErrors,
     canvas: [canvas.width, canvas.height],
     trees: trees.length,
     lodBias: LOD_BIAS,
+    shadows,
+    ground,
+    selection,
+    theme,
+    opacity,
+    colorMode,
+    diagnostics,
     shadowFit: lighting.shadowDiagnostics,
     draws: measuredDraws,
     frameMs,
