@@ -7,8 +7,8 @@ import {luma} from '@luma.gl/core';
 
 /** Optional instrumentation, kept out of presentation-only runs. Counts submitted indices, not unique vertices. */
 export function createFieldProfile(
-  deck: Deck,
-  Tree: typeof Layer,
+  deck: Deck<any>,
+  Tree: {prototype: object},
   gl?: WebGL2RenderingContext,
   debug = false
 ) {

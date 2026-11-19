@@ -305,8 +305,8 @@ async function measure(
     if (path === 'tint') {
       deck.setProps({
         layers: deck.props.layers.map(layer =>
-          layer?.id === 'field'
-            ? layer.clone({
+          (layer as TreeLayer<TreeSpec>)?.id === 'field'
+            ? (layer as TreeLayer<TreeSpec>).clone({
                 getCanopyColor: () => [100 + ((index + warmup) % 100), 200, 40, 255],
                 updateTriggers: {getCanopyColor: index}
               })
