@@ -108,7 +108,7 @@ lighting and display encoding. Surfaces retain shading, specular form and shadow
 `foliageMaterial: {unlit: true}` displays the supplied RGB values directly. Botanical
 pigment, age, health, flush and underside **color** shifts are disabled. Growth, foliage,
 health-related shape changes, wind and other lifecycle geometry still apply. Bark and
-crops keep their own colors and materials. The default `'natural'` appearance is unchanged.
+crops keep their own colors and materials. The default `'natural'` palette is retained.
 
 Canopy alpha remains optical coverage, and `opacity` retains deck.gl's per-surface
 transparency semantics, including gamma encoding and accumulation through overlapping

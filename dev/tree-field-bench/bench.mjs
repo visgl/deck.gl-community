@@ -21,6 +21,7 @@ const {values} = parseArgs({
     ground: {type: 'string', default: '1'},
     theme: {type: 'string', default: 'default'},
     opacity: {type: 'string'},
+    'wind-time': {type: 'string'},
     'color-mode': {type: 'string', default: 'natural'},
     screenshot: {type: 'string'},
     'cpu-profile': {type: 'string'},
@@ -46,6 +47,7 @@ const count = Number(values.count);
 if (!(dpr > 0 && Number.isFinite(dpr)) || !Number.isSafeInteger(count) || count < 1 ||
   (!['0', '1'].includes(values.shadows) || !['0', '1'].includes(values.ground)) || !['default', 'bright', 'realistic'].includes(values.theme) ||
   !['natural', 'analytical'].includes(values['color-mode']) ||
+  (values['wind-time'] !== undefined && !Number.isFinite(Number(values['wind-time']))) ||
   (values.opacity !== undefined && !(Number(values.opacity) >= 0 && Number(values.opacity) <= 1))) {
   throw new Error('Use positive DPR/count, --shadows 0|1, --theme default|bright|realistic, --color-mode natural|analytical and opacity 0–1.');
 }
@@ -86,6 +88,7 @@ try {
     if (values[key] !== undefined) url.searchParams.set(key, values[key]);
   }
   url.searchParams.set('colorMode', values['color-mode']);
+  if (values['wind-time'] !== undefined) url.searchParams.set('windTime', values['wind-time']);
   if (values.profile || values['gl-debug']) url.searchParams.set('profile', '1');
   if (values['gl-debug']) url.searchParams.set('glDebug', '1');
   if (values.selection) url.searchParams.set('selection', '1');
@@ -104,7 +107,7 @@ try {
       if (process.env.TREE_BENCH_LOG) process.stderr.write(message.text() + '\n');
       if (message.type() === 'error') errors.push(message.text());
     });
-    const response = await page.goto(url.href);
+    const response = await page.goto(url.href, {timeout: 120_000});
     if (!response?.ok()) throw new Error(`Benchmark page failed to load (HTTP ${response?.status()}).`);
     try {
       await page.waitForFunction(() => window.treeFieldBench, null, {timeout: 120_000});

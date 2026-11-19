@@ -16,6 +16,9 @@ Use the same viewport and frame counts for both revisions. Pass `--frame-timing-
 
 ## Matched comparisons
 
+See the [M2 comparison and analytical palette captures](./results/2026-11-19-m2.md)
+for recorded alpha.1, alpha.2 and branch measurements.
+
 `--width` and `--height` are CSS pixels. `--dpr` controls the physical drawing buffer.
 For a 1312 × 779 viewport rendered at 2624 × 1558, use:
 
@@ -32,13 +35,17 @@ all other flags identical between revisions. `--headed` runs a visible native br
 check the reported renderer rather than assuming it uses hardware.
 
 `--profile` adds raw per-frame CPU method timings, GL draw calls and submitted indices
-(non-indexed vertices for non-indexed draws), separate attribute and uniform uploads,
+(non-indexed vertices for non-indexed draws), buffer uploads,
 texture writes, tracked GPU allocations and Chromium's JS heap estimate. These are
 submission counts, not unique post-cache vertex invocations. `tint` changes only the
 canopy color trigger in a fixed view. `--selection` attaches an unselected
 `SelectionPulseExtension` to reproduce selection-enabled consumers. `--cpu-profile /tmp/tree-cpu` also writes one
 Chromium CPU profile per path. `--gl-debug` records GL errors at individual calls and
 adds synchronization overhead; use it for diagnosis, not timing comparisons.
+
+Buffer counters classify direct `UNIFORM_BUFFER` uploads separately. Other buffer
+uploads can also contain uniforms written through `COPY_WRITE_BUFFER`; they are not
+an attribute-only count. `_updateAttributesMs` measures attribute-manager CPU work.
 
 Set `TREE_LAYER_ENTRY` to an absolute TreeLayer module entry to compare a published
 package with the checked-out source, without changing workspace dependencies. The
@@ -53,6 +60,8 @@ normal opacities of 1 and 0.7. `--opacity 1` holds transparency constant for sha
 comparisons; `--color-mode natural|analytical` selects the canopy palette. These are
 public synthetic classes, not customer field data. `--screenshot /tmp/bright` saves a
 PNG per path after timing, e.g. `/tmp/bright-tree.png`.
+Use `--wind-time 12` for the same wind phase in before/after captures. Leave it unset
+for timing runs with animated wind.
 
 ## Interactive field
 
