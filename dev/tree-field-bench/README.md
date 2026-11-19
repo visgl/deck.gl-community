@@ -14,6 +14,58 @@ Each path starts in a fresh page. The JSON records backend, renderer, physical c
 
 Use the same viewport and frame counts for both revisions. Pass `--frame-timing-only` to measure presentation without GPU timer queries. For a larger canvas, pass `--width 2560 --height 1600`. For a smoke run, pass `--paths tree --frames 20 --warmup 20`. A 60 fps frame budget is 16.7 ms.
 
+## Matched comparisons
+
+See [PR #1095](https://github.com/visgl/deck.gl-community/pull/1095) for the compact
+comparison, validation and measurement limitations. Raw frames and full-resolution
+captures are kept outside the source diff.
+
+`--width` and `--height` are CSS pixels. `--dpr` controls the physical drawing buffer.
+For a 1312 × 779 viewport rendered at 2624 × 1558, use:
+
+```sh
+yarn node dev/tree-field-bench/bench.mjs --headed --width 1312 --height 779 --dpr 2 \
+  --count 20000 --ground 0 --shadows 0 --profile --frame-timing-only \
+  --paths overview,tree,dive,tint --frames 120 --warmup 60 --out /tmp/trees.json
+```
+
+`--ground 0 --shadows 0` isolates trees from the ground receiver and shadow passes.
+Imagery and terrain are absent from this fixture. `--shadows 1` measures caster and
+self-shadow cost separately. Keep dimensions, lighting, device, browser, resolution and
+all other flags identical between revisions. `--headed` runs a visible native browser;
+check the reported renderer rather than assuming it uses hardware.
+
+`--profile` adds raw per-frame CPU method timings, GL draw calls and submitted indices
+(non-indexed vertices for non-indexed draws), buffer uploads,
+texture writes, tracked GPU allocations and Chromium's JS heap estimate. These are
+submission counts, not unique post-cache vertex invocations. `tint` changes only the
+canopy color trigger in a fixed view. `--selection` attaches an unselected
+`SelectionPulseExtension` to reproduce selection-enabled consumers. `--cpu-profile /tmp/tree-cpu` also writes one
+Chromium CPU profile per path. `--gl-debug` records GL errors at individual calls and
+adds synchronization overhead; use it for diagnosis, not timing comparisons.
+Both measured and warmup GL errors fail the runner, including without `--gl-debug`.
+
+Buffer counters classify direct `UNIFORM_BUFFER` uploads separately. Other buffer
+uploads can also contain uniforms written through `COPY_WRITE_BUFFER`; they are not
+an attribute-only count. `_updateAttributesMs` measures attribute-manager CPU work.
+
+Set `TREE_LAYER_ENTRY` to an absolute TreeLayer module entry to compare a published
+package with the checked-out source, without changing workspace dependencies. The
+module must resolve its own peer dependencies to the same Deck and Luma installation.
+The selection extension is resolved from the same source tree or published package;
+`TREE_SELECTION_ENTRY` overrides it for nonstandard layouts. Use `--label` to record the
+package version or commit. Older renderers without photoreal
+tiers require `--profile` so submitted draws can be verified.
+
+`--theme bright` supplies synthetic yellow/green canopy classes through TreeSpec colors.
+`--theme realistic` leaves canopy colors unset, retaining the botanical palette at opacity
+0.7. Bright defaults to opacity 1. `--opacity 1` holds transparency constant for shader
+comparisons. Explicit colors automatically use the authored-color path; no color-mode
+property is required. These are public synthetic classes, not customer field data.
+`--screenshot /tmp/bright` saves a PNG per path after timing, e.g. `/tmp/bright-tree.png`.
+Use `--wind-time 12` for the same wind phase in before/after captures. Leave it unset
+for timing runs with animated wind.
+
 ## Interactive field
 
 ```sh

@@ -148,7 +148,7 @@ async function checkCanopyHandoff(type: 'webgl' | 'webgpu'): Promise<void> {
       expect(opaque).toBeGreaterThan(1000);
       return channels.map(sum => sum / opaque);
     }
-    function setCanopy(canopyColor: [number, number, number, number]) {
+    function setCanopy(canopyColor: [number, number, number, number] | null) {
       deck.setProps({
         layers: [
           new CanopyTreeLayer({
@@ -171,7 +171,10 @@ async function checkCanopyHandoff(type: 'webgl' | 'webgpu'): Promise<void> {
         ]
       });
     }
-    const colors: [number, number, number, number][] = [
+    const colors: ([number, number, number, number] | null)[] = [
+      null,
+      [255, 220, 0, 255],
+      [30, 200, 40, 255],
       [67, 112, 42, 255],
       [182, 121, 32, 255],
       [67, 139, 152, 255]

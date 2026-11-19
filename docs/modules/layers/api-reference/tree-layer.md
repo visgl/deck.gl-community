@@ -86,6 +86,41 @@ global season, without rebuilding your data. Function accessors follow deck.gl's
 `getCanopyRadius` uses a legacy scale: broadleaf crowns render at about half its value. For a
 crown radius in metres, set `crownRadius` in `getTree` instead.
 
+## Canopy colors
+
+Return an RGBA color from `getCanopyColor` to override a tree's foliage color, or return
+`null` to keep its natural species/season palette. With the default accessor,
+`TreeSpec.canopyColor` supplies the authored override. Natural and custom-colored trees
+can share one layer. The same behavior applies to shells, transitions, and coarse, fine,
+macro and airborne leaves on WebGL2 and WebGPU.
+
+```ts
+new TreeLayer({
+  data: records,
+  getTree: record => record.tree,
+  getCanopyColor: record => record.classColor ?? null,
+  updateTriggers: {getCanopyColor: paletteRevision}
+});
+```
+
+Authored colors use neutral light intensity and hue-preserving display encoding. Surfaces
+retain shading, specular form and shadows; `foliageMaterial: {unlit: true}` displays the
+supplied RGB directly. Botanical pigment, age, health, flush and underside color shifts
+continue for natural palettes and are bypassed for authored colors. Lifecycle geometry,
+wind, bark and crop materials retain their existing behavior.
+
+Canopy alpha remains optical coverage, and layer `opacity` retains per-surface transparency,
+including gamma encoding and accumulation through overlapping surfaces. RGB changes and
+changes between natural and authored color retain cached geometry and detail selection;
+alpha or coverage changes can update wood and shadow residency. Keep source data stable
+and use `updateTriggers` for function accessors. The default tint accessor refreshes the
+corresponding authored `TreeSpec` field through `getTree` when its color trigger changes.
+
+`SelectionPulseExtension` retains mature-leaf shading and conservative spatial culling.
+Its color-only pulse preserves alpha, so opaque attached leaves also retain opaque blending.
+Other extension implementations use the general rendering path; changing extensions
+refreshes cached leaf selections.
+
 ## Types
 
 ### TreeSpec

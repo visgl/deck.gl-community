@@ -92,12 +92,15 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     'vega',
     '@deck.gl/core',
     '@deck.gl/layers',
+    '@deck.gl/mapbox',
     // The react-fiber wrapper tests check instances against these, so each must share the
     // pre-bundled @deck.gl/core instead of loading its own copy.
     '@deck.gl/aggregation-layers',
     '@deck.gl/geo-layers',
     '@deck.gl/widgets',
     '@luma.gl/engine',
+    '@luma.gl/core/webgl',
+    '@luma.gl/core/webgpu',
     '@deck.gl-community/vega > tsx-create-element',
     'deepmerge',
     'd3-color',

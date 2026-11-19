@@ -2,6 +2,14 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- **layers:** TreeLayer honors authored canopy RGB through `getCanopyColor` and
+  `TreeSpec.canopyColor`, while `null` retains the natural species/season palette.
+  RGB updates retain geometry and cached culling. SelectionPulseExtension retains
+  mature-leaf and spatial culling optimizations. WebGPU trees now emit premultiplied
+  color for Deck's standard blend state. See [canopy colors](./modules/layers/api-reference/tree-layer.md#canopy-colors).
+
 ## v10.0.0-alpha.2
 
 - **Breaking:** [TreeLayer](./modules/layers/api-reference/tree-layer.md) uses procedural wood,

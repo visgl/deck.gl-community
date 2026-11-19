@@ -6,12 +6,17 @@ import {LayerExtension, OrbitViewport, WebMercatorViewport} from '@deck.gl/core'
 import {describe, expect, it, vi} from 'vitest';
 import {
   TreeLayer,
+  SelectionPulseExtension,
   type CropConfig,
   type TreeLayerProps,
   type TreeSpec,
   type TreeType
 } from '../../src';
 import {mountTreeScene} from './tree-layer-test-utils';
+import {
+  TREE_STATE_TEXEL,
+  TREE_STATE_TEXELS_PER_ROW
+} from '../../src/tree-layer/tree-photoreal-layout';
 
 const SPECIES: TreeType[] = [
   'oak',
@@ -35,6 +40,160 @@ function load(data: TreeSpec[] = [OAK], props: Partial<TreeLayerProps<TreeSpec>>
 }
 
 describe('TreeLayer species and attributes', () => {
+  it('keeps per-tree authored color intent separate from resolved RGB for the color accessor', () => {
+    const data: TreeSpec[] = [
+      {...OAK, characteristics: {leafDensity: 0.1}},
+      {...OAK, characteristics: {leafDensity: 0.1}, canopyColor: [255, 220, 0, 255]},
+      {...OAK, characteristics: {leafDensity: 0.1}}
+    ];
+    const getCanopyColor = (tree: TreeSpec) => tree.canopyColor ?? null;
+    const props = {...baseProps, data, getCanopyColor};
+    const scene = load(data, props);
+    const store = scene.layer().state.store!;
+    const flags = () =>
+      data.map(
+        (_, index) =>
+          store.data[index * TREE_STATE_TEXELS_PER_ROW * 4 + TREE_STATE_TEXEL.CROP_DROPPED * 4 + 1]
+      );
+    expect(flags()).toEqual([0, 1, 0]);
+    const revision = store.detailRevision;
+    const bounds = scene.layer().state.photoreal!.rows[0].bounds;
+    // Equal RGB can still change intent from natural fallback to explicit override.
+    data[0].canopyColor = [...scene.row().canopyColor] as [number, number, number, number];
+    scene.render({...props, updateTriggers: {getCanopyColor: 1}});
+    expect(flags()).toEqual([1, 1, 0]);
+    expect(store.detailRevision).toBe(revision);
+    expect(scene.layer().state.photoreal!.rows[0].bounds).toBe(bounds);
+  });
+
+  it('refreshes spatial leaf selection when only the extension implementation changes', () => {
+    const scene = mountTreeScene<TreeSpec>(
+      new OrbitViewport({
+        width: 256,
+        height: 256,
+        orbitAxis: 'Z',
+        target: [0, 0, 3],
+        zoom: 7,
+        rotationX: 20,
+        rotationOrbit: 0
+      })
+    );
+    const props = {
+      data: [{...OAK, height: 6, crownRadius: 2, characteristics: {leafDensity: 0.25}}],
+      coordinateSystem: 'cartesian' as const,
+      lodBias: -3,
+      windStrength: 0,
+      extensions: [new SelectionPulseExtension()],
+      getSelected: () => false
+    };
+    const row = () => scene.layer().state.photoreal!.rows[0];
+    scene.render(props);
+    expect(row().leafSelection).not.toBeNull();
+    const bounds = row().bounds;
+    class CustomPulse extends SelectionPulseExtension {}
+    scene.render({...props, extensions: [new CustomPulse()]});
+    expect(row().leafSelection).toBeNull();
+    expect(row().useListedLeaves).toBe(false);
+    expect(row().bounds).toBe(bounds);
+    scene.render(props);
+    expect(row().leafSelection).not.toBeNull();
+  });
+
+  it('updates RGB tints and their transitions without reading geometry or selecting detail', () => {
+    const getTree = vi.fn((row: TreeSpec) => row);
+    const scene = load([{...OAK, characteristics: {leafDensity: 0.25}}], {
+      getTree,
+      getCanopyColor: [34, 120, 15, 255]
+    });
+    const layer = scene.layer();
+    const select = vi.spyOn(TreeLayer.prototype as any, 'updatePhotorealDetail');
+    const group = [...layer.state.photoreal!.groups.values()][0];
+    const bounds = group.rows[0].bounds;
+    const model = scene.children().map(child => child.state.model);
+    const buckets = [...group.buckets];
+    const data = layer.props.data as TreeSpec[];
+    const render = (color: [number, number, number, number], extra = {}) =>
+      scene.render({...baseProps, data, getTree, getCanopyColor: color, ...extra});
+    try {
+      getTree.mockClear();
+      render([255, 220, 0, 255]);
+      expect(scene.row().canopyColor).toEqual([255, 220, 0, 255]);
+      render([30, 200, 40, 255], {transitions: {getCanopyColor: 500}});
+      scene.tick(1250);
+      expect(scene.row().canopyColor[0]).toBeGreaterThan(30);
+      scene.tick(1500);
+      expect(scene.row().canopyColor).toEqual([30, 200, 40, 255]);
+      expect(getTree).not.toHaveBeenCalled();
+      expect(select).not.toHaveBeenCalled();
+      // Fresh but equivalent source data must also retain detail and cached bounds.
+      scene.render({...baseProps, data: [...data], getTree, getCanopyColor: [30, 200, 40, 255]});
+      expect(getTree).toHaveBeenCalledTimes(data.length);
+      expect(select).not.toHaveBeenCalled();
+      expect(group.rows[0].bounds).toBe(bounds);
+      group.buckets.forEach((bucket, i) => expect(bucket).toBe(buckets[i]));
+      scene.children().forEach((child, i) => expect(child.state.model).toBe(model[i]));
+      // Alpha changes optical density, so wood and shadow residency must be reconsidered.
+      render([30, 200, 40, 100]);
+      expect(select).toHaveBeenCalled();
+    } finally {
+      select.mockRestore();
+    }
+  });
+
+  it.each([
+    false,
+    true
+  ])('refreshes spec tint fields without geometry work (copied spec: %s)', copied => {
+    const data = [
+      {
+        ...OAK,
+        characteristics: {leafDensity: 0.25},
+        canopyColor: [34, 120, 15, 255],
+        trunkColor: [90, 60, 30, 255]
+      }
+    ] as TreeSpec[];
+    const getTree = vi.fn((row: TreeSpec) => (copied ? {...row} : row));
+    const props = {...baseProps, data, getTree};
+    const scene = load(data, props);
+    const bounds = scene.layer().state.photoreal!.rows[0].bounds;
+    const read = vi.spyOn(TreeLayer.prototype as any, 'readTreeSources');
+    const group = vi.spyOn(TreeLayer.prototype as any, 'groupPhotorealRows');
+    const detail = vi.spyOn(TreeLayer.prototype as any, 'updatePhotorealDetail');
+    try {
+      getTree.mockClear();
+      data[0].canopyColor = [30, 200, 40, 255];
+      scene.render({...props, updateTriggers: {getCanopyColor: 1}});
+      expect(scene.row().canopyColor).toEqual([30, 200, 40, 255]);
+      data[0].trunkColor = [110, 70, 40, 255];
+      const updateTriggers = {getCanopyColor: 1, getTrunkColor: 1};
+      scene.render({...props, updateTriggers});
+      expect(scene.row().trunkColor).toEqual([110, 70, 40, 255]);
+      expect(getTree).toHaveBeenCalledTimes(2);
+      expect(read).not.toHaveBeenCalled();
+      expect(group).not.toHaveBeenCalled();
+      expect(detail).not.toHaveBeenCalled();
+      expect(scene.layer().state.photoreal!.rows[0].bounds).toBe(bounds);
+      // Wind updates reuse the refreshed source colors rather than reverting to a stale snapshot.
+      scene.render({...props, updateTriggers, windStrength: 0.1});
+      expect(scene.row().canopyColor).toEqual([30, 200, 40, 255]);
+      expect(scene.row().trunkColor).toEqual([110, 70, 40, 255]);
+      expect(getTree).toHaveBeenCalledTimes(2);
+      // A tint trigger and a wind edit in the same update must also read the current spec.
+      data[0].canopyColor = [100, 150, 30, 255];
+      scene.render({
+        ...props,
+        updateTriggers: {...updateTriggers, getCanopyColor: 2},
+        windStrength: 0.2
+      });
+      expect(scene.row().canopyColor).toEqual([100, 150, 30, 255]);
+      expect(getTree).toHaveBeenCalledTimes(3);
+    } finally {
+      read.mockRestore();
+      group.mockRestore();
+      detail.mockRestore();
+    }
+  });
+
   it('assigns canopy tiers in projected crown order from either side of the shell cutoff', () => {
     const viewport = new WebMercatorViewport({width: 640, height: 480, zoom: 20, pitch: 55});
     const scene = mountTreeScene<TreeSpec>(viewport);

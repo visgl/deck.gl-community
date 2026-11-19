@@ -4,6 +4,19 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+### TreeLayer canopy colors
+
+Explicit `getCanopyColor` results and `TreeSpec.canopyColor` now preserve authored hues,
+with neutral lighting instead of botanical pigment and lifecycle recoloring. Return
+`null` from a custom accessor, or leave `TreeSpec.canopyColor` unset, for the natural
+species/season palette. Existing applications using explicit colors as botanical tints
+will see a different result. No additional color-mode property is needed.
+
+WebGPU transparency now follows Deck's premultiplied blend convention, avoiding excessive
+brightness through overlapping surfaces. See [canopy colors](./modules/layers/api-reference/tree-layer.md#canopy-colors).
+
 ## v10.0.0-alpha.2
 
 ### TreeLayer renderer

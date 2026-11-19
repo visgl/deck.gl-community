@@ -2,10 +2,17 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {picking, pickingPlugin, project32, type DefaultProps} from '@deck.gl/core';
+import {
+  picking,
+  pickingPlugin,
+  project32,
+  type DefaultProps,
+  type LayerExtension
+} from '@deck.gl/core';
 import type {Buffer} from '@luma.gl/core';
 import {Model} from '@luma.gl/engine';
 import {phongMaterial, type ShaderInjection, type ShaderPlugin} from '@luma.gl/shaders';
+import {SelectionPulseExtension} from '../selection-pulse-extension/selection-pulse-extension';
 import {TREE_STATE_TEXEL, TREE_STATE_TEXELS_PER_ROW} from './tree-photoreal-layout';
 import {getTreeLeafWgslShaders} from './tree-photoreal-leaf-wgsl';
 import {
@@ -27,6 +34,12 @@ import {
   type TreeLeafBlade,
   type TreePhotorealUniforms
 } from './tree-photoreal-shaders';
+
+/** @internal Color-only pulse hooks retain leaf geometry and instance identity. */
+export function supportsTreeLeafOptimizations(extensions: readonly LayerExtension[]): boolean {
+  // Subclasses may add position hooks, so only the known implementation is eligible.
+  return extensions.every(extension => extension.constructor === SelectionPulseExtension);
+}
 
 // The color-only model still highlights picked trees. Keeping the picking filter out of its
 // fragment hook lets opaque leaves reject covered fragments before evaluating their material.
@@ -215,7 +228,7 @@ export class TreePhotorealLeafLayer<DataT = unknown> extends TreePhotorealPrimit
       this.props._shadowPass === 'skip' &&
       !air &&
       !shellTransition &&
-      !this.props.extensions.length
+      supportsTreeLeafOptimizations(this.props.extensions)
     ) {
       this.state.matureModel = makeModel(true);
     }

@@ -20,6 +20,12 @@ const props: TreeLayerProps<(typeof data)[number]> = {
   lodBias: 0
 };
 new TreeLayer(props);
+new TreeLayer({
+  ...props,
+  getCanopyColor: (_tree, {index}) => (index % 2 ? [255, 220, 0, 255] : null)
+});
+// @ts-expect-error Custom canopy colors use the accessor without a palette-mode prop.
+new TreeLayer({...props, canopyColorMode: 'analytical'});
 new TreeLayer({data, getTreeType: 'oak', getElevation: -10, getTrunkColor: null});
 // @ts-expect-error The Gaussian canopy budget has been removed.
 new TreeLayer({data, maxCanopySplats: 20_000});
