@@ -150,7 +150,7 @@ describe('TreeLayer species lifecycle', () => {
     expect(scene.glErrors).toEqual([]);
   }, 180000);
 
-  it('thins a crown with foliage, and tints it with health and flush', async () => {
+  it('thins crowns and applies health and flush colors only to natural palettes', async () => {
     const scene = mount({
       effects: [
         new LightingEffect({
@@ -159,14 +159,11 @@ describe('TreeLayer species lifecycle', () => {
         })
       ]
     });
-    const canopyOnly = (lifecycle: Partial<TreeSpec>) =>
-      scene.render([
-        trees(
-          [tree('oak', {canopyColor: [30, 120, 30, 255], ...lifecycle})],
-          {},
-          partOfTree('canopy')
-        )
-      ]);
+    const canopyOnly = (
+      lifecycle: Partial<TreeSpec>,
+      canopyColor: [number, number, number, number] | null = null
+    ) =>
+      scene.render([trees([tree('oak', {...lifecycle, canopyColor})], {}, partOfTree('canopy'))]);
     const color = (pixels: Uint8Array) => {
       let red = 0,
         green = 0,
@@ -202,6 +199,15 @@ describe('TreeLayer species lifecycle', () => {
     const bare = await canopyOnly({foliage: 0});
     expect(alphaSum(bare)).toBe(0);
     expect(measure(bare).count).toBeGreaterThan(0);
+    // Authored RGB keeps its hue while lifecycle geometry and shading still change.
+    const authored = [30, 120, 30, 255] as [number, number, number, number];
+    const authoredHealthy = color(await canopyOnly({}, authored));
+    for (const lifecycle of [{health: 0}, {flush: 1}]) {
+      const result = color(await canopyOnly(lifecycle, authored));
+      expect(
+        Math.abs(result.red / result.green - authoredHealthy.red / authoredHealthy.green)
+      ).toBeLessThan(0.02);
+    }
     expect(scene.errors).toEqual([]);
   }, 180000);
 
