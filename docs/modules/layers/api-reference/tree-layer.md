@@ -115,6 +115,8 @@ transparency semantics, including gamma encoding and accumulation through overla
 surfaces. Changing only RGB updates the state texture without selecting detail again;
 alpha or coverage changes can update wood and shadow residency. Keep source data stable
 and use `updateTriggers` for function accessors.
+With default tint accessors, the corresponding color trigger refreshes the authored
+`TreeSpec` tint through `getTree`, while normalized geometry remains cached.
 
 `SelectionPulseExtension` retains mature-leaf shading and conservative spatial culling.
 Its color-only pulse preserves alpha, so opaque attached leaves also retain opaque blending.

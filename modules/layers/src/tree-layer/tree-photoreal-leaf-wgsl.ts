@@ -210,7 +210,11 @@ struct LeafVaryings {
       ? 'let modulation = 1.0;'
       : `let detail = 1.0 - smoothstep(0.015, 0.12, fwidth(t));
   let vein = (1.0 - smoothstep(0.012, 0.13, abs(input.blade.y))) * detail;
-  let modulation = 1.0 + vein * 0.14 + detail * 0.035 * sin(95.0 * t + input.optics.y * 21.0);`
+  let modulation = select(
+    1.0 + vein * 0.14 + detail * 0.035 * sin(95.0 * t + input.optics.y * 21.0),
+    1.0,
+    treePhotoreal.canopyColorMode > 0.5 && phongMaterial.unlit != 0u
+  );`
   }
   ${mask ? 'if (input.shellRetention > 0.0 && treeShellCoversPixel(input.position.xy, input.shellRetention)) { discard; }' : ''}
   let normal = normalize(input.normal) * select(-1.0, 1.0, front);

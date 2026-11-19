@@ -128,7 +128,7 @@ for (const backend of ['webgl', 'webgpu'] as const) {
       expect(gl?.getError() ?? 0).toBe(0);
       return pixels;
     };
-    const sample = (pixels: Uint8Array, tint: readonly number[]) => {
+    const sample = (pixels: Uint8Array, tint: readonly number[], literal = false) => {
       let count = 0,
         maxTintError = 0,
         worst: unknown,
@@ -137,11 +137,12 @@ for (const backend of ['webgl', 'webgpu'] as const) {
         minAlpha = 255;
       let point = {x: 0, y: 0};
       for (let i = 0; i < pixels.length; i += 4) {
-        if (!pixels[i + 3] || pixels[i + 1] < 15) continue;
+        if (!pixels[i + 3] || (!literal && pixels[i + 1] < 15)) continue;
         // Neutral shading preserves RGB ratios in display space, for unlit and lit materials.
-        const scale = pixels[i + 1] / tint[1];
+        const scale = literal ? 1 : pixels[i + 1] / tint[1];
         const error = Math.max(
           Math.abs(pixels[i] - tint[0] * scale),
+          literal ? Math.abs(pixels[i + 1] - tint[1]) : 0,
           Math.abs(pixels[i + 2] - tint[2] * scale)
         );
         if (error > maxTintError) {
@@ -159,7 +160,7 @@ for (const backend of ['webgl', 'webgpu'] as const) {
         point = {x: (i / 4) % SIZE, y: Math.floor(i / 4 / SIZE)};
       }
       expect(count).toBeGreaterThan(100);
-      expect(maxTintError, JSON.stringify({scenario, worst})).toBeLessThan(4);
+      expect(maxTintError, JSON.stringify({scenario, worst})).toBeLessThan(literal ? 2 : 4);
       return {count, minAlpha, alpha: alpha / count, brightness: brightness / count, point};
     };
     const coverage = {shell: false, leaves: false, transition: false};
@@ -221,6 +222,11 @@ for (const backend of ['webgl', 'webgpu'] as const) {
       const group = [...close.state.photoreal!.groups.values()][0];
       expect(group.fineData.length).toBeGreaterThan(0);
       expect(group.macroData.length).toBeGreaterThan(0);
+      sample(
+        await render({lodBias: -3, getCanopyColor: GREEN, foliageMaterial: {unlit: true}}),
+        GREEN,
+        true
+      );
       expect(errors).toEqual([]);
     } finally {
       deck.finalize();

@@ -130,7 +130,7 @@ try {
     }
     if (values.screenshot) await page.screenshot({path: `${values.screenshot}-${path}.png`});
     await page.close();
-    const problems = [...errors, ...run.errors, ...(run.diagnostics?.glErrors ?? []).map(error => `${error.name}: WebGL error ${error.error}`)];
+    const problems = [...errors, ...run.errors, ...(run.warmupGlErrors ?? []).map(error => `Warmup WebGL error ${error}`), ...(run.diagnostics?.glErrors ?? []).map(error => `${error.name}: WebGL error ${error.error}`)];
     if (run.backend !== values.backend || (!Object.values(run.lodCounts).some(levels => levels.some(Boolean)) && !run.diagnostics?.frames.some(frame => frame.drawCalls > 0))) {
       problems.push('TreeLayer did not submit a visible level on the requested backend.');
     }

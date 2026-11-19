@@ -1220,7 +1220,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     this.updateWithStore(
       props,
       dataChanged || GEOMETRY_PROPS.some(accessorChanged) || !this.state.store,
-      STORE_ONLY_PROPS.some(accessorChanged),
+      STORE_ONLY_PROPS.filter(accessorChanged),
       Boolean(changeFlags.viewportChanged) ||
         Boolean(changeFlags.extensionsChanged) ||
         props.lodBias !== oldProps.lodBias ||
@@ -1394,7 +1394,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   private updateWithStore(
     props,
     accessorsChanged: boolean,
-    appearanceChanged: boolean,
+    appearanceChanges: ReadonlyArray<(typeof STORE_ONLY_PROPS)[number]>,
     viewChanged: boolean,
     placementChanged: boolean,
     windChanged: boolean
@@ -1420,9 +1420,12 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       }
       this.state.sources = sources;
     }
+    if (!accessorsChanged && !firstRead && appearanceChanges.length) {
+      this.refreshAppearanceSources(props, sources, appearanceChanges);
+    }
     if (accessorsChanged || firstRead || windChanged) {
       this.writeStateRows(props, sources, store, now, clock);
-    } else if (appearanceChanged) {
+    } else if (appearanceChanges.length) {
       this.writeAppearanceRows(props, sources, store, now, clock);
     }
     if (accessorsChanged || firstRead) {
@@ -1452,7 +1455,29 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     this.state.ticking = active;
   }
 
-  /** Tint accessors need neither the source geometry accessors nor template regrouping. */
+  /** Refreshes authored tint fields when their default accessor triggers change. */
+  private refreshAppearanceSources(
+    props,
+    sources: TreeSource<DataT>[],
+    appearanceChanges: ReadonlyArray<(typeof STORE_ONLY_PROPS)[number]>
+  ): void {
+    const refreshCanopy =
+      appearanceChanges.includes('getCanopyColor') &&
+      isDefaultTreeAccessor(props, 'getCanopyColor');
+    const refreshTrunk =
+      appearanceChanges.includes('getTrunkColor') && isDefaultTreeAccessor(props, 'getTrunkColor');
+    if (!refreshCanopy && !refreshTrunk) return;
+    const info = {index: -1, data: props.data, target: []} as unknown as AccessorContext<DataT>;
+    for (const source of sources) {
+      info.index = source.index;
+      const resolved = getTreeAccessorValue(props.getTree, source.object, info);
+      const tree: TreeSpec = resolved && typeof resolved === 'object' ? resolved : {};
+      if (refreshCanopy) source.canopyColor = tree.canopyColor;
+      if (refreshTrunk) source.trunkColor = tree.trunkColor;
+    }
+  }
+
+  /** Updates appearance without normalizing source geometry or regrouping templates. */
   private writeAppearanceRows(
     props,
     sources: TreeSource<DataT>[],

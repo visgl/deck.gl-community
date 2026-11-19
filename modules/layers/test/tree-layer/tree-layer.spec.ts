@@ -110,6 +110,60 @@ describe('TreeLayer species and attributes', () => {
     }
   });
 
+  it.each([
+    false,
+    true
+  ])('refreshes spec tint fields without geometry work (copied spec: %s)', copied => {
+    const data = [
+      {
+        ...OAK,
+        characteristics: {leafDensity: 0.25},
+        canopyColor: [34, 120, 15, 255],
+        trunkColor: [90, 60, 30, 255]
+      }
+    ] as TreeSpec[];
+    const getTree = vi.fn((row: TreeSpec) => (copied ? {...row} : row));
+    const props = {...baseProps, data, getTree};
+    const scene = load(data, props);
+    const bounds = scene.layer().state.photoreal!.rows[0].bounds;
+    const read = vi.spyOn(TreeLayer.prototype as any, 'readTreeSources');
+    const group = vi.spyOn(TreeLayer.prototype as any, 'groupPhotorealRows');
+    const detail = vi.spyOn(TreeLayer.prototype as any, 'updatePhotorealDetail');
+    try {
+      getTree.mockClear();
+      data[0].canopyColor = [30, 200, 40, 255];
+      scene.render({...props, updateTriggers: {getCanopyColor: 1}});
+      expect(scene.row().canopyColor).toEqual([30, 200, 40, 255]);
+      data[0].trunkColor = [110, 70, 40, 255];
+      const updateTriggers = {getCanopyColor: 1, getTrunkColor: 1};
+      scene.render({...props, updateTriggers});
+      expect(scene.row().trunkColor).toEqual([110, 70, 40, 255]);
+      expect(getTree).toHaveBeenCalledTimes(2);
+      expect(read).not.toHaveBeenCalled();
+      expect(group).not.toHaveBeenCalled();
+      expect(detail).not.toHaveBeenCalled();
+      expect(scene.layer().state.photoreal!.rows[0].bounds).toBe(bounds);
+      // Wind updates reuse the refreshed source colors rather than reverting to a stale snapshot.
+      scene.render({...props, updateTriggers, windStrength: 0.1});
+      expect(scene.row().canopyColor).toEqual([30, 200, 40, 255]);
+      expect(scene.row().trunkColor).toEqual([110, 70, 40, 255]);
+      expect(getTree).toHaveBeenCalledTimes(2);
+      // A tint trigger and a wind edit in the same update must also read the current spec.
+      data[0].canopyColor = [100, 150, 30, 255];
+      scene.render({
+        ...props,
+        updateTriggers: {...updateTriggers, getCanopyColor: 2},
+        windStrength: 0.2
+      });
+      expect(scene.row().canopyColor).toEqual([100, 150, 30, 255]);
+      expect(getTree).toHaveBeenCalledTimes(3);
+    } finally {
+      read.mockRestore();
+      group.mockRestore();
+      detail.mockRestore();
+    }
+  });
+
   it('assigns canopy tiers in projected crown order from either side of the shell cutoff', () => {
     const viewport = new WebMercatorViewport({width: 640, height: 480, zoom: 20, pitch: 55});
     const scene = mountTreeScene<TreeSpec>(viewport);

@@ -42,6 +42,7 @@ canopy color trigger in a fixed view. `--selection` attaches an unselected
 `SelectionPulseExtension` to reproduce selection-enabled consumers. `--cpu-profile /tmp/tree-cpu` also writes one
 Chromium CPU profile per path. `--gl-debug` records GL errors at individual calls and
 adds synchronization overhead; use it for diagnosis, not timing comparisons.
+Both measured and warmup GL errors fail the runner, including without `--gl-debug`.
 
 Buffer counters classify direct `UNIFORM_BUFFER` uploads separately. Other buffer
 uploads can also contain uniforms written through `COPY_WRITE_BUFFER`; they are not
