@@ -12,6 +12,7 @@
     "clear": "docusaurus clear",
     "clean": "docusaurus clear",
     "serve": "docusaurus serve",
+    "check-examples": "node scripts/check-examples.mjs",
     "deploy": "docusaurus deploy",
     "write-heading-ids": "ts-node ../scripts/write-heading-ids.ts"
   },

@@ -5,6 +5,7 @@ This file layers on top of `/AGENTS.md` for the Docusaurus app under `website/`.
 ## Commands
 - Start the dev server with `yarn --cwd website start`.
 - Build static assets via `yarn --cwd website build`; CI uses `scripts/build.sh` to include gallery assets and worker transpilation.
+- After a build, `yarn --cwd website check-examples [route-substring...]` loads every example page in headless Chromium and fails on errors, missing site assets, or a demo that never renders a canvas. CI runs it on every pull request.
 - Run `yarn --cwd website write-heading-ids` after adding new Markdown headings so generated anchors stay stable.
 
 ## Authoring notes
