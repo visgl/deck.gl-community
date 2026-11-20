@@ -4,9 +4,9 @@ This page lists module additions and major changes in each release. For detailed
 
 ## v10.0.0-alpha.4
 
-- **react:** [`DeckCanvas`](./modules/react/api-reference/deck-canvas.md) moves from
-  `@deck.gl-community/react-fiber` to `@deck.gl-community/react`, because it doesn't use
-  the Fiber renderer. See the [upgrade guide](./upgrade-guide.md#deckcanvas-moved-to-deckgl-communityreact).
+- **react:** [`DeckCanvas`](./modules/react/api-reference/deck-canvas.md) attaches several
+  React presentation canvases to one application-owned Deck, each with its own views, layers
+  and widgets.
 
 ## v10.0.0-alpha.3
 

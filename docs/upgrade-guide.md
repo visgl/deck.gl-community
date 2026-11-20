@@ -4,20 +4,6 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
-## v10.0.0-alpha.4
-
-### DeckCanvas moved to @deck.gl-community/react
-
-`DeckCanvas` and `DeckCanvasProps` move from `@deck.gl-community/react-fiber` to
-`@deck.gl-community/react`, because they don't use the Fiber renderer. Change the import:
-
-```ts
-import {DeckCanvas} from '@deck.gl-community/react';
-```
-
-`@deck.gl-community/react` now has a peer dependency on `@deck.gl/core`. See the
-[DeckCanvas reference](./modules/react/api-reference/deck-canvas.md).
-
 ## v10.0.0-alpha.3
 
 ### TreeLayer canopy colors
