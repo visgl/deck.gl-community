@@ -1,7 +1,7 @@
 # CORTAOEffect
 
 ![Experimental](https://img.shields.io/badge/status-experimental-orange.svg?style=flat-square)
-![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square)
+![WebGPU supported](https://img.shields.io/badge/webgpu-yes-success.svg?style=flat-square)
 
 `CORTAOEffect` adds screen-space ambient occlusion to a deck.gl scene. It uses CORTAO (Circular
 Occluder Ray-Traced Ambient Occlusion) by Daniel Isheden. CORTAO models each depth sample as a
@@ -38,12 +38,15 @@ second time, into its own color and depth textures. Then it runs these passes:
 1. Prepass. It converts the depth to linear depth in meters. It reconstructs a view-space normal
    from the depth of the neighbor pixels, because deck.gl has no normal buffer. It packs the depth
    and a 10-bit normal into one 32-bit texel.
-2. Mip pass. It writes up to 8 levels of the packed data into one atlas texture. Each texel of a
-   level is a copy of one texel of the level below. WebGL 2 cannot read one level of a texture
-   while it writes another level of the same texture, so the port uses an atlas.
+2. Mip pass. It writes up to 8 levels of the packed data. Each texel of a level is a copy of one
+   texel of the level below. On WebGPU, the levels are real mip levels, one compute dispatch per
+   level. WebGL 2 cannot read one level of a texture while it writes another level of the same
+   texture, so on WebGL 2 the levels go into one atlas texture.
 3. Main pass. It samples the depth on a golden-angle spiral, and it accumulates the blocked rays
    from the occluder lookup table.
 4. Filter pass (optional). It applies the CORTAO bilateral filter with depth and normal weights.
+   On WebGPU, one invocation filters a 2 x 2 block with `textureGather()`, as the reference
+   does. WebGL 2 has no `textureGather()`, so each pixel reads its taps with `texelFetch()`.
 5. Composite pass. It multiplies the captured color by the occlusion.
 
 ## Constructor
@@ -133,7 +136,13 @@ Updates the props. Call `deck.redraw()` after this call.
 
 ## Limits
 
-- WebGL 2 only. On WebGPU the effect logs a warning and does nothing.
+- WebGL 2 and WebGPU. The effect picks the GLSL or the WGSL passes from the device type. Both
+  backends give the same occlusion, except for small depth differences between the two
+  rasterizers.
+- On WebGPU, the effect adds a depth attachment to the deck.gl post-process buffers. The layer
+  pipelines have a depth format on WebGPU, so a draw into a buffer without depth is invalid.
+- On WebGPU, the canvas must use the `rgba8unorm` format, because the deck.gl post-process
+  buffers use it and the layer pipelines use the canvas format.
 - Perspective views only. On an orthographic view the effect logs a warning and passes the scene
   through.
 - The effect uses the first viewport only.
