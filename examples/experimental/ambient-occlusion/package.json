@@ -12,7 +12,9 @@
     "@deck.gl-community/experimental": "workspace:*",
     "@deck.gl-community/geo-layers": "workspace:*",
     "@deck.gl/core": "10.0.0-alpha.1",
+    "@deck.gl/geo-layers": "10.0.0-alpha.1",
     "@deck.gl/layers": "10.0.0-alpha.1",
+    "@deck.gl/mesh-layers": "10.0.0-alpha.1",
     "@luma.gl/core": "10.0.0-alpha.14",
     "@luma.gl/engine": "10.0.0-alpha.14",
     "@luma.gl/shaders": "10.0.0-alpha.14"
