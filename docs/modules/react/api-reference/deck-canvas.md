@@ -38,7 +38,8 @@ function Panels({londonLayers, tokyoLayers}) {
 }
 ```
 
-The `deck` must be initialized in multi-canvas mode (`_canvases: []`). `DeckCanvas`
+The `deck` must be initialized in multi-canvas mode (`_canvases: []`), which needs
+`@deck.gl/core` 9.4 or later. `DeckCanvas`
 never creates or finalizes it. Do not attach a Deck owned
 by `DeckGL` or a Mapbox overlay.
 
