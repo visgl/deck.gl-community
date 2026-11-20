@@ -68,6 +68,12 @@ Controls how the cubemap faces should be interpreted relative to deck.gl's Z-up 
 - Use `'y-up'` for cubemaps authored for Y-up scenes where the source `+Y` face should
   align with deck.gl's vertical `+Z` axis.
 
+### `modelMatrix` (number[16], optional)
+
+Rotates the sky in the world, after `orientation`. The layer ignores the translation of the
+matrix. Use it to turn a cubemap from its own frame into the frame of the scene, for example from
+equatorial to ecliptic axes.
+
 ### `loadOptions` (TextureCubeLoaderOptions, optional)
 
 Forwarded to loaders.gl when loading the cubemap. When passing an in-memory manifest that
