@@ -6,7 +6,7 @@ layers and widgets.
 
 ```tsx
 import {Deck, MapView} from '@deck.gl/core';
-import {DeckCanvas} from '@deck.gl-community/react-fiber';
+import {DeckCanvas} from '@deck.gl-community/react';
 import {useEffect, useRef, useState} from 'react';
 
 function Panels({londonLayers, tokyoLayers}) {
@@ -64,7 +64,7 @@ by `DeckGL` or a Mapbox overlay.
 
 Other canvas HTML attributes, such as `style` and `className`, apply to an owned
 canvas. Children, JSX layer/view extraction, render callbacks, basemaps and
-per-panel view-state ownership are outside this API. Use `DeckGL` for Fiber JSX.
+per-panel view-state ownership are outside this API. Use `DeckGL` from `@deck.gl/react` for JSX.
 
 ## Updates and cleanup
 
@@ -82,7 +82,7 @@ replace `deck.setProps` while panels are attached.
 
 ## Example
 
-The [multi-canvas cities example](https://github.com/visgl/deck.gl-community/tree/master/examples/react-fiber/multi-canvas)
-ports deck.gl's four-city demo to React Fiber, including independent basemap
+The [multi-canvas cities example](https://github.com/visgl/deck.gl-community/tree/master/examples/react/multi-canvas)
+ports deck.gl's four-city demo to React, including independent basemap
 styles, controllers, zoom widgets and shared hover state. Run it with
-`yarn workspace example-react-fiber-multi-canvas start` from the repository root.
+`yarn workspace example-react-multi-canvas start` from the repository root.

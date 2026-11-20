@@ -1199,7 +1199,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/react@workspace:modules/react":
+"@deck.gl-community/react@workspace:*, @deck.gl-community/react@workspace:modules/react":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/react@workspace:modules/react"
   dependencies:
@@ -1210,6 +1210,7 @@ __metadata:
     react-dom: "npm:^18.3.1 || ^19.0.0"
   peerDependencies:
     "@deck.gl-community/panels": 10.0.0-alpha.3
+    "@deck.gl/core": 10.0.0-alpha.1
   languageName: unknown
   linkType: soft
 
@@ -8745,11 +8746,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"example-react-fiber-multi-canvas@workspace:examples/react-fiber/multi-canvas":
+"example-react-multi-canvas@workspace:examples/react/multi-canvas":
   version: 0.0.0-use.local
-  resolution: "example-react-fiber-multi-canvas@workspace:examples/react-fiber/multi-canvas"
+  resolution: "example-react-multi-canvas@workspace:examples/react/multi-canvas"
   dependencies:
-    "@deck.gl-community/react-fiber": "workspace:*"
+    "@deck.gl-community/react": "workspace:*"
     "@deck.gl/core": "npm:10.0.0-alpha.1"
     "@deck.gl/extensions": "npm:10.0.0-alpha.1"
     "@deck.gl/geo-layers": "npm:10.0.0-alpha.1"

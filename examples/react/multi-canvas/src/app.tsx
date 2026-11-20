@@ -2,7 +2,7 @@ import {Deck, MapView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {ZoomWidget} from '@deck.gl/widgets';
 import {createRasterBasemap} from '../../../utils/raster-basemap';
-import {DeckCanvas} from '@deck.gl-community/react-fiber';
+import {DeckCanvas} from '@deck.gl-community/react';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {CITY_PANELS} from './cities';
 import type {CityPanel, Landmark} from './cities';

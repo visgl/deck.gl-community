@@ -7,7 +7,11 @@
     {
       "type": "category",
       "label": "Components",
-      "items": ["modules/react/api-reference/panel", "modules/react/api-reference/viewport"]
+      "items": [
+        "modules/react/api-reference/panel",
+        "modules/react/api-reference/viewport",
+        "modules/react/api-reference/deck-canvas"
+      ]
     }
   ]
 }

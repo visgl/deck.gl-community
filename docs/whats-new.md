@@ -2,6 +2,12 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## v10.0.0-alpha.4
+
+- **react:** [`DeckCanvas`](./modules/react/api-reference/deck-canvas.md) moves from
+  `@deck.gl-community/react-fiber` to `@deck.gl-community/react`, because it doesn't use
+  the Fiber renderer. See the [upgrade guide](./upgrade-guide.md#deckcanvas-moved-to-deckgl-communityreact).
+
 ## v10.0.0-alpha.3
 
 - **layers:** TreeLayer honors authored canopy RGB through `getCanopyColor` and

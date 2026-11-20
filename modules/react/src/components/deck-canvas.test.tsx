@@ -4,9 +4,8 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {MapView} from '@deck.gl/core';
 import type {Deck, DeckProps, Widget} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {DeckCanvas} from '../deck-canvas';
+import {DeckCanvas} from './deck-canvas';
 
-vi.mock('client-only', () => ({}));
 afterEach(cleanup);
 
 function createDeck() {
@@ -24,7 +23,7 @@ function createDeck() {
     }),
     finalize: vi.fn()
   };
-  return deck as unknown as Deck;
+  return deck as unknown as Deck<any>;
 }
 const createLayer = (id: string) => new ScatterplotLayer({id, data: []});
 const createView = (id: string) => new MapView({id});
