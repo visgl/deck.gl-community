@@ -10,41 +10,18 @@ import {
   type PostRenderOptions,
   type PreRenderOptions
 } from '@deck.gl/core';
-import type {
-  Device,
-  Framebuffer,
-  RenderPipelineParameters,
+import {
   Texture,
-  TextureFormat
+  type Device,
+  type Framebuffer,
+  type TextureFormat,
+  type TextureFormatDepthStencil
 } from '@luma.gl/core';
-import {ClipSpace} from '@luma.gl/engine';
-import {
-  createOccluderLookupTable,
-  type CORTAORayCount,
-  type OccluderLookupTable
-} from './cortao-occluder-lookup-table';
-import {
-  getCORTAOCamera,
-  getCORTAOFilterPassUniforms,
-  getCORTAOMainPassUniforms,
-  getCORTAOMipAtlasSize,
-  getCORTAOMipmapUniforms,
-  getCORTAOPrepassUniforms,
-  type CORTAOCamera,
-  type CORTAOConfiguration
-} from './cortao-parameters';
-import {
-  CORTAO_COMPOSITE_FS,
-  CORTAO_FILTER_PASS_FS,
-  CORTAO_MAIN_PASS_FS,
-  CORTAO_MIPMAP_FS,
-  CORTAO_PREPASS_FS,
-  cortaoComposite,
-  cortaoFilter,
-  cortaoMain,
-  cortaoMipmap,
-  cortaoPrepass
-} from './cortao-shaders';
+import type {CORTAORayCount} from './cortao-occluder-lookup-table';
+import {getCORTAOCamera, type CORTAOCamera, type CORTAOConfiguration} from './cortao-parameters';
+import {NEAREST_SAMPLER, type CORTAOPasses, type CORTAOShaderOptions} from './cortao-passes';
+import {CORTAOWebGLPasses} from './cortao-webgl-passes';
+import {CORTAOWebGPUPasses} from './cortao-webgpu-passes';
 
 /** Props of {@link CORTAOEffect}. All distances are in meters. */
 export type CORTAOEffectProps = {
@@ -111,53 +88,13 @@ const DEFAULT_PROPS: Required<CORTAOEffectProps> = {
   showOcclusion: false
 };
 
-/** Pipeline parameters of the full-screen passes. */
-const PASS_PARAMETERS: RenderPipelineParameters = {
-  depthWriteEnabled: false,
-  depthCompare: 'always'
-};
-
-/** Pipeline parameters of the composite pass. They match the deck.gl `ScreenPass` blending. */
-const COMPOSITE_PARAMETERS: RenderPipelineParameters = {
-  ...PASS_PARAMETERS,
-  blend: true,
-  blendColorSrcFactor: 'one',
-  blendColorDstFactor: 'one-minus-src-alpha',
-  blendAlphaSrcFactor: 'one',
-  blendAlphaDstFactor: 'one-minus-src-alpha',
-  blendColorOperation: 'add',
-  blendAlphaOperation: 'add'
-};
-
-/** Nearest sampling. Integer and depth textures are incomplete with linear filtering in WebGL 2. */
-const NEAREST_SAMPLER = {minFilter: 'nearest', magFilter: 'nearest'} as const;
-
-/** Render targets that depend on the drawing buffer size. */
-type CORTAOTargets = {
+/** Render targets of the layer capture. They depend on the drawing buffer size. */
+type CaptureTargets = {
   width: number;
   height: number;
-  textures: Texture[];
   colorTexture: Texture;
   depthTexture: Texture;
-  packedLevel0Texture: Texture;
-  normalTexture: Texture;
-  packedAtlasTexture: Texture;
-  occlusionTexture: Texture;
-  filteredOcclusionTexture: Texture;
-  captureFramebuffer: Framebuffer;
-  prepassFramebuffer: Framebuffer;
-  mipmapFramebuffer: Framebuffer;
-  mainFramebuffer: Framebuffer;
-  filterFramebuffer: Framebuffer;
-};
-
-/** The pipelines of the passes. */
-type CORTAOModels = {
-  prepass: ClipSpace;
-  mipmap: ClipSpace;
-  main: ClipSpace;
-  filter: ClipSpace;
-  composite: ClipSpace;
+  framebuffer: Framebuffer;
 };
 
 /**
@@ -166,11 +103,14 @@ type CORTAOModels = {
  *
  * The effect draws the layers once more into its own color and depth targets, because the deck.gl
  * post-process buffers have no depth attachment. It reconstructs view-space normals from depth,
- * runs the CORTAO prepass, main pass and optional filter pass, and multiplies the captured color by
- * the occlusion. It ignores the color input of the post-process chain, so add it before other
- * post-process effects.
+ * runs the CORTAO prepass, mip pass, main pass and optional filter pass, and multiplies the
+ * captured color by the occlusion. It ignores the color input of the post-process chain, so add it
+ * before other post-process effects.
  *
- * Limits: WebGL 2 only, perspective views only, and the first viewport only.
+ * The effect picks the backend from the device: GLSL full-screen passes on WebGL 2, and WGSL
+ * compute passes on WebGPU. The WebGPU passes use real mip levels and `textureGather()`.
+ *
+ * Limits: perspective views only, and the first viewport only.
  */
 export class CORTAOEffect implements Effect {
   /** Effect id. */
@@ -186,10 +126,10 @@ export class CORTAOEffect implements Effect {
   postRender?: (options: PostRenderOptions) => Framebuffer | null;
 
   private device: Device | null = null;
+  private deck: EffectContext['deck'] | null = null;
   private capturePass: LayersPass | null = null;
-  private models: CORTAOModels | null = null;
-  private lookupTableTexture: Texture | null = null;
-  private targets: CORTAOTargets | null = null;
+  private passes: CORTAOPasses | null = null;
+  private targets: CaptureTargets | null = null;
   /** The camera of the frame that `preRender` captured, or `null` if it captured nothing. */
   private camera: CORTAOCamera | null = null;
   private hasWarned = false;
@@ -201,38 +141,40 @@ export class CORTAOEffect implements Effect {
     this.postRender = this.renderPostProcess.bind(this);
   }
 
+  /** The GPU backend of the passes, or `null` before `setup()`. */
+  get backend(): 'webgl' | 'webgpu' | null {
+    return this.device ? (this.device.type as 'webgl' | 'webgpu') : null;
+  }
+
   /** Creates the GPU resources. Called by deck.gl when the effect is added. */
-  setup({device}: EffectContext): void {
-    if (device.type !== 'webgl') {
-      log.warn('CORTAOEffect supports WebGL 2 only')();
+  setup({device, deck}: EffectContext): void {
+    if (device.type !== 'webgl' && device.type !== 'webgpu') {
+      log.warn('CORTAOEffect supports WebGL 2 and WebGPU only')();
       this.postRender = undefined;
       return;
     }
     this.device = device;
+    this.deck = deck;
     this.capturePass = new LayersPass(device, {id: `${this.id}-capture`});
-    this.createModels();
-    this.createLookupTable();
+    const options = this.getShaderOptions();
+    this.passes =
+      device.type === 'webgpu'
+        ? new CORTAOWebGPUPasses(device, this.id, options)
+        : new CORTAOWebGLPasses(device, this.id, options);
   }
 
   /** Updates the props. A change of a shader constant rebuilds the affected pipelines. */
   setProps(props: CORTAOEffectProps): void {
     const previousProps = this.props;
     this.props = {...this.props, ...props};
-    if (!this.device) {
-      return;
-    }
     if (
-      previousProps.sampleCount !== this.props.sampleCount ||
-      previousProps.rayCount !== this.props.rayCount ||
-      previousProps.largeFilter !== this.props.largeFilter ||
-      previousProps.filterSymmetry !== this.props.filterSymmetry
+      this.passes &&
+      (previousProps.sampleCount !== this.props.sampleCount ||
+        previousProps.rayCount !== this.props.rayCount ||
+        previousProps.largeFilter !== this.props.largeFilter ||
+        previousProps.filterSymmetry !== this.props.filterSymmetry)
     ) {
-      this.destroyModels();
-      this.createModels();
-    }
-    if (previousProps.rayCount !== this.props.rayCount) {
-      this.lookupTableTexture?.destroy();
-      this.createLookupTable();
+      this.passes.setShaderOptions(this.getShaderOptions());
     }
   }
 
@@ -256,11 +198,14 @@ export class CORTAOEffect implements Effect {
     if (width <= 0 || height <= 0) {
       return;
     }
+    if (this.device.type === 'webgpu') {
+      this.addDepthToPostProcessBuffers();
+    }
     const targets = this.getTargets(width, height);
     this.capturePass.render({
       ...options,
       pass: `${this.id}-capture`,
-      target: targets.captureFramebuffer,
+      target: targets.framebuffer,
       canvasContext,
       effects: options.effects?.filter(effect => effect !== this),
       // View clears would start a nested render pass. The capture target is cleared once instead.
@@ -274,119 +219,92 @@ export class CORTAOEffect implements Effect {
 
   /** Releases the GPU resources. Called by deck.gl when the effect is removed. */
   cleanup(): void {
-    this.destroyModels();
+    this.passes?.destroy();
+    this.passes = null;
     this.destroyTargets();
-    this.lookupTableTexture?.destroy();
-    this.lookupTableTexture = null;
     this.capturePass?.cleanup();
     this.capturePass = null;
     this.device = null;
+    this.deck = null;
+  }
+
+  /**
+   * Workaround for the missing depth attachment of the deck.gl post-process buffers
+   * (deck.gl#10981). With a post-process effect, deck.gl draws the layers into its first
+   * post-process buffer. On WebGPU, the layer pipelines have a depth format, so a draw into a
+   * buffer without depth is invalid and the frame is lost. Deck.gl creates the two buffers only
+   * when it has none, after `preRender()`. So this method creates them first, with the same color
+   * texture and a depth attachment. Deck.gl resizes and deletes them as its own.
+   */
+  private addDepthToPostProcessBuffers(): void {
+    const renderer = (
+      this.deck as unknown as {
+        deckRenderer?: {renderBuffers?: Framebuffer[]};
+      }
+    )?.deckRenderer;
+    const device = this.device!;
+    if (!renderer?.renderBuffers || renderer.renderBuffers.length > 0) {
+      return;
+    }
+    for (const index of [0, 1]) {
+      renderer.renderBuffers.push(
+        device.createFramebuffer({
+          id: `deck-renderbuffer-${index}`,
+          colorAttachments: [
+            device.createTexture({
+              format: device.preferredColorFormat,
+              width: 1,
+              height: 1,
+              sampler: {minFilter: 'linear', magFilter: 'linear'}
+            })
+          ],
+          depthStencilAttachment: device.preferredDepthFormat as TextureFormatDepthStencil
+        })
+      );
+    }
   }
 
   /** Runs the CORTAO passes and the composite pass. */
   private renderPostProcess(options: PostRenderOptions): Framebuffer | null {
-    const {device, models, targets, camera} = this;
+    const {passes, targets, camera} = this;
     // As in the deck.gl PostProcessEffect: `undefined` means "not the last effect", and `null` is
     // the default framebuffer.
-    const renderToTarget = options.target !== undefined;
-    const output = renderToTarget ? options.target : options.swapBuffer;
-    if (!device || !models || !targets || !camera || !this.lookupTableTexture) {
-      // Nothing was captured. Copy the input color without occlusion.
-      this.renderComposite(output, options.inputBuffer.colorAttachments[0].texture, null, options);
-      return output ?? null;
-    }
-    const {width, height} = targets;
-    const configuration = this.getConfiguration(width, height);
-
-    models.prepass.shaderInputs.setProps({
-      cortaoPrepass: getCORTAOPrepassUniforms(camera, configuration)
-    });
-    models.prepass.setBindings({depthTexture: targets.depthTexture});
-    this.renderFullScreen(models.prepass, targets.prepassFramebuffer, width, height);
-
-    const [atlasWidth, atlasHeight] = getCORTAOMipAtlasSize(width, height);
-    models.mipmap.shaderInputs.setProps({cortaoMipmap: getCORTAOMipmapUniforms(configuration)});
-    models.mipmap.setBindings({packedLevel0Texture: targets.packedLevel0Texture});
-    this.renderFullScreen(models.mipmap, targets.mipmapFramebuffer, atlasWidth, atlasHeight);
-
-    models.main.shaderInputs.setProps({
-      cortaoMain: getCORTAOMainPassUniforms(camera, configuration)
-    });
-    models.main.setBindings({
-      packedDataTexture: targets.packedAtlasTexture,
-      normalTexture: targets.normalTexture,
-      occluderLookupTable: this.lookupTableTexture
-    });
-    this.renderFullScreen(models.main, targets.mainFramebuffer, width, height);
-
-    let occlusionTexture = targets.occlusionTexture;
-    if (this.props.filter) {
-      models.filter.shaderInputs.setProps({
-        cortaoFilter: getCORTAOFilterPassUniforms(configuration)
-      });
-      models.filter.setBindings({
-        packedDataTexture: targets.packedAtlasTexture,
-        occlusionTexture: targets.occlusionTexture
-      });
-      this.renderFullScreen(models.filter, targets.filterFramebuffer, width, height);
-      occlusionTexture = targets.filteredOcclusionTexture;
-    }
-
-    this.renderComposite(output, targets.colorTexture, occlusionTexture, options);
-    return output ?? null;
-  }
-
-  /** Writes the color, multiplied by the occlusion if there is one, to the output. */
-  private renderComposite(
-    output: Framebuffer | null | undefined,
-    colorTexture: Texture,
-    occlusionTexture: Texture | null,
-    options: PostRenderOptions
-  ): void {
-    const {models} = this;
-    if (!this.device || !models) {
-      return;
-    }
-    models.composite.shaderInputs.setProps({
-      cortaoComposite: {
-        showOcclusion: this.props.showOcclusion && occlusionTexture ? 1 : 0,
-        useOcclusion: occlusionTexture ? 1 : 0
-      }
-    });
-    models.composite.setBindings({
-      colorTexture,
-      occlusionTexture: occlusionTexture ?? colorTexture
-    });
+    const output = (options.target !== undefined ? options.target : options.swapBuffer) ?? null;
     const clearCanvas = options.target === undefined || Boolean(options.clearCanvas);
-    const renderPass = this.device.beginRenderPass({
-      id: `${this.id}-composite`,
-      framebuffer: output,
-      parameters: {viewport: [0, 0, colorTexture.width, colorTexture.height]},
-      clearColor: clearCanvas ? [0, 0, 0, 0] : false,
-      clearDepth: false,
-      clearStencil: false
+    if (!passes) {
+      return output;
+    }
+    if (!targets || !camera) {
+      // Nothing was captured. Copy the input color without occlusion.
+      passes.composite({
+        output,
+        colorTexture: options.inputBuffer.colorAttachments[0].texture,
+        occlusionTexture: null,
+        showOcclusion: false,
+        clearCanvas
+      });
+      return output;
+    }
+    const occlusionTexture = passes.renderOcclusion({
+      camera,
+      configuration: this.getConfiguration(targets.width, targets.height),
+      depthTexture: targets.depthTexture,
+      filter: this.props.filter
     });
-    models.composite.draw(renderPass);
-    renderPass.end();
+    passes.composite({
+      output,
+      colorTexture: targets.colorTexture,
+      occlusionTexture,
+      showOcclusion: this.props.showOcclusion,
+      clearCanvas
+    });
+    return output;
   }
 
-  /** Draws one full-screen pass. The pass writes every pixel, so there is no clear. */
-  private renderFullScreen(
-    model: ClipSpace,
-    framebuffer: Framebuffer,
-    width: number,
-    height: number
-  ): void {
-    const renderPass = this.device!.beginRenderPass({
-      id: model.id,
-      framebuffer,
-      parameters: {viewport: [0, 0, width, height]},
-      clearColor: false,
-      clearDepth: false,
-      clearStencil: false
-    });
-    model.draw(renderPass);
-    renderPass.end();
+  /** Gets the shader constants from the props. */
+  private getShaderOptions(): CORTAOShaderOptions {
+    const {sampleCount, rayCount, largeFilter, filterSymmetry} = this.props;
+    return {sampleCount, rayCount, largeFilter, filterSymmetry};
   }
 
   /** Gets the pass configuration from the props. */
@@ -408,163 +326,55 @@ export class CORTAOEffect implements Effect {
     };
   }
 
-  /** Creates the pass pipelines. */
-  private createModels(): void {
-    const device = this.device!;
-    const lookupTableSize = {
-      directionResolution: 24,
-      radiusResolution: 16
-    };
-    this.models = {
-      prepass: new ClipSpace(device, {
-        id: `${this.id}-prepass`,
-        fs: CORTAO_PREPASS_FS,
-        modules: [cortaoPrepass],
-        parameters: PASS_PARAMETERS
-      }),
-      mipmap: new ClipSpace(device, {
-        id: `${this.id}-mipmap`,
-        fs: CORTAO_MIPMAP_FS,
-        modules: [cortaoMipmap],
-        parameters: PASS_PARAMETERS
-      }),
-      main: new ClipSpace(device, {
-        id: `${this.id}-main`,
-        fs: CORTAO_MAIN_PASS_FS,
-        modules: [cortaoMain],
-        defines: {
-          CORTAO_SAMPLE_COUNT: Math.max(1, Math.round(this.props.sampleCount)),
-          CORTAO_RAY_COUNT: this.props.rayCount,
-          CORTAO_LOOKUP_DIRECTION_RESOLUTION: lookupTableSize.directionResolution,
-          CORTAO_LOOKUP_RADIUS_RESOLUTION: lookupTableSize.radiusResolution
-        },
-        parameters: PASS_PARAMETERS
-      }),
-      filter: new ClipSpace(device, {
-        id: `${this.id}-filter`,
-        fs: CORTAO_FILTER_PASS_FS,
-        modules: [cortaoFilter],
-        defines: {
-          CORTAO_LARGE_FILTER: this.props.largeFilter ? 1 : 0,
-          CORTAO_FILTER_SYMMETRY: this.props.filterSymmetry ? 1 : 0
-        },
-        parameters: PASS_PARAMETERS
-      }),
-      composite: new ClipSpace(device, {
-        id: `${this.id}-composite`,
-        fs: CORTAO_COMPOSITE_FS,
-        modules: [cortaoComposite],
-        parameters: COMPOSITE_PARAMETERS
-      })
-    };
-  }
-
-  /** Destroys the pass pipelines. */
-  private destroyModels(): void {
-    if (this.models) {
-      for (const model of Object.values(this.models)) {
-        model.destroy();
-      }
-      this.models = null;
-    }
-  }
-
-  /** Creates the occluder lookup table texture for the current ray count. */
-  private createLookupTable(): void {
-    const table: OccluderLookupTable = createOccluderLookupTable({rayCount: this.props.rayCount});
-    const texture = this.device!.createTexture({
-      id: `${this.id}-occluder-lookup-table`,
-      dimension: '3d',
-      format: table.format,
-      width: table.directionResolution,
-      height: table.directionResolution,
-      depth: table.radiusResolution,
-      sampler: NEAREST_SAMPLER
-    });
-    texture.writeData(table.data);
-    this.lookupTableTexture = texture;
-  }
-
-  /** Gets the render targets for a drawing buffer size. Creates them again when the size changes. */
-  private getTargets(width: number, height: number): CORTAOTargets {
+  /**
+   * Gets the capture targets for a drawing buffer size. Creates them again when the size changes.
+   * On WebGPU, the layer pipelines use the preferred color and depth formats of the device, so the
+   * capture targets use them too.
+   */
+  private getTargets(width: number, height: number): CaptureTargets {
     if (this.targets && this.targets.width === width && this.targets.height === height) {
       return this.targets;
     }
     this.destroyTargets();
     const device = this.device!;
-    const textures: Texture[] = [];
-    const createTarget = (name: string, format: TextureFormat, size = [width, height]) => {
-      const texture = device.createTexture({
-        id: `${this.id}-${name}`,
-        format,
-        width: size[0],
-        height: size[1],
-        sampler: NEAREST_SAMPLER
-      });
-      textures.push(texture);
-      return texture;
-    };
-    const colorTexture = createTarget('color', 'rgba8unorm');
-    const depthTexture = createTarget('depth', 'depth32float');
-    const packedLevel0Texture = createTarget('packed-level-0', 'r32uint');
-    const normalTexture = createTarget('normal', 'rgba8unorm');
-    const packedAtlasTexture = createTarget(
-      'packed-atlas',
-      'r32uint',
-      getCORTAOMipAtlasSize(width, height)
-    );
-    const occlusionTexture = createTarget('occlusion', 'r8unorm');
-    const filteredOcclusionTexture = createTarget('filtered-occlusion', 'r8unorm');
-    const createFramebuffer = (
-      name: string,
-      colorAttachments: Texture[],
-      depthStencilAttachment?: Texture
-    ) =>
-      device.createFramebuffer({
-        id: `${this.id}-${name}`,
-        width: colorAttachments[0].width,
-        height: colorAttachments[0].height,
-        colorAttachments,
-        depthStencilAttachment
-      });
-    this.targets = {
+    const isWebGPU = device.type === 'webgpu';
+    const usage = Texture.SAMPLE | Texture.RENDER;
+    const colorTexture = device.createTexture({
+      id: `${this.id}-color`,
+      format: isWebGPU ? device.preferredColorFormat : 'rgba8unorm',
       width,
       height,
-      textures,
-      colorTexture,
-      depthTexture,
-      packedLevel0Texture,
-      normalTexture,
-      packedAtlasTexture,
-      occlusionTexture,
-      filteredOcclusionTexture,
-      captureFramebuffer: createFramebuffer('capture', [colorTexture], depthTexture),
-      prepassFramebuffer: createFramebuffer('prepass', [packedLevel0Texture, normalTexture]),
-      mipmapFramebuffer: createFramebuffer('mipmap', [packedAtlasTexture]),
-      mainFramebuffer: createFramebuffer('main', [occlusionTexture]),
-      filterFramebuffer: createFramebuffer('filter', [filteredOcclusionTexture])
-    };
+      usage,
+      sampler: NEAREST_SAMPLER
+    });
+    const depthTexture = device.createTexture({
+      id: `${this.id}-depth`,
+      // luma.gl types the preferred depth format with names that `TextureFormat` does not list.
+      format: isWebGPU ? (device.preferredDepthFormat as TextureFormat) : 'depth32float',
+      width,
+      height,
+      usage,
+      sampler: NEAREST_SAMPLER
+    });
+    const framebuffer = device.createFramebuffer({
+      id: `${this.id}-capture`,
+      width,
+      height,
+      colorAttachments: [colorTexture],
+      depthStencilAttachment: depthTexture
+    });
+    this.targets = {width, height, colorTexture, depthTexture, framebuffer};
     return this.targets;
   }
 
-  /** Destroys the render targets. */
   private destroyTargets(): void {
     const {targets} = this;
     if (!targets) {
       return;
     }
-    for (const framebuffer of [
-      targets.captureFramebuffer,
-      targets.prepassFramebuffer,
-      targets.mipmapFramebuffer,
-      targets.mainFramebuffer,
-      targets.filterFramebuffer
-    ]) {
-      framebuffer.destroy();
-    }
-    for (const texture of targets.textures) {
-      texture.destroy();
-    }
+    targets.framebuffer.destroy();
+    targets.colorTexture.destroy();
+    targets.depthTexture.destroy();
     this.targets = null;
   }
 }
