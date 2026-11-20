@@ -5,6 +5,7 @@
 /* eslint-env browser */
 
 import type {CompositeLayerProps, DefaultProps, FilterContext} from '@deck.gl/core';
+import type {Polygon} from 'geojson';
 import {CompositeLayer} from '@deck.gl/core';
 import {PolygonLayer} from '@deck.gl/layers';
 
@@ -29,12 +30,20 @@ const MODE_CONFIG_MAP = {
   [SELECTION_TYPE.RECTANGLE]: {dragToDraw: true}
 };
 
+/** The shape drawn by a completed selection gesture. */
+export type SelectionLayerSelection = {
+  /** The selection type that drew the shape. */
+  type: 'rectangle' | 'polygon';
+  /** The drawn shape, in the map coordinates the gesture was drawn in. */
+  geometry: Polygon;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface SelectionLayerProps<_DataT> extends CompositeLayerProps {
   /** IDs of the pickable layers to select, including their sublayers. */
   layerIds: any[];
-  /** Receives deck.gl picking infos after the selection gesture completes. */
-  onSelect: (info: any) => any;
+  /** Receives deck.gl picking infos and the drawn shape after the selection gesture completes. */
+  onSelect: (info: {pickingInfos: any[]; selection: SelectionLayerSelection}) => any;
   /** Draw a rectangle or polygon; null disables selection. */
   selectionType: string | null;
   /**
@@ -128,7 +137,10 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       layerIds
     });
 
-    onSelect({pickingInfos: filterFeaturePicks(pickingInfos)});
+    onSelect({
+      pickingInfos: filterFeaturePicks(pickingInfos),
+      selection: {type: 'rectangle', geometry: {type: 'Polygon', coordinates}}
+    });
   }
 
   _selectPolygonObjects(coordinates: any) {
@@ -177,7 +189,8 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
     onSelect({
       pickingInfos: filterFeaturePicks(
         pickingInfos.filter(info => info.layer?.id !== this.props.id)
-      )
+      ),
+      selection: {type: 'polygon', geometry: {type: 'Polygon', coordinates}}
     });
   }
 

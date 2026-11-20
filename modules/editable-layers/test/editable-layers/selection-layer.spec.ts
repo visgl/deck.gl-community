@@ -16,11 +16,11 @@ const COORDINATES = [
   ]
 ];
 
-function makeSelectionLayer() {
+function makeSelectionLayer(selectionType = 'polygon') {
   const onSelect = vi.fn();
   const layer = new SelectionLayer({
     id: 'selection',
-    selectionType: 'polygon',
+    selectionType,
     layerIds: ['points'],
     onSelect
   });
@@ -64,7 +64,10 @@ test('polygon picking initializes a blocker covering the entire screen rectangle
     height: 80,
     layerIds: ['selection-selection-blocker', 'points']
   });
-  expect(onSelect).toHaveBeenCalledExactlyOnceWith({pickingInfos: [info]});
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith({
+    pickingInfos: [info],
+    selection: {type: 'polygon', geometry: {type: 'Polygon', coordinates: COORDINATES}}
+  });
   expect(onSelect.mock.calls[0][0].pickingInfos[0]).toBe(info);
   expect(layer.state.isSelecting).toBe(false);
   expect(updateLayers).toHaveBeenCalledTimes(2);
@@ -161,7 +164,7 @@ test('the blocker only renders in picking passes while a polygon selection is pe
 
 test('rectangle selection retains deck.gl GPU picking', () => {
   const {layer, onSelect, pickObjects, updateLayers} = makeSelectionLayer();
-  layer._selectRectangleObjects([
+  const rectangle = [
     [
       [80, 90],
       [80, 10],
@@ -169,7 +172,8 @@ test('rectangle selection retains deck.gl GPU picking', () => {
       [10, 90],
       [80, 90]
     ]
-  ]);
+  ];
+  layer._selectRectangleObjects(rectangle);
   expect(pickObjects).toHaveBeenCalledWith({
     x: 10,
     y: 10,
@@ -177,7 +181,10 @@ test('rectangle selection retains deck.gl GPU picking', () => {
     height: 80,
     layerIds: ['points']
   });
-  expect(onSelect).toHaveBeenCalledExactlyOnceWith({pickingInfos: []});
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith({
+    pickingInfos: [],
+    selection: {type: 'rectangle', geometry: {type: 'Polygon', coordinates: rectangle}}
+  });
   expect(updateLayers).not.toHaveBeenCalled();
 });
 
@@ -208,7 +215,8 @@ test('rectangle selection deduplicates picked objects without conflating same-in
   layer._selectRectangleObjects(COORDINATES);
 
   expect(onSelect).toHaveBeenCalledExactlyOnceWith({
-    pickingInfos: [feature, featureFromAnotherTile]
+    pickingInfos: [feature, featureFromAnotherTile],
+    selection: {type: 'rectangle', geometry: {type: 'Polygon', coordinates: COORDINATES}}
   });
 });
 
@@ -244,8 +252,23 @@ test('polygon selection deduplicates picked objects without conflating same-inde
   layer._selectPolygonObjects(COORDINATES);
 
   expect(onSelect).toHaveBeenCalledExactlyOnceWith({
-    pickingInfos: [feature, featureFromAnotherTile]
+    pickingInfos: [feature, featureFromAnotherTile],
+    selection: {type: 'polygon', geometry: {type: 'Polygon', coordinates: COORDINATES}}
   });
+});
+
+test('onSelect receives the shape drawn by the selection gesture', () => {
+  const drawn = {type: 'Polygon', coordinates: COORDINATES};
+  for (const selectionType of ['rectangle', 'polygon']) {
+    const {layer, onSelect} = makeSelectionLayer(selectionType);
+    const editable = layer.renderLayers()[0];
+    editable.props.onEdit({
+      editType: 'addFeature',
+      updatedData: {type: 'FeatureCollection', features: [{type: 'Feature', geometry: drawn}]}
+    });
+    expect(onSelect).toHaveBeenCalledOnce();
+    expect(onSelect.mock.calls[0][0].selection).toEqual({type: selectionType, geometry: drawn});
+  }
 });
 
 test('selection forwards the application interaction override to its editable sublayer', () => {

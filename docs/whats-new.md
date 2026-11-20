@@ -2,6 +2,12 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- **editable-layers:** `SelectionLayer` passes the drawn shape to `onSelect` as `selection`, a
+  GeoJSON polygon with the selection type. Applications can select objects by position inside
+  the shape instead of by visible pixels. See [`onSelect`](./modules/editable-layers/api-reference/layers/selection-layer.md#onselect-function-required).
+
 ## v10.0.0-alpha.3
 
 - **layers:** TreeLayer honors authored canopy RGB through `getCanopyColor` and
