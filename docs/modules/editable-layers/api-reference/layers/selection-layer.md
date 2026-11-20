@@ -99,9 +99,14 @@ Element receiving selection gestures. For overlaid `MapboxOverlay`, use `map.get
 
 #### `onSelect` (Function, required)
 
-Called when selection is completed with `{pickingInfos}`. Each entry is the original
+Called when selection is completed with `{pickingInfos, selection}`.
+
+`pickingInfos` lists the selected objects. Each entry is the original
 [deck.gl picking info](https://deck.gl/docs/developer-guide/interactivity#the-picking-info-object),
 including the selected object, source layer, and object index.
+
+`selection` is the shape the user drew: `{type, geometry}`, where `type` is `rectangle` or
+`polygon` and `geometry` is a GeoJSON `Polygon` in the map coordinates the gesture was drawn in.
 
 Edit guides are excluded using the picking info's `isGuide` marker. Application feature
 properties, including `guideType`, do not exclude features from selection.
@@ -109,7 +114,8 @@ properties, including `guideType`, do not exclude features from selection.
 Both selection modes use deck.gl's WebGL GPU picking. Polygon selection masks pixels outside
 the drawn lasso, including for wide, diagonal, and concave lassos. Objects are selected when visible rendered
 pixels intersect the selection; overlapping objects hidden behind another object are not included.
-The layer does not scan target data or require a `getPosition` accessor.
+The layer does not scan target data or require a `getPosition` accessor. To select by position
+instead, test your data against `selection.geometry`.
 
 #### `layerIds` (String[], required)
 

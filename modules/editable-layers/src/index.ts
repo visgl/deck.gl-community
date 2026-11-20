@@ -52,7 +52,10 @@ export {
 } from './edit-modes/coordinate-system';
 
 export type {EditableGeoJsonLayerProps} from './editable-layers/editable-geojson-layer';
-export type {SelectionLayerProps} from './editable-layers/selection-layer';
+export type {
+  SelectionLayerProps,
+  SelectionLayerSelection
+} from './editable-layers/selection-layer';
 
 export {GeoJsonEditMode} from './edit-modes/geojson-edit-mode';
 
