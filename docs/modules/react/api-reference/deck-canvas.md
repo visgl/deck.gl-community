@@ -4,9 +4,13 @@
 panels share a device and rendering loop, while each panel contributes its own views,
 layers and widgets.
 
+Import it from `@deck.gl-community/react/deck-canvas`. The package root doesn't export it,
+so apps that only use `Panel` never load `@deck.gl/core` types. Install `@deck.gl/core` 9.4
+or later to use it.
+
 ```tsx
 import {Deck, MapView} from '@deck.gl/core';
-import {DeckCanvas} from '@deck.gl-community/react';
+import {DeckCanvas} from '@deck.gl-community/react/deck-canvas';
 import {useEffect, useRef, useState} from 'react';
 
 function Panels({londonLayers, tokyoLayers}) {

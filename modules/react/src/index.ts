@@ -17,10 +17,6 @@ export {
   type PanelProps
 } from './components/panel';
 
-// Multi-canvas (originally from @deck.gl-community/react-fiber)
-
-export {DeckCanvas, type DeckCanvasProps} from './components/deck-canvas';
-
 // Overlays migrated to @deck.gl-community/widgets
 
 export {

@@ -11,7 +11,7 @@ yarn
 yarn workspace example-react-multi-canvas start
 ```
 
-Open the URL printed by Vite. This example aliases the local `react` and `panels` sources and uses
+Open the URL printed by Vite. This example aliases the local `DeckCanvas` and `panels` sources and uses
 stock deck.gl raster tiles, so it does not require building those packages first.
 
 New York, London, Tokyo and Sydney each have an independent canvas, controller,
