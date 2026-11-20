@@ -27,6 +27,10 @@ A place for experimental layers developed by deck.gl developers that benefit fro
 
 ## What's New
 
+### `@deck.gl-community/experimental` (unreleased)
+
+- `CORTAOEffect`: screen-space ambient occlusion with CORTAO (Circular Occluder Ray-Traced Ambient Occlusion). WebGL 2 only.
+
 ### `@deck.gl-community/experimental` v9.0.0
 
 Release date: 2024

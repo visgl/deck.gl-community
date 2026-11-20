@@ -1,0 +1,23 @@
+{
+  "name": "@deck.gl-community/example-ambient-occlusion",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../../vite.config.local.mjs",
+    "build": "vite build --config ../../vite.config.local.mjs"
+  },
+  "dependencies": {
+    "@deck.gl-community/experimental": "workspace:*",
+    "@deck.gl-community/geo-layers": "workspace:*",
+    "@deck.gl/core": "10.0.0-alpha.1",
+    "@deck.gl/layers": "10.0.0-alpha.1",
+    "@luma.gl/core": "10.0.0-alpha.14",
+    "@luma.gl/engine": "10.0.0-alpha.14",
+    "@luma.gl/shaders": "10.0.0-alpha.14"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}

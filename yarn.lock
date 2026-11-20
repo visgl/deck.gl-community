@@ -913,6 +913,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/example-ambient-occlusion@workspace:examples/experimental/ambient-occlusion":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-ambient-occlusion@workspace:examples/experimental/ambient-occlusion"
+  dependencies:
+    "@deck.gl-community/experimental": "workspace:*"
+    "@deck.gl-community/geo-layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.1"
+    "@deck.gl/layers": "npm:10.0.0-alpha.1"
+    "@luma.gl/core": "npm:10.0.0-alpha.14"
+    "@luma.gl/engine": "npm:10.0.0-alpha.14"
+    "@luma.gl/shaders": "npm:10.0.0-alpha.14"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/example-flame-trail@workspace:examples/layers/flame-trail":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/example-flame-trail@workspace:examples/layers/flame-trail"
