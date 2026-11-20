@@ -28,6 +28,11 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: '@deck.gl-community/experimental',
+      items: ['experimental/ambient-occlusion']
+    },
+    {
+      type: 'category',
       label: '@deck.gl-community/graph-layers',
       items: [
         'graph-layers/simple-graph',
