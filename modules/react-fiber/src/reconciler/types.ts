@@ -36,6 +36,14 @@ export interface Container {
    * @internal
    */
   sentViews?: boolean;
+
+  /**
+   * The duplicate-id warnings of the last update sent to deck.gl, so that the next update reports
+   * only new ones.
+   *
+   * @internal
+   */
+  duplicateIdWarnings?: ReadonlySet<string>;
 }
 
 /**
@@ -84,6 +92,12 @@ export interface Instance {
 
   /** Child instances in the reconciler tree */
   children: Instance[];
+
+  /**
+   * The element's position in the React tree, from which an element without an id gets one.
+   * See `element-ids.ts`.
+   */
+  path?: string[];
 }
 
 /**

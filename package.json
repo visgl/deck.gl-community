@@ -95,6 +95,7 @@
     "fast-xml-parser": "5.5.3",
     "fast-uri": "3.1.7",
     "mjolnir.js": "3.1.1",
+    "@deck.gl/core@npm:10.0.0-alpha.1": "patch:@deck.gl/core@npm%3A10.0.0-alpha.1#~/.yarn/patches/deck.gl-core-npm-10.0.0-alpha.1-deckgl-11114-prototype-id.patch",
     "sigstore@npm:^4.0.0": "patch:sigstore@npm%3A4.1.1#~/.yarn/patches/sigstore-npm-4.1.1-9ab7be1c91.patch"
   },
   "packageExtensions": {
