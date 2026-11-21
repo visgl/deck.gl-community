@@ -72,6 +72,14 @@ The root takes the same deck.gl props, renders the same wrapper and canvas, and 
 For a `MapboxOverlay` or `MapLibreOverlay`, import `DeckGL` from `/mapbox` or `/maplibre` and
 attach the overlay to the map you create. See [Using with maps](./using-with-maps.md).
 
+### Removed props reset
+
+Removing a prop now resets it to deck.gl's default. `@deck.gl/react` kept the last value for most
+props. A prop set to `undefined`, such as `onLoad={debug ? onLoad : undefined}`, also gets the
+default, where `@deck.gl/react` stored the `undefined` and could crash calling it; deck.gl handles
+that case itself ([deck.gl#10906](https://github.com/visgl/deck.gl/pull/10906)). A few props only apply when deck.gl is created, and changing them later has no effect; see
+[Props that only apply at creation](../api-reference/deckgl.md#props-that-only-apply-at-creation).
+
 ### Replace `DeckGLRef`
 
 The root's `ref` receives the `Deck` instance, or the overlay on a map root. Picking calls stay
