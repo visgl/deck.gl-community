@@ -1,8 +1,7 @@
-import 'client-only';
 import type {Deck, DeckProps, LayersList, View, Widget} from '@deck.gl/core';
 import {useId, useRef} from 'react';
 import type {CanvasHTMLAttributes} from 'react';
-import {useIsomorphicLayoutEffect} from '../shared/use-isomorphic-layout-effect';
+import {useIsomorphicLayoutEffect} from '../utils/use-isomorphic-layout-effect';
 import {type DeckCanvasRegistry, getCanvasRegistry} from './deck-canvas-registry';
 
 /** Props for a presentation canvas attached to an application-owned multi-canvas Deck. */

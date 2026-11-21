@@ -41,5 +41,5 @@
   "leaflet/get-started": "/images/examples/leaflet/get-started.jpg",
   "leaflet/scripting": "/images/examples/leaflet/scripting.png",
   "react-fiber/overview": null,
-  "react-fiber/multi-canvas": null
+  "react/multi-canvas": null
 }

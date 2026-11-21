@@ -1,5 +1,5 @@
 {
-  "name": "example-react-fiber-multi-canvas",
+  "name": "example-react-multi-canvas",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,7 +7,7 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@deck.gl-community/react-fiber": "workspace:*",
+    "@deck.gl-community/react": "workspace:*",
     "@deck.gl/core": "10.0.0-alpha.1",
     "@deck.gl/extensions": "10.0.0-alpha.1",
     "@deck.gl/geo-layers": "10.0.0-alpha.1",

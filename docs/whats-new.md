@@ -2,6 +2,12 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## v10.0.0-alpha.4
+
+- **react:** [`DeckCanvas`](./modules/react/api-reference/deck-canvas.md) attaches several
+  React presentation canvases to one application-owned Deck, each with its own views, layers
+  and widgets. Import it from `@deck.gl-community/react/deck-canvas`.
+
 ## v10.0.0-alpha.3
 
 - **layers:** TreeLayer honors authored canopy RGB through `getCanopyColor` and

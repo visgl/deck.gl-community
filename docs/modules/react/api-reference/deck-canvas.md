@@ -4,9 +4,13 @@
 panels share a device and rendering loop, while each panel contributes its own views,
 layers and widgets.
 
+Import it from `@deck.gl-community/react/deck-canvas`. The package root doesn't export it,
+so apps that only use `Panel` never load `@deck.gl/core` types. Install `@deck.gl/core` 9.4
+or later to use it.
+
 ```tsx
 import {Deck, MapView} from '@deck.gl/core';
-import {DeckCanvas} from '@deck.gl-community/react-fiber';
+import {DeckCanvas} from '@deck.gl-community/react/deck-canvas';
 import {useEffect, useRef, useState} from 'react';
 
 function Panels({londonLayers, tokyoLayers}) {
@@ -38,7 +42,8 @@ function Panels({londonLayers, tokyoLayers}) {
 }
 ```
 
-The `deck` must be initialized in multi-canvas mode (`_canvases: []`). `DeckCanvas`
+The `deck` must be initialized in multi-canvas mode (`_canvases: []`), which needs
+`@deck.gl/core` 9.4 or later. `DeckCanvas`
 never creates or finalizes it. Do not attach a Deck owned
 by `DeckGL` or a Mapbox overlay.
 
@@ -64,7 +69,7 @@ by `DeckGL` or a Mapbox overlay.
 
 Other canvas HTML attributes, such as `style` and `className`, apply to an owned
 canvas. Children, JSX layer/view extraction, render callbacks, basemaps and
-per-panel view-state ownership are outside this API. Use `DeckGL` for Fiber JSX.
+per-panel view-state ownership are outside this API. Use `DeckGL` from `@deck.gl/react` for JSX.
 
 ## Updates and cleanup
 
@@ -82,7 +87,7 @@ replace `deck.setProps` while panels are attached.
 
 ## Example
 
-The [multi-canvas cities example](https://github.com/visgl/deck.gl-community/tree/master/examples/react-fiber/multi-canvas)
-ports deck.gl's four-city demo to React Fiber, including independent basemap
+The [multi-canvas cities example](https://github.com/visgl/deck.gl-community/tree/master/examples/react/multi-canvas)
+ports deck.gl's four-city demo to React, including independent basemap
 styles, controllers, zoom widgets and shared hover state. Run it with
-`yarn workspace example-react-fiber-multi-canvas start` from the repository root.
+`yarn workspace example-react-multi-canvas start` from the repository root.

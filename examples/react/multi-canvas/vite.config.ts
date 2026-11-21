@@ -6,8 +6,11 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@deck.gl-community/react-fiber': fileURLToPath(
-        new URL('../../../modules/react-fiber/src/dom/index.ts', import.meta.url)
+      '@deck.gl-community/react/deck-canvas': fileURLToPath(
+        new URL('../../../modules/react/src/deck-canvas.ts', import.meta.url)
+      ),
+      '@deck.gl-community/panels': fileURLToPath(
+        new URL('../../../modules/panels/src/index.ts', import.meta.url)
       )
     },
     dedupe: [

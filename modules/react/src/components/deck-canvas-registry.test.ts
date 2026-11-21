@@ -2,7 +2,7 @@ import {describe, expect, it, vi} from 'vitest';
 import {MapView} from '@deck.gl/core';
 import type {Deck, DeckProps, Widget} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {getCanvasRegistry} from '../deck-canvas-registry';
+import {getCanvasRegistry} from './deck-canvas-registry';
 
 function createDeck(): Deck<any> {
   const deck = {
