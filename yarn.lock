@@ -1068,6 +1068,7 @@ __metadata:
     "@deck.gl/test-utils": "npm:10.0.0-alpha.1"
     "@loaders.gl/core": "npm:5.0.0-beta.8"
     "@loaders.gl/images": "npm:5.0.0-beta.8"
+    "@loaders.gl/splats": "npm:5.0.0-beta.8"
     "@luma.gl/core": "npm:10.0.0-alpha.14"
     "@luma.gl/engine": "npm:10.0.0-alpha.14"
     "@luma.gl/shaders": "npm:10.0.0-alpha.14"
@@ -2965,6 +2966,19 @@ __metadata:
     draco3d:
       optional: true
   checksum: 10c0/db48ccbe53e805e001fa977e143d6bd033c9c083adc3d0a6a28ca0d28a6818bdd67c2cd2ac5875983c79022dc3d9605df3c1963445b0a3fa09b1978abb7ee907
+  languageName: node
+  linkType: hard
+
+"@loaders.gl/splats@npm:5.0.0-beta.8":
+  version: 5.0.0-beta.8
+  resolution: "@loaders.gl/splats@npm:5.0.0-beta.8"
+  dependencies:
+    "@loaders.gl/compression": "npm:5.0.0-beta.8"
+    apache-arrow: "npm:>= 17.0.0"
+    zod: "npm:^4.1.12"
+  peerDependencies:
+    "@loaders.gl/core": ~5.0.0-alpha.0
+  checksum: 10c0/a9072df69c1b6796d986cc44a7cf9d49359b709e1b3def3dd1436cd49052b20f2d3ade2c72d665a18859230b96e3f59e00e823be3495112b69cf7cbd41d0168a
   languageName: node
   linkType: hard
 
