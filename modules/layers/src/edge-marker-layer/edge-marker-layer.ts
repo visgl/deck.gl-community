@@ -283,16 +283,6 @@ export class EdgeMarkerLayer<DataT = unknown, ExtraPropsT extends {} = {}> exten
       target[1] = (frame.positions[index * 2 + 1] - frame.principalPoint[1]) * frame.pixelScale;
       return target;
     };
-    const getMarkerColor = (object: DataT, info: AccessorContext<DataT>): Color => {
-      const base = typeof getColor === 'function' ? getColor(object, info) : getColor;
-      const drawn = isDrawn(getFrame().states[info.index]);
-      color[0] = base[0];
-      color[1] = base[1];
-      color[2] = base[2];
-      color[3] = drawn ? (base[3] ?? 255) : 0;
-      return color;
-    };
-
     const icons = new EdgeIconLayer(this.getSubLayerProps({id: 'icons'}), {
       data,
       iconAtlas,
@@ -313,7 +303,8 @@ export class EdgeMarkerLayer<DataT = unknown, ExtraPropsT extends {} = {}> exten
         const size = state === EdgeMarkerState.ON_SCREEN ? onScreenIconSize : edgeIconSize;
         return size * frame.pixelScale;
       },
-      getColor: getMarkerColor
+      // A hidden icon has size 0, so it keeps its color.
+      getColor
     });
 
     if (!getLabel) {
@@ -381,7 +372,7 @@ export class EdgeMarkerLayer<DataT = unknown, ExtraPropsT extends {} = {}> exten
       positions: Float64Array.from(positions),
       labelLengths: getLabel ? Float32Array.from(labelLengths) : null,
       count: positions.length / 3,
-      frame: null,
+      // Keep the frame: its arrays are reused. The new positions array invalidates its cache.
       frameViewport: null
     });
   }

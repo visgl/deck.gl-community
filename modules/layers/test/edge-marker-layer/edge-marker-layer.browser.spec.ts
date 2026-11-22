@@ -158,9 +158,22 @@ describe('EdgeMarkerLayer rendering', () => {
 
   it('hides targets outside the distance range', async () => {
     const target: Target = {position: [0, 0, 0]};
-    const pixels = await renderLoaded(CENTER, makeLayer([target], {maxDistance: 10}));
-    // Nothing anywhere: a hidden marker has no screen position.
+    const label = {getLabel: () => 'T1', labelColor: [255, 0, 0, 255] as const};
+    const pixels = await renderLoaded(CENTER, makeLayer([target], {maxDistance: 10, ...label}));
+    // Nothing anywhere: a hidden marker draws neither its icon nor its label.
     expect(countRed(pixels, SIZE / 2, SIZE / 2, SIZE)).toBe(0);
+  });
+
+  it('draws the label of a visible marker', async () => {
+    // Control for the test above: with a transparent icon, only the red label can draw.
+    const target: Target = {position: [0, 0, 0]};
+    const layer = makeLayer([target], {
+      getColor: [0, 0, 0, 0],
+      getLabel: () => 'T1',
+      labelColor: [255, 0, 0, 255]
+    });
+    const pixels = await renderLoaded(CENTER, layer);
+    expect(countRed(pixels, SIZE / 2, SIZE / 2, SIZE)).toBeGreaterThan(10);
   });
 
   it('draws markers at their pixel size', async () => {

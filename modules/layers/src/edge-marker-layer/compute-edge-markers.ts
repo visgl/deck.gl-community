@@ -62,7 +62,31 @@ export type EdgeMarkerFrame = {
    * deck.gl billboards size pixels for the focal plane, and the anchor is just in front of it.
    */
   pixelScale: number;
+  /** Common-space positions, reused while the world-to-common mapping stays the same. */
+  projectionCache: EdgeMarkerProjectionCache | null;
 };
+
+/**
+ * Common-space positions of the targets. In MapView, GlobeView and FirstPersonView, the mapping
+ * from world to common space does not depend on the camera, except for the altitude scale in
+ * Web Mercator. A pan, zoom or turn then needs no `projectPosition` call per target.
+ */
+export type EdgeMarkerProjectionCache = {
+  source: ArrayLike<number>;
+  count: number;
+  /** projectPosition of the probe points, at z = 0 and z = 1. */
+  signature: number[];
+  /** True when z maps to the same common-space vector at every position (not in GlobeView). */
+  uniformZ: boolean;
+  /** Common positions. With `uniformZ`, the positions at z = 0. */
+  common: Float64Array;
+};
+
+const PROBES = [
+  [0, 0],
+  [30, 30],
+  [-60, -45]
+];
 
 export const DEFAULT_EDGE_MARKER_OPTIONS: EdgeMarkerOptions = {
   margins: {top: 24, right: 24, bottom: 24, left: 24},
@@ -89,7 +113,8 @@ export function createEdgeMarkerFrame(count: number, frame?: EdgeMarkerFrame): E
     distances: new Float64Array(count),
     principalPoint: [0, 0],
     anchor: [0, 0, 0],
-    pixelScale: 1
+    pixelScale: 1,
+    projectionCache: null
   };
 }
 
@@ -155,12 +180,19 @@ export function computeEdgeMarkers(
   const globeRadius = viewport instanceof GlobeViewport ? getGlobeRadius(viewport) : 0;
   const {positions: outPositions, angles, states, distances} = frame;
 
+  const {common, uniformZ, dz} = getCommonPositions(viewport, positions, count, frame);
+  const p = [0, 0, 0];
+
   for (let i = 0; i < count; i++) {
-    const p = viewport.projectPosition([
-      positions[i * 3],
-      positions[i * 3 + 1],
-      positions[i * 3 + 2] || 0
-    ]);
+    p[0] = common[i * 3];
+    p[1] = common[i * 3 + 1];
+    p[2] = common[i * 3 + 2];
+    if (uniformZ) {
+      const z = positions[i * 3 + 2] || 0;
+      p[0] += z * dz[0];
+      p[1] += z * dz[1];
+      p[2] += z * dz[2];
+    }
     const dx0 = p[0] - camera[0];
     const dy0 = p[1] - camera[1];
     const dz0 = p[2] - camera[2];
@@ -264,6 +296,61 @@ function getAxisAnchor(viewport: Viewport): {anchor: number[]; pixelScale: numbe
   const anchor = [camera[0] + fx * t, camera[1] + fy * t, camera[2] + fz * t];
   const anchorW = m[3] * anchor[0] + m[7] * anchor[1] + m[11] * anchor[2] + m[15];
   return {anchor, pixelScale: anchorW / focalW};
+}
+
+/** Common-space positions from the cache, or projected again when the mapping changed. */
+function getCommonPositions(
+  viewport: Viewport,
+  positions: ArrayLike<number>,
+  count: number,
+  frame: EdgeMarkerFrame
+): {common: Float64Array; uniformZ: boolean; dz: number[]} {
+  const signature: number[] = [];
+  for (const [x, y] of PROBES) {
+    signature.push(...viewport.projectPosition([x, y, 0]), ...viewport.projectPosition([x, y, 1]));
+  }
+  // z is uniform when (p(z=1) - p(z=0)) is the same vector at every probe.
+  const dz = [
+    signature[3] - signature[0],
+    signature[4] - signature[1],
+    signature[5] - signature[2]
+  ];
+  let uniformZ = true;
+  for (let k = 6; k < signature.length; k += 6) {
+    for (let axis = 0; axis < 3; axis++) {
+      const probeDz = signature[k + 3 + axis] - signature[k + axis];
+      if (Math.abs(probeDz - dz[axis]) > 1e-9 * (Math.abs(dz[axis]) + 1e-300)) uniformZ = false;
+    }
+  }
+  // With a uniform z, only the z = 0 positions must match: the z scale can change.
+  const key = uniformZ ? signature.filter((_, k) => k % 6 < 3) : signature;
+
+  const cache = frame.projectionCache;
+  if (
+    cache &&
+    cache.source === positions &&
+    cache.count === count &&
+    cache.uniformZ === uniformZ &&
+    cache.signature.length === key.length &&
+    cache.signature.every((value, k) => value === key[k])
+  ) {
+    return {common: cache.common, uniformZ, dz};
+  }
+
+  const common =
+    cache && cache.common.length >= count * 3 ? cache.common : new Float64Array(count * 3);
+  const world = [0, 0, 0];
+  for (let i = 0; i < count; i++) {
+    world[0] = positions[i * 3];
+    world[1] = positions[i * 3 + 1];
+    world[2] = uniformZ ? 0 : positions[i * 3 + 2] || 0;
+    const c = viewport.projectPosition(world);
+    common[i * 3] = c[0];
+    common[i * 3 + 1] = c[1];
+    common[i * 3 + 2] = c[2];
+  }
+  frame.projectionCache = {source: positions, count, signature: key, uniformZ, common};
+  return {common, uniformZ, dz};
 }
 
 function getGlobeRadius(viewport: Viewport): number {

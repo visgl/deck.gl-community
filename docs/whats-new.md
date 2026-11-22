@@ -2,6 +2,12 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## v10.0.0-alpha.5
+
+- **layers:** experimental `EdgeMarkerLayer` shows targets as rings inside the viewport
+  margins and docks arrows for targets outside the margins, behind the camera, or beyond
+  the globe horizon. [EdgeMarkerLayer reference](./modules/layers/api-reference/edge-marker-layer.md)
+
 ## v10.0.0-alpha.4
 
 - **react:** [`DeckCanvas`](./modules/react/api-reference/deck-canvas.md) attaches several

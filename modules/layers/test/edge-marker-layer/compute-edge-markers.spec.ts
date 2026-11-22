@@ -406,3 +406,82 @@ describe('computeEdgeMarkers options', () => {
     expect(checked).toBeGreaterThan(20);
   });
 });
+
+describe('computeEdgeMarkers projection cache', () => {
+  const moves: Record<string, (k: number) => Viewport> = {
+    // Latitude changes the Web Mercator altitude scale: the cache must keep only z = 0.
+    map: k =>
+      new WebMercatorViewport({
+        width: WIDTH,
+        height: HEIGHT,
+        longitude: -122.4 + k * 0.01,
+        latitude: 37.8 + k * 0.2,
+        zoom: 12 - k * 0.1,
+        pitch: 60,
+        bearing: 30 + k * 5
+      }),
+    globe: k =>
+      new GlobeViewport({
+        width: WIDTH,
+        height: HEIGHT,
+        longitude: 10 + k * 3,
+        latitude: 40 - k,
+        zoom: 1.5
+      }),
+    'first-person': k =>
+      new FirstPersonViewport({
+        width: WIDTH,
+        height: HEIGHT,
+        longitude: -122.4,
+        latitude: 37.8 + k * 0.001,
+        position: [0, 0, 120],
+        bearing: 45 + k * 7
+      })
+  };
+
+  it.each(Object.keys(moves))('gives the same result as a fresh frame in the %s view', name => {
+    const targets = makeTargetsAroundCamera(moves[name](0), 300, 17);
+    // Altitudes far from 0, so that a stale altitude scale shows.
+    for (let i = 0; i < 300; i++) targets[i * 3 + 2] += 5000;
+    let reused;
+    for (let k = 0; k < 12; k++) {
+      const viewport = moves[name](k);
+      reused = computeEdgeMarkers(viewport, targets, 300, OPTIONS, reused);
+      const fresh = computeEdgeMarkers(viewport, targets, 300, OPTIONS);
+      expect(Array.from(reused.states.subarray(0, 300))).toEqual(Array.from(fresh.states));
+      expect(Array.from(reused.positions.subarray(0, 600))).toEqual(Array.from(fresh.positions));
+      expect(Array.from(reused.angles.subarray(0, 300))).toEqual(Array.from(fresh.angles));
+    }
+  });
+
+  it('projects again when the viewport projection changes', () => {
+    // The built-in geospatial views project z = 0 the same way for every camera. A custom
+    // viewport may not: here the common space shifts with the viewport.
+    // Viewports are frozen after construction, so the shift comes from a factory closure.
+    const makeShifted = (shift: number) =>
+      new (class extends WebMercatorViewport {
+        override projectPosition(xyz: number[]): [number, number, number] {
+          const [x, y, z] = super.projectPosition(xyz);
+          return [x + shift, y, z];
+        }
+      })({width: WIDTH, height: HEIGHT, longitude: -122.4, latitude: 37.8, zoom: 12});
+    const targets = makeTargetsAroundCamera(makeShifted(0), 100, 3);
+    const frame = computeEdgeMarkers(makeShifted(0), targets, 100, OPTIONS);
+    const shifted = makeShifted(0.05);
+    computeEdgeMarkers(shifted, targets, 100, OPTIONS, frame);
+    const fresh = computeEdgeMarkers(shifted, targets, 100, OPTIONS);
+    expect(Array.from(frame.positions.subarray(0, 200))).toEqual(Array.from(fresh.positions));
+  });
+
+  it('projects again when the positions change', () => {
+    const viewport = VIEWPORTS.map();
+    const a = makeTargetsAroundCamera(viewport, 100, 1);
+    const b = makeTargetsAroundCamera(viewport, 100, 2);
+    const frame = computeEdgeMarkers(viewport, a, 100, OPTIONS);
+    const first = frame.positions.slice(0, 200);
+    computeEdgeMarkers(viewport, b, 100, OPTIONS, frame);
+    const fresh = computeEdgeMarkers(viewport, b, 100, OPTIONS);
+    expect(Array.from(frame.positions.subarray(0, 200))).toEqual(Array.from(fresh.positions));
+    expect(Array.from(frame.positions.subarray(0, 200))).not.toEqual(Array.from(first));
+  });
+});
