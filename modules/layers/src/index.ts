@@ -59,3 +59,17 @@ export type {SplatSource} from './splat-layer/splat-source';
 export {createSplatHierarchy} from './splat-layer/splat-hierarchy';
 export type {SplatHierarchy, SplatHierarchyLevel} from './splat-layer/splat-hierarchy';
 export type {SplatDataInput, PreparedSplatData, SplatInstance} from './splat-layer/splat-input';
+
+export {EdgeMarkerLayer} from './edge-marker-layer/edge-marker-layer';
+export type {EdgeMarkerLayerProps} from './edge-marker-layer/edge-marker-layer';
+export {
+  computeEdgeMarkers,
+  createEdgeMarkerFrame,
+  EdgeMarkerState,
+  DEFAULT_EDGE_MARKER_OPTIONS
+} from './edge-marker-layer/compute-edge-markers';
+export type {
+  EdgeMarkerFrame,
+  EdgeMarkerMargins,
+  EdgeMarkerOptions
+} from './edge-marker-layer/compute-edge-markers';
