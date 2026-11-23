@@ -116,11 +116,6 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/react',
       items: ['react/multi-canvas']
-    },
-    {
-      type: 'category',
-      label: '@deck.gl-community/react-fiber',
-      items: ['react-fiber/overview']
     }
   ]
 };

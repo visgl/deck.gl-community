@@ -93,11 +93,6 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@deck.gl/core',
     '@deck.gl/layers',
     '@deck.gl/mapbox',
-    // The react-fiber wrapper tests check instances against these, so each must share the
-    // pre-bundled @deck.gl/core instead of loading its own copy.
-    '@deck.gl/aggregation-layers',
-    '@deck.gl/geo-layers',
-    '@deck.gl/widgets',
     '@luma.gl/engine',
     '@luma.gl/core/webgl',
     '@luma.gl/core/webgpu',
@@ -155,8 +150,7 @@ const CONFIG = defineConfig({
             'dev/**/dist/**',
             'modules/**/*.browser.{test,spec}.{js,ts}',
             'dev/**/*.browser.{test,spec}.{js,ts}',
-            'modules/widgets/src/widget-panels/toolbar-widget.test.ts',
-            'modules/react-fiber/src/reconciler/**'
+            'modules/widgets/src/widget-panels/toolbar-widget.test.ts'
           ],
           browser: {
             enabled: false
