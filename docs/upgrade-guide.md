@@ -59,10 +59,10 @@ set `loadOptions: {dot: {shape: 'plain-graph-data'}}`.
 
 ### React Fiber
 
-Import components for deck.gl's layers, views, widgets and effects from the React Fiber subpaths,
-such as `ScatterplotLayer` from `@deck.gl-community/react-fiber/layers`. The types need TypeScript
-5.3 or later. The [React Fiber upgrade guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react)
-lists the changes from `@deck.gl/react`.
+`@deck.gl-community/react-fiber` is removed. The renderer moved to deck.gl, where it is
+`@deck.gl/react` from v10. Change the imports from `@deck.gl-community/react-fiber` to
+`@deck.gl/react`, with the same subpaths, such as `ScatterplotLayer` from `@deck.gl/react/layers`.
+deck.gl's [migration guide](https://github.com/visgl/deck.gl/blob/master/docs/developer-guide/react/migrate-from-deckgl-react.md) lists the changes from the previous `@deck.gl/react`.
 
 ### Consolidated sidebars
 

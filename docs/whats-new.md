@@ -4,6 +4,8 @@ This page lists module additions and major changes in each release. For detailed
 
 ## v10.0.0-alpha.4
 
+- **react-fiber:** removed. The renderer moved to deck.gl, where it is `@deck.gl/react` from v10.
+  See the [upgrade guide](./upgrade-guide.md#react-fiber).
 - **react:** [`DeckCanvas`](./modules/react/api-reference/deck-canvas.md) attaches several
   React presentation canvases to one application-owned Deck, each with its own views, layers
   and widgets. Import it from `@deck.gl-community/react/deck-canvas`.
@@ -27,7 +29,7 @@ This page lists module additions and major changes in each release. For detailed
 
 - **Breaking:** adopt deck.gl `10.0.0-alpha.1`, luma.gl `10.0.0-alpha.14`,
   loaders.gl and math.gl `5.0.0-beta.8`, and probe.gl `5.0.0`.
-  Applications must update their peer dependencies together. See the [upgrade guide](./upgrade-guide.md).
+  Applications must update their peer dependencies together. See the [upgrade guide](./upgrade-guide.md#react-fiber).
 
 Gallery pages, inline documentation examples, and all 37 standalone HTML examples now share an iPhone-compatible fullscreen button.
 
@@ -44,8 +46,8 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
   The `/mapbox` and `/maplibre` roots take a `map` prop and attach their overlay to it, and `createDeckGL`
   takes an `attach` option for custom overlays.
   A new `/google-maps` root renders into a `GoogleMapsOverlay` and attaches it to the `google.maps.Map`
-  in its `map` prop. See [Using with Google Maps](/docs/modules/react-fiber/developer-guide/base-maps/using-with-google-maps).
-  See the [upgrade guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react).
+  in its `map` prop. See [Using with Google Maps](https://github.com/visgl/deck.gl/blob/master/docs/developer-guide/react/base-maps/using-with-google-maps.md).
+  See the [upgrade guide](https://github.com/visgl/deck.gl/blob/master/docs/developer-guide/react/migrate-from-deckgl-react.md).
 
 - Panels: `BoxPanelContainer.headerPanel` keeps key controls visible and mounted when an Infobox is collapsed, including pinnable boxes.
 
@@ -253,7 +255,7 @@ Released: September 7, 2026
 - **layers:** new dependency arrows, plus WebGPU support for path outlines and directional path markers.
 - **infovis-layers:** new animation, interval-block, and time-delta layers.
 - **widgets and panels:** new color legends, reusable panel components, floating dialogs, and binary and Apache Arrow data previews.
-- **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements, with a [migration guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react) for `@deck.gl/react` applications.
+- **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements, with a [migration guide](https://github.com/visgl/deck.gl/blob/master/docs/developer-guide/react/migrate-from-deckgl-react.md) for `@deck.gl/react` applications.
 - **editable-layers:** isolates edits from interleaved MapLibre/Mapbox pans, keeps `guideType` features selectable, and resumes editing after two-finger navigation.
 
 ## v9.3
