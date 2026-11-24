@@ -5,7 +5,6 @@
 import {
   type GlobeViewport,
   Layer,
-  OrbitViewport,
   type DefaultProps,
   type LayerProps,
   type Viewport
@@ -117,7 +116,7 @@ export function getClipToLocal(viewport: Viewport): Matrix4 {
       1
     ]).multiplyRight(rays);
   }
-  if (viewport instanceof OrbitViewport && viewport.orbitAxis === 'Y') {
+  if ('orbitAxis' in viewport && viewport.orbitAxis === 'Y') {
     return new Matrix4().rotateX(Math.PI / 2).multiplyRight(rays);
   }
   return rays;
