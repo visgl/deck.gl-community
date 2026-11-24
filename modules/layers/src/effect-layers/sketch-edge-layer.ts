@@ -32,6 +32,17 @@ const sketchEdge = {
   defaultUniforms: {color: [0.1, 0.1, 0.1, 1]}
 } as const satisfies ShaderModule<{}, {color: readonly [number, number, number, number]}>;
 
+const SKETCH_EDGE_PARAMETERS = {
+  depthCompare: 'less-equal',
+  depthWriteEnabled: false,
+  cullMode: 'none',
+  blend: true,
+  blendColorSrcFactor: 'src-alpha',
+  blendColorDstFactor: 'one-minus-src-alpha',
+  blendAlphaSrcFactor: 'one',
+  blendAlphaDstFactor: 'one-minus-src-alpha'
+} as const;
+
 /** Pixel-sized independent edge segments. Fill layers supply depth occlusion. */
 export class SketchEdgeLayer extends Layer<SketchEdgeLayerProps> {
   static override layerName = 'SketchEdgeLayer';
@@ -39,7 +50,8 @@ export class SketchEdgeLayer extends Layer<SketchEdgeLayerProps> {
     coordinateSystem: 'meter-offsets',
     getPolygonOffset: () => [0, 0],
     color: [35, 31, 29, 255],
-    style: {}
+    style: {},
+    parameters: SKETCH_EDGE_PARAMETERS
   };
   declare state: {model: Model; corners: Buffer};
 
@@ -81,16 +93,7 @@ export class SketchEdgeLayer extends Layer<SketchEdgeLayerProps> {
           }
         ],
         attributes: {corner: corners, segments: this.props.segments},
-        parameters: {
-          depthCompare: 'less-equal',
-          depthWriteEnabled: false,
-          cullMode: 'none',
-          blend: true,
-          blendColorSrcFactor: 'src-alpha',
-          blendColorDstFactor: 'one-minus-src-alpha',
-          blendAlphaSrcFactor: 'one',
-          blendAlphaDstFactor: 'one-minus-src-alpha'
-        }
+        parameters: SKETCH_EDGE_PARAMETERS
       });
       this.setState({model, corners});
     } catch (error) {

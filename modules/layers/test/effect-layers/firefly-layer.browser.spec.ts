@@ -7,13 +7,14 @@ import {luma, Buffer, Texture} from '@luma.gl/core';
 import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {getTestDevice} from '@luma.gl/core/test-utils';
+import {pointGlow} from '@luma.gl/shaders';
 import {expect, test} from 'vitest';
-import {FireflyLayer} from '../../src/effect-layers/index';
+import {FireflyLayer, SketchEdgeLayer} from '../../src/effect-layers/index';
 
 test.for([
   'webgpu',
   'webgl'
-] as const)('fireflies on %s animate, pick and preserve borrowed input', async (backend, context) => {
+] as const)('fireflies on %s animate, pick, reset styling and blend sketch opacity', async (backend, context) => {
   if (!(await getTestDevice(backend))) return context.skip(`${backend} unavailable`);
   const size = 64;
   const parent = document.createElement('div');
@@ -124,10 +125,42 @@ test.for([
     const layer = deck
       .layerManager!.getLayers()
       .find((candidate): candidate is FireflyLayer => candidate instanceof FireflyLayer)!;
-    const corners = layer.state.corners;
-    deck.finalize();
-    expect(corners.destroyed).toBe(true);
-    expect(points.destroyed).toBe(false);
+    expect(layer.state.model.shaderInputs.getUniformValues().pointGlow?.haloIntensity).toBe(2);
+    const replacement = layer.clone({style: {}}) as FireflyLayer;
+    deck.setProps({layers: [replacement]});
+    await readFrame();
+    expect(replacement.state.model.shaderInputs.getUniformValues().pointGlow?.haloIntensity).toBe(
+      pointGlow.defaultUniforms?.haloIntensity
+    );
+    const corners = replacement.state.corners;
+    const segments = device.createBuffer({
+      data: new Float32Array([-10, 0, 0, 10, 0, 0, 0, 42])
+    });
+    try {
+      const sketch = new SketchEdgeLayer({
+        id: 'sketch-test',
+        coordinateOrigin: [0, 0, 0],
+        segments,
+        segmentCount: 1,
+        style: {width: 4, sketch: 0},
+        color: [255, 0, 0, 255]
+      });
+      deck.setProps({layers: [sketch]});
+      const opaque = await readFrame();
+      const faintSketch = sketch.clone({opacity: 0.25});
+      deck.setProps({layers: [faintSketch]});
+      const translucent = await readFrame();
+      const redPeak = (pixels: Uint8Array) =>
+        pixels.reduce((peak, value, index) => (index % 4 === 0 ? Math.max(peak, value) : peak), 0);
+      expect(redPeak(opaque)).toBeGreaterThan(200);
+      expect(redPeak(translucent)).toBeGreaterThan(25);
+      expect(redPeak(translucent)).toBeLessThan(100);
+      expect(corners.destroyed).toBe(true);
+      expect(points.destroyed).toBe(false);
+    } finally {
+      deck.finalize();
+      segments.destroy();
+    }
   } finally {
     deck.finalize();
     framebuffer.destroy();
