@@ -143,7 +143,7 @@ export class GlowPointLayer extends Layer<GlowPointLayerProps> {
   }
   override draw({renderPass}: {renderPass: RenderPass}): void {
     this.state.model.shaderInputs.setProps({
-      pointGlow: this.props.style || {},
+      pointGlow: pointGlow.getUniforms?.(this.props.style) ?? {},
       firefly: {
         ...firefly.defaultUniforms,
         ...this.props.animation,
