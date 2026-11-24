@@ -79,6 +79,22 @@ describe('community visual layer schemas', () => {
     }
   });
 
+  it('validates SkyLayer directions, haze and exposure', () => {
+    expect(
+      parseLayer('SkyLayer', {sunDirection: [0, 1, 0.35], aerosolOpticalDepth: 0.12, exposure: 1})
+        .success
+    ).toBe(true);
+    for (const props of [
+      {sunDirection: [0, 1]},
+      {aerosolOpticalDepth: -1},
+      {aerosolOpticalDepth: 2.1},
+      {exposure: -1},
+      {exposure: 33}
+    ]) {
+      expect(parseLayer('SkyLayer', props).success).toBe(false);
+    }
+  });
+
   it('accepts finite nonnegative graph layout intervals in JSON', () => {
     for (const interval of [0, 16, 100]) {
       expect(parseLayer('GraphLayer', {layoutUpdateInterval: interval}).success).toBe(true);

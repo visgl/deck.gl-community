@@ -134,6 +134,7 @@
             },
             "items": [
               "modules/layers/api-reference/wind-effect",
+              "modules/layers/api-reference/procedural-sky-layer",
               "modules/layers/api-reference/rain-layer",
               "modules/layers/api-reference/grass-layer",
               "modules/geo-layers/api-reference/wind-field",

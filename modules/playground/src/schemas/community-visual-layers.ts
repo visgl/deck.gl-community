@@ -670,8 +670,18 @@ export const RainLayerPropsSchema = BaseLayerPropsSchema.extend({
 /** JSON configuration for RainLayer. */
 export const RainLayerSchema = defineLayer('RainLayer', RainLayerPropsSchema);
 
+/** JSON props for a procedural clear sky. */
+export const SkyLayerPropsSchema = BaseLayerPropsSchema.extend({
+  sunDirection: Vector3Schema.optional(),
+  aerosolOpticalDepth: nonnegative.max(2).optional(),
+  exposure: nonnegative.max(32).optional()
+});
+/** JSON configuration for SkyLayer. */
+export const SkyLayerSchema = defineLayer('SkyLayer', SkyLayerPropsSchema);
+
 /** All public visual, information, timeline and graph layer constructors. */
 export const CommunityVisualLayerSchemas = {
+  SkyLayer: SkyLayerSchema,
   RainLayer: RainLayerSchema,
   GrassLayer: GrassLayerSchema,
   FlameTrailLayer: FlameTrailLayerSchema,
