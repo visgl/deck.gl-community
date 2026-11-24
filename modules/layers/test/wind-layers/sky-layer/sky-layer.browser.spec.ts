@@ -62,9 +62,9 @@ test.for(['webgl', 'webgpu'] as const)(
       getFillColor: [28, 218, 64, 255],
       pickable: true
     });
-    const getLayers = (sunDirection: [number, number, number]): Layer[] => [
+    const getLayers = (sunDirection: [number, number, number], opacity = 1): Layer[] => [
       foreground,
-      new SkyLayer({id: 'sky', sunDirection})
+      new SkyLayer({id: 'sky', sunDirection, opacity})
     ];
     const errors: unknown[] = [];
     let capture: (() => void) | undefined;
@@ -130,6 +130,20 @@ test.for(['webgl', 'webgpu'] as const)(
       expect(pixel(sun, 36, 32)[0]).toBeGreaterThan(pixel(away, 36, 32)[0] + 10);
       expect(pixel(away, 36, 32)[3]).toBe(255);
       expect(pixel(away, 36, 32)[2]).toBeGreaterThan(pixel(away, 36, 32)[0]);
+      const fadedFrame = new Promise<void>((resolve, reject) => {
+        capture = resolve;
+        failCapture = reject;
+      });
+      deck.setProps({layers: getLayers([0, -1, 0.445], 0.5)});
+      await fadedFrame;
+      const faded = await readPixels(device, framebuffer, texture);
+      const [red, green, blue, alpha] = pixel(faded, 36, 32);
+      const opaque = pixel(away, 36, 32);
+      for (const [index, channel] of [red, green, blue].entries()) {
+        expect(Math.abs(channel - opaque[index] / 2)).toBeLessThanOrEqual(2);
+      }
+      expect(alpha).toBeCloseTo(128, -1);
+      expect(pixel(faded, markerX, 32)).toEqual([28, 218, 64, 255]);
       const picked = await deck.pickObjectAsync({x: markerX, y: 32});
       expect(picked?.object).toEqual(datum);
       expect(device.type).toBe(type);

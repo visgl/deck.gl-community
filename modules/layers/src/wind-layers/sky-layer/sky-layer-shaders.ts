@@ -279,6 +279,6 @@ struct VertexOutputs {
   let linear = max(light * sky.exposure * smoothstep(-0.18, 0.0, ray.z), vec3<f32>(0.0));
   let display = clamp(linear * (2.51 * linear + vec3<f32>(0.03)) /
     (linear * (2.43 * linear + vec3<f32>(0.59)) + vec3<f32>(0.14)), vec3<f32>(0.0), vec3<f32>(1.0));
-  return vec4<f32>(pow(display, vec3<f32>(1.0 / 2.2)) * sky.opacity, sky.opacity);
+  return vec4<f32>(pow(display, vec3<f32>(1.0 / 2.2)), sky.opacity);
 }
 `;

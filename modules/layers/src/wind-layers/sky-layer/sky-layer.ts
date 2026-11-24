@@ -41,7 +41,12 @@ const DEFAULT_PROPS: DefaultProps<SkyLayerProps> = {
 const BACKGROUND_PARAMETERS = {
   cullMode: 'none',
   depthCompare: 'less-equal',
-  depthWriteEnabled: false
+  depthWriteEnabled: false,
+  blend: true,
+  blendColorSrcFactor: 'src-alpha',
+  blendColorDstFactor: 'one-minus-src-alpha',
+  blendAlphaSrcFactor: 'one',
+  blendAlphaDstFactor: 'one-minus-src-alpha'
 } as const;
 
 // A coarse grid integrates clear air at the vertices. The fragment shader resolves the sun and its glow.
@@ -166,6 +171,7 @@ export class SkyLayer<ExtraProps extends {} = {}> extends Layer<
         opacity
       }
     });
+    model.setParameters({...model.parameters, ...BACKGROUND_PARAMETERS});
     model.draw(renderPass);
   }
 }
