@@ -23,7 +23,7 @@ import {
   WindLayer,
   type WindField,
   type WindStation
-} from '@deck.gl-community/geo-layers';
+} from '@deck.gl-community/layers/wind-layers';
 import {CustomPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';

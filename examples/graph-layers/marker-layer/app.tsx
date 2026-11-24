@@ -4,7 +4,7 @@
 import React, {useMemo} from 'react';
 import {createRoot} from 'react-dom/client';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {MarkerLayer, type Marker} from '@deck.gl-community/graph-layers';
 import StaticMap from 'react-map-gl/maplibre';
 

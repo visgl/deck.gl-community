@@ -10,7 +10,7 @@ import {
   type EffectContext
 } from '@deck.gl/core';
 import type {ShaderPlugin} from '@luma.gl/shaders';
-import {Matrix4} from '@math.gl/core';
+import {Matrix4} from '@math.gl/core/matrix';
 import {describe, expect, it} from 'vitest';
 import {createFieldShadowModule, FieldLightingEffect} from '../field-lighting';
 

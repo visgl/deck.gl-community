@@ -17,6 +17,7 @@ const SUPPORTED_DOC_IDS = new Set([
   'modules/layers/api-reference/skybox-layer',
   'modules/layers/api-reference/splat-layer',
   'modules/layers/api-reference/tree-layer',
+  'modules/layers/api-reference/zoom-opacity-extension',
   'modules/timeline-layers/api-reference/horizon-graph-layer',
   'modules/timeline-layers/api-reference/multi-horizon-graph-layer',
   'modules/timeline-layers/api-reference/time-axis-layer',
@@ -49,7 +50,6 @@ const NOT_APPLICABLE_DOC_ID_PATTERNS = [
 ];
 
 const MODULE_STATUS = {
-  'arrow-layers': 'supported',
   'bing-maps': 'unsupported',
   'editable-layers': 'partial',
   experimental: 'unsupported',

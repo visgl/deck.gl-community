@@ -26,7 +26,7 @@ import {
   nearestPointOnProjectedLine,
   NearestPointType
 } from '../utils';
-import WebMercatorViewport from '@math.gl/web-mercator';
+import {WebMercatorViewport} from '@math.gl/geospatial/web-mercator';
 import {lineString, point} from '@turf/helpers';
 import {cartesianCoordinateSystem} from '../coordinate-system';
 import {DEFAULT_SNAPPER} from './default-snapper';

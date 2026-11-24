@@ -15,7 +15,9 @@ import {
 
 export const AggregationOperationSchema = z.enum(['SUM', 'MEAN', 'MIN', 'MAX', 'COUNT']);
 const percentile = z.number().min(0).max(100);
+const extensionAttributes = RuntimeResourceSchema.nullable().optional();
 const weightProps = {
+  extensionAttributes,
   getPosition: PositionAccessorSchema.optional(),
   getWeight: NumberAccessorSchema.optional()
 };
@@ -74,9 +76,11 @@ export const ContourLayerPropsSchema = CompositeLayerPropsSchema.extend({
   gpuAggregation: z.boolean().optional(),
   aggregation: AggregationOperationSchema.optional(),
   contours: z.array(ContourSchema).optional(),
+  gpuGeometry: z.boolean().optional(),
   zOffset: z.number().optional()
 });
 const extrudedProps = {
+  extensionAttributes,
   ...colorProps,
   coverage: z.number().min(0).max(1).optional(),
   elevationDomain: Vector2Schema.nullable().optional(),

@@ -1,58 +1,41 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 
-import {ArrowLoader} from '@loaders.gl/tables';
-import {parseInBatches} from '@loaders.gl/core';
 import {
   DataType,
   RecordBatchReader,
   TimeUnit,
   type Field,
-  type Table,
+  type RecordBatch,
   type Vector
 } from 'apache-arrow';
 import {MAX_DATA_BYTES, MAX_DATA_ROWS, validatePlaygroundRows} from './playground-webmcp-data';
 
-// Decode through loaders.gl inside this worker, never through its remote worker fallback.
-self.onmessage = async (event: MessageEvent<Uint8Array>) => {
+// Decode IPC inside this disposable worker.
+self.onmessage = (event: MessageEvent<Uint8Array>) => {
   try {
     const bytes = event.data;
     if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_DATA_BYTES) {
       throw new Error('Invalid Arrow input');
     }
-    validateSchema(bytes);
-    // The batch API returns Arrow tables without serializing unsupported dictionary schemas.
-    const batches = await parseInBatches([bytes], ArrowLoader, {
-      worker: false,
-      arrow: {shape: 'arrow-table'}
-    });
-    const rows: Record<string, unknown>[] = [];
-    const appendRows = createRowNormalizer(rows);
-    for await (const batch of batches) {
-      if (batch.batchType !== 'data' || batch.shape !== 'arrow-table') {
-        throw new Error('Invalid Arrow result');
-      }
-      appendRows(batch.data);
+    const reader = RecordBatchReader.from(bytes);
+    try {
+      reader.open();
+      if (!reader.schema) throw new Error('Missing Arrow schema');
+      const rows: Record<string, unknown>[] = [];
+      const appendRows = createRowNormalizer(rows);
+      for (const batch of reader) appendRows(batch);
+      self.postMessage({ok: true, rows: validatePlaygroundRows(rows)});
+    } finally {
+      reader.cancel();
     }
-    self.postMessage({ok: true, rows: validatePlaygroundRows(rows)});
   } catch {
     // Parser messages can contain input values; only a fixed status crosses the worker boundary.
     self.postMessage({ok: false});
   }
 };
 
-function validateSchema(bytes: Uint8Array): void {
-  // tableFromIPC accepts some incomplete streams as empty tables; require an actual IPC schema.
-  const reader = RecordBatchReader.from(bytes);
-  try {
-    reader.open();
-    if (!reader.schema) throw new Error('Missing Arrow schema');
-  } finally {
-    reader.cancel();
-  }
-}
-
-function createRowNormalizer(rows: Record<string, unknown>[]): (table: Table) => void {
+function createRowNormalizer(rows: Record<string, unknown>[]): (batch: RecordBatch) => void {
   let nodes = 1;
   let bytes = 2;
   const encoder = new TextEncoder();
@@ -162,19 +145,19 @@ function createRowNormalizer(rows: Record<string, unknown>[]): (table: Table) =>
     return value;
   };
 
-  return table => {
+  return batch => {
     if (
-      !Number.isSafeInteger(table.numRows) ||
-      table.numRows < 0 ||
-      rows.length + table.numRows > MAX_DATA_ROWS
+      !Number.isSafeInteger(batch.numRows) ||
+      batch.numRows < 0 ||
+      rows.length + batch.numRows > MAX_DATA_ROWS
     ) {
       throw new Error('Too many rows');
     }
-    validateFields(table.schema.fields, 2);
-    const columns = table.schema.fields.map((_, index) => table.getChildAt(index)!);
-    for (let index = 0; index < table.numRows; index++) {
+    validateFields(batch.schema.fields, 2);
+    const columns = batch.schema.fields.map((_, index) => batch.getChildAt(index)!);
+    for (let index = 0; index < batch.numRows; index++) {
       if (rows.length) account(',');
-      rows.push(readFields(table.schema.fields, columns, index, 1));
+      rows.push(readFields(batch.schema.fields, columns, index, 1));
     }
   };
 }

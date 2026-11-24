@@ -1,9 +1,9 @@
+---
+deckVersion: "10.0"
+introduced: "9.0"
+---
+
 # Overview
-
-![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
-
-![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
-![WebGPU partial](https://img.shields.io/badge/webgpu-partial-orange.svg?style=flat-square)
 
 This module provides a suite of reusable layers for [deck.gl](https://deck.gl).
 The layers in this module are generic primitives that are intended to be usable in both geospatial and non-geospatial visualizations.
@@ -18,39 +18,24 @@ The deck.gl-community repository is semi-maintained. One of its goals is to coll
 npm install @deck.gl-community/layers
 ```
 
-## History
+## Package entry points
 
-Various layers developed by deck.gl maintainers that could be of use to others.
+| Import path | Use it for |
+| --- | --- |
+| `@deck.gl-community/layers/common-layers` | Paths, markers, [edge markers](./api-reference/edge-marker-layer.md) (experimental), skybox, Gaussian splats, flame trails, volumetric video, and selection pulse |
+| `@deck.gl-community/layers/geo-layers` | [Geospatial tile layers](../geo-layers/README.md) and shared tilesets |
+| `@deck.gl-community/layers/global-grid-layers` | [Global grid rendering and grid systems](../geo-layers/api-reference/global-grid.md) |
+| `@deck.gl-community/layers/wind-layers` | [Wind layers and station-data utilities](../geo-layers/developer-guide/wind-showcase.md) |
+| `@deck.gl-community/layers/tree-layers` | [Procedural trees and crops](./api-reference/tree-layer.md) |
 
-## What's New
+The package root also exports the common layers and tree renderer. The geo overview lists
+the application-installed dependencies for the H3 and A5 adapters and the wind layers.
 
-### `@deck.gl-community/layers` v0.0.0
 
-Release date: 2023
+Community layer extensions are available from `@deck.gl-community/layers/extensions`, including
+[SelectionPulseExtension](./api-reference/selection-pulse-extension.md) and
+[ZoomOpacityExtension](./api-reference/zoom-opacity-extension.md).
 
-- `TileSourceLayer`
-- `DataDrivenTile3DLayer`
-- `SkyboxLayer`
-
-## Exports
-
-- [`SplatLayer`](./api-reference/splat-layer.md): reusable prepared Gaussian renderer
-- [`TreeLayer`](./api-reference/tree-layer.md): canonical procedural tree renderer
-- [`SelectionPulseExtension`](./api-reference/selection-pulse-extension.md): GPU pulse for selected objects
-
-- [`FlameTrailLayer`](./api-reference/flame-trail-layer.md) (WebGL2 and WebGPU)
-- [`VolumetricVideoLayer`](./api-reference/volumetric-video-layer.md) (WebGL2 and WebGPU)
-- [`getVolumetricVideoHistoryBytes`](./api-reference/volumetric-video-layer.md#gpu-and-decoding)
-- `DependencyArrowLayer`
-- `PathMarkerLayer`
-- [`EdgeMarkerLayer`](./api-reference/edge-marker-layer.md) (experimental)
-- `PathOutlineLayer`
-- `SkyboxLayer`
-
-<p class="badges">
-  <img src="https://img.shields.io/badge/From-v9.3-blue.svg?style=flat-square" alt="From v9.3" />
-  <img src="https://img.shields.io/badge/stability-experimental-orange.svg?style=flat-square" alt="Experimental" />
-</p>
 
 ## Examples
 

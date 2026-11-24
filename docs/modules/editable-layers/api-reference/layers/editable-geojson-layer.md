@@ -9,7 +9,7 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 The Editable GeoJSON layer accepts a [GeoJSON](http://geojson.org) `FeatureCollection` and renders the features as editable polygons, lines, and points.
 
 ```js
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import { EditableGeoJsonLayer, DrawPolygonMode } from '@deck.gl-community/editable-layers';
 
 const myFeatureCollection = {

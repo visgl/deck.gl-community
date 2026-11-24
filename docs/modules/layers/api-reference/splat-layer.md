@@ -152,4 +152,4 @@ After initialization, `layer.splatStats` reports `sourceCount`, `visibleInstance
 
 ## Source
 
-[modules/layers/src/splat-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/splat-layer)
+[modules/layers/src/common-layers/splat-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/common-layers/splat-layer)

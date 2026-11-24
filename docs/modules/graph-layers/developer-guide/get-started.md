@@ -32,7 +32,7 @@ TBD, we've just started a reboot to update dependencies and modernize the codeba
 
 ## Get Started
 ```js
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {GraphLayer, D3ForceLayout} from '@deck.gl-community/graph-layers';
 
 const SAMPLE_GRAPH = {

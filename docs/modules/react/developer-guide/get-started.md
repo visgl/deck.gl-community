@@ -4,7 +4,7 @@ HTML overlays from this package have moved to the **@deck.gl-community/widgets**
 run inside deck.gl's widget system. Use the widget equivalents with Preact-rendered items:
 
 ```tsx
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {h} from 'preact';
 import {HtmlOverlayItem, HtmlOverlayWidget} from '@deck.gl-community/widgets';
 

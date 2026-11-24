@@ -48,7 +48,7 @@ classic per-pixel point renderer for custom extensions.
 Run the opt-in benchmark from the repository root:
 
 ```sh
-VITE_VOLUMETRIC_VIDEO_BENCHMARK=1 GITHUB_ACTIONS=true yarn test-headless modules/layers/test/volumetric-video-layer/performance.browser.spec.ts
+VITE_VOLUMETRIC_VIDEO_BENCHMARK=1 GITHUB_ACTIONS=true yarn test-headless modules/layers/test/common-layers/volumetric-video-layer/performance.browser.spec.ts
 ```
 
 `GITHUB_ACTIONS=true` selects installed Chrome using the repository's test config;

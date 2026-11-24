@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {ReactElement, useMemo, useEffect} from 'react';
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {OrthographicView, type OrthographicViewState} from '@deck.gl/core';
 import {TimelineLayer} from '@deck.gl-community/timeline-layers';
 import {useTimelineControls, TimelineControls} from './demo-controls';

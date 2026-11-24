@@ -6,7 +6,7 @@ const SOURCE_CRS = await projectionEngine.getCRS('EPSG:4326');
 
 import {test, expect} from 'vitest';
 import {WebMercatorViewport, OrthographicViewport} from '@deck.gl/core';
-import {Matrix4} from '@math.gl/core';
+import {Matrix4} from '@math.gl/core/matrix';
 import {EditableGeoJsonLayer} from '../../../src/editable-layers/editable-geojson-layer';
 import {getClosestSnapTargetHandle} from '../../../src/edit-modes/snapping/snapping-utils';
 import {createFeatureCollectionProps} from '../test-utils';

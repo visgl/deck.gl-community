@@ -17,7 +17,7 @@ the camera, or beyond the globe horizon. The arrow points toward the target.
 ## Usage
 
 ```ts
-import {EdgeMarkerLayer} from '@deck.gl-community/layers';
+import {EdgeMarkerLayer} from '@deck.gl-community/layers/common-layers';
 
 const layer = new EdgeMarkerLayer({
   id: 'edge-markers',

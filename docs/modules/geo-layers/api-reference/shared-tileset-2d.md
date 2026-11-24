@@ -21,12 +21,12 @@ See the [SharedTile2DLayer example](/examples/geo-layers/shared-tile-2d-layer).
 ## Installation
 
 ```bash
-npm install @deck.gl-community/geo-layers
+npm install @deck.gl-community/layers
 ```
 
 ```ts
-import {SharedTileset2D} from '@deck.gl-community/geo-layers/tileset';
-import type {SharedTileset2DProps} from '@deck.gl-community/geo-layers/tileset';
+import {SharedTileset2D} from '@deck.gl-community/layers/geo-layers/tileset';
+import type {SharedTileset2DProps} from '@deck.gl-community/layers/geo-layers/tileset';
 
 const tileset = new SharedTileset2D<DataT>(props as SharedTileset2DProps<DataT>);
 ```
@@ -129,7 +129,7 @@ Current subsets of cached tiles that are loading or not yet loaded.
 
 #### `stats` {/* #stats */}
 
-Live [`Stats`](https://github.com/visgl/probe.gl/tree/master/modules/stats) object from `@probe.gl/stats`.
+Live [`Stats`](https://github.com/visgl/probe.gl/tree/master/modules/stats) object from `probe.gl/stats`.
 
 The shared tileset currently populates:
 
@@ -178,4 +178,4 @@ If a `SharedTile2DLayer` receives a `SharedTileset2D` instance through `data`, t
 
 ## Source
 
-[modules/geo-layers/src/tileset](https://github.com/visgl/deck.gl-community/tree/main/modules/geo-layers/src/tileset)
+[modules/layers/src/geo-layers/tileset](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/geo-layers/tileset)

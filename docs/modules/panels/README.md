@@ -1,6 +1,9 @@
-# Overview
+---
+deckVersion: "10.0"
+introduced: "9.3"
+---
 
-![From v9.3](https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square)
+# Overview
 
 `@deck.gl-community/panels` builds inspectors, settings, editors, and application chrome
 around a visualization. Use it with any canvas or DOM renderer; deck.gl is optional.

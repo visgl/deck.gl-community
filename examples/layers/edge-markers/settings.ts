@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {EdgeMarkerLayerProps} from '@deck.gl-community/layers';
+import type {EdgeMarkerLayerProps} from '@deck.gl-community/layers/common-layers';
 import type {SettingsSchema} from '@deck.gl-community/panels';
 import type {ViewMode} from './scene';
 

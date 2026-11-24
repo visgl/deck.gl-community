@@ -6,10 +6,13 @@ import * as layers from '@deck.gl/layers';
 import * as aggregation from '@deck.gl/aggregation-layers';
 import * as geo from '@deck.gl/geo-layers';
 import * as mesh from '@deck.gl/mesh-layers';
-import * as arrow from '@deck.gl-community/arrow-layers';
 import * as editable from '@deck.gl-community/editable-layers';
 import * as experimental from '@deck.gl-community/experimental';
-import * as communityGeo from '@deck.gl-community/geo-layers';
+import * as communityGeo from '@deck.gl-community/layers/geo-layers';
+import {H3Grid} from '@deck.gl-community/layers/global-grid-layers/h3';
+import {A5Grid} from '@deck.gl-community/layers/global-grid-layers/a5';
+import * as communityWind from '@deck.gl-community/layers/wind-layers';
+import * as communityGrids from '@deck.gl-community/layers/global-grid-layers';
 import * as graph from '@deck.gl-community/graph-layers';
 import * as infovis from '@deck.gl-community/infovis-layers';
 import * as communityLayers from '@deck.gl-community/layers';
@@ -28,10 +31,11 @@ const LAYERS = Object.fromEntries(
     ...aggregation,
     ...geo,
     ...mesh,
-    ...arrow,
     ...editable,
     ...experimental,
     ...communityGeo,
+    ...communityWind,
+    ...communityGrids,
     ...graph,
     ...infovis,
     ...communityLayers,
@@ -62,11 +66,11 @@ export function createPlaygroundRegistry(
           ([name, value]) => name.endsWith('Mode') && typeof value === 'function'
         )
       ),
-      A5Grid: communityGeo.A5Grid,
-      H3Grid: communityGeo.H3Grid,
-      S2Grid: communityGeo.S2Grid,
-      GeohashGrid: communityGeo.GeohashGrid,
-      QuadkeyGrid: communityGeo.QuadkeyGrid,
+      A5Grid,
+      H3Grid,
+      S2Grid: communityGrids.S2Grid,
+      GeohashGrid: communityGrids.GeohashGrid,
+      QuadkeyGrid: communityGrids.QuadkeyGrid,
       DOTLoader: DOTLoaderWithParser,
       SimpleLayout: new graph.SimpleLayout(),
       ...constants

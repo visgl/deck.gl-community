@@ -19,7 +19,6 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "paths": {
-      "@deck.gl-community/arrow-layers": ["./modules/arrow-layers/src"],
       "@deck.gl-community/bing-maps": ["./modules/bing-maps/src"],
       "@deck.gl-community/leaflet": ["./modules/leaflet/src"],
       "@deck.gl-community/editable-layers": ["./modules/editable-layers/src"],
@@ -27,12 +26,10 @@
       "@deck.gl-community/panels": ["./modules/panels/src"],
       "@deck.gl-community/playground": ["./modules/playground/src"],
       "@deck.gl-community/widgets": ["./modules/widgets/src"],
+      "@deck.gl-community/layers/*": ["./modules/layers/src/*"],
       "@deck.gl-community/layers": ["./modules/layers/src"],
-      "@deck.gl-community/geo-layers": ["./modules/geo-layers/src"],
       "@deck.gl-community/infovis-layers": ["./modules/infovis-layers/src"],
       "@deck.gl-community/react": ["./modules/react/src"],
-      "@deck.gl-community/react-fiber": ["./modules/react-fiber/src/dom"],
-      "@deck.gl-community/react-fiber/*": ["./modules/react-fiber/src/*"],
       "@deck.gl-community/template": ["./modules/template/src"],
       "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"],
       "@deck.gl-community/timeline-layers": ["./modules/timeline-layers/src"]

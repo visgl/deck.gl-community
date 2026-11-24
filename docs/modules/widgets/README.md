@@ -1,6 +1,9 @@
-# Overview
+---
+deckVersion: "10.0"
+introduced: "9.2"
+---
 
-![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+# Overview
 
 This package bundles widgets that integrate with deck.gl's built-in widget system. Widgets are small UI controls that the `Deck` class can mount in a view to manipulate the current view state.
 
@@ -30,7 +33,7 @@ npm install @deck.gl-community/widgets
 ## Usage
 
 ```tsx
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {OrthographicView} from '@deck.gl/core';
 import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
 

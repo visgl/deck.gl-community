@@ -4,7 +4,7 @@
 
 import {Deck, type DeckProps, type ViewStateChangeParameters} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {EdgeMarkerLayer, EdgeMarkerState} from '@deck.gl-community/layers';
+import {EdgeMarkerLayer, EdgeMarkerState} from '@deck.gl-community/layers/common-layers';
 import {SettingsPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';

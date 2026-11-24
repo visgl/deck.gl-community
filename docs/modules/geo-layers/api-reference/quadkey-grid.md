@@ -9,7 +9,7 @@
 ## Usage
 
 ```ts
-import {GlobalGridLayer, QuadkeyGrid} from '@deck.gl/geo-layers';
+import {GlobalGridLayer, QuadkeyGrid} from '@deck.gl-community/layers/global-grid-layers';
 
 const layer = new GlobalGridLayer({
   id: 'quadkey-grid',

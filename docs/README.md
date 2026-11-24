@@ -1,13 +1,20 @@
 # Introduction
 
-<p align="right">
-  <a href="https://www.typescriptlang.org/">
-    <img src="https://img.shields.io/badge/typescript-6.0.3-3178c6.svg?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 6.0.3" />
-  </a>
+<p className="badges introduction-badges">
+  <a href="https://github.com/visgl/deck.gl-community/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT license" height="20" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/6.0.3-3178c6?style=flat-square&amp;logo=typescript&amp;logoColor=white" alt="TypeScript 6.0.3" height="20" /></a>
+  <a href="https://www.npmjs.com/package/@deck.gl-community/layers"><img src="https://img.shields.io/npm/v/@deck.gl-community/layers?style=flat-square&amp;color=8064a2" alt="Latest layers release" height="20" /></a>
+  <a href="https://www.npmjs.com/package/@deck.gl-community/editable-layers"><img src="https://img.shields.io/npm/dm/@deck.gl-community/editable-layers?style=flat-square&amp;label=downloads&amp;color=8064a2" alt="Monthly downloads for @deck.gl-community/editable-layers" height="20" /></a>
+  <a href="https://github.com/visgl/deck.gl-community"><img src="https://img.shields.io/github/stars/visgl/deck.gl-community?style=flat-square&amp;label=%E2%98%85&amp;logo=github&amp;logoColor=white&amp;color=24292f&amp;labelColor=24292f" alt="GitHub stars" height="20" /></a>
+  <a href="https://github.com/visgl/deck.gl-community/graphs/contributors"><img src="https://img.shields.io/github/contributors/visgl/deck.gl-community?style=flat-square&amp;logo=github&amp;logoColor=white&amp;color=24292f&amp;labelColor=24292f" alt="GitHub contributors" height="20" /></a>
 </p>
 
-This repository contains a collection of "community supported" modules for [deck.gl](https://deck.gl).
-deck.gl-community was originally created to provide a home for a number of excellent deck.gl add-on modules that no longer have active maintainers, with the hope that it would allow the community to keep using these add-ons, and that community contributions would help keep them alive.
+deck.gl-community publishes add-on layers, UI components, and integrations for
+[deck.gl](https://deck.gl). See the [package index](/docs/category/packages) to find an API or check
+[WebGPU support](./webgpu.md) before choosing a rendering backend.
+
+Visit [Community](./community.md) to get help or contribute and [Attribution](./references-and-credits.md)
+for project credits and licensing.
 
 :::caution
 The deck.gl-community repo collects unofficial deck.gl modules that sometimes do not have dedicated maintainers, and can also host new tentative deck.gl modules during the incubation stage. Official vis.gl / Open Visualization maintainer support is not guaranteed. If your project depends on timely fixes, and you are not able to contribute them yourself, deck.gl-community modules may not be the right choice for you.
