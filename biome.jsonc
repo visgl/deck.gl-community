@@ -8,7 +8,6 @@
       "!**/dist/**",
       "!**/.cache/**",
       "!**/public/**",
-      "!modules/arrow-layers/**",
       "modules/**/*.js",
       "modules/**/*.jsx",
       "modules/**/*.ts",

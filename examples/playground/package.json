@@ -10,7 +10,6 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@deck.gl-community/arrow-layers": "workspace:*",
     "@deck.gl-community/editable-layers": "workspace:*",
     "@deck.gl-community/experimental": "workspace:*",
     "@deck.gl-community/graph-layers": "workspace:*",

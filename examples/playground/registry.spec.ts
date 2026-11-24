@@ -7,7 +7,6 @@ import * as layers from '@deck.gl/layers';
 import * as aggregation from '@deck.gl/aggregation-layers';
 import * as geo from '@deck.gl/geo-layers';
 import * as mesh from '@deck.gl/mesh-layers';
-import * as arrow from '@deck.gl-community/arrow-layers';
 import * as editable from '@deck.gl-community/editable-layers';
 import * as experimental from '@deck.gl-community/experimental';
 import * as communityGeo from '@deck.gl-community/layers/geo-layers';
@@ -17,7 +16,6 @@ import * as graph from '@deck.gl-community/graph-layers';
 import * as infovis from '@deck.gl-community/infovis-layers';
 import * as communityLayers from '@deck.gl-community/layers';
 import * as timeline from '@deck.gl-community/timeline-layers';
-import {tableFromArrays} from 'apache-arrow';
 import ts from 'typescript';
 import {z} from 'zod';
 import {afterAll, afterEach, expect, test, vi} from 'vitest';
@@ -33,7 +31,6 @@ const PACKAGES = {
   '@deck.gl/aggregation-layers': aggregation,
   '@deck.gl/geo-layers': geo,
   '@deck.gl/mesh-layers': mesh,
-  '@deck.gl-community/arrow-layers': arrow,
   '@deck.gl-community/editable-layers': editable,
   '@deck.gl-community/experimental': experimental,
   '@deck.gl-community/layers/geo-layers': communityGeo,
@@ -165,8 +162,6 @@ test('every public layer default prop has a schema property', () => {
       for (const prop of Object.keys(type.defaultProps)) {
         // Composition hooks are host-owned, not JSON document properties.
         if (prop.startsWith('_')) continue;
-        // GeoArrow explicitly omits binary text backgrounds from its public props.
-        if (name === '_GeoArrowTextLayer' && prop === 'background') continue;
         // BitmapLayer draws its image prop and intentionally omits inherited row data.
         if (name === 'BitmapLayer' && prop === 'data') continue;
         if (!(prop in shape)) missing.push(`${name}.${prop}`);
@@ -203,18 +198,12 @@ for (const [name, template] of Object.entries(TEMPLATES)) {
   });
 }
 
-test('host Arrow resources and edit modes resolve by reference through the shared catalog', () => {
-  const table = tableFromArrays({label: ['@@#ordinary-row-text']});
-  const labels = table.getChild('label');
-  const native = createPlaygroundResolver({
-    ...registry,
-    constants: {...registry.constants, table, labels}
-  });
+test('edit modes resolve by reference through the shared catalog', () => {
+  const native = createPlaygroundResolver(registry);
   try {
     const result = native.resolve(
       {
         layers: [
-          {id: 'labels', '@@type': '_GeoArrowTextLayer', data: '@@#table', getText: '@@#labels'},
           {
             id: 'edit',
             '@@type': 'EditableGeoJsonLayer',
@@ -226,9 +215,7 @@ test('host Arrow resources and edit modes resolve by reference through the share
       {}
     );
     const resolved = result.props.layers as Layer[];
-    expect(resolved[0].props.data).toBe(table);
-    expect((resolved[0] as arrow._GeoArrowTextLayer).props.getText).toBe(labels);
-    expect((resolved[1] as editable.EditableGeoJsonLayer).props.mode).toBe(editable.ModifyMode);
+    expect((resolved[0] as editable.EditableGeoJsonLayer).props.mode).toBe(editable.ModifyMode);
   } finally {
     native.finalize();
   }

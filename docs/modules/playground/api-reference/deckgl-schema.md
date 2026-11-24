@@ -82,9 +82,7 @@ Textures and meshes use URLs or registered class descriptors; constants can refe
 resources. `VolumetricVideoLayer` accepts an MP4/MOV URL or a registered File/Blob constant
 through `video: '@@#video'`; its completion callbacks also use host references.
 The managed renderer requires constants for live resources and does not construct nested
-`@@type` descriptors. For native GeoArrow layers, register an Arrow table as a constant and use
-`data: '@@#table'`; geometry vectors can also be registered constants. Browser-tool Arrow imports
-materialize JSON rows and do not supply native tables. A5 IDs use strings in JSON because JSON
+`@@type` descriptors. Browser-tool Arrow imports materialize JSON rows. A5 IDs use strings in JSON because JSON
 cannot represent bigint. GPU `parameters`, `loadOptions`, inline row contents, and composite
 `_subLayerProps` remain explicitly opaque JSON escape hatches. Built-in extension prop catalogs and live binary resource validation are not included.
 

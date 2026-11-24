@@ -88,14 +88,6 @@ const sidebars = {
         'widgets/widget-panels'
       ]
     },
-    // {
-    //   type: 'category',
-    //   label: '@deck.gl-community/arrow-layers',
-    //   items: [
-    //     "graph-layers/graph-viewer"
-    //   ]
-    // },
-
     {type: 'category', label: 'Vega (private)', items: ['vega/geospatial', 'vega/map-to-stacks', 'vega/mark-transitions', 'vega/unit-layouts']},
     // TODO - need BING map key
     // {

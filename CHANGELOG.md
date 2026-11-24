@@ -1,5 +1,9 @@
 # deck.gl-community CHANGELOG
 
+## Unreleased
+
+- Remove the `@deck.gl-community/arrow-layers` workspace and its playground layer registrations.
+
 ## v10.0.0-alpha.3
 
 - `TreeLayer` now preserves authored canopy hues through `getCanopyColor` and

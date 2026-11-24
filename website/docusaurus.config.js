@@ -158,7 +158,6 @@ const config = {
             '@deck.gl-community/timeline-layers': resolve('../modules/timeline-layers/src'),
             '@deck.gl-community/react': resolve('../modules/react/src'),
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
-            '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
             '@deck.gl-community/experimental': resolve('../modules/experimental/src'),
             '@deck.gl-community/panels': resolve('../modules/panels/src'),
@@ -254,7 +253,7 @@ const config = {
             // Modules using TypeScript `declare` class fields need allowDeclareFields
             {
               test: /\.[jt]sx?$/,
-              include: [resolve('../modules/layers/src'), resolve('../modules/arrow-layers/src')],
+              include: [resolve('../modules/layers/src')],
               use: [
                 {
                   loader: require.resolve('babel-loader'),

@@ -33,7 +33,6 @@ body:
     label: Module
     description: First, we need to understand which deck.gl-community module you are using.
     options:
-      - label: deck.gl-community/arrow-layers
       - label: deck.gl-community/bing-maps
       - label: deck.gl-community/editable-layers
       - label: deck.gl-community/experimental

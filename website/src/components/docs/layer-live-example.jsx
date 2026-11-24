@@ -47,11 +47,6 @@ const GRAPH_LAYER_HIGHLIGHTS = new Set([
 ]);
 
 const INFO_COPY = {
-  'arrow-layers': {
-    title: 'GeoArrow layers',
-    markdown:
-      'The Arrow layer APIs render Arrow-backed columnar data through deck.gl layer adapters. This embedded canvas keeps the docs page live while the aggregate Arrow reference remains a compact index.'
-  },
   'data-driven-tile-3d-layer': {
     title: 'DataDrivenTile3DLayer',
     markdown:
@@ -217,11 +212,8 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       if (GRAPH_LAYER_HIGHLIGHTS.has(highlight)) {
         return mountGraphLayerDocsExample(container, highlight, mountProps);
       }
-      return mountInfoDeck(
-        container,
-        INFO_COPY[highlight] ?? INFO_COPY['arrow-layers'],
-        mountProps
-      );
+      if (INFO_COPY[highlight]) return mountInfoDeck(container, INFO_COPY[highlight], mountProps);
+      throw new Error(`Unknown layer example: ${highlight}`);
   }
 }
 

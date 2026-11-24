@@ -129,7 +129,7 @@ Current subsets of cached tiles that are loading or not yet loaded.
 
 #### `stats` {/* #stats */}
 
-Live [`Stats`](https://github.com/visgl/probe.gl/tree/master/modules/stats) object from `@probe.gl/stats`.
+Live [`Stats`](https://github.com/visgl/probe.gl/tree/master/modules/stats) object from `probe.gl/stats`.
 
 The shared tileset currently populates:
 
