@@ -133,12 +133,18 @@ test.for([
       .layerManager!.getLayers()
       .find((candidate): candidate is FireflyLayer => candidate instanceof FireflyLayer)!;
     expect(layer.state.model.shaderInputs.getUniformValues().pointGlow?.haloIntensity).toBe(2);
-    const replacement = layer.clone({style: {}}) as FireflyLayer;
+    const replacement = layer.clone({style: {}, animation: {speed: 1}}) as FireflyLayer;
     deck.setProps({layers: [replacement]});
     await readFrame();
     expect(replacement.state.model.shaderInputs.getUniformValues().pointGlow?.haloIntensity).toBe(
       pointGlow.defaultUniforms?.haloIntensity
     );
+    expect(replacement.state.model.shaderInputs.getUniformValues().firefly).toMatchObject({
+      enabled: 1,
+      radius: 8,
+      speed: 1,
+      pulse: 0.85
+    });
     const corners = replacement.state.corners;
     const segments = device.createBuffer({
       data: new Float32Array([-10, 0, 0, 10, 0, 0, 0, 42, -10, 0, 0, 10, 0, 0, 1, 17])

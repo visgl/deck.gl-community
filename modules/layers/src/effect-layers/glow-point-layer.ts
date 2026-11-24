@@ -147,6 +147,7 @@ export class GlowPointLayer extends Layer<GlowPointLayerProps> {
       pointGlow: pointGlow.getUniforms?.(this.props.style) ?? {},
       firefly: {
         ...firefly.defaultUniforms,
+        ...(this.constructor as typeof GlowPointLayer).defaultProps.animation,
         ...this.props.animation,
         time: typeof this.props.time === 'function' ? this.props.time() : (this.props.time ?? 0)
       },
