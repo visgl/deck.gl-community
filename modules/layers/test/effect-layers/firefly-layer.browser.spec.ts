@@ -10,7 +10,7 @@ import {getTestDevice} from '@luma.gl/core/test-utils';
 import {expect, test} from 'vitest';
 import {FireflyLayer} from '../../src/effect-layers/index';
 
-test.each([
+test.for([
   'webgpu',
   'webgl'
 ] as const)('fireflies on %s animate, pick and preserve borrowed input', async (backend, context) => {
