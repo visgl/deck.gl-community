@@ -14,7 +14,7 @@ import {
 import {Buffer, type Device, type Texture} from '@luma.gl/core';
 import {GPUGeometry, Model} from '@luma.gl/engine';
 import type {PhongMaterialProps, ShaderModule, ShaderPlugin} from '@luma.gl/shaders';
-import {INSTANCE_COLOR_PLUGIN} from '../../common-layers/selection-pulse-extension/selection-pulse-shaders';
+import {INSTANCE_COLOR_PLUGIN} from '../../extensions/selection-pulse-extension/selection-pulse-shaders';
 import {prepareShadowDraw} from '../../common-layers/splat-layer/splat-shadow';
 import type {TreeType} from './tree-layer';
 import {getTreeShadowWgsl, treeUnshadowedWgsl} from './tree-photoreal-shadow-wgsl';

@@ -71,6 +71,11 @@
       "types": "./dist/sky-layers/index.d.ts",
       "require": "./dist/sky-layers/index.cjs",
       "import": "./dist/sky-layers/index.js"
+    },
+    "./extensions": {
+      "types": "./dist/extensions/index.d.ts",
+      "require": "./dist/extensions/index.cjs",
+      "import": "./dist/extensions/index.js"
     }
   },
   "files": [

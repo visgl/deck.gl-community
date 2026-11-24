@@ -4,6 +4,9 @@ This page lists module additions and major changes in each release. For detailed
 
 ## v10.0.0-alpha.4
 
+- **layers:** Import [SelectionPulseExtension](./modules/layers/api-reference/selection-pulse-extension.md)
+  from `@deck.gl-community/layers/extensions`. The existing imports remain available.
+
 - **react-fiber:** removed. The renderer moved to deck.gl, where it is `@deck.gl/react` from v10.
   See the [upgrade guide](./upgrade-guide.md#react-fiber).
 - **react:** [`DeckCanvas`](./modules/react/api-reference/deck-canvas.md) attaches several
