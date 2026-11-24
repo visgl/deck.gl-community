@@ -304,7 +304,7 @@ test('flat splat inputs accept host assets, typed affine transforms and explicit
 });
 
 test('registers the exported SharedMVTLayer with its built-in playground schema', async () => {
-  const {SharedMVTLayer} = await import('../../geo-layers/src/index');
+  const {SharedMVTLayer} = await import('../../layers/src/geo-layers');
   const {createPlaygroundResolver} = await import('../src/runtime/playground-resolver');
   expect(() => createPlaygroundResolver({layers: {SharedMVTLayer}})).not.toThrow();
 });

@@ -5,7 +5,7 @@
 Decoded tiles always use normalized local coordinates. Map consumers apply a tile transform; globe consumers reuse a cached WGS84 conversion. Switching views does not invalidate decoded content or fetch a tile again while it remains cached. Each consumer retains its own rendering layers and GPU attributes.
 
 ```typescript
-import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
+import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/layers/geo-layers';
 
 const loader = new SharedMVTLayer({
   data: 'https://example.com/{z}/{x}/{y}.pbf'

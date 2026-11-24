@@ -11,7 +11,7 @@ This layer can be used to select deck.gl objects using mouse drawing.
 ```js
 import * as React from 'react';
 import ReactDOM from 'react-dom';
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import { ScatterplotLayer } from '@deck.gl/layers';
 import { SelectionLayer } from '@deck.gl-community/editable-layers';
 import { StaticMap } from 'react-map-gl';

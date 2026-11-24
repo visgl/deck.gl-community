@@ -9,7 +9,7 @@
 ## Usage
 
 ```ts
-import {GlobalGridLayer, GeohashGrid} from '@deck.gl/geo-layers';
+import {GlobalGridLayer, GeohashGrid} from '@deck.gl-community/layers/global-grid-layers';
 
 const layer = new GlobalGridLayer({
   id: 'geohash-grid',

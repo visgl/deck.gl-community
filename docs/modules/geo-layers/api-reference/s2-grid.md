@@ -9,7 +9,7 @@
 ## Usage
 
 ```ts
-import {GlobalGridLayer, S2Grid} from '@deck.gl/geo-layers';
+import {GlobalGridLayer, S2Grid} from '@deck.gl-community/layers/global-grid-layers';
 
 const layer = new GlobalGridLayer({
   id: 's2-grid',

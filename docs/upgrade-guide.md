@@ -4,6 +4,12 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+Update deck.gl to `10.0.0-alpha.2`, luma.gl to `10.0.0-beta.3`, loaders.gl to
+`5.0.0-rc.2`, math.gl to `5.0.2`, and Probe.gl to `5.0.0`. Import Web Mercator
+utilities from `@math.gl/geospatial/web-mercator`.
+
 ## v10.0.0-alpha.3
 
 ### TreeLayer canopy colors
@@ -59,10 +65,10 @@ set `loadOptions: {dot: {shape: 'plain-graph-data'}}`.
 
 ### React Fiber
 
-Import components for deck.gl's layers, views, widgets and effects from the React Fiber subpaths,
-such as `ScatterplotLayer` from `@deck.gl-community/react-fiber/layers`. The types need TypeScript
-5.3 or later. The [React Fiber upgrade guide](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react)
-lists the changes from `@deck.gl/react`.
+`@deck.gl-community/react-fiber` is removed. The renderer moved to deck.gl, where it is
+`@deck.gl/react` from v10. Change the imports from `@deck.gl-community/react-fiber` to
+`@deck.gl/react`, with the same subpaths, such as `ScatterplotLayer` from `@deck.gl/react/layers`.
+deck.gl's [migration guide](https://github.com/visgl/deck.gl/blob/master/docs/developer-guide/react/migrate-from-deckgl-react.md) lists the changes from the previous `@deck.gl/react`.
 
 ### Consolidated sidebars
 

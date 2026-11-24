@@ -32,7 +32,8 @@ import TabItem from '@theme/TabItem';
 
 ```js
 import {Deck} from '@deck.gl/core';
-import {GlobalGridLayer, A5Grid} from '@deck.gl/geo-layers';
+import {GlobalGridLayer} from '@deck.gl-community/layers/global-grid-layers';
+import {A5Grid} from '@deck.gl-community/layers/global-grid-layers/a5';
 
 const layer = new GlobalGridLayer({
   id: 'GlobalGridLayer',
@@ -67,7 +68,8 @@ new Deck({
 
 ```ts
 import {Deck, PickingInfo} from '@deck.gl/core';
-import {GlobalGridLayer, A5Grid} from '@deck.gl/geo-layers';
+import {GlobalGridLayer} from '@deck.gl-community/layers/global-grid-layers';
+import {A5Grid} from '@deck.gl-community/layers/global-grid-layers/a5';
 
 type DataType = {
   pentagon: string;
@@ -108,7 +110,8 @@ new Deck({
 ```tsx
 import React from 'react';
 import {DeckGL} from '@deck.gl/react';
-import {GlobalGridLayer, A5Grid} from '@deck.gl/geo-layers';
+import {GlobalGridLayer} from '@deck.gl-community/layers/global-grid-layers';
+import {A5Grid} from '@deck.gl-community/layers/global-grid-layers/a5';
 import type {PickingInfo} from '@deck.gl/core';
 
 type DataType = {
@@ -161,8 +164,8 @@ npm install @deck.gl/core @deck.gl/layers @deck.gl/geo-layers
 ```
 
 ```ts
-import {GlobalGridLayer} from '@deck.gl/geo-layers';
-import type {GlobalGridLayerProps} from '@deck.gl/geo-layers';
+import {GlobalGridLayer} from '@deck.gl-community/layers/global-grid-layers';
+import type {GlobalGridLayerProps} from '@deck.gl-community/layers/global-grid-layers';
 
 new GlobalGridLayer<DataT>(...props: GlobalGridLayerProps<DataT>[]);
 ```
@@ -211,4 +214,4 @@ The `GlobalGridLayer` renders the following sublayers:
 
 ## Source
 
-[modules/geo-layers/src/global-grid-layer](https://github.com/visgl/deck.gl/tree/master/modules/geo-layers/src/global-grid-layer)
+[modules/layers/src/global-grid-layers/global-grid-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/global-grid-layers/global-grid-layer)

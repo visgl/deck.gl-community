@@ -9,7 +9,7 @@ import {bearing} from '@turf/bearing';
 import {pointToLineDistance} from '@turf/point-to-line-distance';
 import {point, lineString} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
-import {WebMercatorViewport} from '@math.gl/web-mercator';
+import {WebMercatorViewport} from '@math.gl/geospatial/web-mercator';
 import {Viewport, Pick, EditHandleFeature, EditHandleType, StartDraggingEvent} from './types';
 import {
   SimpleGeometry,

@@ -4,7 +4,7 @@
 
 import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {useState, useEffect, useCallback, useMemo} from 'react';
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {MapView, TerrainController} from '@deck.gl/core';
 import {Tile3DLayer} from '@deck.gl/geo-layers';
 import {_TerrainExtension as TerrainExtension} from '@deck.gl/extensions';

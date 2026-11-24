@@ -26,6 +26,51 @@
       "types": "./dist/index.d.ts",
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
+    },
+    "./common-layers": {
+      "types": "./dist/common-layers/index.d.ts",
+      "require": "./dist/common-layers/index.cjs",
+      "import": "./dist/common-layers/index.js"
+    },
+    "./geo-layers": {
+      "types": "./dist/geo-layers/index.d.ts",
+      "require": "./dist/geo-layers/index.cjs",
+      "import": "./dist/geo-layers/index.js"
+    },
+    "./global-grid-layers": {
+      "types": "./dist/global-grid-layers/index.d.ts",
+      "require": "./dist/global-grid-layers/index.cjs",
+      "import": "./dist/global-grid-layers/index.js"
+    },
+    "./wind-layers": {
+      "types": "./dist/wind-layers/index.d.ts",
+      "require": "./dist/wind-layers/index.cjs",
+      "import": "./dist/wind-layers/index.js"
+    },
+    "./geo-layers/tileset": {
+      "types": "./dist/geo-layers/tileset/index.d.ts",
+      "require": "./dist/geo-layers/tileset/index.cjs",
+      "import": "./dist/geo-layers/tileset/index.js"
+    },
+    "./global-grid-layers/a5": {
+      "types": "./dist/global-grid-layers/a5.d.ts",
+      "require": "./dist/global-grid-layers/a5.cjs",
+      "import": "./dist/global-grid-layers/a5.js"
+    },
+    "./global-grid-layers/h3": {
+      "types": "./dist/global-grid-layers/h3.d.ts",
+      "require": "./dist/global-grid-layers/h3.cjs",
+      "import": "./dist/global-grid-layers/h3.js"
+    },
+    "./tree-layers": {
+      "types": "./dist/tree-layers/index.d.ts",
+      "require": "./dist/tree-layers/index.cjs",
+      "import": "./dist/tree-layers/index.js"
+    },
+    "./sky-layers": {
+      "types": "./dist/sky-layers/index.d.ts",
+      "require": "./dist/sky-layers/index.cjs",
+      "import": "./dist/sky-layers/index.js"
     }
   },
   "files": [
@@ -33,35 +78,63 @@
     "src"
   ],
   "scripts": {
+    "build": "node scripts/write-cjs-entry.mjs",
     "test": "vitest run",
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@loaders.gl/images": "5.0.0-beta.8",
-    "@luma.gl/shaders": "10.0.0-alpha.14",
-    "@math.gl/core": "5.0.0-beta.8",
-    "mediabunny": "^1.61.3"
+    "@loaders.gl/images": "5.0.0-rc.2",
+    "@loaders.gl/raster": "5.0.0-rc.2",
+    "@loaders.gl/tiles": "5.0.0-rc.2",
+    "@luma.gl/shaders": "10.0.0-beta.3",
+    "@math.gl/core": "5.0.2",
+    "@math.gl/geometry": "5.0.2",
+    "@math.gl/geospatial": "5.0.2",
+    "mediabunny": "^1.61.3",
+    "probe.gl": "^5.0.0"
   },
   "peerDependencies": {
-    "@deck.gl/core": "10.0.0-alpha.1",
-    "@deck.gl/extensions": "10.0.0-alpha.1",
-    "@deck.gl/geo-layers": "10.0.0-alpha.1",
-    "@deck.gl/layers": "10.0.0-alpha.1",
-    "@deck.gl/mesh-layers": "10.0.0-alpha.1",
-    "@loaders.gl/core": "5.0.0-beta.8",
-    "@luma.gl/core": "10.0.0-alpha.14",
-    "@luma.gl/engine": "10.0.0-alpha.14"
+    "@deck.gl/core": "10.0.0-alpha.2",
+    "@deck.gl/extensions": "10.0.0-alpha.2",
+    "@deck.gl/geo-layers": "10.0.0-alpha.2",
+    "@deck.gl/layers": "10.0.0-alpha.2",
+    "@deck.gl/mesh-layers": "10.0.0-alpha.2",
+    "@loaders.gl/core": "5.0.0-rc.2",
+    "@luma.gl/core": "10.0.0-beta.3",
+    "@luma.gl/engine": "10.0.0-beta.3",
+    "@math.gl/earth": "5.0.2",
+    "a5-js": "^0.5.0",
+    "delaunator": "^5.1.0",
+    "h3-js": "^4.2.1"
   },
   "devDependencies": {
-    "@deck.gl/core": "10.0.0-alpha.1",
-    "@deck.gl/extensions": "10.0.0-alpha.1",
-    "@deck.gl/geo-layers": "10.0.0-alpha.1",
-    "@deck.gl/layers": "10.0.0-alpha.1",
-    "@deck.gl/mesh-layers": "10.0.0-alpha.1",
-    "@deck.gl/test-utils": "10.0.0-alpha.1",
-    "@loaders.gl/core": "5.0.0-beta.8",
-    "@luma.gl/core": "10.0.0-alpha.14",
-    "@luma.gl/engine": "10.0.0-alpha.14",
+    "@deck.gl/core": "10.0.0-alpha.2",
+    "@deck.gl/extensions": "10.0.0-alpha.2",
+    "@deck.gl/geo-layers": "10.0.0-alpha.2",
+    "@deck.gl/layers": "10.0.0-alpha.2",
+    "@deck.gl/mesh-layers": "10.0.0-alpha.2",
+    "@deck.gl/test-utils": "10.0.0-alpha.2",
+    "@loaders.gl/core": "5.0.0-rc.2",
+    "@luma.gl/core": "10.0.0-beta.3",
+    "@luma.gl/engine": "10.0.0-beta.3",
+    "@math.gl/earth": "5.0.2",
+    "a5-js": "^0.5.0",
+    "delaunator": "^5.1.0",
+    "h3-js": "^4.2.1",
     "probe.gl": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@math.gl/earth": {
+      "optional": true
+    },
+    "a5-js": {
+      "optional": true
+    },
+    "delaunator": {
+      "optional": true
+    },
+    "h3-js": {
+      "optional": true
+    }
   }
 }

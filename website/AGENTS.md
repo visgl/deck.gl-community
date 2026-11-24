@@ -8,9 +8,9 @@ This file layers on top of `/AGENTS.md` for the Docusaurus app under `website/`.
 - Run `yarn --cwd website write-heading-ids` after adding new Markdown headings so generated anchors stay stable.
 
 ## Authoring notes
-- Docs and example sidebars are defined in `src/docs-sidebar.js` and `src/examples-sidebar.js`. Keep entries sorted and ensure new routes map to actual Markdown or example exports.
+- The docs sidebar is defined in `docs/table-of-contents.json` and loaded by `src/docs-sidebar.js`. The example sidebar is defined in `src/examples-sidebar.js`. Keep entries sorted and ensure new routes map to actual Markdown or example exports.
 - Embed interactive examples by importing from `examples/*`—ensure those examples expose an `App` export per the guidance in `examples/AGENTS.md`.
 
 ## Pitfalls and references
 - The staging/prod build script (`scripts/build.sh`) validates tokens and rebuilds gallery bundles; keep it in sync if you change build steps so deploys do not miss assets.
-- Navigation relies on IDs emitted from `docs/sidebar.json` files in the `docs/` tree. When you rename or move docs, update the mappings here and in the docs sidebars to avoid broken links during deployment.
+- Docs navigation relies on document IDs in `docs/table-of-contents.json`. When you rename or move docs, update the mappings here and in the docs sidebars to avoid broken links during deployment.

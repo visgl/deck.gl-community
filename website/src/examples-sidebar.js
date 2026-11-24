@@ -23,7 +23,7 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '@deck.gl-community/geo-layers',
+      label: '@deck.gl-community/layers/geo-layers',
       items: ['geo-layers/global-grid-layer', 'geo-layers/shared-tile-2d-layer', 'geo-layers/wind']
     },
     {
@@ -93,14 +93,6 @@ const sidebars = {
         'widgets/widget-panels'
       ]
     },
-    // {
-    //   type: 'category',
-    //   label: '@deck.gl-community/arrow-layers',
-    //   items: [
-    //     "graph-layers/graph-viewer"
-    //   ]
-    // },
-
     {type: 'category', label: 'Vega (private)', items: ['vega/geospatial', 'vega/map-to-stacks', 'vega/mark-transitions', 'vega/unit-layouts']},
     // TODO - need BING map key
     // {
@@ -119,8 +111,8 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '@deck.gl-community/react-fiber',
-      items: ['react-fiber/overview', 'react-fiber/multi-canvas']
+      label: '@deck.gl-community/react',
+      items: ['react/multi-canvas']
     }
   ]
 };

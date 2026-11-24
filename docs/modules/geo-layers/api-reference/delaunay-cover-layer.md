@@ -19,7 +19,7 @@ same as the smoothed image-based mountain surface rendered by
 ## Import
 
 ```ts
-import {DelaunayCoverLayer} from '@deck.gl-community/geo-layers';
+import {DelaunayCoverLayer} from '@deck.gl-community/layers/wind-layers';
 ```
 
 ## Example

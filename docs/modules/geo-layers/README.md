@@ -1,9 +1,9 @@
+---
+deckVersion: "10.0"
+introduced: "9.1"
+---
+
 # Overview
-
-![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
-
-![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square)
-![WebGPU partially supported](https://img.shields.io/badge/webgpu-partial-yellow.svg?style=flat-square)
 
 This module provides a suite of geospatial layers for [deck.gl](https://deck.gl).
 
@@ -16,8 +16,14 @@ have dedicated maintainers, so responses to issues are not guaranteed.
 ## Installation
 
 ```bash
-npm install @deck.gl-community/geo-layers
+npm install @deck.gl-community/layers
 ```
+
+Use `@deck.gl-community/layers/geo-layers` for tile layers and `/geo-layers/tileset` for the standalone tileset.
+Use `@deck.gl-community/layers/global-grid-layers` for the grid layer and built-in grids. The
+`/global-grid-layers/h3` and `/global-grid-layers/a5` adapters require the application to install
+`h3-js` and `a5-js`, respectively. For wind, install `delaunator` and import from
+`@deck.gl-community/layers/wind-layers`.
 
 ## Background
 
@@ -41,7 +47,7 @@ import {
   parseWindData,
   ParticleLayer,
   WindLayer
-} from '@deck.gl-community/geo-layers';
+} from '@deck.gl-community/layers/wind-layers';
 
 const frames = parseWindData(weatherBuffer, stations.length);
 const windField = createWindField(stations, frames);

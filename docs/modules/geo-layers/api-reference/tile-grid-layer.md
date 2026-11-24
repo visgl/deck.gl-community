@@ -22,13 +22,13 @@ It is intended to be used inside `SharedTile2DLayer.renderSubLayers`, where `pro
 ## Import
 
 ```ts
-import {TileGridLayer, type TileGridLayerProps} from '@deck.gl-community/geo-layers';
+import {TileGridLayer, type TileGridLayerProps} from '@deck.gl-community/layers/geo-layers';
 ```
 
 ## Usage
 
 ```ts
-import {SharedTile2DLayer, TileGridLayer} from '@deck.gl-community/geo-layers';
+import {SharedTile2DLayer, TileGridLayer} from '@deck.gl-community/layers/geo-layers';
 
 new SharedTile2DLayer({
   id: 'tile-grid',

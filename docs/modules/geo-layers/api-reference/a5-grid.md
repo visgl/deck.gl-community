@@ -9,7 +9,8 @@
 ## Usage
 
 ```ts
-import {GlobalGridLayer, A5Grid} from '@deck.gl/geo-layers';
+import {GlobalGridLayer} from '@deck.gl-community/layers/global-grid-layers';
+import {A5Grid} from '@deck.gl-community/layers/global-grid-layers/a5';
 
 const layer = new GlobalGridLayer({
   id: 'a5-grid',

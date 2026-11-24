@@ -49,7 +49,6 @@ const NOT_APPLICABLE_DOC_ID_PATTERNS = [
 ];
 
 const MODULE_STATUS = {
-  'arrow-layers': 'supported',
   'bing-maps': 'unsupported',
   'editable-layers': 'partial',
   experimental: 'unsupported',

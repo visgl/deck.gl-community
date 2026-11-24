@@ -14,7 +14,6 @@ const TERRAIN_ALIASES = DECK_GL_SOURCE
   : [];
 
 const ALIASES = [
-  {find: /^@deck\.gl-community\/geo-layers$/, replacement: fileURLToPath(new URL('./modules/geo-layers/src/index.ts', import.meta.url))},
   ...TERRAIN_ALIASES,
   {find: 'crypto', replacement: 'node:crypto'}, // ensure Vite/Vitest get Node's crypto
   {
@@ -38,8 +37,8 @@ const ALIASES = [
     replacement: fileURLToPath(new URL('./modules/infovis-layers/src/index.ts', import.meta.url))
   },
   {
-    find: /^@deck\.gl-community\/layers$/,
-    replacement: fileURLToPath(new URL('./modules/layers/src/index.ts', import.meta.url))
+    find: '@deck.gl-community/layers',
+    replacement: fileURLToPath(new URL('./modules/layers/src', import.meta.url))
   },
   {
     find: /^@deck\.gl-community\/timeline-layers$/,
@@ -75,6 +74,7 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
   exclude: ['maplibre-gl'],
   include: [
     '@deck.gl/mesh-layers',
+    '@deck.gl/react/legacy',
     '@loaders.gl/tables',
     'apache-arrow',
     'react',
@@ -93,11 +93,6 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@deck.gl/core',
     '@deck.gl/layers',
     '@deck.gl/mapbox',
-    // The react-fiber wrapper tests check instances against these, so each must share the
-    // pre-bundled @deck.gl/core instead of loading its own copy.
-    '@deck.gl/aggregation-layers',
-    '@deck.gl/geo-layers',
-    '@deck.gl/widgets',
     '@luma.gl/engine',
     '@luma.gl/core/webgl',
     '@luma.gl/core/webgpu',
@@ -155,8 +150,7 @@ const CONFIG = defineConfig({
             'dev/**/dist/**',
             'modules/**/*.browser.{test,spec}.{js,ts}',
             'dev/**/*.browser.{test,spec}.{js,ts}',
-            'modules/widgets/src/widget-panels/toolbar-widget.test.ts',
-            'modules/react-fiber/src/reconciler/**'
+            'modules/widgets/src/widget-panels/toolbar-widget.test.ts'
           ],
           browser: {
             enabled: false

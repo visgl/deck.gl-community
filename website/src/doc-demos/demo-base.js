@@ -1,5 +1,5 @@
 import React from 'react';
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {Map} from 'react-map-gl/maplibre';
 import {useColorMode} from '@docusaurus/theme-common';
 import {MAPBOX_STYLES} from '../constants/defaults';

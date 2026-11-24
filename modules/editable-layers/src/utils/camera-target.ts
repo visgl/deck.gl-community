@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {WebMercatorViewport} from '@deck.gl/core';
-import {WebMercatorViewport as MathWebMercatorViewport} from '@math.gl/web-mercator';
+import {WebMercatorViewport as MathWebMercatorViewport} from '@math.gl/geospatial/web-mercator';
 import type {Position} from './geojson-types';
 
 /** The projection methods shared by deck.gl and math.gl viewports. */

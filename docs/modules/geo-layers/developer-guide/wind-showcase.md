@@ -17,7 +17,7 @@ using reusable, publicly imported community layers and the original United State
 ## Install
 
 ```bash
-npm install @deck.gl/core @deck.gl-community/geo-layers
+npm install @deck.gl/core @deck.gl-community/layers delaunator
 ```
 
 ## Load and index the forecast once
@@ -28,7 +28,7 @@ import {
   parseWindData,
   type WindField,
   type WindStation
-} from '@deck.gl-community/geo-layers';
+} from '@deck.gl-community/layers/wind-layers';
 
 const dataUrl =
   'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/wind';
@@ -64,7 +64,7 @@ import {
   ParticleLayer,
   WindLayer,
   type WindField
-} from '@deck.gl-community/geo-layers';
+} from '@deck.gl-community/layers/wind-layers';
 
 function mountWindMap(container: HTMLElement, windField: WindField): () => void {
   const terrain = new ElevationLayer({

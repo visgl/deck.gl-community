@@ -98,6 +98,7 @@ const config = {
       '@docusaurus/plugin-client-redirects',
       {
         redirects: [
+          {from: '/docs/category/components', to: '/docs/category/packages'},
           {
             from: [
               '/docs/modules/basemap-layers/api-reference/basemap-layer',
@@ -153,14 +154,11 @@ const config = {
           alias: {
             '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
             '@deck.gl-community/leaflet': resolve('../modules/leaflet/src'),
-            '@deck.gl-community/geo-layers': resolve('../modules/geo-layers/src'),
             '@deck.gl-community/graph-layers': resolve('../modules/graph-layers/src'),
             '@deck.gl-community/infovis-layers': resolve('../modules/infovis-layers/src'),
             '@deck.gl-community/timeline-layers': resolve('../modules/timeline-layers/src'),
             '@deck.gl-community/react': resolve('../modules/react/src'),
-            '@deck.gl-community/react-fiber': resolve('../modules/react-fiber/src/dom'),
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
-            '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
             '@deck.gl-community/experimental': resolve('../modules/experimental/src'),
             '@deck.gl-community/panels': resolve('../modules/panels/src'),
@@ -177,7 +175,8 @@ const config = {
             '@deck.gl/layers': resolve('../node_modules/@deck.gl/layers'),
             '@deck.gl/mapbox': resolve('../node_modules/@deck.gl/mapbox'),
             '@deck.gl/mesh-layers': resolve('../node_modules/@deck.gl/mesh-layers'),
-            '@deck.gl/react': resolve('node_modules/@deck.gl/react'),
+            '@deck.gl/react$': resolve('node_modules/@deck.gl/react'),
+            '@deck.gl/react/legacy$': resolve('node_modules/@deck.gl/react/dist/legacy/index.js'),
             // Force the hoisted ESM entry. Webpack otherwise resolves to the
             // package's UMD main, which breaks default imports in vis.gl S2 code.
             long: resolve('../node_modules/long/index.js'),
@@ -256,7 +255,7 @@ const config = {
             // Modules using TypeScript `declare` class fields need allowDeclareFields
             {
               test: /\.[jt]sx?$/,
-              include: [resolve('../modules/layers/src'), resolve('../modules/arrow-layers/src')],
+              include: [resolve('../modules/layers/src')],
               use: [
                 {
                   loader: require.resolve('babel-loader'),
@@ -334,9 +333,22 @@ const config = {
             label: 'Playground'
           },
           {
-            href: 'https://github.com/visgl/deck.gl-community',
-            label: 'GitHub',
-            position: 'right'
+            className: 'navbar-badge',
+            type: 'html',
+            position: 'right',
+            value: '<a class="navbar-package-badge" href="https://www.npmjs.com/package/@deck.gl-community/layers" aria-label="Monthly downloads for the Layers package on npm" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/npm/dm/@deck.gl-community/layers?style=flat-square&amp;label=layers%20downloads" alt="" height="20" /><span>npm</span></a>'
+          },
+          {
+            className: 'navbar-badge',
+            type: 'html',
+            position: 'right',
+            value: '<a class="navbar-package-badge" href="https://github.com/visgl/deck.gl-community" aria-label="deck.gl-community on GitHub" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/github/stars/visgl/deck.gl-community?style=flat-square&amp;logo=github&amp;label=stars" alt="" height="20" /><span>GitHub</span></a>'
+          },
+          {
+            className: 'navbar-badge',
+            type: 'html',
+            position: 'right',
+            value: '<a class="navbar-openjs" href="https://openvisualization.org/" aria-label="Open Visualization at the OpenJS Foundation" target="_blank" rel="noopener noreferrer"><img class="openjs-logo-light" src="https://raw.githubusercontent.com/openjs-foundation/artwork/main/openjs_foundation/openjs_foundation-logo-horizontal-color.svg" alt="" width="86" /><img class="openjs-logo-dark" src="https://raw.githubusercontent.com/openjs-foundation/artwork/main/openjs_foundation/openjs_foundation-logo-horizontal-color-dark_background.svg" alt="" width="86" /></a>'
           }
         ]
       },

@@ -17,7 +17,7 @@ image rather than the sparse weather-station triangles.
 ## Import
 
 ```ts
-import {ElevationLayer} from '@deck.gl-community/geo-layers';
+import {ElevationLayer} from '@deck.gl-community/layers/wind-layers';
 ```
 
 ## Example
