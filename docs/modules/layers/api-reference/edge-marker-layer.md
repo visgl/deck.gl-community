@@ -4,7 +4,7 @@ title: EdgeMarkerLayer
 
 # EdgeMarkerLayer
 
-![From v10.0.0-alpha.5](https://img.shields.io/badge/from-v10.0.0--alpha.5-green.svg?style=flat-square)
+![From v10.0.0-alpha.4](https://img.shields.io/badge/from-v10.0.0--alpha.4-green.svg?style=flat-square)
 ![Experimental](https://img.shields.io/badge/stability-experimental-orange.svg?style=flat-square)
 
 `EdgeMarkerLayer` is an experimental screen-space layer for MapView, GlobeView,
