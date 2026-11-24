@@ -3,6 +3,7 @@
   "geo-layers/global-grid-layer": "/images/examples/geo-layers/global-grid-layer.jpg",
   "geo-layers/shared-tile-2d-layer": "/images/examples/geo-layers/shared-tile-2d-layer.jpg",
   "geo-layers/wind": "/images/examples/geo-layers/wind.png",
+  "experimental/ambient-occlusion": "/images/examples/experimental/ambient-occlusion.jpg",
   "graph-layers/simple-graph": "/images/examples/graph-layers/simple-graph.png",
   "graph-layers/multi-graph": "/images/examples/graph-layers/multi-graph.png",
   "graph-layers/radial": "/images/examples/graph-layers/radial.png",
