@@ -17,7 +17,10 @@
     "deck.gl"
   ],
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./src/common-layers/splat-layer/scene/*-worker.*",
+    "./dist/common-layers/splat-layer/scene/*-worker.js"
+  ],
   "types": "./dist/index.d.ts",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -76,20 +79,23 @@
       "types": "./dist/extensions/index.d.ts",
       "require": "./dist/extensions/index.cjs",
       "import": "./dist/extensions/index.js"
-    }
+    },
+    "./workers/rad": "./dist/common-layers/splat-layer/scene/rad-source-worker.js",
+    "./workers/static": "./dist/common-layers/splat-layer/scene/static-source-worker.js"
   },
   "files": [
     "dist",
     "src"
   ],
   "scripts": {
-    "build": "node scripts/write-cjs-entry.mjs",
+    "build": "node scripts/write-cjs-entry.mjs && node ../../scripts/build-splat-worker.mjs",
     "test": "vitest run",
     "test-watch": "vitest"
   },
   "dependencies": {
     "@loaders.gl/images": "5.0.0-rc.2",
     "@loaders.gl/raster": "5.0.0-rc.2",
+    "@loaders.gl/splats": "5.0.0-rc.2",
     "@loaders.gl/tiles": "5.0.0-rc.2",
     "@luma.gl/shaders": "10.0.0-beta.3",
     "@math.gl/core": "5.0.2",

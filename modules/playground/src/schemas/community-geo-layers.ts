@@ -317,10 +317,16 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
   windTime: z.number().nullable().optional()
 });
 
-/** Prepared Gaussian assets, including their hierarchies, remain host-owned constants. */
+/** Gaussian buffers remain host-owned constants; file and RAD scenes use ordinary URL data. */
 export const SplatLayerPropsSchema = CompositeLayerPropsSchema.extend({
   getSource: createAccessorSchema(ConstantSchema).optional(),
-  transparency: z.enum(['weighted', 'sorted']).optional(),
+  transparency: z.enum(['auto', 'weighted', 'sorted']).optional(),
+  workerFactory: FunctionSchema.optional(),
+  maxActiveSplats: z.number().nonnegative().optional(),
+  maxResidentSplats: z.number().positive().optional(),
+  maxConcurrentLoads: z.number().int().positive().optional(),
+  sortDomain: z.string().optional(),
+  onStatusChange: FunctionSchema.optional(),
   maxTotalSplats: z.number().nonnegative().optional(),
   getPosition: PositionAccessorSchema.optional(),
   getOrientation: createAccessorSchema(Vector3Schema).optional(),

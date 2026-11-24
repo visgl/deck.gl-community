@@ -43,3 +43,5 @@ export type {SplatSource} from './splat-layer/splat-source';
 export {createSplatHierarchy} from './splat-layer/splat-hierarchy';
 export type {SplatHierarchy, SplatHierarchyLevel} from './splat-layer/splat-hierarchy';
 export type {SplatDataInput, PreparedSplatData, SplatInstance} from './splat-layer/splat-input';
+
+export type {SplatLayerStatus} from './splat-layer/scene/rad-scene';

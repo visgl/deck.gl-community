@@ -77,6 +77,7 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@deck.gl/mesh-layers',
     '@deck.gl/react/legacy',
     '@loaders.gl/tables',
+    '@loaders.gl/splats',
     'apache-arrow',
     'react',
     'react-dom',

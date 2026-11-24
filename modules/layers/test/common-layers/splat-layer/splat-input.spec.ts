@@ -76,7 +76,7 @@ it('rejects conflicting channels, missing assets and unsupported scene inputs ex
   );
   expect(() =>
     resolveSplatInput({data: '/scene.rad' as any, getSource: DEFAULT_GET_SOURCE})
-  ).toThrow('prepared asset');
+  ).toThrow('scene assets');
   expect(resolveSplatInput({data: [], getSource: source}).data).toEqual([]);
 });
 
