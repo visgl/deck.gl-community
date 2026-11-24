@@ -139,13 +139,19 @@ Updates the props. Call `deck.redraw()` after this call.
 - WebGL 2 and WebGPU. The effect picks the GLSL or the WGSL passes from the device type. Both
   backends give the same occlusion, except for small depth differences between the two
   rasterizers.
-- On WebGPU, the effect adds a depth attachment to the deck.gl post-process buffers. The layer
-  pipelines have a depth format on WebGPU, so a draw into a buffer without depth is invalid.
-- On WebGPU, the canvas must use the `rgba8unorm` format, because the deck.gl post-process
-  buffers use it and the layer pipelines use the canvas format.
+- On WebGPU, the effect creates the deck.gl post-process buffers with a depth attachment
+  ([deck.gl#10981](https://github.com/visgl/deck.gl/issues/10981)). The layer pipelines have a
+  depth format on WebGPU, so a draw into a buffer without depth is invalid. Deck.gl keeps its
+  post-process buffers for the life of the `Deck`. If an earlier post-process effect made them
+  without depth, the effect logs a warning and passes the scene through. To use the effect on
+  WebGPU, add it before or together with the first post-process effect of the `Deck`.
 - Perspective views only. On an orthographic view the effect logs a warning and passes the scene
   through.
-- The effect uses the first viewport only.
+- One viewport only. With two or more viewports, the effect logs a warning and passes the scene
+  through. The capture, the depth reconstruction and the composite use one camera for the full
+  canvas, so the occlusion in the other viewports would be incorrect.
+- When the effect passes the scene through, deck.gl renders the frame as if the effect were not
+  there.
 - The effect draws the layers two times. The capture target has no multisampling, so the
   polygon edges lose antialiasing.
 - The effect ignores the color input of the post-process chain. Put it before other

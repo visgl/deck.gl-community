@@ -2,12 +2,20 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, MapView, OrthographicView, type Effect, type View} from '@deck.gl/core';
+import {
+  Deck,
+  MapView,
+  OrthographicView,
+  log,
+  type Effect,
+  type PostRenderOptions,
+  type View
+} from '@deck.gl/core';
 import {SolidPolygonLayer} from '@deck.gl/layers';
 import {Buffer, Texture, luma, type Device, type Framebuffer} from '@luma.gl/core';
 import {webgl2Adapter, type WebGLDevice} from '@luma.gl/core/webgl';
 import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/core/webgpu';
-import {afterEach, describe, expect, it} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import {requireWebGPUAdapter} from '../../../layers/test/common-layers/webgpu-test-utils';
 import {CORTAOEffect} from '../../src';
 
@@ -51,6 +59,21 @@ function createLayers() {
   ];
 }
 
+/**
+ * A post-process effect that returns its input buffer. Deck.gl creates its post-process buffers
+ * for it, without a depth attachment.
+ */
+function createPassThroughEffect(): Effect {
+  return {
+    id: 'pass-through',
+    props: {},
+    setup: () => {},
+    cleanup: () => {},
+    preRender: () => {},
+    postRender: ({inputBuffer}: PostRenderOptions) => inputBuffer
+  };
+}
+
 // The tests use map and orthographic views, so the view state type is not fixed.
 let deck: Deck<any> | null = null;
 let device: Device | null = null;
@@ -75,6 +98,7 @@ afterEach(async () => {
   container?.remove();
   container = null;
   errors.length = 0;
+  vi.restoreAllMocks();
 });
 
 /**
@@ -225,6 +249,11 @@ async function requireBackend(type: Backend, skip: (message: string) => void): P
   }
 }
 
+/** Spies on the deck.gl warnings without printing them. */
+function spyOnWarnings() {
+  return vi.spyOn(log, 'warn').mockImplementation(() => () => {});
+}
+
 // Software GPUs in CI compile the CORTAO shaders slowly.
 const TIMEOUT = 120000;
 
@@ -259,17 +288,74 @@ describe.each([
     await requireBackend(type, skip);
     await testOcclusion(type, effect => [effect]);
   });
+
+  it(`darkens the ground after another post-process effect on ${name}`, {
+    timeout: TIMEOUT
+  }, async ({skip}) => {
+    await requireBackend(type, skip);
+    await testOcclusion(type, effect => [createPassThroughEffect(), effect]);
+  });
+
+  it(`passes the scene through for an orthographic view on ${name}`, {
+    timeout: TIMEOUT
+  }, async ({skip}) => {
+    await requireBackend(type, skip);
+    const warn = spyOnWarnings();
+    await createDeck({
+      type,
+      effects: [new CORTAOEffect()],
+      views: new OrthographicView(),
+      viewState: {target: [0, 0, 0], zoom: 14}
+    });
+    const center: [number, number] = [SIZE / 2, SIZE / 2];
+    const {on, off} = await readPixelsWithAndWithoutEffects([center]);
+    expect(off[0][3]).toBe(255);
+    expect(on).toEqual(off);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('perspective views only'));
+    await expectNoDeviceErrors();
+  });
+
+  it(`passes the scene through for two viewports on ${name}`, {
+    timeout: TIMEOUT
+  }, async ({skip}) => {
+    await requireBackend(type, skip);
+    const warn = spyOnWarnings();
+    await createDeck({
+      type,
+      effects: [new CORTAOEffect()],
+      views: [
+        new MapView({id: 'left', width: '50%'}),
+        new MapView({id: 'right', x: '50%', width: '50%'})
+      ]
+    });
+    const base = [0, -BOX - 0.00002] as [number, number];
+    const {on, off} = await readPixelsWithAndWithoutEffects([project(base, 0), project(base, 1)]);
+    expect(off[0][3]).toBe(255);
+    expect(on).toEqual(off);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('one viewport only'));
+    await expectNoDeviceErrors();
+  });
 });
 
-it('passes the scene through for an orthographic view on WebGL 2', {timeout: TIMEOUT}, async () => {
-  await createDeck({
-    type: 'webgl',
-    effects: [new CORTAOEffect()],
-    views: new OrthographicView(),
-    viewState: {target: [0, 0, 0], zoom: 14}
-  });
-  const center: [number, number] = [SIZE / 2, SIZE / 2];
-  const {on, off} = await readPixelsWithAndWithoutEffects([center]);
+it('passes the scene through when deck.gl kept post-process buffers without depth on WebGPU', {
+  timeout: TIMEOUT
+}, async ({skip}) => {
+  await requireWebGPUAdapter(skip);
+  const warn = spyOnWarnings();
+  // An earlier post-process effect makes deck.gl create its buffers without depth. With no layers,
+  // the frame draws nothing into them, so the frame is valid.
+  await createDeck({type: 'webgpu', effects: [createPassThroughEffect()], layers: []});
+  // Draw the layers once without effects, so that the frames below do not include the first
+  // frame of the layers.
+  deck!.setProps({effects: [], layers: createLayers()});
+  deck!.redraw('test');
+  await expectNoDeviceErrors();
+
+  deck!.setProps({effects: [new CORTAOEffect()]});
+  const pixels = [project([0, -BOX - 0.00002]), project([0, -BOX * 4])];
+  const {on, off} = await readPixelsWithAndWithoutEffects(pixels);
+  await expectNoDeviceErrors();
   expect(off[0][3]).toBe(255);
   expect(on).toEqual(off);
+  expect(warn).toHaveBeenCalledWith(expect.stringContaining('post-process buffers'));
 });

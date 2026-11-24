@@ -88,6 +88,21 @@ const DEFAULT_PROPS: Required<CORTAOEffectProps> = {
   showOcclusion: false
 };
 
+/**
+ * Frame configurations that the effect does not support. For these frames, the effect removes its
+ * `postRender` callback, so deck.gl renders the frame without the effect.
+ */
+const UNSUPPORTED_FRAME_MESSAGES = {
+  multipleViewports: 'CORTAOEffect supports one viewport only. The scene passes through.',
+  notPerspective: 'CORTAOEffect supports perspective views only. The scene passes through.',
+  postProcessBuffers:
+    'CORTAOEffect needs deck.gl post-process buffers with a depth attachment on WebGPU, but the ' +
+    'existing buffers have none (deck.gl#10981). The scene passes through.'
+} as const;
+
+/** A reason why the effect does not render a frame. */
+type UnsupportedFrameReason = keyof typeof UNSUPPORTED_FRAME_MESSAGES;
+
 /** Render targets of the layer capture. They depend on the drawing buffer size. */
 type CaptureTargets = {
   width: number;
@@ -110,7 +125,9 @@ type CaptureTargets = {
  * The effect picks the backend from the device: GLSL full-screen passes on WebGL 2, and WGSL
  * compute passes on WebGPU. The WebGPU passes use real mip levels and `textureGather()`.
  *
- * Limits: perspective views only, and the first viewport only.
+ * Limits: perspective views only, and one viewport only. For other frames, the effect logs a
+ * warning one time and deck.gl renders the frame without the effect. On WebGPU, the same applies
+ * when the deck.gl post-process buffers already exist without a depth attachment.
  */
 export class CORTAOEffect implements Effect {
   /** Effect id. */
@@ -125,6 +142,8 @@ export class CORTAOEffect implements Effect {
    */
   postRender?: (options: PostRenderOptions) => Framebuffer | null;
 
+  /** The bound post-process callback. `preRender()` sets or removes `postRender` for each frame. */
+  private readonly renderPostProcessCallback: (options: PostRenderOptions) => Framebuffer | null;
   private device: Device | null = null;
   private deck: EffectContext['deck'] | null = null;
   private capturePass: LayersPass | null = null;
@@ -132,13 +151,15 @@ export class CORTAOEffect implements Effect {
   private targets: CaptureTargets | null = null;
   /** The camera of the frame that `preRender` captured, or `null` if it captured nothing. */
   private camera: CORTAOCamera | null = null;
-  private hasWarned = false;
+  /** The unsupported frame reasons that the effect has logged. It logs each reason one time. */
+  private readonly warnedReasons = new Set<UnsupportedFrameReason>();
 
   /** Creates the effect. */
   constructor(props: CORTAOEffectProps = {}) {
     this.props = {...DEFAULT_PROPS, ...props};
     this.id = this.props.id;
-    this.postRender = this.renderPostProcess.bind(this);
+    this.renderPostProcessCallback = this.renderPostProcess.bind(this);
+    this.postRender = this.renderPostProcessCallback;
   }
 
   /** The GPU backend of the passes, or `null` before `setup()`. */
@@ -184,13 +205,17 @@ export class CORTAOEffect implements Effect {
     if (options.isPicking || !this.device || !this.capturePass) {
       return;
     }
-    const viewport = options.viewports[0];
-    const camera = viewport ? getCORTAOCamera(viewport) : null;
+    // Deck.gl reads `postRender` after `preRender()`. Without it, deck.gl renders this frame
+    // directly to its target, as if the effect were not there.
+    this.postRender = undefined;
+    if (options.viewports.length !== 1) {
+      // The capture, the depth reconstruction and the composite use one camera for the full target.
+      this.warnOnce('multipleViewports');
+      return;
+    }
+    const camera = getCORTAOCamera(options.viewports[0]);
     if (!camera) {
-      if (!this.hasWarned) {
-        log.warn('CORTAOEffect supports perspective views only')();
-        this.hasWarned = true;
-      }
+      this.warnOnce('notPerspective');
       return;
     }
     const canvasContext = options.canvasContext || this.device.getDefaultCanvasContext();
@@ -198,9 +223,11 @@ export class CORTAOEffect implements Effect {
     if (width <= 0 || height <= 0) {
       return;
     }
-    if (this.device.type === 'webgpu') {
-      this.addDepthToPostProcessBuffers();
+    if (this.device.type === 'webgpu' && !this.preparePostProcessBuffers()) {
+      this.warnOnce('postProcessBuffers');
+      return;
     }
+    this.postRender = this.renderPostProcessCallback;
     const targets = this.getTargets(width, height);
     this.capturePass.render({
       ...options,
@@ -228,26 +255,47 @@ export class CORTAOEffect implements Effect {
     this.deck = null;
   }
 
+  /** Logs the message of an unsupported frame reason, one time for each reason. */
+  private warnOnce(reason: UnsupportedFrameReason): void {
+    if (!this.warnedReasons.has(reason)) {
+      this.warnedReasons.add(reason);
+      log.warn(UNSUPPORTED_FRAME_MESSAGES[reason])();
+    }
+  }
+
   /**
    * Workaround for the missing depth attachment of the deck.gl post-process buffers
    * (deck.gl#10981). With a post-process effect, deck.gl draws the layers into its first
    * post-process buffer. On WebGPU, the layer pipelines have a depth format, so a draw into a
    * buffer without depth is invalid and the frame is lost. Deck.gl creates the two buffers only
-   * when it has none, after `preRender()`. So this method creates them first, with the same color
-   * texture and a depth attachment. Deck.gl resizes and deletes them as its own.
+   * when it has none, after `preRender()`. So this method creates them first, with a depth
+   * attachment. Deck.gl resizes and deletes them as its own.
+   *
+   * Deck.gl keeps its buffers for the life of the `Deck`. If an earlier post-process effect made
+   * them without depth, this method cannot change them.
+   *
+   * @returns `true` if the buffers have the depth attachment that the layer pipelines expect.
    */
-  private addDepthToPostProcessBuffers(): void {
+  private preparePostProcessBuffers(): boolean {
     const renderer = (
       this.deck as unknown as {
         deckRenderer?: {renderBuffers?: Framebuffer[]};
       }
     )?.deckRenderer;
     const device = this.device!;
-    if (!renderer?.renderBuffers || renderer.renderBuffers.length > 0) {
-      return;
+    const renderBuffers = renderer?.renderBuffers;
+    if (!Array.isArray(renderBuffers)) {
+      // The deck.gl internals changed. The effect cannot check the buffers.
+      return false;
+    }
+    if (renderBuffers.length > 0) {
+      return renderBuffers.every(
+        framebuffer =>
+          framebuffer.depthStencilAttachment?.texture.format === device.preferredDepthFormat
+      );
     }
     for (const index of [0, 1]) {
-      renderer.renderBuffers.push(
+      renderBuffers.push(
         device.createFramebuffer({
           id: `deck-renderbuffer-${index}`,
           colorAttachments: [
@@ -262,6 +310,7 @@ export class CORTAOEffect implements Effect {
         })
       );
     }
+    return true;
   }
 
   /** Runs the CORTAO passes and the composite pass. */
