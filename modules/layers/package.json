@@ -66,6 +66,11 @@
       "types": "./dist/tree-layers/index.d.ts",
       "require": "./dist/tree-layers/index.cjs",
       "import": "./dist/tree-layers/index.js"
+    },
+    "./sky-layers": {
+      "types": "./dist/sky-layers/index.d.ts",
+      "require": "./dist/sky-layers/index.cjs",
+      "import": "./dist/sky-layers/index.js"
     }
   },
   "files": [
@@ -97,6 +102,7 @@
     "@loaders.gl/core": "5.0.0-rc.2",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
+    "@math.gl/earth": "5.0.2",
     "a5-js": "^0.5.0",
     "delaunator": "^5.1.0",
     "h3-js": "^4.2.1"
@@ -111,12 +117,16 @@
     "@loaders.gl/core": "5.0.0-rc.2",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
+    "@math.gl/earth": "5.0.2",
     "a5-js": "^0.5.0",
     "delaunator": "^5.1.0",
     "h3-js": "^4.2.1",
     "probe.gl": "^5.0.0"
   },
   "peerDependenciesMeta": {
+    "@math.gl/earth": {
+      "optional": true
+    },
     "a5-js": {
       "optional": true
     },
