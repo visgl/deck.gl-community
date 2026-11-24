@@ -76,6 +76,11 @@
       "types": "./dist/extensions/index.d.ts",
       "require": "./dist/extensions/index.cjs",
       "import": "./dist/extensions/index.js"
+    },
+    "./effect-layers": {
+      "types": "./dist/effect-layers/index.d.ts",
+      "require": "./dist/effect-layers/index.cjs",
+      "import": "./dist/effect-layers/index.js"
     }
   },
   "files": [
@@ -107,6 +112,7 @@
     "@loaders.gl/core": "5.0.0-rc.2",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
+    "@luma.gl/graph": "10.0.0-beta.3",
     "@math.gl/earth": "5.0.2",
     "a5-js": "^0.5.0",
     "delaunator": "^5.1.0",
@@ -122,6 +128,7 @@
     "@loaders.gl/core": "5.0.0-rc.2",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
+    "@luma.gl/graph": "10.0.0-beta.3",
     "@math.gl/earth": "5.0.2",
     "a5-js": "^0.5.0",
     "delaunator": "^5.1.0",
@@ -129,6 +136,9 @@
     "probe.gl": "^5.0.0"
   },
   "peerDependenciesMeta": {
+    "@luma.gl/graph": {
+      "optional": true
+    },
     "@math.gl/earth": {
       "optional": true
     },
