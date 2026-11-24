@@ -53,12 +53,12 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '@deck.gl-community/infovis-layers',
+      label: '@deck.gl-community/layers/infovis-layers',
       items: ['infovis-layers/layer-primitives']
     },
     {
       type: 'category',
-      label: '@deck.gl-community/timeline-layers',
+      label: '@deck.gl-community/layers/timeline-layers',
       items: ['timeline-layers/horizon-graph-layer', 'timeline-layers/multi-horizon-graph-layer']
     },
     {

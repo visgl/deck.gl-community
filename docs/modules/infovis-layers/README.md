@@ -3,9 +3,9 @@ deckVersion: "10.0"
 introduced: "9.1"
 ---
 
-# Overview
+# Infovis Layers
 
-This module provides a suite of layers and view helpers for [deck.gl](https://deck.gl) focused on non-geospatial visualization.
+The `@deck.gl-community/layers/infovis-layers` subpath provides a suite of layers and view helpers for [deck.gl](https://deck.gl) focused on non-geospatial visualization.
 
 Recommended example: [Infovis layer primitives](/examples/infovis-layers/layer-primitives).
 
@@ -16,8 +16,10 @@ The deck.gl-community repository is semi-maintained. One of its goals is to coll
 ## Installation
 
 ```bash
-npm install @deck.gl-community/infovis-layers
+npm install @deck.gl-community/layers
 ```
+
+Apache Arrow is an optional peer. Install `apache-arrow` when you use the Arrow UTF-8 helpers.
 
 ## History
 

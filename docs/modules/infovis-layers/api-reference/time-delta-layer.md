@@ -13,7 +13,7 @@ header label. Trace-style measurement interactions can render the header and
 viewport guides from the same start and end values.
 
 ```ts
-import {TimeDeltaLayer} from '@deck.gl-community/infovis-layers';
+import {TimeDeltaLayer} from '@deck.gl-community/layers/infovis-layers';
 
 const layer = new TimeDeltaLayer({
   id: 'time-measure',
@@ -56,4 +56,4 @@ RGBA color used by guide lines and the header label. Default: `[0, 0, 0, 255]`.
 
 ## Source
 
-[modules/infovis-layers/src/layers/time-delta-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/infovis-layers/src/layers/time-delta-layer.ts)
+[modules/layers/src/infovis-layers/layers/time-delta-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/infovis-layers/layers/time-delta-layer.ts)

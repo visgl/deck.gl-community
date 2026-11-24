@@ -141,6 +141,33 @@
             ]
           },
           {
+            "type": "category",
+            "label": "Infovis",
+            "link": {
+              "type": "doc",
+              "id": "modules/infovis-layers/README"
+            },
+            "items": [
+              "modules/infovis-layers/api-reference/animation-layer",
+              "modules/infovis-layers/api-reference/block-layer",
+              "modules/infovis-layers/api-reference/time-delta-layer"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Timeline",
+            "link": {
+              "type": "doc",
+              "id": "modules/timeline-layers/README"
+            },
+            "items": [
+              "modules/timeline-layers/api-reference/horizon-graph-layer",
+              "modules/timeline-layers/api-reference/multi-horizon-graph-layer",
+              "modules/timeline-layers/api-reference/time-axis-layer",
+              "modules/timeline-layers/api-reference/vertical-grid-layer"
+            ]
+          },
+          {
             "type": "doc",
             "label": "Tree",
             "id": "modules/layers/api-reference/tree-layer"
@@ -323,19 +350,6 @@
       },
       {
         "type": "category",
-        "label": "Infovis Layers",
-        "link": {
-          "type": "doc",
-          "id": "modules/infovis-layers/README"
-        },
-        "items": [
-          "modules/infovis-layers/api-reference/animation-layer",
-          "modules/infovis-layers/api-reference/block-layer",
-          "modules/infovis-layers/api-reference/time-delta-layer"
-        ]
-      },
-      {
-        "type": "category",
         "label": "Leaflet",
         "link": {
           "type": "doc",
@@ -473,20 +487,6 @@
               "modules/react/api-reference/deck-canvas"
             ]
           }
-        ]
-      },
-      {
-        "type": "category",
-        "label": "Timeline Layers",
-        "link": {
-          "type": "doc",
-          "id": "modules/timeline-layers/README"
-        },
-        "items": [
-          "modules/timeline-layers/api-reference/horizon-graph-layer",
-          "modules/timeline-layers/api-reference/multi-horizon-graph-layer",
-          "modules/timeline-layers/api-reference/time-axis-layer",
-          "modules/timeline-layers/api-reference/vertical-grid-layer"
         ]
       },
       {

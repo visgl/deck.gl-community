@@ -14,9 +14,9 @@ import {A5Grid} from '@deck.gl-community/layers/global-grid-layers/a5';
 import * as communityWind from '@deck.gl-community/layers/wind-layers';
 import * as communityGrids from '@deck.gl-community/layers/global-grid-layers';
 import * as graph from '@deck.gl-community/graph-layers';
-import * as infovis from '@deck.gl-community/infovis-layers';
+import * as infovis from '@deck.gl-community/layers/infovis-layers';
 import * as communityLayers from '@deck.gl-community/layers';
-import * as timeline from '@deck.gl-community/timeline-layers';
+import * as timeline from '@deck.gl-community/layers/timeline-layers';
 import {
   GraphGridLayerSchema,
   type PlaygroundLayerConstructor,

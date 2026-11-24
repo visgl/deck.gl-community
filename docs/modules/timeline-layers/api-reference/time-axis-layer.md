@@ -12,7 +12,7 @@ and `y`. Trace-style timelines can instead use adaptive viewport ticks with
 `mode`, `minX`, `maxX`, `minY`, and `maxY`.
 
 ```js
-import {TimeAxisLayer} from '@deck.gl-community/timeline-layers';
+import {TimeAxisLayer} from '@deck.gl-community/layers/timeline-layers';
 
 new TimeAxisLayer({
   id: 'axis',
@@ -101,4 +101,4 @@ Hour offset applied before timestamp-mode labels are formatted.
 
 ## Source
 
-[modules/timeline-layers/src/layers/time-axis-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/timeline-layers/src/layers/time-axis-layer.ts)
+[modules/layers/src/timeline-layers/layers/time-axis-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/timeline-layers/layers/time-axis-layer.ts)

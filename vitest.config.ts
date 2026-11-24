@@ -34,16 +34,8 @@ const ALIASES = [
     replacement: fileURLToPath(new URL('./modules/widgets/src/index.ts', import.meta.url))
   },
   {
-    find: /^@deck\.gl-community\/infovis-layers$/,
-    replacement: fileURLToPath(new URL('./modules/infovis-layers/src/index.ts', import.meta.url))
-  },
-  {
     find: '@deck.gl-community/layers',
     replacement: fileURLToPath(new URL('./modules/layers/src', import.meta.url))
-  },
-  {
-    find: /^@deck\.gl-community\/timeline-layers$/,
-    replacement: fileURLToPath(new URL('./modules/timeline-layers/src/index.ts', import.meta.url))
   },
   {
     find: /^monaco-editor$/,
