@@ -3,10 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {LinearInterpolator, OrbitView, type Deck, type OrbitViewState} from '@deck.gl/core';
-import type {
-  TreeLayer,
-  TreeSpec
-} from '../../modules/layers/src/common-layers/tree-layer/tree-layer';
+import type {TreeLayer, TreeSpec} from '../../modules/layers/src/tree-layers/tree-layer/tree-layer';
 import {
   getFieldMaxZoom,
   getFieldOrbitDistance,

@@ -19,12 +19,12 @@
   "type": "module",
   "sideEffects": false,
   "types": "./dist/index.d.ts",
-  "main": "./dist/common-layers/index.cjs",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "require": "./dist/common-layers/index.cjs",
+      "require": "./dist/index.cjs",
       "import": "./dist/index.js"
     },
     "./common-layers": {
@@ -61,6 +61,11 @@
       "types": "./dist/global-grid-layers/h3.d.ts",
       "require": "./dist/global-grid-layers/h3.cjs",
       "import": "./dist/global-grid-layers/h3.js"
+    },
+    "./tree-layers": {
+      "types": "./dist/tree-layers/index.d.ts",
+      "require": "./dist/tree-layers/index.cjs",
+      "import": "./dist/tree-layers/index.js"
     }
   },
   "files": [

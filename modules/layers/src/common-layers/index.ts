@@ -34,22 +34,6 @@ export type {
 
 export {getFrameHistoryBytes as getVolumetricVideoHistoryBytes} from './volumetric-video-layer/frame-utils';
 
-export {TreeLayer} from './tree-layer/tree-layer';
-export type {
-  TreeLayerProps,
-  TreeSpec,
-  TreeType,
-  Season,
-  CropConfig,
-  CropKind,
-  TreeCharacteristics,
-  TreeInterpolationSettings,
-  TreeLean,
-  TreeTransitionKey,
-  TreeTransitions,
-  TreeTransitionSettings
-} from './tree-layer/tree-layer';
-
 export {SelectionPulseExtension} from './selection-pulse-extension/selection-pulse-extension';
 export type {SelectionPulseExtensionProps} from './selection-pulse-extension/selection-pulse-extension';
 
