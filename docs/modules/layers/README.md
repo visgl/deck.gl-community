@@ -32,6 +32,9 @@ The package root also exports the common layers and tree renderer. The geo overv
 the application-installed dependencies for the H3 and A5 adapters and the wind layers.
 
 
+Community layer extensions are available from `@deck.gl-community/layers/extensions`.
+
+
 ## Examples
 
 - [FlameTrailLayer](/examples/layers/flame-trail)

@@ -1,4 +1,4 @@
-import {INSTANCE_COLOR_PLUGIN} from '../selection-pulse-extension/selection-pulse-shaders';
+import {INSTANCE_COLOR_PLUGIN} from '../../extensions/selection-pulse-extension/selection-pulse-shaders';
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
