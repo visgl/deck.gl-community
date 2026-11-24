@@ -12,7 +12,8 @@ import {
 import {TerrainLayer} from '@deck.gl/geo-layers';
 import {ColumnLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
-import {A5Grid, GlobalGridLayer} from '@deck.gl-community/layers/global-grid-layers';
+import {GlobalGridLayer} from '@deck.gl-community/layers/global-grid-layers';
+import {A5Grid} from '@deck.gl-community/layers/global-grid-layers/a5';
 import {CubeGeometry, SphereGeometry} from '@luma.gl/engine';
 
 /** The ids of the test scenes. */
