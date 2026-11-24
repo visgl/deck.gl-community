@@ -9,12 +9,12 @@ import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {getTestDevice} from '@luma.gl/core/test-utils';
 import {pointGlow, sketchStroke} from '@luma.gl/shaders';
 import {expect, test} from 'vitest';
-import {FireflyLayer, SketchEdgeLayer} from '../../src/effect-layers/index';
+import {FireflyLayer, SketchEdgeLayer, WaterSurfaceLayer} from '../../src/effect-layers/index';
 
 test.for([
   'webgpu',
   'webgl'
-] as const)('fireflies on %s animate, pick, reset styling and blend sketch opacity', async (backend, context) => {
+] as const)('effects on %s animate, pick, reset styling and blend straight alpha', async (backend, context) => {
   if (!(await getTestDevice(backend))) return context.skip(`${backend} unavailable`);
   const size = 64;
   const parent = document.createElement('div');
@@ -136,6 +136,9 @@ test.for([
     const segments = device.createBuffer({
       data: new Float32Array([-10, 0, 0, 10, 0, 0, 0, 42, -10, 0, 0, 10, 0, 0, 1, 17])
     });
+    const waterPositions = device.createBuffer({
+      data: new Float32Array([-20, -20, 0, 20, -20, 0, 0, 20, 0])
+    });
     try {
       const sketch = new SketchEdgeLayer({
         id: 'sketch-test',
@@ -171,11 +174,30 @@ test.for([
       expect(multiple.state.model.shaderInputs.getUniformValues().sketchStroke?.width).toBe(
         sketchStroke.defaultUniforms.width
       );
+      const water = new WaterSurfaceLayer({
+        id: 'water-test',
+        coordinateOrigin: [0, 0, 0],
+        positions: waterPositions,
+        vertexCount: 3
+      });
+      deck.setProps({layers: [water]});
+      const centerOffset = 32 * layout.bytesPerRow + 32 * 4;
+      const opaqueWater = (await readFrame()).slice(centerOffset, centerOffset + 4);
+      const translucentWater = water.clone({material: {opacity: 0.25}});
+      deck.setProps({layers: [translucentWater]});
+      const fadedWater = (await readFrame()).slice(centerOffset, centerOffset + 4);
+      expect(opaqueWater[3]).toBe(255);
+      expect(fadedWater[3]).toBeCloseTo(64, -1);
+      expect(Math.max(...opaqueWater.slice(0, 3))).toBeGreaterThan(30);
+      expect(Math.max(...fadedWater.slice(0, 3))).toBeLessThan(
+        Math.max(...opaqueWater.slice(0, 3)) / 2
+      );
       expect(corners.destroyed).toBe(true);
       expect(points.destroyed).toBe(false);
     } finally {
       deck.finalize();
       segments.destroy();
+      waterPositions.destroy();
     }
   } finally {
     deck.finalize();

@@ -35,6 +35,17 @@ export type WaterSurfaceLayerProps = LayerProps & {
   time?: number | (() => number);
 };
 
+const WATER_SURFACE_PARAMETERS = {
+  depthCompare: 'less-equal',
+  depthWriteEnabled: true,
+  cullMode: 'none',
+  blend: true,
+  blendColorSrcFactor: 'src-alpha',
+  blendColorDstFactor: 'one-minus-src-alpha',
+  blendAlphaSrcFactor: 'one',
+  blendAlphaDstFactor: 'one-minus-src-alpha'
+} as const;
+
 /** Flat water triangles shaded by luma.gl's shared material on either rendering backend. */
 export class WaterSurfaceLayer extends Layer<WaterSurfaceLayerProps> {
   static override layerName = 'WaterSurfaceLayer';
@@ -44,7 +55,8 @@ export class WaterSurfaceLayer extends Layer<WaterSurfaceLayerProps> {
     getPolygonOffset: () => [0, 0],
     time: 0,
     style: 'classic',
-    flowDirection: [0, 1]
+    flowDirection: [0, 1],
+    parameters: WATER_SURFACE_PARAMETERS
   };
   declare state: {model: Model};
 
@@ -65,16 +77,7 @@ export class WaterSurfaceLayer extends Layer<WaterSurfaceLayerProps> {
       vertexCount: this.props.vertexCount,
       bufferLayout: [{name: 'position', format: 'float32x3'}],
       attributes: {position: this.props.positions},
-      parameters: {
-        depthCompare: 'less-equal',
-        depthWriteEnabled: true,
-        cullMode: 'none',
-        blend: true,
-        blendColorSrcFactor: 'src-alpha',
-        blendColorDstFactor: 'one-minus-src-alpha',
-        blendAlphaSrcFactor: 'one',
-        blendAlphaDstFactor: 'one-minus-src-alpha'
-      }
+      parameters: WATER_SURFACE_PARAMETERS
     });
     this.setState({model});
   }
