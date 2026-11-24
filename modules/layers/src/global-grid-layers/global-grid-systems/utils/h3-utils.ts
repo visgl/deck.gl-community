@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {lerp} from '@math.gl/core';
+import {lerp} from '@math.gl/core/matrix';
 import {
   type CoordPair,
   type H3IndexInput, // Either string or SplitLong

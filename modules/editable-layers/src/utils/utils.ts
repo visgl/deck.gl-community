@@ -6,7 +6,7 @@ import {destination} from '@turf/destination';
 import {bearing} from '@turf/bearing';
 import {pointToLineDistance} from '@turf/point-to-line-distance';
 import {point} from '@turf/helpers';
-import {WebMercatorViewport} from '@math.gl/web-mercator';
+import {WebMercatorViewport} from '@math.gl/geospatial/web-mercator';
 import {Feature, LineString, Point, Position} from './geojson-types';
 import {Viewport} from './types';
 

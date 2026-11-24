@@ -4,6 +4,9 @@
 
 - Remove the `@deck.gl-community/arrow-layers` workspace and its playground layer registrations.
 
+- Upgrade to deck.gl `10.0.0-alpha.2`, luma.gl `10.0.0-beta.3`, loaders.gl
+  `5.0.0-rc.2`, math.gl `5.0.2`, and Probe.gl `5.0.0`.
+
 ## v10.0.0-alpha.3
 
 - `TreeLayer` now preserves authored canopy hues through `getCanopyColor` and

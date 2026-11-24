@@ -4,6 +4,12 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+Update deck.gl to `10.0.0-alpha.2`, luma.gl to `10.0.0-beta.3`, loaders.gl to
+`5.0.0-rc.2`, math.gl to `5.0.2`, and Probe.gl to `5.0.0`. Import Web Mercator
+utilities from `@math.gl/geospatial/web-mercator`.
+
 ## v10.0.0-alpha.3
 
 ### TreeLayer canopy colors

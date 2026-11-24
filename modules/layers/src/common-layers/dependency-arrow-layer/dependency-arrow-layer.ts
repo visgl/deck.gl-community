@@ -4,7 +4,7 @@
 
 import {CompositeLayer} from '@deck.gl/core';
 import {ArcLayer, LineLayer, PathLayer} from '@deck.gl/layers';
-import {Vector3} from '@math.gl/core';
+import {Vector3} from '@math.gl/core/matrix';
 
 import {createPathMarkers, PathDirection} from './create-path-markers';
 import {GeometryLayer} from './geometry-layer';
@@ -17,6 +17,7 @@ import type {
 } from './create-path-markers';
 import type {
   Accessor,
+  AccessorFunction,
   Color,
   DefaultProps,
   GetPickingInfoParams,
@@ -26,7 +27,7 @@ import type {
   Position,
   UpdateParameters
 } from '@deck.gl/core';
-import type {ArcLayerProps, LineLayerProps, PathLayerProps} from '@deck.gl/layers';
+import type {ArcLayerProps, LineLayerProps} from '@deck.gl/layers';
 
 const DEFAULT_OUTLINE_COLOR: Color = [255, 255, 255, 220];
 
@@ -50,7 +51,7 @@ type _DependencyArrowLayerProps<DataT = unknown> = {
   mode?: 'path' | 'line' | 'arc';
 
   /** Accessor returning nested or flat dependency path coordinates. */
-  getPath?: PathLayerProps<DataT>['getPath'];
+  getPath?: AccessorFunction<DataT, PathGeometry>;
   /** Accessor returning dependency line color. */
   getColor?: LineLayerProps<DataT>['getColor'];
   /** Accessor returning dependency outline color. */
@@ -92,7 +93,7 @@ type _DependencyArrowLayerProps<DataT = unknown> = {
 };
 
 const defaultProps: DefaultProps<_DependencyArrowLayerProps> = {
-  getPath: PathLayer.defaultProps.getPath,
+  getPath: {type: 'accessor', value: (object: {path: PathGeometry}) => object.path},
   getColor: LineLayer.defaultProps.getColor,
   getOutlineColor: {type: 'accessor', value: DEFAULT_OUTLINE_COLOR},
   getWidth: LineLayer.defaultProps.getWidth,

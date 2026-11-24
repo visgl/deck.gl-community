@@ -384,6 +384,7 @@ class BackendTestDeck extends Deck<OrthographicView> {
     this.animationLoop?.stop();
   }
   resume(): void {
+    this.layerManager?.setNeedsRedraw('waiting for WebGPU pipelines and layer data');
     this.animationLoop?.start();
   }
   getPendingLayers(): string[] {
@@ -458,10 +459,11 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
           // Do not queue animated frames faster than a software GPU can finish them.
           deck!.pause();
           try {
+            const renderedWithPendingLayers = deck!.getPendingLayers().length > 0;
             device!.submit();
             await nativeDevice?.queue.onSubmittedWorkDone();
             if (finished) return;
-            if (deck!.getPendingLayers().length) deck!.resume();
+            if (renderedWithPendingLayers || deck!.getPendingLayers().length) deck!.resume();
             else finish();
           } catch (error) {
             finish(error as Error);

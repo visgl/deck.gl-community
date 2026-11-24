@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {FirstPersonViewport, OrbitViewport} from '@deck.gl/core';
-import {Matrix4} from '@math.gl/core';
+import {Matrix4} from '@math.gl/core/matrix';
 import {log} from '@deck.gl/core';
 import {describe, expect, it, vi} from 'vitest';
 import {

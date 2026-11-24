@@ -258,12 +258,13 @@ fn flameTrail_color(varyings: Varyings) -> vec4<f32> {
 export function getFlameInjectionsWGSL() {
   const attributes = '  @location(12) rowIndexes: u32,';
   const varyings = '  @location(5) vJointType: f32,';
+  // PathLayer reserves varying location 10 for the picking color.
   const vertex = '    attributes.instanceColors.a * layer.opacity\n  );';
   return {
     [attributes]: `  @location(13) instanceTimestamps: vec2<f32>,\n  @location(14) flameSlices: vec4<f32>,`,
     [varyings]: `  @location(8) vTime: f32,
       @location(9) vFlame: vec3<f32>,
-      @location(10) vFlameWeight: f32,
+      @location(13) vFlameWeight: f32,
       @location(11) vEmberUV: vec2<f32>,
       @location(12) @interpolate(flat) flamePickingColor: vec3<f32>,`,
     'vs:#decl': FLAME_WGSL,

@@ -95,7 +95,7 @@ describe('reusable wind showcase layers', () => {
       bScaler: 0,
       offset: -8000
     });
-    expect(terrain.props.loadOptions).toEqual({worker: false});
+    expect(terrain.props.loadOptions).toEqual({core: {worker: false}});
   });
 
   it('renders one terrain polygon per station triangle', () => {
@@ -118,7 +118,7 @@ describe('reusable wind showcase layers', () => {
     const load = vi.mocked(loaderCore.load).mockResolvedValue({} as never);
     try {
       const elevation = new ElevationLayer({id: 'elevation-fetch'});
-      const options = {worker: false, terrain: {meshMaxError: 2}};
+      const options = {core: {worker: false}, terrain: {meshMaxError: 2}};
       const terrain = new TerrainLayer({
         id: 'terrain-fetch',
         elevationData: 'height.png',
@@ -134,15 +134,15 @@ describe('reusable wind showcase layers', () => {
       });
       expect(load).toHaveBeenLastCalledWith('height.png', [TerrainLoader], {
         ...options,
-        core: {fetch: {signal}}
+        core: {...options.core, fetch: {signal}}
       });
       await elevation.props.fetch('height.png', {
         propName: 'texture',
         layer: terrain,
         loaders: [],
-        loadOptions: {worker: false}
+        loadOptions: {core: {worker: false}}
       });
-      expect(load).toHaveBeenLastCalledWith('height.png', [], {worker: false});
+      expect(load).toHaveBeenLastCalledWith('height.png', [], {core: {worker: false}});
     } finally {
       load.mockRestore();
     }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {type Bounds2D} from '@math.gl/core';
+import {type Bounds2D} from '@math.gl/core/types';
 import {type GlobalGrid} from './global-grid';
 
 const TILE_SIZE = 512;

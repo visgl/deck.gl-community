@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Vector2} from '@math.gl/core';
+import {Vector2} from '@math.gl/core/matrix';
 
 import type {Color, Position} from '@deck.gl/core';
 

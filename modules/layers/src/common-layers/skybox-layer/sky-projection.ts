@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {log, type Viewport} from '@deck.gl/core';
-import {Matrix4} from '@math.gl/core';
+import {Matrix4} from '@math.gl/core/matrix';
 import type {ShaderModule} from '@luma.gl/shaders';
 
 /**

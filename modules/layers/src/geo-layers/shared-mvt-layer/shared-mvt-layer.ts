@@ -10,8 +10,8 @@ import {
 } from '@deck.gl/core';
 import {GeoJsonLayer, type GeoJsonLayerProps} from '@deck.gl/layers';
 import {ClipExtension} from '@deck.gl/extensions';
-import {Matrix4} from '@math.gl/core';
-import {worldToLngLat} from '@math.gl/web-mercator';
+import {Matrix4} from '@math.gl/core/matrix';
+import {worldToLngLat} from '@math.gl/geospatial/web-mercator';
 import {load} from '@loaders.gl/core';
 import {MVTLoader} from '@loaders.gl/tiles/mvt';
 import {SharedTile2DLayer, type SharedTile2DLayerProps} from '../shared-tile-2d-layer/index';
