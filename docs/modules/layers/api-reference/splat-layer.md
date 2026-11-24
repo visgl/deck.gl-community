@@ -108,14 +108,6 @@ arrays.
 
 Budgets count submitted Gaussians, not GPU memory.
 
-### Deformation
-
-| Property | Default | Description |
-| --- | --- | --- |
-| `getDeformation` | `[1, 0, 0]` | Per-instance `[height, phase, flex]` for wind bending. |
-| `deformationStrength` | `0` | Bend as a fraction of instance height. |
-| `deformationTime` | `null` | Seconds. `null` follows deck.gl's animation timeline. |
-
 ## Types
 
 ### SplatSource

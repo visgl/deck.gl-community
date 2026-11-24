@@ -354,7 +354,7 @@ export type TreePhotorealLayerProps<DataT = unknown> = LayerProps & {
   windStrength?: number;
   /** Unit vector the wind blows along, or null for isotropic sway. */
   windDirection?: readonly [number, number] | null;
-  windTime?: number | null;
+  windTime?: number | (() => number) | null;
   /** Layer position gust phases are measured from. */
   windOrigin?: readonly [number, number];
   /** Metres per layer unit along x and y. */
@@ -569,7 +569,9 @@ export abstract class TreePhotorealPrimitiveLayer<DataT = unknown> extends Layer
     const model = this.getDrawModel(params);
     if (!model) return;
     const {windStrength, windDirection, windTime, windOrigin, windUnits, species} = this.props;
-    const time = windTime ?? this.context.timeline.getTime() / 1000;
+    const time =
+      (typeof windTime === 'function' ? windTime() : windTime) ??
+      this.context.timeline.getTime() / 1000;
     const {shape, look, nextLook, leafBlades, woodLevel} = this.prepareDraw(model, shadowPass);
     const stormy = Boolean(windDirection) && windStrength > TREE_WIND_STRONG_FROM;
     model.shaderInputs.setProps({

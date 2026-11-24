@@ -31,3 +31,5 @@ export {ParticleLayer} from './wind-layer/particle-layer';
 export type {ParticleLayerProps} from './wind-layer/particle-layer';
 export {WindFieldLayer} from './wind-layer/wind-field-layer';
 export type {WindFieldLayerProps} from './wind-layer/wind-field-layer';
+
+export * from '@deck.gl-community/layers/wind-layers/wind-effect';

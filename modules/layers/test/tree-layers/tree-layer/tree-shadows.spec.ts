@@ -72,7 +72,7 @@ describe('SplatPrimitiveLayer shadow pass', () => {
         timeline: {getTime: () => 0}
       },
       state: {model, effect: {resolve: vi.fn()}},
-      props: {...SplatPrimitiveLayer.defaultProps, source: {}, deformationTime: 0},
+      props: {...SplatPrimitiveLayer.defaultProps, source: {}},
       getNumInstances: () => 3,
       setNeedsRedraw: vi.fn()
     });

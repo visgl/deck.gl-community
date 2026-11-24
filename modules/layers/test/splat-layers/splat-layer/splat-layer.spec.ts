@@ -22,12 +22,10 @@ const SOURCE = {
   colors: new Uint8Array([30, 120, 40, 255]),
   opacities: new Float32Array([0.8])
 };
-function make(data: {position: [number, number, number]}[], flex = 1, extra = {}) {
+function make(data: {position: [number, number, number]}[], extra = {}) {
   const layer = new SplatLayer({
     data,
     getSource: SOURCE,
-    deformationStrength: 0.1,
-    getDeformation: [10, 0, flex],
     ...extra
   });
   layer.initializeState();
@@ -106,18 +104,6 @@ function makePerspective(
   } as any);
   return {layer, viewport};
 }
-it('includes absolute flex in the camera wind allowance', () => {
-  const data = [{position: [0, 0, 0] as [number, number, number]}];
-  const rigid = make(data, 0),
-    normal = make(data, 1),
-    flexible = make(data, -4);
-  const base = rigid.state.owners[0].radius;
-  expect(flexible.state.owners[0].radius - base).toBeCloseTo(
-    (normal.state.owners[0].radius - base) * 4,
-    10
-  );
-});
-
 it('takes prepared assets only from data or getSource', () => {
   expect(SplatLayer.defaultProps).not.toHaveProperty('source');
   expect(SplatLayer.defaultProps).not.toHaveProperty('hierarchy');
@@ -130,7 +116,7 @@ it('starts shared capped registrations at coverage before their first joint gran
       new (array.constructor as typeof Float32Array)([...array, ...array, ...array])
     ])
   );
-  const layer = make([{position: [256, 256, 0]}], 0, {
+  const layer = make([{position: [256, 256, 0]}], {
     getSource: {
       type: 'prepared-splats',
       source: fine,
@@ -271,26 +257,8 @@ it('uses full requested detail when an owner is centered in any active viewport'
   expect(candidate.level).toBe(0);
 });
 
-it('includes translated source centers in prepared camera wind bounds', () => {
-  const data = [{position: [0, 0, 0] as [number, number, number]}];
-  const layer = make(data, 1);
-  const rigidRadius = make(data, 0).state.owners[0].radius;
-  const oldProps = layer.props;
-  Object.assign(layer, {
-    props: layer.clone({
-      getSource: {...SOURCE, scales: new Float32Array([0.1, 0.1, 0.1])},
-      getTranslation: [100, 0, 1],
-      getDeformation: [1, 0, 1]
-    }).props
-  });
-  layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
-  // Compare in the same owner's common-space metre scale: the old allowance was only 0.465m.
-  expect(layer.state.owners[0].radius).toBeGreaterThan((rigidRadius * 2) / 3);
-  expect(layer.state.owners[0].center[0]).toBeGreaterThan(0);
-});
-
 it('keeps heterogeneous source identity and original accessor contexts through refinement', () => {
-  const layer = make([{position: [0, 0, 0]}, {position: [1, 0, 0]}], 0);
+  const layer = make([{position: [0, 0, 0]}, {position: [1, 0, 0]}]);
   const data = layer.props.data;
   const second = {...SOURCE, colors: new Uint8Array([200, 20, 50, 255])};
   const oldProps = layer.props;
@@ -330,7 +298,7 @@ it('preserves a moving owner when other assets enter or leave and safely clears 
   const secondAsset = {...SOURCE, colors: new Uint8Array([200, 20, 50, 255])};
   const first = {position: [256, 256, 0] as [number, number, number], splats: firstAsset};
   const second = {position: [257, 256, 0] as [number, number, number], splats: secondAsset};
-  const layer = make([first], 0, {
+  const layer = make([first], {
     getSource: row => row.splats,
     pixelError: 0.001
   });
@@ -359,7 +327,7 @@ it('preserves a moving owner when other assets enter or leave and safely clears 
 });
 
 it('moves selection to the current device runtime even without prop changes', () => {
-  const layer = make([{position: [256, 256, 0]}], 0);
+  const layer = make([{position: [256, 256, 0]}]);
   const previous = layer.state.runtime;
   const remove = vi.spyOn(previous, 'delete');
   const tick = vi.spyOn(layer, 'updateRefinement');
@@ -389,7 +357,7 @@ it('moves selection to the current device runtime even without prop changes', ()
 
 it('refreshes mutated owner attributes on new data without discarding camera-only stability', () => {
   const row = {position: [256, 256, 0] as [number, number, number]};
-  const layer = make([row], 0);
+  const layer = make([row]);
   const initial = layer.state.groups[0];
   expect(initial).toHaveLength(1);
   const update = (data = layer.props.data, dataChanged = false) => {
@@ -513,7 +481,7 @@ it.each([
   {width: 2048, height: 256, zoom: 0, longitude: 0},
   {width: 256, height: 256, zoom: 18, longitude: 200}
 ])('selects owners in the primary frustum of wrapped world copies: %o', options => {
-  const layer = make([{position: [0, 0, 0]}], 0);
+  const layer = make([{position: [0, 0, 0]}]);
   const repeated = new WebMercatorViewport({...options, repeat: true});
   expect(repeated.subViewports!.some(view => view !== repeated)).toBe(true);
   layer.context.viewport = repeated;
@@ -561,7 +529,7 @@ it('draws and composites Gaussians in the primary world copy only', () => {
 });
 
 it('requeries visibility at a requested raster density without rebuilding owners', () => {
-  const layer = make([{position: [0, 0, 0]}], 0);
+  const layer = make([{position: [0, 0, 0]}]);
   const owners = layer.state.owners;
   const index = layer.state.spatialIndex;
   const update = vi.spyOn(layer, 'setNeedsUpdate').mockImplementation(() => {});

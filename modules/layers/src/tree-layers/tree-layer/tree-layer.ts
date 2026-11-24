@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {WindEffect} from '@deck.gl-community/layers/wind-layers/wind-effect';
 import {_deepEqual, CompositeLayer, createIterable} from '@deck.gl/core';
 import type {
   Color,
@@ -187,11 +188,6 @@ export type TreeSpec = {
   damage?: number;
   /** The wreck settles flat onto the ground, greys, rots and disappears at 1. @default 0 */
   decay?: number;
-  /**
-   * Per-tree bend, as a fraction of height, up to 1 for a hurricane; true is a gentle 0.025 breeze,
-   * false disables bending. Defaults to `windStrength`.
-   */
-  wind?: boolean | number;
   /** Explicit bark tint. */
   trunkColor?: Color | null;
   /** Authored foliage RGBA; null or unset retains the natural species/season palette. */
@@ -415,20 +411,8 @@ type _TreeLayerProps<DataT> = {
    * @default 0
    */
   lodBias?: number;
-  /**
-   * Fraction of tree height used for optional GPU wind deformation, from 0 to 1: `0.025` is a gentle
-   * breeze, and 1 a hurricane. A tree's own bend levels off at 0.3 of its height
-   * and the rest goes into its crown, limbs and leaves. Zero stops continuous redraw. @default 0
-   */
-  windStrength?: number;
-  /**
-   * Compass bearing, degrees clockwise from +y, that the wind blows toward. Trees
-   * bend that way, with gusts that travel across the grove. `null` keeps the sway of no particular
-   * direction. @default null
-   */
-  windDirection?: number | null;
-  /** Wind clock in seconds, or null to use deck.gl's timeline. Set a number for repeatable comparisons. @default null */
-  windTime?: number | null;
+  /** Whether the tree bends with the deck's WindEffect. @default true */
+  windEnabled?: boolean;
   /** Optical coverage used by streaming transitions; does not rebuild owner geometry. @default 1 */
   getCoverageWeight?: Accessor<DataT, number>;
   /**
@@ -468,11 +452,9 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   foliageMaterial: {type: 'object', value: null, compare: 2, optional: true},
   cropMaterial: {type: 'object', value: null, compare: 2, optional: true},
   lodBias: {type: 'number', value: 0},
-  windDirection: null,
   sizeScale: {type: 'number', value: 1, min: 0},
   characteristics: {type: 'object', value: {}},
-  windStrength: {type: 'number', value: 0, min: 0, max: 1},
-  windTime: null,
+  windEnabled: true,
   getCoverageWeight: {type: 'accessor', value: 1},
   shadowEnabled: true
 };
@@ -636,7 +618,7 @@ type TreeSource<DataT> = {
   season: Season;
   winter: boolean;
   levels: number;
-  windStrength?: number;
+
   trunkColor?: Color | null;
   canopyColor?: Color | null;
   crop: CropConfig | null;
@@ -823,7 +805,8 @@ type PhotorealState<DataT> = {
 type TreeState<DataT> = {
   /** Largest current bend, used for shared storm shading and scheduling redraws. */
   currentWindStrength: number;
-  hasDefaultWind: boolean;
+  windKey: string;
+  windEffect: WindEffect | undefined;
   /** `windDirection` as a vector, whose identity sub-layers see as a prop of theirs. */
   windBearing: number | null | undefined;
   windVector: [number, number] | null;
@@ -1171,7 +1154,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   initializeState() {
     this.state = {
       currentWindStrength: 0,
-      hasDefaultWind: true,
+      windKey: '',
+      windEffect: undefined,
       windBearing: null,
       windVector: null,
       store: null,
@@ -1185,7 +1169,13 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   }
 
   shouldUpdateState({changeFlags}: UpdateParameters<this>): boolean {
-    return changeFlags.somethingChanged || this.state.ticking;
+    const effect = WindEffect.get(this.context?.deck);
+    return (
+      changeFlags.somethingChanged ||
+      this.state.ticking ||
+      effect !== this.state.windEffect ||
+      (effect?.updateKey ?? '') !== this.state.windKey
+    );
   }
 
   /**
@@ -1209,6 +1199,14 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       triggers === true ||
       triggers?.all ||
       triggers?.[key];
+    const windEffect = WindEffect.get(this.context?.deck);
+    const windKey = windEffect?.updateKey ?? '';
+    const windChanged =
+      windEffect !== this.state.windEffect ||
+      windKey !== this.state.windKey ||
+      props.windEnabled !== oldProps.windEnabled;
+    this.state.windEffect = windEffect;
+    this.state.windKey = windKey;
     this.updateWithStore(
       props,
       dataChanged || GEOMETRY_PROPS.some(accessorChanged) || !this.state.store,
@@ -1219,7 +1217,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         props._leafCulling !== oldProps._leafCulling ||
         props.shadowEnabled !== oldProps.shadowEnabled,
       placementChanged,
-      this.state.hasDefaultWind && props.windStrength !== oldProps.windStrength
+      windChanged
     );
   }
 
@@ -1328,16 +1326,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             )
           : 3;
       const elevation = value<number>('getElevation', tree.elevation ?? position[2]);
-      const windStrength =
-        tree.wind === undefined
-          ? undefined
-          : Math.min(
-              1,
-              getFiniteDimension(
-                typeof tree.wind === 'boolean' ? (tree.wind ? 0.025 : 0) : tree.wind,
-                0
-              )
-            );
       const lean = value<TreeLean>('getLean', tree.lean);
       const crop = value<CropConfig | null>('getCrop', tree.crop);
       sources.push({
@@ -1365,7 +1353,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         season,
         winter,
         levels,
-        windStrength,
         trunkColor: tree.trunkColor,
         canopyColor: tree.canopyColor,
         crop: crop && Number.isFinite(crop.radius) ? crop : null,
@@ -1393,7 +1380,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   ): void {
     const timeline = this.context?.timeline;
     const now = timeline ? timeline.getTime() : 0;
-    const clock = typeof props.windTime === 'number' ? props.windTime : now / 1000;
+    const clock = this.state.windEffect?.getTime() ?? now / 1000;
     let store = this.state.store;
     const firstRead = !store;
     if (!store) store = this.state.store = new TreeStateStore();
@@ -1415,10 +1402,15 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     if (!accessorsChanged && !firstRead && appearanceChanges.length) {
       this.refreshAppearanceSources(props, sources, appearanceChanges);
     }
-    if (accessorsChanged || firstRead || windChanged) {
+    if (accessorsChanged || firstRead) {
       this.writeStateRows(props, sources, store, now, clock);
     } else if (appearanceChanges.length) {
       this.writeAppearanceRows(props, sources, store, now, clock);
+    }
+    if (windChanged && !accessorsChanged && !firstRead) {
+      const update = {windFlex: this.getSceneWindStrength(props)};
+      const options = {now, clock, isNew: false, cropKindChanged: false};
+      for (let row = 0; row < store.rowCount; row++) store.setRow(row, update, options);
     }
     if (accessorsChanged || firstRead) {
       regrouped = this.groupPhotorealRows(props, sources);
@@ -1500,6 +1492,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     }
   }
 
+  private getSceneWindStrength(props: TreeLayerProps<DataT>): number {
+    return props.windEnabled === false ? 0 : getUnitValue(this.state.windEffect?.strength, 0);
+  }
+
   /** Accessor values as targets of the state rows. */
   private writeStateRows(
     props,
@@ -1512,9 +1508,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     store.resize(sources.length);
     this.state.cropKinds.length = sources.length;
     const getCoverageWeight = props.getCoverageWeight;
-    this.state.hasDefaultWind = sources.some(source => source.windStrength === undefined);
     const models = new Map<string, TreeGrowthModel>();
-    const layerWind = getUnitValue(props.windStrength, 0);
+    const layerWind = this.getSceneWindStrength(props);
     const update = this.rowUpdate;
     const options = this.rowOptions;
     options.now = now;
@@ -1564,7 +1559,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           : getTreeAccessorValue(props.getTrunkColor, source.object, objectInfo)) ??
         DEFAULT_TRUNK_COLORS[type];
       update.trunkRadius = source.trunkRadius;
-      update.windFlex = source.windStrength ?? layerWind;
+      update.windFlex = layerWind;
       update.coverage = getUnitValue(
         getTreeAccessorValue(getCoverageWeight, source.object, objectInfo) as number,
         1
@@ -2980,7 +2975,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         'TreeLayer modelMatrix supports translation only in Cartesian and metre-offset coordinates.'
       );
     }
-    const {windDirection} = this.props;
+    const windDirection = this.state.windEffect?.props.direction;
     if (windDirection !== this.state.windBearing) {
       this.state.windBearing = windDirection;
       this.state.windVector = getWindVector(windDirection);
@@ -2991,7 +2986,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   private renderPhotorealLayers(windStrength: number): Layer[] {
     const {photoreal, stateTexture} = this.state;
     if (!photoreal || !stateTexture) return [];
-    const {windTime, shadowEnabled, pickable, visible, extensions} = this.props;
+    const {shadowEnabled, pickable, visible, extensions} = this.props;
+    const windTime = this.state.windEffect?.props.time ?? null;
     const shared = {
       stateTexture,
       _stateData: this.state.store?.data ?? null,

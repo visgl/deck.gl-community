@@ -190,7 +190,7 @@ test('tree accessors accept typed constants and serialized functions', () => {
   };
   expect(schema.safeParse({...layer, ...constants}).success).toBe(true);
   expect(
-    schema.safeParse({...layer, lodBias: -1, windStrength: 0.8, shadowEnabled: false}).success
+    schema.safeParse({...layer, lodBias: -1, windEnabled: false, shadowEnabled: false}).success
   ).toBe(true);
   for (const key of Object.keys(schema.shape).filter(
     name => name.startsWith('get') && name !== 'getPolygonOffset'
@@ -257,7 +257,6 @@ test('supports unified authored traits without requiring renderer configuration'
       height: 5,
       crownRadius: 2,
       season: 'winter',
-      wind: 0.5,
       health: 0.75,
       damage: 0.1,
       characteristics: {leafSize: 1.2, twigDroop: 0.9}

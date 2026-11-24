@@ -4,6 +4,10 @@ This page lists module additions and major changes in each release. For detailed
 
 ## v10.0.0-alpha.4
 
+- **layers:** [WindEffect](./modules/layers/api-reference/wind-effect.md) supplies scene wind for
+  photoreal trees and `WindExtension`. Migrate tree-level `windStrength`, `windDirection`
+  and `windTime` to the effect’s `strength`, `direction` and `time`. Use `windEnabled: false`
+  to shelter a tree layer. Standalone Gaussian splats are wind-independent.
 - **layers:** [WindFieldLayer](./modules/geo-layers/api-reference/wind-layer.md) replaces the
   former `WindLayer` export for station-based wind visualization.
 - **layers:** [SplatLayer](./modules/layers/api-reference/splat-layer.md) is available from

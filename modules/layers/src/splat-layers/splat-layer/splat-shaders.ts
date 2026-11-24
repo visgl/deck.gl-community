@@ -2,34 +2,27 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import type {ShaderModule} from '@luma.gl/shaders';
-import {SPLAT_DEFORMATION_GLSL} from './splat-deformation';
 import {SPLAT_GLOBE_GLSL} from './splat-globe';
 
 const DECLARATION = `uniform splatUniforms {
-  float strength;
-  float time;
   float mode;
   float kernelVariance;
   float alphaCutoff;
   float support;
   float opticalDepthMode;
-  vec4 wave;
 } splat;`;
 export const splatUniforms = {
   name: 'splat',
   vs: DECLARATION,
   fs: DECLARATION,
-  source: `struct SplatUniforms { strength: f32, time: f32, mode: f32, kernelVariance: f32, alphaCutoff: f32, support: f32, opticalDepthMode: f32, wave: vec4<f32> };
+  source: `struct SplatUniforms { mode: f32, kernelVariance: f32, alphaCutoff: f32, support: f32, opticalDepthMode: f32 };
 @group(0) @binding(auto) var<uniform> splat: SplatUniforms;`,
   uniformTypes: {
-    strength: 'f32',
-    time: 'f32',
     mode: 'f32',
     kernelVariance: 'f32',
     alphaCutoff: 'f32',
     support: 'f32',
-    opticalDepthMode: 'f32',
-    wave: 'vec4<f32>'
+    opticalDepthMode: 'f32'
   }
 } as const satisfies ShaderModule;
 
@@ -93,15 +86,13 @@ in vec3 instanceModelMatrixCol0;
 in vec3 instanceModelMatrixCol1;
 in vec3 instanceModelMatrixCol2;
 in vec3 instanceTranslation;
-in vec4 instanceDeformation;
-in vec3 instanceCoverageWeight;
+in float instanceCoverageWeight;
 out vec2 gaussianPosition;
 out vec4 vColor;
 out vec3 vNormal;
 out vec3 vPosition;
 out vec3 vCamera;
 out float vCoverageWeight;
-${SPLAT_DEFORMATION_GLSL}
 ${SPLAT_GLOBE_GLSL}
 ${SPLAT_SHADOW_VERTEX}
 void main() {
@@ -117,13 +108,6 @@ void main() {
   // Cofactors form the inverse transpose, including shear and reflections.
   vec3 normal = mat3(normalAxisX, normalAxisY, normalAxisZ) * splatNormals;
   normal *= (normalDeterminant < 0.0 ? -1.0 : 1.0) / max(abs(normalDeterminant), 1e-20);
-  float height = max(instanceDeformation.x, 0.001);
-  vec2 wave = vec2(splat.wave.x * instanceDeformation.w + splat.wave.y * instanceDeformation.z,
-    splat.wave.z * instanceCoverageWeight.z + splat.wave.w * instanceCoverageWeight.y);
-  mat3 jacobian = mat3(1.0);
-  if (splat.strength != 0.0) jacobian = splatDeform(position, height, splat.strength * instanceDeformation.y, wave);
-  covariance = jacobian * covariance;
-  normal = splatDeformNormal(jacobian, normal);
   // Owner metres point east, north and up of the anchor, on deck.gl's globe as in planar views.
   vec3 anchor = project_position(instancePositions, instancePositions64Low);
   mat3 frame = splatTangentFrame(anchor);
@@ -132,7 +116,7 @@ void main() {
   geometry.position = commonPosition;
   vPosition = commonPosition.xyz;
   vCamera = project.cameraPosition;
-  vCoverageWeight = instanceCoverageWeight.x;
+  vCoverageWeight = instanceCoverageWeight;
   vNormal = splatProjectNormal(normal, frame);
   geometry.normal = vNormal;
   // Reuse the perspective Jacobian for all three covariance axes.

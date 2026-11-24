@@ -42,14 +42,13 @@ const traits: TreeSpec[] = [
     species: 'citrus',
     height: 5,
     crownRadius: 2,
-    wind: true,
     characteristics: {leafSize: 1.2}
   }
 ];
 new TreeLayer({data: traits});
 new TreeLayer({
   data,
-  getTree: tree => ({position: tree.position, species: 'oak', height: tree.height, wind: false})
+  getTree: tree => ({position: tree.position, species: 'oak', height: tree.height})
 });
 // @ts-expect-error Per-tree species retain the supported species contract.
 const invalidTraits: TreeSpec = {species: 'maple'};
@@ -75,7 +74,6 @@ const living: TreeSpec[] = [
     lean,
     damage: 0.1,
     decay: 0,
-    wind: 0.8,
     crop: blossom
   },
   {position: [8, 0, 0], species: 'pine', crop: fruit},
@@ -96,9 +94,7 @@ const transitions: TreeTransitions = {
 new TreeLayer<TreeSpec>({
   data: living,
   transitions,
-  windStrength: 1,
-  windDirection: 80,
-  windTime: 2,
+  windEnabled: false,
   lodBias: -1,
   woodMaterial: {ambient: 0.8, diffuse: 1, shininess: 14, specularColor: [30, 30, 30]},
   foliageMaterial: null,
@@ -128,5 +124,5 @@ void invalidTransitions;
 new TreeLayer({data, transitions: {getGrowth: {type: 'spring'}}});
 // @ts-expect-error Only one crop can be authored per tree.
 new TreeLayer({data, getCrop: () => [blossom, fruit]});
-// @ts-expect-error `windDirection` is a compass bearing in degrees.
+// @ts-expect-error The scene WindEffect supplies the bearing.
 new TreeLayer({data, windDirection: 'north'});

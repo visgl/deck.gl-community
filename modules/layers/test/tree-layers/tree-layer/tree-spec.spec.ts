@@ -8,9 +8,9 @@ import {type TreeLayerProps, type TreeSpec} from '../../../src';
 import {TreePhotorealCropLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-crop-layer';
 import {TreePhotorealLeafLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-leaf-layer';
 import {TreePhotorealWoodLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-wood-layer';
-import {mountTreeScene} from './tree-layer-test-utils';
+import {mountTreeScene, type TreeTestWind} from './tree-layer-test-utils';
 
-function prepare<DataT>(data: DataT[], props: Partial<TreeLayerProps<DataT>> = {}) {
+function prepare<DataT>(data: DataT[], props: Partial<TreeLayerProps<DataT>> & TreeTestWind = {}) {
   const scene = mountTreeScene<DataT>();
   scene.render({...props, data});
   return scene;
@@ -92,24 +92,17 @@ it('shares identical morphology templates and pairs each distinct wood and folia
   }
 }, 30_000);
 
-it('updates default wind without changing independent amplitudes or rebuilding geometry', () => {
-  const data: TreeSpec[] = [false, true, 0.1].map((wind, index) => ({
-    position: [index * 0.0001, 0],
-    species: 'citrus',
-    wind
-  }));
-  data.push({position: [0.0003, 0], species: 'citrus'});
+it('updates scene wind on existing tree geometry and allows a layer to opt out', () => {
+  const data: TreeSpec[] = [{position: [0, 0], species: 'citrus'}];
   const scene = prepare(data, {windStrength: 0.05});
   const wood = () => scene.children().find(child => child instanceof TreePhotorealWoodLayer)!;
-  expect(wood().props.windStrength).toBeCloseTo(0.1, 7);
-  expect([0, 1, 2, 3].map(index => scene.row(index).windFlex)).toEqual([0, 0.025, 0.1, 0.05]);
+  expect(wood().props.windStrength).toBeCloseTo(0.05, 7);
   const {rows, groups} = scene.layer().state.photoreal!;
   scene.render({data, windStrength: 0.08});
   expect(scene.layer().state.photoreal!.rows).toBe(rows);
   expect(scene.layer().state.photoreal!.groups).toBe(groups);
-  expect(wood().props.windStrength).toBeCloseTo(0.1, 7);
-  expect(scene.row(3).windFlex).toBe(0.08);
-  scene.render({data: [{...data[0]}], windStrength: 0.05});
+  expect(scene.row().windFlex).toBe(0.08);
+  scene.render({data, windStrength: 0.08, windEnabled: false});
   expect(wood().props.windStrength).toBe(0);
 });
 

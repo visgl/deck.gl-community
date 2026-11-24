@@ -132,6 +132,7 @@
               "id": "modules/geo-layers/developer-guide/wind-showcase"
             },
             "items": [
+              "modules/layers/api-reference/wind-effect",
               "modules/geo-layers/api-reference/wind-field",
               "modules/geo-layers/api-reference/wind-layer",
               "modules/geo-layers/api-reference/particle-layer",

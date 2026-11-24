@@ -27,7 +27,6 @@ new TreeLayer({
       crop: {kind: 'fruit', color: [244, 153, 34, 255], count: 40, radius: 0.08}
     }
   ],
-  windStrength: 0.025,
   pickable: true
 });
 ```
@@ -52,9 +51,7 @@ properties. Picking, `autoHighlight` and `highlightedObjectIndex` use the source
 | `characteristics` | `{}` | Shared template characteristics. See [Characteristics](#characteristics). |
 | `sizeScale` | `1` | Multiplier for all tree and crop dimensions. |
 | `lodBias` | `0` | Positive values switch to simpler crown detail closer to the camera. Negative values retain individual detail farther away. |
-| `windStrength` | `0` | Wind bend as a fraction of tree height. `0.025` is a gentle breeze, and `1` a hurricane. |
-| `windDirection` | `null` | Compass bearing in degrees, clockwise from +y (north), that the wind blows toward. Gusts then travel across the grove. `null` sways trees in no particular direction. |
-| `windTime` | `null` | Wind clock in seconds. `null` follows deck.gl's animation timeline. |
+| `windEnabled` | `true` | Follows the scene’s [WindEffect](./wind-effect.md). |
 | `getCoverageWeight` | `1` | Per-tree optical coverage, for fading trees in and out. |
 | `transitions` | `null` | Interpolation settings keyed by a TreeLayer accessor. Pass a duration in milliseconds or an object with `duration` and optional `easing`. |
 | `woodMaterial`, `foliageMaterial`, `cropMaterial` | `null` | Optional Phong material overrides. |
@@ -143,7 +140,6 @@ refreshes cached leaf selections.
 | `lean` | Tuple of tilt and compass bearing in degrees. Broadleaf templates show a root plate when a tree leans far enough to lift it. |
 | `damage` | Limb damage, from 0 to 1. Defaults to 0. |
 | `decay` | Wood and leaf decay, from 0 to 1. Defaults to 0. |
-| `wind` | `true`, `false` or a bend fraction from 0 to 1. Defaults to `windStrength`. |
 | `characteristics` | Per-tree [characteristics](#characteristics), merged over the layer prop. |
 | `trunkColor` | RGBA bark color override. |
 | `canopyColor` | RGBA foliage color override. |
@@ -184,8 +180,10 @@ shared templates, so keep the number of distinct combinations small.
 
 ## Wind
 
-With `windDirection`, gust fronts travel downwind across a grove. `windStrength` controls bend
-and gust intensity. Gusts, sway, flutter and falling leaves all follow `windTime`.
+Add a [WindEffect](./wind-effect.md) to Deck’s `effects` with `strength`, `direction` and
+optional `time`. Gust fronts travel downwind across the grove. Strength controls bend and
+gust intensity, and the effect clock drives sway, flutter and falling leaves. Use `windEnabled: false`
+for a sheltered layer.
 
 ## Shadows
 

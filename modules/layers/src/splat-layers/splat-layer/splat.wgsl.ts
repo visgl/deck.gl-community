@@ -1,11 +1,9 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {SPLAT_DEFORMATION_WGSL} from './splat-deformation';
 import {WGSL_FILTER_COLOR_ANCHOR} from '../../extensions/selection-pulse-extension/selection-pulse-shaders';
 import {SPLAT_GLOBE_WGSL} from './splat-globe';
 export const SPLAT_WGSL = `
-${SPLAT_DEFORMATION_WGSL}
 ${SPLAT_GLOBE_WGSL}
 struct Attributes {
  @builtin(instance_index) instanceIndex: u32,
@@ -23,8 +21,7 @@ struct Attributes {
  @location(11) instanceModelMatrixCol1: vec3<f32>,
  @location(12) instanceModelMatrixCol2: vec3<f32>,
  @location(13) instanceTranslation: vec3<f32>,
- @location(14) instanceDeformation: vec4<f32>,
- @location(15) instanceCoverageWeight: vec3<f32>
+ @location(14) instanceCoverageWeight: f32
 };
 struct Varyings {
  @builtin(position) position: vec4<f32>,
@@ -49,15 +46,6 @@ struct Varyings {
  // Cofactors form the inverse transpose, including shear and reflections.
  var normal = mat3x3<f32>(normalAxisX, normalAxisY, normalAxisZ) * attributes.splatNormals;
  normal *= select(1.0, -1.0, normalDeterminant < 0.0) / max(abs(normalDeterminant), 1e-20);
- let height = max(attributes.instanceDeformation.x, 0.001);
- let wave = vec2<f32>(splat.wave.x * attributes.instanceDeformation.w + splat.wave.y * attributes.instanceDeformation.z,
-   splat.wave.z * attributes.instanceCoverageWeight.z + splat.wave.w * attributes.instanceCoverageWeight.y);
- if (splat.strength != 0.0) {
-  let deformation = splatDeform(position, height, splat.strength * attributes.instanceDeformation.y, wave);
-  position = deformation.position;
-  covariance = deformation.jacobian * covariance;
-  normal = splatDeformNormal(deformation.jacobian, normal);
- }
  // Owner metres point east, north and up of the anchor, on deck.gl's globe as in planar views.
  let anchor = project_position_vec3_f64(attributes.instancePositions, attributes.instancePositions64Low);
  let frame = splatTangentFrame(anchor);
@@ -110,7 +98,7 @@ struct Varyings {
  // Weighted transparency resolves without the basemap's depth: the globe must hide its far side.
  if (center.w <= 0.0 || center.z < -center.w || output.color.a < splat.alphaCutoff || splatBehindGlobe(commonPosition.xyz)) { output.position = vec4<f32>(2.0,2.0,2.0,1.0); }
  output.pickingColor = geometry.pickingColor;
- output.coverageWeight = attributes.instanceCoverageWeight.x * clipWeight;
+ output.coverageWeight = attributes.instanceCoverageWeight * clipWeight;
  return output;
 }
 fn gaussianOpticalDepth(input: Varyings) -> f32 {

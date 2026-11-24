@@ -244,7 +244,6 @@ export const TreeSpecSchema = z
     lean: Vector2Schema.optional(),
     damage: TreeFractionSchema.optional(),
     decay: TreeFractionSchema.optional(),
-    wind: z.union([z.boolean(), TreeFractionSchema]).optional(),
     trunkColor: ColorSchema.nullable().optional(),
     canopyColor: ColorSchema.nullable().optional(),
     branchLevels: z.number().optional()
@@ -312,9 +311,7 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
   characteristics: TreeCharacteristicsSchema.optional(),
   lodBias: z.number().optional(),
   shadowEnabled: z.boolean().optional(),
-  windStrength: TreeFractionSchema.optional(),
-  windDirection: z.number().nullable().optional(),
-  windTime: z.number().nullable().optional()
+  windEnabled: z.boolean().optional()
 });
 
 /** Prepared Gaussian assets, including their hierarchies, remain host-owned constants. */
@@ -328,10 +325,7 @@ export const SplatLayerPropsSchema = CompositeLayerPropsSchema.extend({
   getTranslation: createAccessorSchema(Vector3Schema).optional(),
   getTransformMatrix: createAccessorSchema(z.array(z.number()).length(16).nullable()).optional(),
   getColor: createAccessorSchema(ColorSchema).optional(),
-  getDeformation: createAccessorSchema(Vector3Schema).optional(),
   getCoverageWeight: NumberAccessorSchema.optional(),
-  deformationStrength: z.number().nonnegative().optional(),
-  deformationTime: z.number().nullable().optional(),
   kernelVariance: z.number().nonnegative().optional(),
   alphaCutoff: z.number().min(0).max(1).optional(),
   support: z.number().positive().optional(),

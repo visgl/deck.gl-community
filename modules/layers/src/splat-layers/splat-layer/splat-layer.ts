@@ -33,7 +33,6 @@ import {getSplatHorizon, getSplatTangentFrame, offsetSplatCommonPosition} from '
 import type {SplatHierarchy} from './splat-hierarchy';
 import {getSplatRadius, getSplatCenter} from './splat-source';
 import {getSplatTransform, getSplatTransformScale} from './splat-transform';
-import {getSplatDeformationRadius} from './splat-deformation';
 import {budgetSplatSelections, getSplatLevelCounts, type SplatSelection} from './splat-budget';
 import {SplatRefinementTransition} from './splat-refinement-transition';
 import {retainSplatRows, getSplatChangedRanges, SplatRowSlots} from './splat-row-diff';
@@ -226,8 +225,6 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       'getScale',
       'getOrientation',
       'getTranslation',
-      'deformationStrength',
-      'getDeformation',
       'modelMatrix',
       'coordinateSystem',
       'coordinateOrigin'
@@ -324,8 +321,6 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         const maximumScale = matrix
           ? getSplatTransformScale(matrix)
           : Math.max(...scale.map(Math.abs));
-        const deformation = get(this.props.getDeformation, object, objectInfo);
-        const strength = Math.abs(this.props.deformationStrength * deformation[2]);
         const transform = getSplatTransform(
           get(this.props.getOrientation, object, objectInfo),
           scale,
@@ -342,12 +337,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
             transform[axis + 6] * sourceCenter[2] +
             translation[axis]
         );
-        const radius = getSplatDeformationRadius(
-          localCenter,
-          maximumScale * sourceRadius,
-          deformation[0],
-          strength
-        );
+        const radius = maximumScale * sourceRadius;
         // On the globe, owner metres point along the east-north-up frame at the anchor.
         const center = offsetSplatCommonPosition(
           common,
@@ -357,7 +347,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         );
         // Physical pose survives streamed wrapper/index replacement. Duplicate poses
         // remain separate owners; the template/hierarchy belongs to this layer.
-        const pose = [asset.id, ...position, ...transform, ...deformation].join(',');
+        const pose = [asset.id, ...position, ...transform].join(',');
         const occurrence = duplicates.get(pose) ?? 0;
         duplicates.set(pose, occurrence + 1);
         owners.push({
@@ -656,8 +646,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         'getOrientation',
         'getTranslation',
         'getTransformMatrix',
-        'getColor',
-        'getDeformation'
+        'getColor'
       ] as const)
         wrappedTriggers[name] = getWrappedTrigger(props.updateTriggers?.[name], this.props[name]);
       return new SplatPrimitiveLayer<Owner<DataT>>({
@@ -689,7 +678,6 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         getTranslation: (row, info) => get(this.props.getTranslation, row, info),
         getTransformMatrix: (row, info) => get(this.props.getTransformMatrix, row, info),
         getColor: (row, info) => get(this.props.getColor, row, info),
-        getDeformation: (row, info) => get(this.props.getDeformation, row, info),
         getCoverageWeight: (row, info) =>
           get(this.props.getCoverageWeight, row, info) * data[info.index].weight
       });

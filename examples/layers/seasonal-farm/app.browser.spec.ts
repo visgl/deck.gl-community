@@ -13,6 +13,7 @@ import {
   type PickingInfo
 } from '@deck.gl/core';
 import {TreeLayer, type CropConfig, type Season} from '@deck.gl-community/layers';
+import {WindEffect} from '@deck.gl-community/layers/wind-layers/wind-effect';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {webgpuAdapter} from '@luma.gl/core/webgpu';
@@ -162,11 +163,11 @@ describe('Seasonal Farm integration', () => {
         const orange = data.find(tree => tree.species === 'orange')!;
         expect(orange.type).toBe('citrus');
         expect(getCrop(orange)!.count).toBeGreaterThan(0);
-        // Every panel control maps directly onto a TreeLayer prop.
+        // The panel updates the tree properties and the scene wind.
         parent.querySelector<HTMLInputElement>('#settings-panel-input-crops')!.click();
         await expect.poll(() => getCrop(orange)).toBeNull();
         setNumber('Wind', 0.05);
-        await expect.poll(() => trees().props.windStrength).toBe(0.05);
+        await expect.poll(() => WindEffect.get(deck)?.strength).toBe(0.05);
         setNumber('Size', 1.2);
         await expect.poll(() => trees().props.sizeScale).toBe(1.2);
         const crown = Array.from(

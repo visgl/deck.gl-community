@@ -24,8 +24,7 @@ const ATTRIBUTES = {
   instanceModelMatrixCol0: 3,
   instanceModelMatrixCol1: 3,
   instanceModelMatrixCol2: 3,
-  instanceTranslation: 3,
-  instanceDeformation: 4
+  instanceTranslation: 3
 };
 const ATTRIBUTE_ENTRIES = Object.entries(ATTRIBUTES);
 const SORTED_PARAMETERS = {
@@ -54,9 +53,9 @@ const LAYOUT: BufferLayout[] = [
   },
   {
     name: 'coverage',
-    byteStride: 12,
+    byteStride: 4,
     stepMode: 'vertex',
-    attributes: [{attribute: 'instanceCoverageWeight', format: 'float32x3', byteOffset: 0}]
+    attributes: [{attribute: 'instanceCoverageWeight', format: 'float32', byteOffset: 0}]
   }
 ];
 type Owner = {
@@ -64,7 +63,6 @@ type Owner = {
   /** Common-space columns of the owner's east, north and up metres. */
   axes: number[];
   matrix: number[];
-  wind: number[];
 };
 type Entry = {
   layer: SplatPrimitiveLayer;
@@ -116,9 +114,9 @@ export class SplatSortedRenderer {
     // pose arrays, not buffer timestamps, and keep changing optical weights separate.
     const pose: number[] = [];
     for (const [name, attribute] of Object.entries(attributes)) {
+      if (name === 'instanceCoverageWeight') continue;
       const length = attribute.constant ? attribute.size : ownerCount * attribute.size;
-      for (let i = 0; i < length; i++)
-        if (name !== 'instanceWindData' || i % 7 !== 4) pose.push(attribute.value![i]);
+      for (let i = 0; i < length; i++) pose.push(attribute.value![i]);
     }
     const key = projectionKey + JSON.stringify(pose);
     let entry = this.entries.get(layer.id);
@@ -128,10 +126,10 @@ export class SplatSortedRenderer {
     }
     entry.layer = layer;
     entry.model = model;
-    const wind = attributes.instanceWindData.value!;
+    const coverage = attributes.instanceCoverageWeight;
     const countPerOwner = layer.props.source.opacities.length;
     for (let owner = 0; owner < ownerCount; owner++) {
-      const weight = wind[owner * 7 + 4];
+      const weight = coverage.value![coverage.constant ? 0 : owner];
       if (entry.coverageWeights[owner] === weight) continue;
       entry.coverageWeights[owner] = weight;
       entry.coverageDirty = true;
@@ -140,9 +138,7 @@ export class SplatSortedRenderer {
         vertex < (owner + 1) * countPerOwner * 4;
         vertex++
       ) {
-        entry.coverage[vertex * 3] = weight;
-        entry.coverage[vertex * 3 + 1] = wind[owner * 7 + 5];
-        entry.coverage[vertex * 3 + 2] = wind[owner * 7 + 6];
+        entry.coverage[vertex] = weight;
       }
     }
     this.visible.push(entry);
@@ -170,23 +166,13 @@ export class SplatSortedRenderer {
         get('getTranslation', object),
         get('getTransformMatrix', object)
       );
-      const [height, phase, flex] = get('getDeformation', object);
-      const wind = [
-        height,
-        flex,
-        Math.sin(phase),
-        Math.cos(phase),
-        Math.sin(phase * 1.7),
-        Math.cos(phase * 1.7)
-      ];
       const common = layer.projectPosition(position, {viewport: this.viewport, autoOffset: false});
       const units = getSplatCommonUnits(common, this.viewport);
       const frame = getSplatTangentFrame(common, this.viewport) ?? [1, 0, 0, 0, 1, 0, 0, 0, 1];
       owners.push({
         common,
         axes: frame.map((value, i) => value * units[Math.floor(i / 3)]),
-        matrix,
-        wind
+        matrix
       });
       const color = get('getColor', object);
       const instance = {
@@ -200,8 +186,7 @@ export class SplatSortedRenderer {
         instanceModelMatrixCol0: matrix.slice(0, 3),
         instanceModelMatrixCol1: matrix.slice(3, 6),
         instanceModelMatrixCol2: matrix.slice(6, 9),
-        instanceTranslation: matrix.slice(9, 12),
-        instanceDeformation: wind.slice(0, 4)
+        instanceTranslation: matrix.slice(9, 12)
       };
       // Copy whole attribute columns into the interleaved buffer. Avoid a temporary
       // typed-array view for every vertex/attribute during a refinement change.
@@ -232,7 +217,7 @@ export class SplatSortedRenderer {
       count: owners.length * countPerOwner,
       offset: 0,
       group: '',
-      coverage: new Float32Array(owners.length * countPerOwner * 12),
+      coverage: new Float32Array(owners.length * countPerOwner * 4),
       coverageWeights: [],
       coverageDirty: true
     };
@@ -264,7 +249,7 @@ export class SplatSortedRenderer {
         });
         this.coverage = new DynamicBuffer(this.device, {
           usage: Buffer.VERTEX | Buffer.COPY_DST,
-          byteLength: Math.ceil(count * 1.5) * 48
+          byteLength: Math.ceil(count * 1.5) * 16
         });
         this.indices = new DynamicBuffer(this.device, {
           usage: Buffer.INDEX | Buffer.COPY_DST,
@@ -276,14 +261,14 @@ export class SplatSortedRenderer {
         this.vertices.ensureSize(Math.max(bytes, Math.ceil(this.vertices.byteLength * 1.5)));
         const capacity = Math.ceil(this.vertices.byteLength / (4 * STRIDE * 4));
         this.indices!.ensureSize(capacity * 24);
-        this.coverage!.ensureSize(capacity * 48);
+        this.coverage!.ensureSize(capacity * 16);
         resized = true;
       }
       let offset = 0;
       for (const entry of this.visible) {
         if (resized || !previous.has(entry) || entry.offset !== offset) {
           this.vertices.write(entry.vertices, offset * 4 * STRIDE * 4);
-          this.coverage!.write(entry.coverage, offset * 48);
+          this.coverage!.write(entry.coverage, offset * 16);
           entry.coverageDirty = false;
         }
         entry.offset = offset;
@@ -293,7 +278,7 @@ export class SplatSortedRenderer {
     if (!this.order.length) return;
     for (const entry of this.visible)
       if (entry.coverageDirty) {
-        this.coverage!.write(entry.coverage, entry.offset * 48);
+        this.coverage!.write(entry.coverage, entry.offset * 16);
         entry.coverageDirty = false;
       }
     const groups = new Map<string, {entry: Entry; index: number; model: Model}>();
@@ -320,7 +305,7 @@ export class SplatSortedRenderer {
       ]);
       let group = groups.get(entry.group);
       if (!group) {
-        // Uniform values change with the camera and wind. Shader/pipeline identity
+        // Uniform values change with the camera. Shader/pipeline identity
         // does not; a source entering or leaving must not recompile this draw.
         const modelKey = JSON.stringify([
           shaders.vs,
@@ -441,9 +426,6 @@ export class SplatSortedRenderer {
 
   private updateDepths(entry: Entry) {
     const source = entry.layer.props.source;
-    const uniforms = entry.model.shaderInputs.getUniformValues().splat!;
-    const wave = uniforms.wave as number[];
-    const strength = uniforms.strength as number;
     const projection = this.viewport.viewProjectionMatrix;
     const count = source.opacities.length;
     for (let ownerIndex = 0; ownerIndex < entry.owners.length; ownerIndex++) {
@@ -453,22 +435,9 @@ export class SplatSortedRenderer {
         const px = source.positions[i * 3],
           py = source.positions[i * 3 + 1],
           pz = source.positions[i * 3 + 2];
-        let x = m[0] * px + m[3] * py + m[6] * pz + m[9],
+        const x = m[0] * px + m[3] * py + m[6] * pz + m[9],
           y = m[1] * px + m[4] * py + m[7] * pz + m[10];
         const z = m[2] * px + m[5] * py + m[8] * pz + m[11];
-        if (strength) {
-          const [height, flex, sin, cos, sinCrown, cosCrown] = owner.wind;
-          const u = Math.max(0, Math.min(1, z / Math.max(height, 0.001)));
-          const f = 0.5 * u * u * (3 - u),
-            g = Math.max((u - 0.3) / 0.7, 0) ** 2;
-          const bend =
-            strength * flex * (wave[0] * cos + wave[1] * sin) * Math.max(height, 0.001) * f;
-          const branch = 0.35 * strength * flex * (wave[2] * cosCrown + wave[3] * sinCrown) * g;
-          const dx = bend + branch * (0.65 * x + 0.3 * y),
-            dy = 0.45 * bend + branch * (-0.25 * x + 0.8 * y);
-          x += dx;
-          y += dy;
-        }
         const a = owner.axes;
         const worldX = owner.common[0] + a[0] * x + a[3] * y + a[6] * z,
           worldY = owner.common[1] + a[1] * x + a[4] * y + a[7] * z,
