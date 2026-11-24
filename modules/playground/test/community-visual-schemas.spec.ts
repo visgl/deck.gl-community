@@ -17,6 +17,37 @@ const REQUIRED_PROPS: Partial<Record<LayerName, Record<string, unknown>>> = {
 };
 
 describe('community visual layer schemas', () => {
+  it('validates grass patches with meter dimensions, density, seed and wind', () => {
+    expect(
+      parseLayer('GrassLayer', {
+        coordinateSystem: 'lnglat',
+        data: [{position: [-122.451, 62.346], seed: 19}],
+        getPosition: '@@=position',
+        getSize: [6, 4],
+        getHeight: 0.3,
+        getBladeWidth: 0.025,
+        getColor: [86, 123, 49, 255],
+        getDensity: 0.8,
+        getSeed: '@@=seed',
+        bladesPerPatch: 1024,
+        windEnabled: false,
+        shadowEnabled: false
+      }).success
+    ).toBe(true);
+    for (const props of [
+      {getSize: [4, -4]},
+      {getHeight: -1},
+      {getBladeWidth: -1},
+      {getDensity: 1.1},
+      {getSeed: 16777216},
+      {bladesPerPatch: 4097},
+      {windEnabled: 'yes'},
+      {shadowEnabled: true}
+    ]) {
+      expect(parseLayer('GrassLayer', props).success).toBe(false);
+    }
+  });
+
   it('accepts finite nonnegative graph layout intervals in JSON', () => {
     for (const interval of [0, 16, 100]) {
       expect(parseLayer('GraphLayer', {layoutUpdateInterval: interval}).success).toBe(true);

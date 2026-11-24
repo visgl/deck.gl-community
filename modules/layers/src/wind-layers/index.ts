@@ -33,3 +33,5 @@ export {WindFieldLayer} from './wind-layer/wind-field-layer';
 export type {WindFieldLayerProps} from './wind-layer/wind-field-layer';
 
 export * from '@deck.gl-community/layers/wind-layers/wind-effect';
+
+export {GrassLayer, type GrassLayerProps} from '@deck.gl-community/layers/wind-layers/grass-layer';
