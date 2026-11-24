@@ -14,7 +14,7 @@ The demo above is the [Seasonal Farm example](/examples/layers/seasonal-farm).
 ## Usage
 
 ```ts
-import {TreeLayer} from '@deck.gl-community/layers';
+import {TreeLayer} from '@deck.gl-community/layers/tree-layers';
 
 new TreeLayer({
   id: 'trees',
@@ -216,4 +216,4 @@ properties. A standalone Gaussian canopy can still use [`SplatLayer`](./splat-la
 
 ## Source
 
-[modules/layers/src/tree-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/tree-layer)
+[modules/layers/src/tree-layers/tree-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/tree-layers/tree-layer)

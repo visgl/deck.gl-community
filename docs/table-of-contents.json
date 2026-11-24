@@ -1,0 +1,560 @@
+[
+  {
+    "type": "category",
+    "label": "Overview",
+    "link": {
+      "type": "doc",
+      "id": "README"
+    },
+    "items": [
+      {
+        "type": "doc",
+        "label": "Community",
+        "id": "community"
+      },
+      {
+        "type": "doc",
+        "label": "Attribution",
+        "id": "references-and-credits"
+      },
+      {
+        "type": "doc",
+        "label": "News",
+        "id": "whats-new"
+      },
+      {
+        "type": "doc",
+        "label": "Contributing",
+        "id": "CONTRIBUTING"
+      }
+    ]
+  },
+  {
+    "type": "category",
+    "label": "Guide",
+    "items": [
+      {
+        "type": "doc",
+        "label": "Upgrading",
+        "id": "upgrade-guide"
+      },
+      {
+        "type": "doc",
+        "label": "WebGPU Support",
+        "id": "webgpu"
+      },
+      {
+        "type": "doc",
+        "label": "Basemaps",
+        "id": "modules/basemap-layers/README"
+      },
+      {
+        "type": "doc",
+        "label": "Working with AI",
+        "id": "working-with-ai"
+      },
+      {
+        "type": "doc",
+        "label": "Vega Prototype",
+        "id": "modules/vega/README"
+      }
+    ],
+    "link": {
+      "type": "doc",
+      "id": "getting-started"
+    }
+  },
+  {
+    "type": "category",
+    "label": "Packages",
+    "items": [
+      {
+        "type": "category",
+        "label": "Layers",
+        "link": {
+          "type": "doc",
+          "id": "modules/layers/README"
+        },
+        "items": [
+          {
+            "type": "category",
+            "label": "Common",
+            "items": [
+              "modules/layers/api-reference/flame-trail-layer",
+              "modules/layers/api-reference/skybox-layer",
+              "modules/layers/api-reference/dependency-arrow-layer",
+              "modules/layers/api-reference/path-marker-layer",
+              "modules/layers/api-reference/path-outline-layer",
+              "modules/layers/api-reference/volumetric-video-layer",
+              "modules/layers/api-reference/splat-layer",
+              "modules/layers/api-reference/selection-pulse-extension"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Geo",
+            "link": {
+              "type": "doc",
+              "id": "modules/geo-layers/README"
+            },
+            "items": [
+              "modules/geo-layers/api-reference/shared-tile-2d-layer",
+              "modules/geo-layers/api-reference/shared-mvt-layer",
+              "modules/geo-layers/api-reference/shared-tileset-2d",
+              "modules/geo-layers/api-reference/tile-grid-layer",
+              "modules/geo-layers/api-reference/tile-source-layer",
+              "modules/geo-layers/api-reference/is-globe-viewport"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Global Grid",
+            "link": {
+              "type": "doc",
+              "id": "modules/geo-layers/api-reference/global-grid"
+            },
+            "items": [
+              "modules/geo-layers/api-reference/global-grid-layer",
+              "modules/geo-layers/api-reference/a5-grid",
+              "modules/geo-layers/api-reference/h3-grid",
+              "modules/geo-layers/api-reference/s2-grid",
+              "modules/geo-layers/api-reference/geohash-grid",
+              "modules/geo-layers/api-reference/quadkey-grid"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Wind",
+            "link": {
+              "type": "doc",
+              "id": "modules/geo-layers/developer-guide/wind-showcase"
+            },
+            "items": [
+              "modules/geo-layers/api-reference/wind-field",
+              "modules/geo-layers/api-reference/wind-layer",
+              "modules/geo-layers/api-reference/particle-layer",
+              "modules/geo-layers/api-reference/elevation-layer",
+              "modules/geo-layers/api-reference/delaunay-cover-layer",
+              "modules/geo-layers/api-reference/delaunay-interpolation"
+            ]
+          },
+          {
+            "type": "doc",
+            "label": "Tree",
+            "id": "modules/layers/api-reference/tree-layer"
+          }
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Bing Maps",
+        "link": {
+          "type": "doc",
+          "id": "modules/bing-maps/README"
+        },
+        "items": [
+          "modules/bing-maps/api-reference/deck-overlay"
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Editable Layers",
+        "link": {
+          "type": "doc",
+          "id": "modules/editable-layers/README"
+        },
+        "items": [
+          "modules/editable-layers/developer-guide/get-started",
+          "modules/editable-layers/developer-guide/data-model",
+          "modules/editable-layers/developer-guide/geojson-types",
+          "modules/editable-layers/developer-guide/configuration",
+          {
+            "type": "category",
+            "label": "Layers",
+            "items": [
+              "modules/editable-layers/api-reference/layers/editable-geojson-layer",
+              "modules/editable-layers/api-reference/layers/selection-layer"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Widgets",
+            "items": [
+              "modules/editable-layers/api-reference/widgets/edit-mode-tray-widget",
+              "modules/editable-layers/api-reference/widgets/editor-toolbar-widget"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Edit Modes",
+            "items": [
+              "modules/editable-layers/api-reference/edit-modes/core-modes",
+              "modules/editable-layers/api-reference/edit-modes/draw-modes",
+              "modules/editable-layers/api-reference/edit-modes/transform-modes",
+              "modules/editable-layers/api-reference/edit-modes/measurement-modes"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Shader Modules",
+            "items": [
+              "modules/editable-layers/api-reference/shader-modules/outline"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Experimental",
+        "link": {
+          "type": "doc",
+          "id": "modules/experimental/README"
+        },
+        "items": [
+          "modules/experimental/api-reference/data-driven-tile-3d-layer"
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Graph Layers",
+        "link": {
+          "type": "doc",
+          "id": "modules/graph-layers/README"
+        },
+        "items": [
+          "modules/graph-layers/api-reference/layers/graph-layer",
+          "modules/graph-layers/api-reference/layers/edge-layer",
+          "modules/graph-layers/api-reference/layers/grid-layer",
+          {
+            "type": "category",
+            "label": "Developer Guide",
+            "items": [
+              "modules/graph-layers/developer-guide/get-started",
+              "modules/graph-layers/developer-guide/visualizing-graphs",
+              "modules/graph-layers/developer-guide/interactions",
+              "modules/graph-layers/developer-guide/layout-animation",
+              "modules/graph-layers/developer-guide/layouts"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Node layers",
+            "items": [
+              "modules/graph-layers/api-reference/layers/circle-layer",
+              "modules/graph-layers/api-reference/layers/rectangle-layer",
+              "modules/graph-layers/api-reference/layers/rounded-rectangle-layer",
+              "modules/graph-layers/api-reference/layers/path-rounded-rectangle-layer",
+              "modules/graph-layers/api-reference/layers/image-layer",
+              "modules/graph-layers/api-reference/layers/label-layer",
+              "modules/graph-layers/api-reference/layers/zoomable-marker-layer"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Edge layers",
+            "items": [
+              "modules/graph-layers/api-reference/layers/straight-line-edge-layer",
+              "modules/graph-layers/api-reference/layers/path-edge-layer",
+              "modules/graph-layers/api-reference/layers/curved-edge-layer",
+              "modules/graph-layers/api-reference/layers/flow-layer",
+              "modules/graph-layers/api-reference/layers/edge-arrow-layer",
+              "modules/graph-layers/api-reference/layers/edge-label-layer"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Common layers",
+            "items": [
+              "modules/graph-layers/api-reference/layers/flow-path-layer",
+              "modules/graph-layers/api-reference/layers/marker-layer",
+              "modules/graph-layers/api-reference/layers/spline-layer",
+              "modules/graph-layers/api-reference/layers/zoomable-text-layer"
+            ]
+          },
+          "modules/graph-layers/api-reference/styling/graph-stylesheet",
+          {
+            "type": "category",
+            "label": "Layouts",
+            "items": [
+              "modules/graph-layers/api-reference/layouts/simple-layout",
+              "modules/graph-layers/api-reference/layouts/graph-layout",
+              "modules/graph-layers/api-reference/layouts/d3-force-layout",
+              "modules/graph-layers/api-reference/layouts/d3-dag-layout",
+              "modules/graph-layers/api-reference/layouts/radial-layout",
+              "modules/graph-layers/api-reference/layouts/hive-plot-layout",
+              "modules/graph-layers/api-reference/layouts/multi-graph-layout"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Graph Data Structures",
+            "items": [
+              "modules/graph-layers/api-reference/graph",
+              "modules/graph-layers/api-reference/classic-graph",
+              "modules/graph-layers/api-reference/tabular-graph",
+              "modules/graph-layers/api-reference/node",
+              "modules/graph-layers/api-reference/edge"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Loaders",
+            "items": [
+              "modules/graph-layers/api-reference/loaders/dot-graph-loader"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Formats",
+            "items": [
+              "modules/graph-layers/developer-guide/dot-format"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Internal classes",
+            "items": [
+              "modules/graph-layers/api-reference/internal/graph-stylesheet-engine"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Infovis Layers",
+        "link": {
+          "type": "doc",
+          "id": "modules/infovis-layers/README"
+        },
+        "items": [
+          "modules/infovis-layers/api-reference/animation-layer",
+          "modules/infovis-layers/api-reference/block-layer",
+          "modules/infovis-layers/api-reference/time-delta-layer"
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Leaflet",
+        "link": {
+          "type": "doc",
+          "id": "modules/leaflet/README"
+        },
+        "items": [
+          "modules/leaflet/api-reference/deck-overlay"
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Panels",
+        "link": {
+          "type": "doc",
+          "id": "modules/panels/README"
+        },
+        "items": [
+          {
+            "type": "category",
+            "label": "Developer Guide",
+            "items": [
+              "modules/panels/developer-guide/using-panels",
+              "modules/panels/developer-guide/using-components",
+              "modules/panels/developer-guide/using-managers",
+              "modules/panels/developer-guide/using-stand-alone",
+              "modules/panels/developer-guide/using-with-deck-gl"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Panels API",
+            "items": [
+              "modules/panels/api-reference/panel",
+              "modules/panels/api-reference/mount-panel",
+              "modules/panels/api-reference/panel-theme",
+              {
+                "type": "category",
+                "label": "Panel Components",
+                "items": [
+                  "modules/panels/api-reference/panel-components/panel-component",
+                  "modules/panels/api-reference/panel-components/toolbar-component",
+                  "modules/panels/api-reference/panel-components/full-screen-component",
+                  "modules/panels/api-reference/panel-components/toast-component"
+                ]
+              },
+              {
+                "type": "category",
+                "label": "Managers",
+                "items": [
+                  "modules/panels/api-reference/managers/panel-manager",
+                  "modules/panels/api-reference/managers/toast-manager",
+                  "modules/panels/api-reference/managers/settings-manager",
+                  "modules/panels/api-reference/managers/command-manager",
+                  "modules/panels/api-reference/managers/keyboard-shortcuts-manager",
+                  "modules/panels/api-reference/managers/url-manager"
+                ]
+              }
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Leaf Panels",
+            "items": [
+              "modules/panels/api-reference/arrow-batches-panel",
+              "modules/panels/api-reference/arrow-schema-panel",
+              "modules/panels/api-reference/arrow-table-panel",
+              "modules/panels/api-reference/binary-data-panel",
+              "modules/panels/api-reference/custom-panel",
+              "modules/panels/api-reference/keyboard-shortcuts-panel",
+              "modules/panels/api-reference/markdown-panel",
+              "modules/panels/api-reference/stats-panel",
+              "modules/panels/api-reference/source-picker-panel",
+              "modules/panels/api-reference/metrics-panel",
+              "modules/panels/api-reference/settings-panel",
+              "modules/panels/api-reference/studio-settings-panel",
+              "modules/panels/api-reference/documentation-links-panel",
+              "modules/panels/api-reference/text-editor-panel",
+              "modules/panels/api-reference/url-parameters-panel"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Composite Panels",
+            "items": [
+              "modules/panels/api-reference/composite-panels/accordion-panel",
+              "modules/panels/api-reference/composite-panels/column-panel",
+              "modules/panels/api-reference/composite-panels/splitter-panel",
+              "modules/panels/api-reference/composite-panels/tabbed-panel"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Panel Containers",
+            "items": [
+              "modules/panels/api-reference/panel-containers/panel-container",
+              "modules/panels/api-reference/panel-containers/box-panel-container",
+              "modules/panels/api-reference/panel-containers/canvas-chrome",
+              "modules/panels/api-reference/panel-containers/header-panel-container",
+              "modules/panels/api-reference/panel-containers/footer-panel-container",
+              "modules/panels/api-reference/panel-containers/modal-panel-container",
+              "modules/panels/api-reference/panel-containers/sidebar-panel-container",
+              "modules/panels/api-reference/panel-containers/full-screen-panel-container"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Playground",
+        "link": {
+          "type": "doc",
+          "id": "modules/playground/README"
+        },
+        "items": [
+          "modules/playground/api-reference/playground",
+          "modules/playground/api-reference/geojson-schema",
+          "modules/playground/api-reference/deckgl-schema"
+        ]
+      },
+      {
+        "type": "category",
+        "label": "React",
+        "link": {
+          "type": "doc",
+          "id": "modules/react/README"
+        },
+        "items": [
+          "modules/react/developer-guide/get-started",
+          {
+            "type": "category",
+            "label": "Components",
+            "items": [
+              "modules/react/api-reference/panel",
+              "modules/react/api-reference/viewport",
+              "modules/react/api-reference/deck-canvas"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Timeline Layers",
+        "link": {
+          "type": "doc",
+          "id": "modules/timeline-layers/README"
+        },
+        "items": [
+          "modules/timeline-layers/api-reference/horizon-graph-layer",
+          "modules/timeline-layers/api-reference/multi-horizon-graph-layer",
+          "modules/timeline-layers/api-reference/time-axis-layer",
+          "modules/timeline-layers/api-reference/vertical-grid-layer"
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Widgets",
+        "link": {
+          "type": "doc",
+          "id": "modules/widgets/README"
+        },
+        "items": [
+          {
+            "type": "category",
+            "label": "Developer Guide",
+            "items": [
+              "modules/widgets/developer-guide/widget-panels"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "API Reference",
+            "items": [
+              {
+                "type": "category",
+                "label": "Classic Widgets",
+                "items": [
+                  "modules/widgets/api-reference/heap-memory-widget",
+                  "modules/widgets/api-reference/pan-widget",
+                  "modules/widgets/api-reference/reset-view-widget",
+                  "modules/widgets/api-reference/y-zoom-widget",
+                  "modules/widgets/api-reference/zoom-range-widget"
+                ]
+              },
+              {
+                "type": "category",
+                "label": "Overlay Widgets",
+                "items": [
+                  "modules/widgets/api-reference/html-overlay-widget",
+                  "modules/widgets/api-reference/html-cluster-widget",
+                  "modules/widgets/api-reference/html-overlay-item",
+                  "modules/widgets/api-reference/html-tooltip-widget"
+                ]
+              },
+              {
+                "type": "category",
+                "label": "Advanced UI Widgets",
+                "items": [
+                  "modules/widgets/api-reference/color-legend-widget",
+                  "modules/widgets/api-reference/device-manager",
+                  "modules/widgets/api-reference/device-tabs-widget",
+                  "modules/widgets/api-reference/omni-box-widget",
+                  "modules/widgets/api-reference/time-measure-widget"
+                ]
+              },
+              {
+                "type": "category",
+                "label": "Panel Widgets",
+                "items": [
+                  "modules/widgets/api-reference/panel-widget",
+                  "modules/widgets/api-reference/deck-panel"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "link": {
+      "type": "generated-index",
+      "title": "Packages",
+      "slug": "/category/packages"
+    }
+  }
+]

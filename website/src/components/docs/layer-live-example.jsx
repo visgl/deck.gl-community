@@ -47,11 +47,6 @@ const GRAPH_LAYER_HIGHLIGHTS = new Set([
 ]);
 
 const INFO_COPY = {
-  'arrow-layers': {
-    title: 'GeoArrow layers',
-    markdown:
-      'The Arrow layer APIs render Arrow-backed columnar data through deck.gl layer adapters. This embedded canvas keeps the docs page live while the aggregate Arrow reference remains a compact index.'
-  },
   'data-driven-tile-3d-layer': {
     title: 'DataDrivenTile3DLayer',
     markdown:
@@ -217,17 +212,14 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       if (GRAPH_LAYER_HIGHLIGHTS.has(highlight)) {
         return mountGraphLayerDocsExample(container, highlight, mountProps);
       }
-      return mountInfoDeck(
-        container,
-        INFO_COPY[highlight] ?? INFO_COPY['arrow-layers'],
-        mountProps
-      );
+      if (INFO_COPY[highlight]) return mountInfoDeck(container, INFO_COPY[highlight], mountProps);
+      throw new Error(`Unknown layer example: ${highlight}`);
   }
 }
 
 async function mountGlobalGridLayerExample(container, mountProps = {}) {
   const {Deck} = await import('@deck.gl/core');
-  const {GlobalGridLayer, GeohashGrid} = await import('@deck.gl-community/geo-layers');
+  const {GlobalGridLayer, GeohashGrid} = await import('@deck.gl-community/layers/global-grid-layers');
   const rootElement = createRoot(container);
 
   const data = [
@@ -283,7 +275,7 @@ async function mountGlobalGridLayerExample(container, mountProps = {}) {
 
 async function mountTileSourceLayerExample(container, mountProps = {}) {
   const {Deck} = await import('@deck.gl/core');
-  const {TileSourceLayer} = await import('@deck.gl-community/geo-layers');
+  const {TileSourceLayer} = await import('@deck.gl-community/layers/geo-layers');
   const rootElement = createRoot(container);
   const tileSource = createCanvasTileSource(rootElement.ownerDocument);
 

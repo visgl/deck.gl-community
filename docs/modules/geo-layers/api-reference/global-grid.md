@@ -11,8 +11,8 @@
 Implement the `GlobalGrid` contract when wiring up a custom DGGS helper:
 
 ```ts
-import type {GlobalGrid} from '@deck.gl/geo-layers';
-import {GlobalGridLayer} from '@deck.gl/geo-layers';
+import type {GlobalGrid} from '@deck.gl-community/layers/global-grid-layers';
+import {GlobalGridLayer} from '@deck.gl-community/layers/global-grid-layers';
 
 const CustomGrid: GlobalGrid = {
   name: 'custom',

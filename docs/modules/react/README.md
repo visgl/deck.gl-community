@@ -1,6 +1,9 @@
-# Overview
+---
+deckVersion: "10.0"
+introduced: "9.0"
+---
 
-![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+# Overview
 
 A collection of generic react components to use with deck.gl
 

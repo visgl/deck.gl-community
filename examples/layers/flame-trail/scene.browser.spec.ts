@@ -7,7 +7,7 @@ import {Buffer, luma, Texture} from '@luma.gl/core';
 import {webgl2Adapter, type WebGLDevice} from '@luma.gl/core/webgl';
 import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/core/webgpu';
 import {expect, it} from 'vitest';
-import {requireWebGPUAdapter} from '../../../modules/layers/test/webgpu-test-utils';
+import {requireWebGPUAdapter} from '../../../modules/layers/test/common-layers/webgpu-test-utils';
 import {createSceneLayers, fitSceneView} from './scene';
 
 const SIZE = 256;

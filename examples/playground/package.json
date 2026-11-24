@@ -10,10 +10,8 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@deck.gl-community/arrow-layers": "workspace:*",
     "@deck.gl-community/editable-layers": "workspace:*",
     "@deck.gl-community/experimental": "workspace:*",
-    "@deck.gl-community/geo-layers": "workspace:*",
     "@deck.gl-community/graph-layers": "workspace:*",
     "@deck.gl-community/infovis-layers": "workspace:*",
     "@deck.gl-community/layers": "workspace:*",
@@ -33,7 +31,9 @@
     "@luma.gl/core": "10.0.0-alpha.14",
     "@luma.gl/engine": "10.0.0-alpha.14",
     "@luma.gl/shaders": "10.0.0-alpha.14",
+    "a5-js": "^0.5.0",
     "apache-arrow": "^17.0.0",
+    "delaunator": "^5.1.0",
     "h3-js": "^4.2.1",
     "preact": "^10.17.0",
     "vega": "^6.2.0",

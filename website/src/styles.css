@@ -384,3 +384,71 @@ main .container:not(#community-theme):not(#community-theme):not(#community-theme
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+/* Keep package and repository badges aligned with the desktop navbar links. */
+@media (min-width: 997px) {
+  .navbar__inner .navbar-badge:not(#community-theme):not(#community-theme):not(#community-theme) {
+    display: flex;
+    align-items: center;
+  }
+
+  .navbar__inner .navbar-badge > a {
+    display: flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+  }
+}
+
+.navbar__inner .navbar-package-badge > span,
+.navbar-sidebar .navbar-package-badge > img,
+.navbar-sidebar .navbar-openjs,
+.openjs-logo-dark,
+html[data-theme='dark'] .openjs-logo-light {
+  display: none;
+}
+
+html[data-theme='dark'] .openjs-logo-dark {
+  display: block;
+}
+
+.navbar-package-badge > img,
+.markdown .introduction-badges img {
+  display: block;
+  height: 20px;
+  width: auto;
+}
+
+@media (max-width: 996px) {
+  .navbar__toggle:not(#community-theme):not(#community-theme):not(#community-theme),
+  .navbar-sidebar__close:not(#community-theme):not(#community-theme):not(#community-theme),
+  .navbar-sidebar .menu__caret:not(#community-theme):not(#community-theme):not(#community-theme) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .navbar__toggle {
+    margin-right: 0.5rem;
+  }
+
+  .navbar-sidebar .menu__link,
+  .navbar-sidebar .navbar-package-badge,
+  .docs-mobile-navigation > * {
+    min-height: 44px;
+  }
+
+  .navbar-sidebar .navbar-package-badge,
+  .docs-mobile-navigation > * {
+    display: flex;
+    align-items: center;
+    padding: var(--ifm-menu-link-padding-vertical) var(--ifm-menu-link-padding-horizontal);
+    color: var(--ifm-menu-color);
+    font-weight: var(--ifm-font-weight-semibold);
+  }
+
+  .docs-mobile-navigation {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--docs-border-subtle);
+  }
+}

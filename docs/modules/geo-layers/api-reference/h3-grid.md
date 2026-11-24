@@ -9,7 +9,8 @@
 ## Usage
 
 ```ts
-import {GlobalGridLayer, H3Grid} from '@deck.gl/geo-layers';
+import {GlobalGridLayer} from '@deck.gl-community/layers/global-grid-layers';
+import {H3Grid} from '@deck.gl-community/layers/global-grid-layers/h3';
 
 const layer = new GlobalGridLayer({
   id: 'h3-grid',

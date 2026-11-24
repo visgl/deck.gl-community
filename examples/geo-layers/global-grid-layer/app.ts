@@ -1,12 +1,12 @@
+import {A5Grid} from '@deck.gl-community/layers/global-grid-layers/a5';
+import {H3Grid} from '@deck.gl-community/layers/global-grid-layers/h3';
 import {Deck, _GlobeView, type MapViewState} from '@deck.gl/core';
 import {
-  A5Grid,
   GeohashGrid,
   GlobalGridLayer,
-  H3Grid,
   QuadkeyGrid,
   S2Grid
-} from '@deck.gl-community/geo-layers';
+} from '@deck.gl-community/layers/global-grid-layers';
 
 const INITIAL_VIEW_STATE: MapViewState = {
   longitude: 0,

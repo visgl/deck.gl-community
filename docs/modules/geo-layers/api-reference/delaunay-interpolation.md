@@ -22,7 +22,7 @@ import {
   createWindField,
   DelaunayInterpolation,
   parseWindData
-} from '@deck.gl-community/geo-layers';
+} from '@deck.gl-community/layers/wind-layers';
 ```
 
 ## Sample a geographic location
