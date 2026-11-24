@@ -4,7 +4,7 @@
 
 import {picking} from '@deck.gl/core';
 import {phongMaterial, type ShaderModule} from '@luma.gl/shaders';
-import {WGSL_FILTER_COLOR_ANCHOR} from '../../common-layers/selection-pulse-extension/selection-pulse-shaders';
+import {WGSL_FILTER_COLOR_ANCHOR} from '../../extensions/selection-pulse-extension/selection-pulse-shaders';
 import {TREE_ROOT_PLATE_RADII} from './tree-growth-model';
 import {treePhotorealWgsl} from './tree-photoreal-wgsl';
 import {TREE_WIND_STRONG_FROM, TREE_WIND_STRONG_TO} from './tree-wind';

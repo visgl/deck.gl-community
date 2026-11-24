@@ -7,8 +7,8 @@ import {Attribute, LayerManager, WebMercatorViewport, type Layer} from '@deck.gl
 import {ScatterplotLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {device} from '@deck.gl/test-utils/vitest';
 import {SelectionPulseExtension, type TreeSpec} from '../../../src';
-import {getSelectionPulseAmount} from '../../../src/common-layers/selection-pulse-extension/selection-pulse-extension';
-import {WGSL_FILTER_COLOR_ANCHOR} from '../../../src/common-layers/selection-pulse-extension/selection-pulse-shaders';
+import {getSelectionPulseAmount} from '../../../src/extensions/selection-pulse-extension/selection-pulse-extension';
+import {WGSL_FILTER_COLOR_ANCHOR} from '../../../src/extensions/selection-pulse-extension/selection-pulse-shaders';
 import {
   SPLAT_ACCUMULATION_WGSL,
   SPLAT_TRANSMISSION_WGSL,

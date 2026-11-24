@@ -4,6 +4,7 @@
 
 import {it, expect} from 'vitest';
 import * as Layers from '../../src/index';
+import {SelectionPulseExtension} from '@deck.gl-community/layers/extensions';
 
 it('exports PathOutlineLayer', () => {
   expect(Layers.PathOutlineLayer).toBeDefined();
@@ -27,4 +28,8 @@ it('exports VolumetricVideoLayer', () => {
 
 it('exports the volumetric history memory estimator', () => {
   expect(Layers.getVolumetricVideoHistoryBytes(1, 1, 1)).toBe(12);
+});
+
+it('shares SelectionPulseExtension with the extensions subpath', () => {
+  expect(Layers.SelectionPulseExtension).toBe(SelectionPulseExtension);
 });

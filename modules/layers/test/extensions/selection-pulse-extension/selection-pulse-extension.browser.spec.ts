@@ -42,7 +42,7 @@ import {
   TreeLayer,
   type TreeSpec
 } from '../../../src';
-import {requireWebGPUAdapter} from '../webgpu-test-utils';
+import {requireWebGPUAdapter} from '../../common-layers/webgpu-test-utils';
 
 const maplibre = (globalThis as any).maplibregl;
 

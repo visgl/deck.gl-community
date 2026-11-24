@@ -15,6 +15,41 @@ permissions:
   contents: read
 
 jobs:
+  build-packages:
+    runs-on: ubuntu-26.04
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Enable Corepack
+        run: corepack enable yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
+
+      - name: Build packages
+        run: yarn build
+
+      - name: Archive package outputs
+        run: tar -cf "$RUNNER_TEMP/package-build.tar" modules/*/dist
+
+      - name: Upload built packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: package-build
+          path: ${{ runner.temp }}/package-build.tar
+          compression-level: 1
+          retention-days: 30
+          if-no-files-found: error
+          overwrite: true
+
   lint:
     runs-on: ubuntu-26.04
 
@@ -38,6 +73,7 @@ jobs:
         run: yarn lint
 
   test-node:
+    needs: build-packages
     runs-on: ubuntu-26.04
     permissions:
       contents: read
@@ -62,8 +98,8 @@ jobs:
         env:
           YARN_ENABLE_HARDENED_MODE: 0
 
-      - name: Build packages
-        run: yarn build
+      - name: Restore built packages
+        uses: ./.github/actions/restore-package-build
 
       - name: Compile strict public API consumers
         run: yarn test-types
@@ -209,6 +245,7 @@ jobs:
             }
 
   test-headless-shard:
+    needs: build-packages
     runs-on: ubuntu-26.04
 
     strategy:
@@ -233,11 +270,11 @@ jobs:
         env:
           YARN_ENABLE_HARDENED_MODE: 0
 
-      - name: Build packages
-        run: yarn build
+      - name: Restore built packages
+        uses: ./.github/actions/restore-package-build
 
-      - name: Install Playwright Chromium
-        uses: ./.github/actions/setup-browser
+      - name: Check Google Chrome
+        run: /opt/google/chrome/chrome --version || yarn playwright install --with-deps chrome
 
       - name: Run headless browser tests
         id: headless
@@ -246,6 +283,7 @@ jobs:
         run: yarn test-headless --shard=${{ matrix.shard }}/4
 
   test-webgpu:
+    needs: build-packages
     runs-on: ubuntu-26.04
 
     steps:
@@ -264,12 +302,12 @@ jobs:
         env:
           YARN_ENABLE_HARDENED_MODE: 0
 
-      - name: Build packages
-        run: yarn build
+      - name: Restore built packages
+        uses: ./.github/actions/restore-package-build
 
-      - name: Install Playwright Chromium
+      - name: Check Google Chrome
         id: browser-setup
-        uses: ./.github/actions/setup-browser
+        run: /opt/google/chrome/chrome --version || yarn playwright install --with-deps chrome
 
       - name: Verify WebGPU layers with a required software adapter
         # Unrelated browser failures must not suppress the backend verification.
@@ -277,7 +315,7 @@ jobs:
         # it repeatedly stalls waiting for rendering and times out after 35 seconds.
         # Native browser runs retain the test; keep all other WebGPU checks enabled.
         if: ${{ !cancelled() && steps.browser-setup.outcome == 'success' }}
-        run: yarn vitest run --project headless modules/layers/test/common-layers/webgpu-layers.browser.spec.ts modules/layers/test/common-layers/splat-layer/webgpu-layers.browser.spec.ts modules/layers/test/common-layers/selection-pulse-extension/selection-pulse-extension.browser.spec.ts modules/layers/test/tree-layers/tree-layer/webgpu-layers.browser.spec.ts modules/layers/test/tree-layers/tree-layer/tree-photoreal-wgsl.browser.spec.ts modules/layers/test/tree-layers/tree-layer/tree-canopy-colors.browser.spec.ts modules/layers/test/common-layers/flame-trail-layer/flame-trail-layer.browser.spec.ts modules/layers/test/common-layers/volumetric-video-layer/volumetric-video-layer.browser.spec.ts examples/layers/flame-trail/scene.browser.spec.ts examples/layers/volumetric-video/app.browser.spec.ts -t "^(?!.*keeps the WebGPU raster path for a nearly edge-on automatic volume).*(webgpu|WebGPU)"
+        run: yarn vitest run --project headless modules/layers/test/common-layers/webgpu-layers.browser.spec.ts modules/layers/test/common-layers/splat-layer/webgpu-layers.browser.spec.ts modules/layers/test/extensions/selection-pulse-extension/selection-pulse-extension.browser.spec.ts modules/layers/test/tree-layers/tree-layer/webgpu-layers.browser.spec.ts modules/layers/test/tree-layers/tree-layer/tree-photoreal-wgsl.browser.spec.ts modules/layers/test/tree-layers/tree-layer/tree-canopy-colors.browser.spec.ts modules/layers/test/common-layers/flame-trail-layer/flame-trail-layer.browser.spec.ts modules/layers/test/common-layers/volumetric-video-layer/volumetric-video-layer.browser.spec.ts examples/layers/flame-trail/scene.browser.spec.ts examples/layers/volumetric-video/app.browser.spec.ts -t "^(?!.*keeps the WebGPU raster path for a nearly edge-on automatic volume).*(webgpu|WebGPU)"
         env:
           DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
 
