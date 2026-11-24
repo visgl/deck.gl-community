@@ -1,13 +1,12 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 import {load} from '@loaders.gl/core';
-import {ArrowLoader} from '@loaders.gl/tables';
 import {CSVLoader} from '@loaders.gl/tables';
 import {JSONLoader} from '@loaders.gl/tables';
-import {Table, tableFromJSON} from 'apache-arrow';
+import {Table, tableFromIPC, tableFromJSON} from 'apache-arrow';
 import {GeoJSONSchema} from '@deck.gl-community/playground';
 
-/** An uploaded file's canonical Arrow table and deck.gl 9 row adapter. */
+/** An uploaded file's canonical Arrow table and deck.gl row adapter. */
 export type UploadedData = {table: Table; data: Record<string, unknown>[]; format: string};
 
 /** Restores nested Arrow values as ordinary objects and arrays for deck.gl accessors. */
@@ -30,20 +29,19 @@ export function createUploadedData(table: Table, format = 'Arrow IPC'): Uploaded
   return {table, format, data: Array.from(table, row => toPlainValue(row))};
 }
 
-/** Loads local data with the pinned loaders.gl version; no remote upload is performed. */
+/** Parses a file selected in the browser; no remote upload is performed. */
 export async function loadUploadedData(file: File): Promise<UploadedData> {
   const extension = file.name.split('.').pop()?.toLowerCase();
   if (extension === 'arrow' || extension === 'feather' || extension === 'ipc') {
-    const result = await load(file, ArrowLoader, {arrow: {shape: 'arrow-table'}});
-    return createUploadedData(result.data as Table);
+    return createUploadedData(tableFromIPC(await file.arrayBuffer()));
   }
   const isCsv = extension === 'csv';
   if (!isCsv && extension !== 'json' && extension !== 'geojson') {
     throw new Error('Choose JSON, GeoJSON, CSV, or Arrow IPC (.arrow, .feather, .ipc).');
   }
   const loaded = isCsv
-    ? await load(file, CSVLoader, {csv: {shape: 'object-row-table'}})
-    : await load(file, JSONLoader);
+    ? await load(file, CSVLoader, {core: {worker: false}, csv: {shape: 'object-row-table'}})
+    : await load(file, JSONLoader, {core: {worker: false}});
   const value = isCsv ? (loaded as {data: unknown}).data : loaded;
   if (!isCsv && value && !Array.isArray(value) && typeof value === 'object') {
     if (!('type' in value)) {

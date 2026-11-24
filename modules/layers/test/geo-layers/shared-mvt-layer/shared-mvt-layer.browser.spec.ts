@@ -130,7 +130,7 @@ describe('SharedMVTLayer consumers in the browser', () => {
       requests++;
       const data = await parse(tileBytes.slice().buffer, MVTLoader, {
         ...loadOptions,
-        worker: false
+        core: {worker: false}
       });
       decodes++;
       return data;

@@ -47,7 +47,7 @@ onEdit: ({updatedData, editType, editContext}) => {
 
 ```tsx
 import React, {useState} from 'react';
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {
   EditableGeoJsonLayer,
   DrawPolygonMode,

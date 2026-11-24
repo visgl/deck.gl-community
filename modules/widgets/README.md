@@ -29,7 +29,7 @@ npm install @deck.gl-community/widgets
 ## Usage
 
 ```ts
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {OrthographicView} from '@deck.gl/core';
 import {PanWidget, ZoomRangeWidget} from '@deck.gl-community/widgets';
 

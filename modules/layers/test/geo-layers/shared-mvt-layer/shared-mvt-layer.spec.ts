@@ -157,7 +157,11 @@ it('decodes an MVT before the cache owner has a deck.gl context', async () => {
   // A valid protobuf tile containing an empty layer named "test", version 2.
   const bytes = Uint8Array.from([0x1a, 8, 0x0a, 4, 116, 101, 115, 116, 0x78, 2]);
   const url = `data:application/x-protobuf;base64,${Buffer.from(bytes).toString('base64')}`;
-  const layer = new SharedMVTLayer({data: url, loaders: [MVTLoader], loadOptions: {worker: false}});
+  const layer = new SharedMVTLayer({
+    data: url,
+    loaders: [MVTLoader],
+    loadOptions: {core: {worker: false}}
+  });
   const tile: any = {id: '0-0-0', index: {x: 0, y: 0, z: 0}};
   expect(await layer.getTileData(tile)).toEqual([]);
 });
@@ -234,7 +238,11 @@ it('decodes an MVT tile into its features', async () => {
     await encode(features as any, MVTWriter, {mvt: {layerName: 'test', version: 2}})
   );
   const url = `data:application/x-protobuf;base64,${Buffer.from(bytes).toString('base64')}`;
-  const layer = new SharedMVTLayer({data: url, loaders: [MVTLoader], loadOptions: {worker: false}});
+  const layer = new SharedMVTLayer({
+    data: url,
+    loaders: [MVTLoader],
+    loadOptions: {core: {worker: false}}
+  });
   const content = await layer.getTileData({id: '3-1-2', index: {x: 1, y: 2, z: 3}} as any);
   expect(content).toEqual(
     features.map(feature => ({

@@ -5,7 +5,7 @@
 import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {useState, useEffect, useCallback, useMemo} from 'react';
 import {Map} from 'react-map-gl/maplibre';
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {
   ViewMode,
   ModifyMode,
