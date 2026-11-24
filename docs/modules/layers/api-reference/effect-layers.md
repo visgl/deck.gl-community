@@ -29,3 +29,5 @@ are finalized. Install `@luma.gl/graph` when using the experimental flow simulat
 The application advances that simulation and owns its buffers.
 
 [Original implementations](https://github.com/visgl/deck.gl/tree/66542993e71b937f83cf07c81fda14e317075b10/modules/proposals/src/layers)
+
+The [Sketch Edges example](https://github.com/visgl/deck.gl-community/tree/master/examples/layers/sketch-edges) renders an interactive riverfront with architectural outlines and PBR building materials.

@@ -1,0 +1,25 @@
+{
+  "name": "example-globe-clouds",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "build": "vite build",
+    "test:visual": "node visual-test.mjs"
+  },
+  "dependencies": {
+    "@deck.gl-community/layers": "workspace:*",
+    "@deck.gl/core": "10.0.0-alpha.2",
+    "@luma.gl/core": "10.0.0-beta.3",
+    "@luma.gl/engine": "10.0.0-beta.3",
+    "@luma.gl/shaders": "10.0.0-beta.3",
+    "@math.gl/core": "5.0.2",
+    "@math.gl/earth": "5.0.2"
+  },
+  "devDependencies": {
+    "playwright": "^1.58.0",
+    "pngjs": "^7.0.0",
+    "vite": "^7.3.1"
+  }
+}

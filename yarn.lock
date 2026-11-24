@@ -6897,6 +6897,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"example-globe-clouds@workspace:examples/layers/globe-clouds":
+  version: 0.0.0-use.local
+  resolution: "example-globe-clouds@workspace:examples/layers/globe-clouds"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    playwright: "npm:^1.58.0"
+    pngjs: "npm:^7.0.0"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "example-horizon-graph-layer@workspace:examples/layers/horizon-graph-layer":
   version: 0.0.0-use.local
   resolution: "example-horizon-graph-layer@workspace:examples/layers/horizon-graph-layer"
@@ -6935,6 +6952,21 @@ __metadata:
     "@vitejs/plugin-react": "npm:^5.1.4"
     react: "npm:^19.2.8"
     react-dom: "npm:^19.2.8"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"example-sketch-edges@workspace:examples/layers/sketch-edges":
+  version: 0.0.0-use.local
+  resolution: "example-sketch-edges@workspace:examples/layers/sketch-edges"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    playwright: "npm:^1.58.0"
+    pngjs: "npm:^7.0.0"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
