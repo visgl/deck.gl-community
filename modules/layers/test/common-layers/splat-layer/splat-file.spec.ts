@@ -45,6 +45,23 @@ it('shares one URL load between holders and drops it with the last hold', async 
   await next.promise;
 });
 
+it('shares a pending request across a gap with no holders', async () => {
+  const response = Promise.withResolvers<Response>();
+  const fetch = vi.fn(() => response.promise);
+  vi.stubGlobal('fetch', fetch);
+  const url = 'https://splats.test/pending.splat';
+
+  const file = getSplatFile(url);
+  holdSplatFile(file);
+  releaseSplatFile(file);
+  expect(getSplatFile(url)).toBe(file);
+  expect(fetch).toHaveBeenCalledOnce();
+
+  response.resolve(new Response(makeSplatBytes()));
+  await file.promise;
+  expect(getSplatFile(url)).not.toBe(file);
+});
+
 it('keeps a held failure without refetching, and retries once it is released', async () => {
   const fetch = vi.fn(async () => new Response(null, {status: 503}));
   vi.stubGlobal('fetch', fetch);

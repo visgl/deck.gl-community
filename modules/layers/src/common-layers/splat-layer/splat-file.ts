@@ -95,7 +95,7 @@ export function releaseSplatFile(file: SplatFile): void {
     return;
   }
   FILE_HOLDS.delete(file);
-  forgetSplatFile(file);
+  if (file.source || file.error) forgetSplatFile(file);
 }
 
 /** Drop a settled load nothing holds, such as one only probed, rather than keep it for the session. */
@@ -121,7 +121,12 @@ export async function loadSplatFile(input: SplatFileInput): Promise<SplatSource>
   const buffer = await readSplatFileBytes(input);
   const format = detectSplatFileFormat(buffer, name);
   // loaded on first use, so layers that never see a file never fetch the decoders
-  const splats = await import('@loaders.gl/splats');
+  let splats: typeof import('@loaders.gl/splats');
+  try {
+    splats = await import('@loaders.gl/splats');
+  } catch (cause) {
+    throw new Error('Install @loaders.gl/splats to load splat files with SplatLayer.', {cause});
+  }
   // loaders.gl 5 decodes SPZ to plain columns, skipping the Arrow table and its copies
   const parseColumns = (splats as Record<string, unknown>).parseSPZToGaussianSplats as
     | ((data: ArrayBuffer) => Promise<GaussianSplatsColumns>)

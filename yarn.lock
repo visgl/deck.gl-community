@@ -674,6 +674,7 @@ __metadata:
     "@deck.gl/layers": 10.0.0-alpha.2
     "@deck.gl/mesh-layers": 10.0.0-alpha.2
     "@loaders.gl/core": 5.0.0-rc.2
+    "@loaders.gl/splats": 5.0.0-rc.2
     "@luma.gl/core": 10.0.0-beta.3
     "@luma.gl/engine": 10.0.0-beta.3
     "@math.gl/earth": 5.0.2
@@ -682,6 +683,8 @@ __metadata:
     delaunator: ^5.1.0
     h3-js: ^4.2.1
   peerDependenciesMeta:
+    "@loaders.gl/splats":
+      optional: true
     "@math.gl/earth":
       optional: true
     a5-js:

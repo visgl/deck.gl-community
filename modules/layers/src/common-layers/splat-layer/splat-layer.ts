@@ -227,7 +227,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     };
   }
   get isLoaded(): boolean {
-    if (this.state.captureMode) return super.isLoaded && Boolean(this.state.captureSource);
+    if (this.state.input?.pending.length) return false;
+    if (this.state.captureMode) return super.isLoaded;
     return super.isLoaded && !this.state.refinement.active;
   }
   shouldUpdateState({changeFlags}) {
@@ -256,8 +257,9 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       if (this.state.watchedFiles.has(file)) continue;
       this.state.watchedFiles.add(file);
       const settle = () => {
-        if (!this.internalState) return;
-        this.setState({fileRevision: this.state.fileRevision + 1});
+        const current = this.getCurrentLayer() as SplatLayer<DataT> | null;
+        if (!current?.state.heldFiles.has(file)) return;
+        current.setState({fileRevision: current.state.fileRevision + 1});
       };
       file.promise.then(settle, settle);
     }

@@ -8,6 +8,8 @@ runs on WebGL2 and WebGPU, and [`TreeLayer`](./tree-layer.md) uses it for foliag
 `SplatLayer` draws decoded Gaussians only. File loading, training, streaming and spherical
 harmonics are out of scope.
 
+Install the optional peer `@loaders.gl/splats` when passing file URLs or bytes to the layer.
+
 ## Usage
 
 ```ts
