@@ -309,7 +309,7 @@ describe('TreeLayer photoreal rendering', () => {
     const shift = new ShiftShadowReceivers({pixels: 0});
     const original = await scene.render([
       trees({lodBias: -2, windStrength: 0, windTime: 0, extensions: [shift]}, [
-        {...CITRUS, characteristics: {leafDensity: 0.2}}
+        {...CITRUS, characteristics: {leafDensity: 0.25}}
       ])
     ]);
     const offset = 16;
@@ -671,7 +671,7 @@ describe('TreeLayer photoreal rendering', () => {
     const props = {lodBias: -3, windTime: 12, windDirection: 80};
     const receiver = ground();
     // A sparser crown exercises the same macro and culling paths with fewer submitted vertices.
-    const tree: TreeSpec = {...CITRUS, characteristics: {leafDensity: 0.12}};
+    const tree: TreeSpec = {...CITRUS, characteristics: {leafDensity: 0.25}};
     const data = [tree];
     // Static time and an unchanged camera let us compare the first frame after each update.
     const render = (windStrength: number, culling: boolean) =>
