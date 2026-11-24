@@ -11,7 +11,7 @@ import type {
   Position,
   UpdateParameters
 } from '@deck.gl/core';
-import {getLayerWind} from '../wind-effect/wind-effect';
+import {WindEffect} from '@deck.gl-community/layers/wind-layers/wind-effect';
 import {Model} from '@luma.gl/engine';
 import {grassUniforms, grassVertex, grassFragment, grassWgsl} from './grass-layer-shaders';
 
@@ -109,17 +109,18 @@ export class GrassLayer<DataT = {position: Position}> extends Layer<
     if (!model) return;
 
     const {bladesPerPatch, windEnabled} = this.props;
-    const {wind, animated} = getLayerWind(this, windEnabled);
+    const effect = windEnabled ? WindEffect.get(this.context.deck) : undefined;
+    const wind = effect?.getModuleProps(this);
     const blades = Math.floor(Math.max(1, Math.min(4096, bladesPerPatch ?? 1024)));
-    const bearing = ((wind.direction ?? 0) * Math.PI) / 180;
+    const bearing = ((wind?.direction ?? 0) * Math.PI) / 180;
     model.shaderInputs.setProps({
       grass: {
         bladeCount: blades,
-        wind: [Math.sin(bearing), Math.cos(bearing), wind.strength ?? 0, wind.time ?? 0]
+        wind: [Math.sin(bearing), Math.cos(bearing), wind?.strength ?? 0, wind?.time ?? 0]
       }
     });
     model.setVertexCount(blades * VERTICES_PER_BLADE);
     model.draw(renderPass);
-    if (animated) this.setNeedsRedraw();
+    if (effect && effect.strength > 0 && effect.props.time === null) this.setNeedsRedraw();
   }
 }
