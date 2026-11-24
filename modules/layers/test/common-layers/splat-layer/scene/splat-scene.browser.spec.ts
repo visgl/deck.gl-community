@@ -9,6 +9,7 @@ import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {describe, expect, inject, it, vi} from 'vitest';
 
 import {SplatLayer} from '../../../../src/common-layers';
+import {SplatSceneLayer} from '../../../../src/common-layers/splat-layer/scene/splat-scene-layer';
 import {ScatterplotLayer} from '@deck.gl/layers';
 
 class TestDeck extends Deck {
@@ -101,6 +102,7 @@ async function renderSorted(
       : undefined;
   native?.addEventListener('uncapturederror', capture);
   let deck: TestDeck | undefined;
+  const sceneDraw = hostParameters ? vi.spyOn(SplatSceneLayer.prototype, 'draw') : undefined;
   try {
     const source = (z: number, color: number[]) => ({
       positions: new Float32Array([0, 0, z]),
@@ -148,6 +150,16 @@ async function renderSorted(
     const layers = deepPicking
       ? [make(blue, 'blue').clone({data: [red, blue], getSource: row => row.splats})]
       : [make(red, 'red'), make(blue, 'blue')];
+    if (hostParameters) {
+      layers.push(
+        make(red, 'weighted-sibling').clone({
+          transparency: 'weighted',
+          getPosition: () => [6, 0, 0],
+          getScale: [0.1, 0.1, 0.1],
+          pickable: false
+        })
+      );
+    }
     if (reverse) layers.reverse();
     let frames = 0;
     await new Promise<void>((resolve, reject) => {
@@ -375,6 +387,10 @@ async function renderSorted(
       expect(blurred[offset + 3]).toBeLessThan(pixels[offset + 3]);
     }
     if (hostParameters) {
+      expect(sceneDraw).toHaveBeenCalled();
+      expect(
+        sceneDraw?.mock.calls.some(([options]) => options.shaderModuleProps.splat?.mode === 0)
+      ).toBe(false);
       const cases: {parameters: Parameters; sceneParameters?: Parameters}[] = [
         {parameters: {depthCompare: 'never'}},
         {parameters: {depthCompare: 'always'}},
@@ -453,6 +469,7 @@ async function renderSorted(
     if (scene) expect(scene.state.runtime.assets.size).toBe(0);
     return result;
   } finally {
+    sceneDraw?.mockRestore();
     native?.removeEventListener('uncapturederror', capture);
     deck?.finalize();
     framebuffer?.destroy();

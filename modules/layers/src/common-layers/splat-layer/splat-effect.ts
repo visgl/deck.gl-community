@@ -14,8 +14,8 @@ import {SplatSortedRenderer} from './splat-sorted-renderer';
 import type {SplatPrimitiveLayer} from './splat-primitive-layer';
 import type {ShaderModule} from '@luma.gl/shaders';
 
-const isSplat = (layer: Layer) =>
-  (layer.constructor as {layerName?: string}).layerName === 'SplatPrimitiveLayer';
+const getLayerName = (layer: Layer) => (layer.constructor as {layerName?: string}).layerName;
+const isSplat = (layer: Layer) => getLayerName(layer) === 'SplatPrimitiveLayer';
 type RasterSelectionLayer = Layer & {requestSplatRenderPixelRatio: (pixelRatio: number) => number};
 function isRasterSelectionLayer(layer: Layer): layer is RasterSelectionLayer {
   return (
@@ -42,7 +42,9 @@ class SplatPass extends _LayersPass {
   }
   shouldDrawLayer(layer: Layer) {
     return this.mode === 0
-      ? !isSplat(layer) && layer.props.operation.includes('draw')
+      ? !isSplat(layer) &&
+          getLayerName(layer) !== 'SplatSceneLayer' &&
+          layer.props.operation.includes('draw')
       : isSplat(layer) &&
           layer.props.operation.includes('draw') &&
           (this.mode === 4 ||

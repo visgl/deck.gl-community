@@ -91,7 +91,8 @@ function keyMatchesLayerId(key: string, layerId: string): boolean {
 export class SplatSceneRuntime implements Effect {
   id = 'splat-scene-runtime';
   props = null;
-  order = 10;
+  // Publish scene budgets before prepared selection (9) and transparency (10).
+  order = 8;
   useInPicking = true;
   private readonly pickers = new Map<string, SplatCPUSceneRenderer>();
   private readonly pickingEntries = new Map<string, SceneEntry[]>();
