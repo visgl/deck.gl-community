@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {AmbientLight, DirectionalLight, LightingEffect, MapView} from '@deck.gl/core';
+import {AmbientLight, DirectionalLight, LightingEffect, MapView, OrbitView} from '@deck.gl/core';
 import {describe, expect, it, vi} from 'vitest';
 import {SelectionPulseExtension, TreeLayer, type CropConfig, type TreeSpec} from '../../../src';
 import {getTreeCropTable} from '../../../src/tree-layers/tree-layer/tree-crop';
