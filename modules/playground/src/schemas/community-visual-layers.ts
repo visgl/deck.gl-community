@@ -654,8 +654,25 @@ export const GrassLayerPropsSchema = BaseLayerPropsSchema.extend({
 /** JSON configuration for GrassLayer. */
 export const GrassLayerSchema = defineLayer('GrassLayer', GrassLayerPropsSchema);
 
+/** JSON props for a world-space rain volume. */
+export const RainLayerPropsSchema = BaseLayerPropsSchema.extend({
+  position: DeckGLPositionSchema.optional(),
+  size: z.tuple([z.number().positive(), z.number().positive(), z.number().positive()]).optional(),
+  velocity: Vector3Schema.optional(),
+  count: nonnegative.int().max(0x7fffffff).optional(),
+  time: z.number().optional(),
+  exposure: nonnegative.optional(),
+  streakWidth: nonnegative.optional(),
+  color: ColorSchema.optional(),
+  seed: nonnegative.int().max(0xffffffff).optional(),
+  shadowEnabled: z.literal(false).optional()
+});
+/** JSON configuration for RainLayer. */
+export const RainLayerSchema = defineLayer('RainLayer', RainLayerPropsSchema);
+
 /** All public visual, information, timeline and graph layer constructors. */
 export const CommunityVisualLayerSchemas = {
+  RainLayer: RainLayerSchema,
   GrassLayer: GrassLayerSchema,
   FlameTrailLayer: FlameTrailLayerSchema,
   VolumetricVideoLayer: VolumetricVideoLayerSchema,
