@@ -1,4 +1,5 @@
 {
+  "layers/grass-layer": "/images/examples/layers/grass-layer.jpg",
   "playground": "/images/examples/playground.jpg",
   "geo-layers/global-grid-layer": "/images/examples/geo-layers/global-grid-layer.jpg",
   "geo-layers/shared-tile-2d-layer": "/images/examples/geo-layers/shared-tile-2d-layer.jpg",

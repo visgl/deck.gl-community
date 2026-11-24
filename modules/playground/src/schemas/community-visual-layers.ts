@@ -638,8 +638,25 @@ export const MarkerLayerPropsSchema = IconLayerPropsSchema.extend({
 /** JSON configuration for MarkerLayer. */
 export const MarkerLayerSchema = defineLayer('MarkerLayer', MarkerLayerPropsSchema);
 
+/** JSON props for procedural grass patches with sizes in meters. */
+export const GrassLayerPropsSchema = BaseLayerPropsSchema.extend({
+  getPosition: PositionAccessorSchema.optional(),
+  getSize: createAccessorSchema(z.tuple([nonnegative, nonnegative])).optional(),
+  getHeight: createAccessorSchema(nonnegative).optional(),
+  getBladeWidth: createAccessorSchema(nonnegative).optional(),
+  getColor: ColorAccessorSchema.optional(),
+  getDensity: createAccessorSchema(fraction).optional(),
+  getSeed: createAccessorSchema(z.number().int().min(0).max(16777215)).optional(),
+  bladesPerPatch: z.number().int().min(1).max(4096).optional(),
+  windEnabled: z.boolean().optional(),
+  shadowEnabled: z.literal(false).optional()
+});
+/** JSON configuration for GrassLayer. */
+export const GrassLayerSchema = defineLayer('GrassLayer', GrassLayerPropsSchema);
+
 /** All public visual, information, timeline and graph layer constructors. */
 export const CommunityVisualLayerSchemas = {
+  GrassLayer: GrassLayerSchema,
   FlameTrailLayer: FlameTrailLayerSchema,
   VolumetricVideoLayer: VolumetricVideoLayerSchema,
   PathOutlineLayer: PathOutlineLayerSchema,

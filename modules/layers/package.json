@@ -47,6 +47,11 @@
       "require": "./dist/wind-layers/index.cjs",
       "import": "./dist/wind-layers/index.js"
     },
+    "./wind-layers/grass-layer": {
+      "types": "./dist/wind-layers/grass-layer/index.d.ts",
+      "require": "./dist/wind-layers/grass-layer/index.cjs",
+      "import": "./dist/wind-layers/grass-layer/index.js"
+    },
     "./geo-layers/tileset": {
       "types": "./dist/geo-layers/tileset/index.d.ts",
       "require": "./dist/geo-layers/tileset/index.cjs",
