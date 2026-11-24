@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {
-  _GlobeViewport,
+  type GlobeViewport,
   Layer,
   OrbitViewport,
   type DefaultProps,
@@ -12,6 +12,7 @@ import {
 } from '@deck.gl/core';
 import {Geometry, Model, ShaderInputs} from '@luma.gl/engine';
 import {Matrix4} from '@math.gl/core/matrix';
+import {isGlobeViewport} from '../../geo-layers/utils/is-globe-viewport';
 import {SKY_FS, SKY_VS, SKY_WGSL, skyUniforms} from './sky-layer-shaders';
 
 type Direction = readonly [number, number, number];
@@ -81,16 +82,17 @@ function getGeometry(): Geometry {
 }
 
 /** Builds the clip-space to sky-space ray transform without camera translation. */
-function getClipToLocal(viewport: Viewport): Matrix4 {
+export function getClipToLocal(viewport: Viewport): Matrix4 {
   const camera = new Matrix4(viewport.viewMatrixUncentered || viewport.viewMatrix);
   camera[12] = 0;
   camera[13] = 0;
   camera[14] = 0;
   const rays = camera.invert().multiplyRight(new Matrix4(viewport.projectionMatrix).invert());
 
-  if (viewport instanceof _GlobeViewport) {
-    const longitude = (viewport.longitude * Math.PI) / 180;
-    const latitude = (viewport.latitude * Math.PI) / 180;
+  if (isGlobeViewport(viewport)) {
+    const globe = viewport as GlobeViewport;
+    const longitude = (globe.longitude * Math.PI) / 180;
+    const latitude = (globe.latitude * Math.PI) / 180;
     const sinLongitude = Math.sin(longitude);
     const cosLongitude = Math.cos(longitude);
     const sinLatitude = Math.sin(latitude);
