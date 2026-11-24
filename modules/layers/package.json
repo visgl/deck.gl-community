@@ -111,6 +111,11 @@
       "types": "./dist/wind-layers/rain-layer/index.d.ts",
       "require": "./dist/wind-layers/rain-layer/index.cjs",
       "import": "./dist/wind-layers/rain-layer/index.js"
+    },
+    "./wind-layers/sky-layer": {
+      "types": "./dist/wind-layers/sky-layer/index.d.ts",
+      "require": "./dist/wind-layers/sky-layer/index.cjs",
+      "import": "./dist/wind-layers/sky-layer/index.js"
     }
   },
   "files": [

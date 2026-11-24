@@ -11232,6 +11232,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"sky-f853f6@workspace:examples/layers/sky":
+  version: 0.0.0-use.local
+  resolution: "sky-f853f6@workspace:examples/layers/sky"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@deck.gl/layers": "npm:10.0.0-alpha.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "skybox-first-person-a4390b@workspace:examples/layers/skybox-first-person":
   version: 0.0.0-use.local
   resolution: "skybox-first-person-a4390b@workspace:examples/layers/skybox-first-person"

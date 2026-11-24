@@ -52,6 +52,7 @@ const sidebars = {
         'layers/seasonal-farm',
         'layers/grass-layer',
         'layers/wind-garden',
+        'layers/sky',
         'layers/skybox-map-view',
         'layers/skybox-globe',
         'layers/skybox-first-person',

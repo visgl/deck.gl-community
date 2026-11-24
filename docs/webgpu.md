@@ -33,6 +33,7 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/graph-layers` | `PathEdgeLayer` and `EdgeArrowLayer` | ✅ | ✅ | Browser-verified upstream path rendering and polygon arrowheads. |
 | `@deck.gl-community/graph-layers` | `FlowPathLayer` | ❌ | ❌ | Existing transform-feedback implementation is incomplete; requires redesign. |
 | `@deck.gl-community/layers/extensions` | `FogExtension` | ✅ | — | Distance fog via the WebGL2 projection and color hooks. |
+| `@deck.gl-community/layers/wind-layers` | `SkyLayer` | ✅ | ✅ | Standalone procedural clear-sky background with sun, haze, and exposure controls. |
 | `@deck.gl-community/layers/wind-layers` | `RainLayer` | ✅ | ✅ | Standalone seeded rain volume with shutter-based streaks. |
 | `@deck.gl-community/layers/wind-layers` | `GrassLayer` | ✅ | ✅ | Procedural grass patches driven by the scene wind. |
 | `@deck.gl-community/layers/wind-layers` | `ParticleLayer` | ✅ | ✅ | Browser-verified WebGL2 transform-feedback and WebGPU compute advection; production rendering uses GPU particle buffers without readbacks. |

@@ -1,4 +1,5 @@
 {
+  "layers/sky": "/images/examples/layers/sky.webp",
   "layers/grass-layer": "/images/examples/layers/grass-layer.jpg",
   "playground": "/images/examples/playground.jpg",
   "geo-layers/global-grid-layer": "/images/examples/geo-layers/global-grid-layer.jpg",
