@@ -11,7 +11,7 @@ import {
   type TreeType
 } from '../../modules/layers/src/tree-layers/tree-layer/tree-layer';
 import {createFieldProfile} from './field-profile';
-import {SelectionPulseExtension} from '../../modules/layers/src/common-layers/selection-pulse-extension/selection-pulse-extension';
+import {SelectionPulseExtension} from '@deck.gl-community/layers/extensions';
 import {FieldLightingEffect} from './field-lighting';
 import {FieldGroundLayer} from './field-ground-layer';
 

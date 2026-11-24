@@ -12,7 +12,7 @@ import {
 import type {Buffer} from '@luma.gl/core';
 import {Model} from '@luma.gl/engine';
 import {phongMaterial, type ShaderInjection, type ShaderPlugin} from '@luma.gl/shaders';
-import {SelectionPulseExtension} from '../../common-layers/selection-pulse-extension/selection-pulse-extension';
+import {SelectionPulseExtension} from '@deck.gl-community/layers/extensions';
 import {TREE_STATE_TEXEL, TREE_STATE_TEXELS_PER_ROW} from './tree-photoreal-layout';
 import {getTreeLeafWgslShaders} from './tree-photoreal-leaf-wgsl';
 import {

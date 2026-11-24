@@ -34,8 +34,8 @@ export type {
 
 export {getFrameHistoryBytes as getVolumetricVideoHistoryBytes} from './volumetric-video-layer/frame-utils';
 
-export {SelectionPulseExtension} from './selection-pulse-extension/selection-pulse-extension';
-export type {SelectionPulseExtensionProps} from './selection-pulse-extension/selection-pulse-extension';
+export {SelectionPulseExtension} from '@deck.gl-community/layers/extensions';
+export type {SelectionPulseExtensionProps} from '@deck.gl-community/layers/extensions';
 
 export {SplatLayer} from './splat-layer/splat-layer';
 export type {SplatLayerProps, SplatLayerStats} from './splat-layer/splat-layer';
