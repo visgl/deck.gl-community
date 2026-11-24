@@ -27,6 +27,8 @@ npm install @deck.gl-community/layers
 | `@deck.gl-community/layers/global-grid-layers` | [Global grid rendering and grid systems](../geo-layers/api-reference/global-grid.md) |
 | `@deck.gl-community/layers/wind-layers` | [Wind layers and station-data utilities](../geo-layers/developer-guide/wind-showcase.md) |
 | `@deck.gl-community/layers/tree-layers` | [Procedural trees and crops](./api-reference/tree-layer.md) |
+| `@deck.gl-community/layers/infovis-layers` | [Information visualization layers and view helpers](../infovis-layers/README.md) |
+| `@deck.gl-community/layers/timeline-layers` | [Horizon graphs, timelines, and time axes](../timeline-layers/README.md) |
 
 The package root also exports the common layers and tree renderer. The geo overview lists
 the application-installed dependencies for the H3 and A5 adapters and the wind layers.

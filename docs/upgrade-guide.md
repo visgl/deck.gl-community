@@ -10,6 +10,15 @@ Update deck.gl to `10.0.0-alpha.2`, luma.gl to `10.0.0-beta.3`, loaders.gl to
 `5.0.0-rc.2`, math.gl to `5.0.2`, and Probe.gl to `5.0.0`. Import Web Mercator
 utilities from `@math.gl/geospatial/web-mercator`.
 
+### Infovis and timeline packages
+
+Install `@deck.gl-community/layers` and update imports from the former standalone packages.
+
+| Previous import | New import |
+| --- | --- |
+| `@deck.gl-community/infovis-layers` | `@deck.gl-community/layers/infovis-layers` |
+| `@deck.gl-community/timeline-layers` | `@deck.gl-community/layers/timeline-layers` |
+
 ## v10.0.0-alpha.3
 
 ### TreeLayer canopy colors

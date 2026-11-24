@@ -21,7 +21,7 @@ export type VerticalGridLayerProps = LayerProps & {
 Render evenly spaced vertical grid lines along the x-axis.
 
 ```js
-import {VerticalGridLayer} from '@deck.gl-community/timeline-layers';
+import {VerticalGridLayer} from '@deck.gl-community/layers/timeline-layers';
 
 new VerticalGridLayer({
   id: 'grid',
@@ -62,4 +62,4 @@ RGBA color for grid lines. Default: `[200, 200, 200, 255]`.
 
 ## Source
 
-[modules/timeline-layers/src/layers/vertical-grid-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/timeline-layers/src/layers/vertical-grid-layer.ts)
+[modules/layers/src/timeline-layers/layers/vertical-grid-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/timeline-layers/layers/vertical-grid-layer.ts)

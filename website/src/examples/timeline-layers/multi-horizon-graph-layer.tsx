@@ -4,11 +4,11 @@ import {makeImperativeExample} from '../../components';
 export default makeImperativeExample(
   {
     title: 'Multi Horizon Graph Layer Demo',
-    code: `${GITHUB_TREE}/modules/timeline-layers/examples/horizon-graph-layer`,
+    code: `${GITHUB_TREE}/examples/layers/horizon-graph-layer`,
     deviceTabs: {placement: 'bottom-right'},
     async mount(container, props) {
       const {mountMultiHorizonGraphLayerExample} = await import(
-        '../../../../modules/timeline-layers/examples/horizon-graph-layer/app'
+        '../../../../examples/layers/horizon-graph-layer/app'
       );
       return mountMultiHorizonGraphLayerExample(container, props);
     }

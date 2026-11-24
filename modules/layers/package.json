@@ -76,6 +76,16 @@
       "types": "./dist/extensions/index.d.ts",
       "require": "./dist/extensions/index.cjs",
       "import": "./dist/extensions/index.js"
+    },
+    "./infovis-layers": {
+      "types": "./dist/infovis-layers/index.d.ts",
+      "require": "./dist/infovis-layers/index.cjs",
+      "import": "./dist/infovis-layers/index.js"
+    },
+    "./timeline-layers": {
+      "types": "./dist/timeline-layers/index.d.ts",
+      "require": "./dist/timeline-layers/index.cjs",
+      "import": "./dist/timeline-layers/index.js"
     }
   },
   "files": [
@@ -109,6 +119,7 @@
     "@luma.gl/engine": "10.0.0-beta.3",
     "@math.gl/earth": "5.0.2",
     "a5-js": "^0.5.0",
+    "apache-arrow": ">=17",
     "delaunator": "^5.1.0",
     "h3-js": "^4.2.1"
   },
@@ -124,6 +135,7 @@
     "@luma.gl/engine": "10.0.0-beta.3",
     "@math.gl/earth": "5.0.2",
     "a5-js": "^0.5.0",
+    "apache-arrow": "^21.2.0",
     "delaunator": "^5.1.0",
     "h3-js": "^4.2.1",
     "probe.gl": "^5.0.0"
@@ -133,6 +145,9 @@
       "optional": true
     },
     "a5-js": {
+      "optional": true
+    },
+    "apache-arrow": {
       "optional": true
     },
     "delaunator": {
