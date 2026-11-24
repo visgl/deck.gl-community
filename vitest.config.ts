@@ -145,7 +145,11 @@ const CONFIG = defineConfig({
         test: {
           name: 'node',
           environment: 'node',
-          include: ['modules/**/*.{test,spec}.{js,ts}', 'dev/**/*.{test,spec}.{js,ts}'],
+          include: [
+            'modules/**/*.{test,spec}.{js,ts}',
+            'dev/**/*.{test,spec}.{js,ts}',
+            'examples/layers/coit/camera.spec.ts'
+          ],
           exclude: [
             'modules/**/dist/**',
             '**/node_modules/**',
