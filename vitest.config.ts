@@ -3,6 +3,7 @@ import {fileURLToPath} from 'node:url';
 import {defineConfig} from 'vitest/config';
 import {playwright} from '@vitest/browser-playwright';
 import react from '@vitejs/plugin-react';
+import BrowserTestSequencer from './scripts/browser-test-sequencer';
 
 // Exercise unreleased terrain support against an explicit deck.gl checkout.
 const DECK_GL_SOURCE = process.env.DECK_GL_SOURCE;
@@ -131,6 +132,7 @@ const HEADLESS_BROWSER_PROVIDER = REQUIRE_WEBGPU
 const CONFIG = defineConfig({
   resolve: NODE_RESOLVE_CONFIG,
   test: {
+    sequence: process.env.BALANCE_BROWSER_SHARDS === 'true' ? {sequencer: BrowserTestSequencer} : {},
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
