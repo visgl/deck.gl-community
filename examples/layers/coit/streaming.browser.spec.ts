@@ -19,9 +19,19 @@ it('streams a RAD fixture through Coit on WebGPU', async ({skip}) => {
   const unmount = mountCoitExample(container, fixtureUrl);
   try {
     await expect
-      .poll(() => container.querySelector('.metrics dd')?.textContent, {timeout: 30_000})
-      .toBe('1');
+      .poll(
+        () => ({
+          firstCoverage: container.querySelector('.metrics dd')?.textContent === '1',
+          status: container.querySelector('.status')?.textContent?.trim()
+        }),
+        {timeout: 30_000}
+      )
+      .toMatchObject({firstCoverage: true});
     expect(container.querySelector('.status')?.getAttribute('data-phase')).not.toBe('error');
+  } catch (error) {
+    throw new Error(container.querySelector('.status')?.textContent?.trim() || 'No Coit status', {
+      cause: error
+    });
   } finally {
     unmount();
     container.remove();
