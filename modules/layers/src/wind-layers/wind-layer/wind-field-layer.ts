@@ -9,13 +9,13 @@ import {sampleWindField, type WindField} from './wind-data';
 import {WindTriangleLayer} from './wind-triangle-layer';
 
 /**
- * Configuration for the work-in-progress, station-interpolated {@link WindLayer}.
+ * Configuration for the work-in-progress, station-interpolated {@link WindFieldLayer}.
  *
  * @remarks
  * Filled arrows use a native dual-backend triangle primitive, and outlines use portable
  * `LineLayer` segments. Image-based terrain remains dependent on upstream WebGPU support.
  */
-export type WindLayerProps = {
+export type WindFieldLayerProps = {
   /** Indexed, time-varying weather station data. */
   windField: WindField;
   /** Fractional, automatically wrapping forecast-frame index; defaults to `0`. */
@@ -68,7 +68,7 @@ const ARROW_TRIANGLE_INDICES: readonly [number, number, number][] = [
   [3, 4, 5]
 ];
 
-const defaultProps: DefaultProps<WindLayerProps> = {
+const defaultProps: DefaultProps<WindFieldLayerProps> = {
   windField: {type: 'object', value: undefined!},
   time: 0,
   gridWidth: 64,
@@ -100,7 +100,7 @@ function mixColor(from: Color, to: Color, factor: number): Color {
  *
  * @example
  * ```ts
- * new WindLayer({
+ * new WindFieldLayer({
  *   id: 'wind-arrows',
  *   windField,
  *   time: 12.5,
@@ -109,9 +109,9 @@ function mixColor(from: Color, to: Color, factor: number): Color {
  * });
  * ```
  */
-export class WindLayer extends CompositeLayer<WindLayerProps> {
-  static layerName = 'WindLayer';
-  static defaultProps: DefaultProps<WindLayerProps> = defaultProps;
+export class WindFieldLayer extends CompositeLayer<WindFieldLayerProps> {
+  static layerName = 'WindFieldLayer';
+  static defaultProps: DefaultProps<WindFieldLayerProps> = defaultProps;
 
   /** Samples valid station coverage and builds filled, shaft, and arrowhead sublayers. */
   renderLayers() {

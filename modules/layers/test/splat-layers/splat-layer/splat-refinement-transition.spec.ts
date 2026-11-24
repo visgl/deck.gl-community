@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {expect, it} from 'vitest';
-import {SplatRefinementTransition} from '../../../src/common-layers/splat-layer/splat-refinement-transition';
+import {SplatRefinementTransition} from '../../../src/splat-layers/splat-layer/splat-refinement-transition';
 const counts = [1000, 100, 10];
 const cost = (transition: SplatRefinementTransition<string>) =>
   [...transition.entries.values()].reduce(

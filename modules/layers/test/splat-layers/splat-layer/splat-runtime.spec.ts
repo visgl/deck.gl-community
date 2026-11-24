@@ -7,8 +7,8 @@ import {
   SETTLED_SPLAT_BUDGET_FRACTION,
   SplatRuntime,
   type SplatBudgetGroup
-} from '../../../src/common-layers/splat-layer/splat-runtime';
-import type {SplatHierarchy} from '../../../src/common-layers/splat-layer/splat-hierarchy';
+} from '../../../src/splat-layers/splat-layer/splat-runtime';
+import type {SplatHierarchy} from '../../../src/splat-layers/splat-layer/splat-hierarchy';
 const hierarchy = (counts: number[]): SplatHierarchy =>
   counts.map((count, i) => ({
     error: i * 10,

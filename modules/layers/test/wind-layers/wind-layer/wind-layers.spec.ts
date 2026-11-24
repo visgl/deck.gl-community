@@ -13,7 +13,7 @@ import {
   DelaunayCoverLayer,
   ElevationLayer,
   ParticleLayer,
-  WindLayer,
+  WindFieldLayer,
   type WindStation
 } from '../../../src/wind-layers';
 import {WindTriangleLayer} from '../../../src/wind-layers/wind-layer/wind-triangle-layer';
@@ -47,7 +47,7 @@ const FIELD = createWindField(STATIONS, [
 
 describe('reusable wind showcase layers', () => {
   it('renders vector shafts and arrowheads from the shared wind field', () => {
-    const layer = new WindLayer({
+    const layer = new WindFieldLayer({
       id: 'wind-test',
       windField: FIELD,
       gridWidth: 5,

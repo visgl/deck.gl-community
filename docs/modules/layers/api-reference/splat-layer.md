@@ -1,5 +1,8 @@
 # SplatLayer
 
+Import `SplatLayer` from `@deck.gl-community/layers/splat-layers`. Existing package-root and
+`/common-layers` imports continue to work.
+
 `SplatLayer` renders prepared, anisotropic 3D Gaussians ("splats"), instanced per data row.
 Rows can share one immutable source while keeping their own position, transform, color and
 picking. Distant instances can use coarser levels of a hierarchy within a Gaussian budget. It
@@ -11,7 +14,7 @@ harmonics are out of scope.
 ## Usage
 
 ```ts
-import {SplatLayer, type SplatSource} from '@deck.gl-community/layers';
+import {SplatLayer, type SplatSource} from '@deck.gl-community/layers/splat-layers';
 
 const source: SplatSource = {
   positions: new Float32Array([0, 0, 0]),
@@ -46,7 +49,7 @@ new SplatLayer({data: objects, getSource: d => templates[d.kind]});
 Build a hierarchy once with `createSplatHierarchy` and pass it alongside the source:
 
 ```ts
-import {createSplatHierarchy} from '@deck.gl-community/layers';
+import {createSplatHierarchy} from '@deck.gl-community/layers/splat-layers';
 
 const asset = {
   type: 'prepared-splats' as const,
@@ -152,4 +155,4 @@ After initialization, `layer.splatStats` reports `sourceCount`, `visibleInstance
 
 ## Source
 
-[modules/layers/src/common-layers/splat-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/common-layers/splat-layer)
+[modules/layers/src/splat-layers/splat-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/splat-layers/splat-layer)

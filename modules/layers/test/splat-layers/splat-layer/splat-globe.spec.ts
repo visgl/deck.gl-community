@@ -3,17 +3,17 @@
 // Copyright (c) vis.gl contributors
 import {_GlobeViewport as GlobeViewport, WebMercatorViewport} from '@deck.gl/core';
 import {describe, expect, it} from 'vitest';
-import {getSplatCommonUnits} from '../../../src/common-layers/splat-layer/splat-culling';
+import {getSplatCommonUnits} from '../../../src/splat-layers/splat-layer/splat-culling';
 import {
   classifySplatHorizon,
   getSplatHorizon,
   getSplatTangentFrame,
   offsetSplatCommonPosition
-} from '../../../src/common-layers/splat-layer/splat-globe';
+} from '../../../src/splat-layers/splat-layer/splat-globe';
 import {
   createSplatSpatialIndex,
   querySplatSpatialIndex
-} from '../../../src/common-layers/splat-layer/splat-spatial-index';
+} from '../../../src/splat-layers/splat-layer/splat-spatial-index';
 
 // deck.gl's GlobeViewport sphere.
 const EARTH_RADIUS = 6370972;

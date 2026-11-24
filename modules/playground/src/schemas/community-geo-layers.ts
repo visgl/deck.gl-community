@@ -97,7 +97,7 @@ export const ParticleLayerPropsSchema = WindFieldPropsSchema.extend({
 });
 
 /** JSON props for sampled wind arrows using a prepared WindField. */
-export const WindLayerPropsSchema = WindColorPropsSchema.extend({
+export const WindFieldLayerPropsSchema = WindColorPropsSchema.extend({
   time: z.number().optional(),
   gridWidth: z.number().int().nonnegative().optional(),
   gridHeight: z.number().int().nonnegative().optional(),
@@ -365,8 +365,8 @@ export const DelaunayCoverLayerSchema = defineLayer(
 export const ElevationLayerSchema = defineLayer('ElevationLayer', ElevationLayerPropsSchema);
 /** JSON representation of ParticleLayer. */
 export const ParticleLayerSchema = defineLayer('ParticleLayer', ParticleLayerPropsSchema);
-/** JSON representation of WindLayer. */
-export const WindLayerSchema = defineLayer('WindLayer', WindLayerPropsSchema);
+/** JSON representation of WindFieldLayer. */
+export const WindFieldLayerSchema = defineLayer('WindFieldLayer', WindFieldLayerPropsSchema);
 /** JSON representation of GlobalGridLayer. */
 export const GlobalGridLayerSchema = defineLayer('GlobalGridLayer', GlobalGridLayerPropsSchema);
 /** JSON representation of BasemapLayer. */
@@ -388,7 +388,7 @@ export const CommunityGeoLayerSchemas = {
   DelaunayCoverLayer: DelaunayCoverLayerSchema,
   ElevationLayer: ElevationLayerSchema,
   ParticleLayer: ParticleLayerSchema,
-  WindLayer: WindLayerSchema,
+  WindFieldLayer: WindFieldLayerSchema,
   GlobalGridLayer: GlobalGridLayerSchema,
   BasemapLayer: BasemapLayerSchema,
   DataDrivenTile3DLayer: DataDrivenTile3DLayerSchema,

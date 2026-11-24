@@ -19,6 +19,12 @@ Install `@deck.gl-community/layers` and update imports from the former standalon
 | `@deck.gl-community/infovis-layers` | `@deck.gl-community/layers/infovis-layers` |
 | `@deck.gl-community/timeline-layers` | `@deck.gl-community/layers/timeline-layers` |
 
+### Wind field visualization
+
+Rename `WindLayer` to `WindFieldLayer` and `WindLayerProps` to `WindFieldLayerProps` in
+`@deck.gl-community/layers/wind-layers`. In serialized layers, use
+`"@@type": "WindFieldLayer"`.
+
 ## v10.0.0-alpha.3
 
 ### TreeLayer canopy colors

@@ -9,12 +9,12 @@ import {
   type PlatformInfo
 } from '@luma.gl/shaders';
 import {describe, expect, it, vi} from 'vitest';
-import {SplatPrimitiveLayer} from '../../../src/common-layers/splat-layer/splat-primitive-layer';
+import {SplatPrimitiveLayer} from '../../../src/splat-layers/splat-layer/splat-primitive-layer';
 import {
   SPLAT_FRAGMENT,
   SPLAT_VERTEX,
   splatUniforms
-} from '../../../src/common-layers/splat-layer/splat-shaders';
+} from '../../../src/splat-layers/splat-layer/splat-shaders';
 import {type TreeSpec} from '../../../src';
 import {TreePhotorealCropLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-crop-layer';
 import {TreePhotorealLeafLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-leaf-layer';

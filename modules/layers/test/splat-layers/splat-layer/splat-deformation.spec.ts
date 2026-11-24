@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {expect, it} from 'vitest';
-import {getSplatDeformationRadius} from '../../../src/common-layers/splat-layer/splat-deformation';
+import {getSplatDeformationRadius} from '../../../src/splat-layers/splat-layer/splat-deformation';
 
 it('bounds translated branch motion and sheared Gaussian support through every wave phase', () => {
   for (const center of [

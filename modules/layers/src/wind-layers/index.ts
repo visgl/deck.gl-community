@@ -29,5 +29,5 @@ export {ElevationLayer} from './wind-layer/elevation-layer';
 export type {ElevationLayerProps} from './wind-layer/elevation-layer';
 export {ParticleLayer} from './wind-layer/particle-layer';
 export type {ParticleLayerProps} from './wind-layer/particle-layer';
-export {WindLayer} from './wind-layer/wind-layer';
-export type {WindLayerProps} from './wind-layer/wind-layer';
+export {WindFieldLayer} from './wind-layer/wind-field-layer';
+export type {WindFieldLayerProps} from './wind-layer/wind-field-layer';

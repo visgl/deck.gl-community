@@ -4,17 +4,17 @@
 import {WebMercatorViewport, _GlobeViewport as GlobeViewport, type Viewport} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core/matrix';
 import {expect, it, vi} from 'vitest';
-import {SplatLayer} from '../../../src/common-layers/splat-layer/splat-layer';
-import {SplatRuntime} from '../../../src/common-layers/splat-layer/splat-runtime';
-import {SplatEffect} from '../../../src/common-layers/splat-layer/splat-effect';
+import {SplatLayer} from '../../../src/splat-layers/splat-layer/splat-layer';
+import {SplatRuntime} from '../../../src/splat-layers/splat-layer/splat-runtime';
+import {SplatEffect} from '../../../src/splat-layers/splat-layer/splat-effect';
 import {
   getSplatBoundedPixelsPerMeter,
   getSplatCommonUnits,
   getSplatPixelsPerMeter,
   getSplatViewportLodWeight
-} from '../../../src/common-layers/splat-layer/splat-culling';
-import {SplatPrimitiveLayer} from '../../../src/common-layers/splat-layer/splat-primitive-layer';
-import {getSplatChangedRanges} from '../../../src/common-layers/splat-layer/splat-row-diff';
+} from '../../../src/splat-layers/splat-layer/splat-culling';
+import {SplatPrimitiveLayer} from '../../../src/splat-layers/splat-layer/splat-primitive-layer';
+import {getSplatChangedRanges} from '../../../src/splat-layers/splat-layer/splat-row-diff';
 const SOURCE = {
   positions: new Float32Array([0, 0, 0]),
   scales: new Float32Array([1, 1, 1]),

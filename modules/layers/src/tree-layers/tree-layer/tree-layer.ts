@@ -36,7 +36,7 @@ export type {TreeCharacteristics} from './tree-characteristics';
 import {
   getSplatHighlightRow,
   updateSplatSourceHighlight
-} from '../../common-layers/splat-layer/splat-source-highlight';
+} from '../../splat-layers/splat-layer/splat-source-highlight';
 import {
   createSplatFrustum,
   getSplatBoundedPixelsPerMeter,
@@ -44,14 +44,14 @@ import {
   getSplatPixelsPerMeter,
   getSplatProjectionKey,
   getSplatQueryViews
-} from '../../common-layers/splat-layer/splat-culling';
+} from '../../splat-layers/splat-layer/splat-culling';
 import {
   classifySplatHorizon,
   getSplatHorizon,
   getSplatTangentFrame,
   offsetSplatCommonPosition
-} from '../../common-layers/splat-layer/splat-globe';
-import {getSplatChangedRanges, SplatRowSlots} from '../../common-layers/splat-layer/splat-row-diff';
+} from '../../splat-layers/splat-layer/splat-globe';
+import {getSplatChangedRanges, SplatRowSlots} from '../../splat-layers/splat-layer/splat-row-diff';
 import {getTreeGrowthModel, isTreeGrowthSpecies, TREE_ROOT_PLATE_RADII} from './tree-growth-model';
 import {createPineGrowthModel} from './tree-pine';
 import {createPalmGrowthModel} from './tree-palm-growth-model';

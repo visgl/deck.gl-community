@@ -6,7 +6,7 @@ import {
   getSplatHighlightRow,
   getSplatSourceRow,
   updateSplatSourceHighlight
-} from '../../../src/common-layers/splat-layer/splat-source-highlight';
+} from '../../../src/splat-layers/splat-layer/splat-source-highlight';
 
 const wrap = (parent: {id: string}, object: unknown, index: number) => ({
   __source: {parent, object, index}

@@ -35,7 +35,7 @@ const cases = {
     {windField: '@@#weather', numParticles: 200, trailLength: 12},
     {windField: '@@#weather', numParticles: 2.5}
   ],
-  WindLayer: [
+  WindFieldLayer: [
     {windField: '@@#weather', gridWidth: 32, gridHeight: 16, time: 2.5},
     {windField: {stations: [], frames: []}}
   ],
@@ -157,7 +157,7 @@ test('basemap style documents retain JSON expressions without admitting executab
 
 test('prepared wind fields, tile sources, headers and grid adapters require host references', () => {
   for (const [schema, key] of [
-    [CommunityGeoLayerSchemas.WindLayer, 'windField'],
+    [CommunityGeoLayerSchemas.WindFieldLayer, 'windField'],
     [CommunityGeoLayerSchemas.ParticleLayer, 'windField'],
     [CommunityGeoLayerSchemas.DelaunayCoverLayer, 'windField'],
     [CommunityGeoLayerSchemas.TileSourceLayer, 'tileSource'],

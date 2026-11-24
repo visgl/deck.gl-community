@@ -15,7 +15,7 @@ import {
   createSplatFrustum,
   intersectsSplatFrustum,
   classifySplatFrustum
-} from '../../../src/common-layers/splat-layer/splat-culling';
+} from '../../../src/splat-layers/splat-layer/splat-culling';
 const matrix = new Matrix4().perspective({fovy: Math.PI / 2, aspect: 1, near: 0.1, far: 100});
 const projection = {matrix, center: [0, 0, 0, 0], width: 100, height: 100};
 describe('Gaussian projection refinement', () => {
@@ -58,7 +58,7 @@ describe('Gaussian projection refinement', () => {
 import {
   createSplatSpatialIndex,
   querySplatSpatialIndex
-} from '../../../src/common-layers/splat-layer/splat-spatial-index';
+} from '../../../src/splat-layers/splat-layer/splat-spatial-index';
 it('selects bounded owner groups without dropping a large crown crossing the viewport edge', () => {
   const entries = Array.from({length: 128}, (_, i) => ({
     center: [i - 64, 0, -5],

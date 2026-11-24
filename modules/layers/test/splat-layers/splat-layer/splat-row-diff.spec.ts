@@ -6,7 +6,7 @@ import {
   retainSplatRows,
   getSplatChangedRanges,
   SplatRowSlots
-} from '../../../src/common-layers/splat-layer/splat-row-diff';
+} from '../../../src/splat-layers/splat-layer/splat-row-diff';
 it('preserves stable instance rows and uploads changing coverage and membership', () => {
   const before = [
     {id: 1, weight: 1},

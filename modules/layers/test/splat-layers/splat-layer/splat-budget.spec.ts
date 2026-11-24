@@ -5,8 +5,8 @@ import {expect, it, vi} from 'vitest';
 import {
   budgetSplatSelections,
   getSplatLevelCounts
-} from '../../../src/common-layers/splat-layer/splat-budget';
-import type {SplatHierarchy} from '../../../src/common-layers/splat-layer/splat-hierarchy';
+} from '../../../src/splat-layers/splat-layer/splat-budget';
+import type {SplatHierarchy} from '../../../src/splat-layers/splat-layer/splat-hierarchy';
 const hierarchy: SplatHierarchy = [1000, 100, 10].map((count, i) => ({
   error: i,
   source: {

@@ -6,11 +6,11 @@ import {
   DEFAULT_GET_SOURCE,
   resolveSplatAsset,
   resolveSplatInput
-} from '../../../src/common-layers/splat-layer/splat-input';
+} from '../../../src/splat-layers/splat-layer/splat-input';
 import {
   getSplatTransform,
   getSplatTransformScale
-} from '../../../src/common-layers/splat-layer/splat-transform';
+} from '../../../src/splat-layers/splat-layer/splat-transform';
 const source = {
   positions: new Float32Array([0, 0, 0]),
   scales: new Float32Array([1, 2, 3]),

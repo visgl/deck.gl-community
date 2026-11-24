@@ -8,12 +8,12 @@ import {
   getSplatGeometry,
   validateSplatSource,
   type SplatSource
-} from '../../../src/common-layers/splat-layer/splat-source';
+} from '../../../src/splat-layers/splat-layer/splat-source';
 import {
   createSplatHierarchy,
   getSplatMeanArea,
   decomposeSplatCovariance
-} from '../../../src/common-layers/splat-layer/splat-hierarchy';
+} from '../../../src/splat-layers/splat-layer/splat-hierarchy';
 
 const source: SplatSource = {
   positions: new Float32Array([-0.1, 0, 0, 0.1, 0, 0]),
