@@ -73,6 +73,7 @@
     "src"
   ],
   "scripts": {
+    "build": "node scripts/write-cjs-entry.mjs",
     "test": "vitest run",
     "test-watch": "vitest"
   },

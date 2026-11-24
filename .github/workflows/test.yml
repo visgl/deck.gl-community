@@ -68,6 +68,9 @@ jobs:
       - name: Compile strict public API consumers
         run: yarn test-types
 
+      - name: Verify CommonJS constructor identity
+        run: node modules/layers/test/require-entry.cjs
+
       - name: Run node tests with coverage
         run: yarn test-ci --maxWorkers=2 2>&1 | tee /tmp/coverage.txt; exit ${PIPESTATUS[0]}
 
