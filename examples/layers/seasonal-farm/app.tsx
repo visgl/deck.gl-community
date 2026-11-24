@@ -17,6 +17,7 @@ import {
 import {PolygonLayer} from '@deck.gl/layers';
 import type {Device} from '@luma.gl/core';
 import {TreeLayer} from '@deck.gl-community/layers';
+import {WindEffect} from '@deck.gl-community/layers/wind-layers/wind-effect';
 import {SettingsPanel, type SettingsState} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
@@ -149,7 +150,7 @@ export function mountSeasonalFarmExample(
       ...(options.showControlsWidget === false ? [] : [controls])
     ],
     views: new MapView({id: 'farm'}),
-    effects: [lighting],
+    effects: createEffects(),
     initialViewState: currentView,
     controller: {type: MapController, touchRotate: true},
     onViewStateChange(params) {
@@ -219,11 +220,15 @@ export function mountSeasonalFarmExample(
 
   function updateLayers() {
     root.dataset.season = settings.season;
-    deck.setProps({layers: createLayers()});
+    deck.setProps({effects: createEffects(), layers: createLayers()});
+  }
+
+  function createEffects() {
+    return [lighting, new WindEffect({strength: settings.windStrength, direction: null})];
   }
 
   function createLayers() {
-    const {season, crops, windStrength, sizeScale, characteristics, lodBias} = settings;
+    const {season, crops, sizeScale, characteristics, lodBias} = settings;
     return [
       new PolygonLayer<FarmPlot>({
         id: 'farm-plots',
@@ -266,7 +271,6 @@ export function mountSeasonalFarmExample(
         getCrop: tree => (crops ? getSeasonalCrop(tree, season) : null),
         sizeScale,
         characteristics,
-        windStrength,
         lodBias,
         parameters: {cullMode: 'none'},
         updateTriggers: {

@@ -7,7 +7,7 @@ import {describe, expect, it} from 'vitest';
 import {
   createSplatFrustum,
   intersectsSplatFrustum
-} from '../../../src/common-layers/splat-layer/splat-culling';
+} from '../../../src/splat-layers/splat-layer/splat-culling';
 import {
   getTreeLeafClusters,
   getTreeLeafClusterSphere,

@@ -37,9 +37,4 @@ export {getFrameHistoryBytes as getVolumetricVideoHistoryBytes} from './volumetr
 export {SelectionPulseExtension} from '@deck.gl-community/layers/extensions';
 export type {SelectionPulseExtensionProps} from '@deck.gl-community/layers/extensions';
 
-export {SplatLayer} from './splat-layer/splat-layer';
-export type {SplatLayerProps, SplatLayerStats} from './splat-layer/splat-layer';
-export type {SplatSource} from './splat-layer/splat-source';
-export {createSplatHierarchy} from './splat-layer/splat-hierarchy';
-export type {SplatHierarchy, SplatHierarchyLevel} from './splat-layer/splat-hierarchy';
-export type {SplatDataInput, PreparedSplatData, SplatInstance} from './splat-layer/splat-input';
+export * from '@deck.gl-community/layers/splat-layers';

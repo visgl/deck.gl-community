@@ -13,7 +13,7 @@ is intended for dense non-geospatial timelines and interval views where a
 `PolygonLayer` would add unnecessary geometry work.
 
 ```ts
-import {BlockLayer} from '@deck.gl-community/infovis-layers';
+import {BlockLayer} from '@deck.gl-community/layers/infovis-layers';
 
 const layer = new BlockLayer({
   id: 'trace-blocks',
@@ -89,4 +89,4 @@ and `0`.
 
 ## Source
 
-[modules/infovis-layers/src/layers/block-layer/block-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/infovis-layers/src/layers/block-layer/block-layer.ts)
+[modules/layers/src/infovis-layers/layers/block-layer/block-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/infovis-layers/layers/block-layer/block-layer.ts)

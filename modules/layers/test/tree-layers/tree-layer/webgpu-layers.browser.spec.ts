@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {WindEffect} from '@deck.gl-community/layers/wind-layers/wind-effect';
 import {
   AmbientLight,
   Deck,
@@ -161,12 +162,10 @@ async function checkCanopyHandoff(type: 'webgl' | 'webgpu'): Promise<void> {
                 height: 6,
                 crownRadius: 2.6,
                 canopyColor,
-                wind: false,
                 characteristics: {seed: 5, leafDensity: 0.55}
               }
             ],
-            getTree: tree => tree,
-            windTime: 0
+            getTree: tree => tree
           })
         ]
       });
@@ -287,7 +286,6 @@ async function renderDenseCanopy(type: 'webgl' | 'webgpu'): Promise<CanopyMetric
               height: 4.8,
               crownRadius: 2.4,
               trunkRadius: 0.1,
-              wind: false,
               canopyColor: [33, 112, 29, 255] as [number, number, number, number]
             })),
             getTree: datum => datum
@@ -376,7 +374,9 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
     deck = scene;
     await expect.poll(() => scene.isInitialized, {timeout: 30_000}).toBe(true);
     scene['animationLoop']!.stop();
+    const wind = new WindEffect({strength: 0.025, direction: null, time: 1.25});
     scene.setProps({
+      effects: [wind],
       layers: [
         new TreeLayer({
           id: `tree-${type}`,
@@ -397,7 +397,6 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
             species: datum.species,
             season: datum.season,
             height: 12,
-            wind: true,
             characteristics: {seed: 19, branchLift: 0.8, leafSize: 1.1},
             crop: {
               kind:
@@ -408,7 +407,6 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
               radius: 0.05
             }
           }),
-          windTime: 1.25,
           pickable: true
         })
       ]
@@ -431,7 +429,7 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
     expect(device.type).toBe(type);
     await render(false);
     if (effects.length) {
-      scene.setProps({effects});
+      scene.setProps({effects: [...effects, wind]});
       await render(true);
     }
   } finally {

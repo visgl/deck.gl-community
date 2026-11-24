@@ -46,14 +46,14 @@ import {
   createWindField,
   parseWindData,
   ParticleLayer,
-  WindLayer
+  WindFieldLayer
 } from '@deck.gl-community/layers/wind-layers';
 
 const frames = parseWindData(weatherBuffer, stations.length);
 const windField = createWindField(stations, frames);
 
 const layers = [
-  new WindLayer({id: 'wind-arrows', windField, time}),
+  new WindFieldLayer({id: 'wind-arrows', windField, time}),
   new ParticleLayer({
     id: 'wind-particles',
     windField,
@@ -70,7 +70,7 @@ weather textures, or GPU particle buffers.
 
 - [Wind field and weather data](./api-reference/wind-field.md) documents the original binary
   forecast, positive-west station coordinates, robust triangulation, and geographic interpolation.
-- [WindLayer](/docs/modules/geo-layers/api-reference/wind-layer) renders Delaunay-interpolated,
+- [WindFieldLayer](/docs/modules/geo-layers/api-reference/wind-layer) renders Delaunay-interpolated,
   speed-colored wind arrows.
 - [ParticleLayer](/docs/modules/geo-layers/api-reference/particle-layer) animates fading trails
   through a geographic wind field.

@@ -83,12 +83,14 @@
               "modules/layers/api-reference/flame-trail-layer",
               "modules/layers/api-reference/skybox-layer",
               "modules/layers/api-reference/sky-layers",
+              "modules/layers/api-reference/effect-layers",
               "modules/layers/api-reference/dependency-arrow-layer",
               "modules/layers/api-reference/path-marker-layer",
               "modules/layers/api-reference/path-outline-layer",
               "modules/layers/api-reference/volumetric-video-layer",
-              "modules/layers/api-reference/splat-layer",
-              "modules/layers/api-reference/selection-pulse-extension"
+              "modules/layers/api-reference/selection-pulse-extension",
+              "modules/layers/api-reference/zoom-opacity-extension",
+              "modules/layers/api-reference/fog-extension"
             ]
           },
           {
@@ -131,6 +133,9 @@
               "id": "modules/geo-layers/developer-guide/wind-showcase"
             },
             "items": [
+              "modules/layers/api-reference/wind-effect",
+              "modules/layers/api-reference/rain-layer",
+              "modules/layers/api-reference/grass-layer",
               "modules/geo-layers/api-reference/wind-field",
               "modules/geo-layers/api-reference/wind-layer",
               "modules/geo-layers/api-reference/particle-layer",
@@ -138,6 +143,38 @@
               "modules/geo-layers/api-reference/delaunay-cover-layer",
               "modules/geo-layers/api-reference/delaunay-interpolation"
             ]
+          },
+          {
+            "type": "category",
+            "label": "Infovis",
+            "link": {
+              "type": "doc",
+              "id": "modules/infovis-layers/README"
+            },
+            "items": [
+              "modules/infovis-layers/api-reference/animation-layer",
+              "modules/infovis-layers/api-reference/block-layer",
+              "modules/infovis-layers/api-reference/time-delta-layer"
+            ]
+          },
+          {
+            "type": "category",
+            "label": "Timeline",
+            "link": {
+              "type": "doc",
+              "id": "modules/timeline-layers/README"
+            },
+            "items": [
+              "modules/timeline-layers/api-reference/horizon-graph-layer",
+              "modules/timeline-layers/api-reference/multi-horizon-graph-layer",
+              "modules/timeline-layers/api-reference/time-axis-layer",
+              "modules/timeline-layers/api-reference/vertical-grid-layer"
+            ]
+          },
+          {
+            "type": "doc",
+            "label": "Splats",
+            "id": "modules/layers/api-reference/splat-layer"
           },
           {
             "type": "doc",
@@ -323,19 +360,6 @@
       },
       {
         "type": "category",
-        "label": "Infovis Layers",
-        "link": {
-          "type": "doc",
-          "id": "modules/infovis-layers/README"
-        },
-        "items": [
-          "modules/infovis-layers/api-reference/animation-layer",
-          "modules/infovis-layers/api-reference/block-layer",
-          "modules/infovis-layers/api-reference/time-delta-layer"
-        ]
-      },
-      {
-        "type": "category",
         "label": "Leaflet",
         "link": {
           "type": "doc",
@@ -473,20 +497,6 @@
               "modules/react/api-reference/deck-canvas"
             ]
           }
-        ]
-      },
-      {
-        "type": "category",
-        "label": "Timeline Layers",
-        "link": {
-          "type": "doc",
-          "id": "modules/timeline-layers/README"
-        },
-        "items": [
-          "modules/timeline-layers/api-reference/horizon-graph-layer",
-          "modules/timeline-layers/api-reference/multi-horizon-graph-layer",
-          "modules/timeline-layers/api-reference/time-axis-layer",
-          "modules/timeline-layers/api-reference/vertical-grid-layer"
         ]
       },
       {

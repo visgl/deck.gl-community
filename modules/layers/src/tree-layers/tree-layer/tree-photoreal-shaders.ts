@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {ShaderModule} from '@luma.gl/shaders';
-import {SPLAT_GLOBE_GLSL} from '../../common-layers/splat-layer/splat-globe';
+import {SPLAT_GLOBE_GLSL} from '../../splat-layers/splat-layer/splat-globe';
 import {TREE_CROP_PART, type CropKind, type TreeCropMeshLevel} from './tree-crop';
 import {
   TREE_CROP_ANCHOR_STRIDE,

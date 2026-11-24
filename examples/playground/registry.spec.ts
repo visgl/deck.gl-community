@@ -13,9 +13,9 @@ import * as communityGeo from '@deck.gl-community/layers/geo-layers';
 import * as communityWind from '@deck.gl-community/layers/wind-layers';
 import * as communityGrids from '@deck.gl-community/layers/global-grid-layers';
 import * as graph from '@deck.gl-community/graph-layers';
-import * as infovis from '@deck.gl-community/infovis-layers';
+import * as infovis from '@deck.gl-community/layers/infovis-layers';
 import * as communityLayers from '@deck.gl-community/layers';
-import * as timeline from '@deck.gl-community/timeline-layers';
+import * as timeline from '@deck.gl-community/layers/timeline-layers';
 import ts from 'typescript';
 import {z} from 'zod';
 import {afterAll, afterEach, expect, test, vi} from 'vitest';
@@ -37,9 +37,9 @@ const PACKAGES = {
   '@deck.gl-community/layers/global-grid-layers': communityGrids,
   '@deck.gl-community/layers/wind-layers': communityWind,
   '@deck.gl-community/graph-layers': graph,
-  '@deck.gl-community/infovis-layers': infovis,
+  '@deck.gl-community/layers/infovis-layers': infovis,
   '@deck.gl-community/layers': communityLayers,
-  '@deck.gl-community/timeline-layers': timeline
+  '@deck.gl-community/layers/timeline-layers': timeline
 };
 const ABSTRACT_LAYERS = new Set(['_AggregationLayer', '_GeoCellLayer']);
 

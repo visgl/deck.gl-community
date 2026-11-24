@@ -62,7 +62,7 @@ import {
 import {
   ElevationLayer,
   ParticleLayer,
-  WindLayer,
+  WindFieldLayer,
   type WindField
 } from '@deck.gl-community/layers/wind-layers';
 
@@ -103,7 +103,7 @@ function mountWindMap(container: HTMLElement, windField: WindField): () => void 
   let lastTimestamp = 0;
   let lastArrowUpdate = -Infinity;
   let time = 0;
-  let arrows: WindLayer | undefined;
+  let arrows: WindFieldLayer | undefined;
 
   function animate(timestamp: number): void {
     const elapsed = lastTimestamp ? Math.min(timestamp - lastTimestamp, 100) : 0;
@@ -111,7 +111,7 @@ function mountWindMap(container: HTMLElement, windField: WindField): () => void 
     time += elapsed / 1800;
 
     if (timestamp - lastArrowUpdate >= 250) {
-      arrows = new WindLayer({
+      arrows = new WindFieldLayer({
         id: 'wind-arrows',
         windField,
         time,
@@ -192,7 +192,7 @@ buffers on every slider event.
 | --- | :---: | :---: | --- |
 | `ParticleLayer` | Supported | Supported | Independently browser-tested GPU advection and rendering. |
 | Wind data and `DelaunayInterpolation` | Supported | Supported | Backend-independent indexing and explicit sampling. |
-| `WindLayer` | Supported | Supported | Native GLSL/WGSL filled arrows and portable line shafts. |
+| `WindFieldLayer` | Supported | Supported | Native GLSL/WGSL filled arrows and portable line shafts. |
 | `ElevationLayer` | Supported | Supported | Browser-tested upstream `TerrainLayer` and `SimpleMeshLayer`. |
 | `DelaunayCoverLayer` | Supported | Supported | Native GLSL/WGSL station-triangulated surface. |
 | Complete original showcase | Supported | Supported | Browser-tested image terrain, particles, arrows, labels, boundaries, and station terrain. |
@@ -214,7 +214,7 @@ wind-layer documentation.
 
 - [Wind field and weather data](../api-reference/wind-field.md)
 - [ParticleLayer](../api-reference/particle-layer.md)
-- [WindLayer](../api-reference/wind-layer.md)
+- [WindFieldLayer](../api-reference/wind-layer.md)
 - [ElevationLayer](../api-reference/elevation-layer.md)
 - [DelaunayCoverLayer](../api-reference/delaunay-cover-layer.md)
 - [DelaunayInterpolation](../api-reference/delaunay-interpolation.md)

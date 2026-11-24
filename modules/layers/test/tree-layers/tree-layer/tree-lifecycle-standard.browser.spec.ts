@@ -14,7 +14,11 @@ import {
 import {describe, expect, it} from 'vitest';
 import {TreeLayer, type TreeSpec, type TreeType} from '../../../src';
 import {TreePhotorealWoodLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-wood-layer';
-import {mountTreeBrowserScene, type TreeBrowserScene as Scene} from './tree-browser-frame-reader';
+import {
+  createTreeFixture,
+  mountTreeBrowserScene,
+  type TreeBrowserScene as Scene
+} from './tree-browser-frame-reader';
 
 const SIZE = 256;
 
@@ -44,7 +48,7 @@ function mount({
 }
 
 function trees(data: TreeSpec[], props: Record<string, unknown> = {}, Layer = TreeLayer<TreeSpec>) {
-  return new Layer({
+  return createTreeFixture(Layer, {
     ...coordinates,
     id: 'trees',
     data,
@@ -358,7 +362,7 @@ describe('TreeLayer directional wind', () => {
       const pixels = await scene.render([trees(data, {windStrength})]);
       expect(measure(pixels).count).toBeGreaterThan(100);
     }
-    expect(treeLayer(scene).props.windDirection).toBe(null);
+    expect(treeLayer(scene).state.windVector).toBe(null);
     expect(scene.errors).toEqual([]);
     expect(scene.glErrors).toEqual([]);
   }, 120000);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {WindEffect} from '@deck.gl-community/layers/wind-layers/wind-effect';
 import {LinearInterpolator, OrbitView, type Deck, type OrbitViewState} from '@deck.gl/core';
 import type {TreeLayer, TreeSpec} from '../../modules/layers/src/tree-layers/tree-layer/tree-layer';
 import {
@@ -94,7 +95,7 @@ export function mountFieldPlayground({
     foliage.value = String(tree.foliage ?? 1);
   }
 
-  function updateTrees(props: {data?: TreeSpec[]; windStrength?: number}): void {
+  function updateTrees(props: {data: TreeSpec[]}): void {
     const layers = deck.props.layers;
     if (!layers) return;
     deck.setProps({
@@ -159,7 +160,11 @@ export function mountFieldPlayground({
   foliage.onchange = () => edit(foliage, 'foliage');
   wind.onchange = () => {
     if (wind.checkValidity() && Number.isFinite(wind.valueAsNumber)) {
-      updateTrees({windStrength: wind.valueAsNumber});
+      const current = WindEffect.get(deck);
+      const effects = deck.props.effects.filter(effect => !(effect instanceof WindEffect));
+      deck.setProps({
+        effects: [...effects, new WindEffect({...current?.props, strength: wind.valueAsNumber})]
+      });
     }
   };
 

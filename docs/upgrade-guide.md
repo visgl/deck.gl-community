@@ -10,6 +10,32 @@ Update deck.gl to `10.0.0-alpha.2`, luma.gl to `10.0.0-beta.3`, loaders.gl to
 `5.0.0-rc.2`, math.gl to `5.0.2`, and Probe.gl to `5.0.0`. Import Web Mercator
 utilities from `@math.gl/geospatial/web-mercator`.
 
+### Infovis and timeline packages
+
+Install `@deck.gl-community/layers` and update imports from the former standalone packages.
+
+| Previous import | New import |
+| --- | --- |
+| `@deck.gl-community/infovis-layers` | `@deck.gl-community/layers/infovis-layers` |
+| `@deck.gl-community/timeline-layers` | `@deck.gl-community/layers/timeline-layers` |
+
+### Wind field visualization
+
+Rename `WindLayer` to `WindFieldLayer` and `WindLayerProps` to `WindFieldLayerProps` in
+`@deck.gl-community/layers/wind-layers`. In serialized layers, use
+`"@@type": "WindFieldLayer"`.
+
+### Scene wind and splats
+
+Import `WindEffect` from `@deck.gl-community/layers/wind-layers/wind-effect` and add it to
+Deck’s `effects`. Move the former `TreeLayer` wind strength, direction and clock to
+`WindEffect({strength, direction, time})`. Set `windEnabled: false` on sheltered tree
+layers. For a mix of sheltered and exposed trees, use a layer for each group.
+
+The canonical SplatLayer import is `@deck.gl-community/layers/splat-layers`. The package
+root and Common Layers also export it. Remove the splat deformation props from standalone
+splat layers.
+
 ## v10.0.0-alpha.3
 
 ### TreeLayer canopy colors
@@ -141,6 +167,37 @@ sub-layers. Pass `shadowEnabled: false` to either layer to keep the old behavior
 `SimpleMeshLayer` ground plane under a shadow light should also set `shadowEnabled: false`: in
 deck.gl 9.4 it writes a shaded depth and shadows itself. See
 [TreeLayer shadows](./modules/layers/api-reference/tree-layer.md#shadows).
+
+### `@deck.gl-community/editable-layers`
+
+#### Public export cleanup {/* #public-export-cleanup */}
+
+v10 removes redundant GeoJSON aliases and implementation helpers
+from `@deck.gl-community/editable-layers`. This is a breaking change to public imports:
+
+| Removed export | Migration |
+| --- | --- |
+| `Position`, `Point`, `LineString`, `Polygon`, `MultiPoint`, `MultiLineString`, `MultiPolygon`, `Feature`, `FeatureCollection` | Import the same type directly from `geojson`. |
+| `AnyGeoJson` | Use `SimpleFeatureCollection` for editable data, or a union of `Feature` and `FeatureCollection` from `geojson` for the former broad union. |
+| `Style` | Define the styles your application uses through the layer's typed props. The old type was not used by the editing API. |
+| `toDeckColor`, `utils`, `_memoize` | Move general color, array, and memoization helpers into your application or use an existing application utility. These are implementation details rather than editing APIs. |
+
+```ts
+import type {Feature, FeatureCollection, Point, Position} from 'geojson';
+import type {
+  Color,
+  SimpleFeatureCollection,
+  SimpleGeometry,
+  Viewport
+} from '@deck.gl-community/editable-layers';
+```
+
+`SimpleFeature`, `SimpleFeatureCollection`, `SimpleGeometry`,
+`SimpleGeometryCoordinates`, and `PolygonGeometry` remain available, as do `Color`,
+`Viewport`, edit-event types, and the helpers for custom edit handles. `Viewport` is
+the editing mode's viewport state shape; it is distinct from deck.gl's viewport class.
+Layer, widget, and edit-mode exports keep their existing names and behavior.
+Imports of standard GeoJSON types preserve their geometry and property generics.
 
 ## v9.4.6
 

@@ -4,9 +4,16 @@
 
 import {LayerManager, type Layer, type Viewport, WebMercatorViewport} from '@deck.gl/core';
 import {device} from '@deck.gl/test-utils/vitest';
+import {WindEffect} from '@deck.gl-community/layers/wind-layers/wind-effect';
 import {Timeline} from '@luma.gl/engine';
 import {afterEach} from 'vitest';
 import {type CropKind, TreeLayer, type TreeLayerProps} from '../../../src';
+
+export type TreeTestWind = {
+  windStrength?: number;
+  windDirection?: number | null;
+  windTime?: number | null;
+};
 
 type TreePartProps<DataT> = {
   getTag: (row: {object?: DataT}, info: {index: number}) => unknown;
@@ -30,10 +37,13 @@ export function mountTreeScene<DataT>(
 ) {
   const timeline = new Timeline();
   timeline.setTime(1000);
+  const deck = {getViewports: () => [viewport], _addDefaultEffect: () => {}};
+  const wind = new WindEffect({strength: 0});
+  wind.setup({deck, device} as never);
   const manager = new LayerManager(device, {
     viewport,
     timeline,
-    deck: {getViewports: () => [viewport], _addDefaultEffect: () => {}}
+    deck
   } as never);
   const errors: Error[] = [];
   manager.setProps({onError: (error: Error) => errors.push(error)});
@@ -47,7 +57,13 @@ export function mountTreeScene<DataT>(
     row: (index = 0) => layer().state.store!.getRowValues(index),
     children: () =>
       manager.getLayers().filter(child => child.id !== 'trees') as Layer<TreePartProps<DataT>>[],
-    render(props: Omit<TreeLayerProps<DataT>, 'id'>) {
+    render({
+      windStrength = 0,
+      windDirection = null,
+      windTime = null,
+      ...props
+    }: Omit<TreeLayerProps<DataT>, 'id'> & TreeTestWind) {
+      wind.setProps({strength: windStrength, direction: windDirection, time: windTime});
       manager.setLayers([new TreeLayer<DataT>({...props, id: 'trees'})]);
       assertNoErrors();
       return layer();

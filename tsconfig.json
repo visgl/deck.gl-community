@@ -28,11 +28,11 @@
       "@deck.gl-community/widgets": ["./modules/widgets/src"],
       "@deck.gl-community/layers/*": ["./modules/layers/src/*"],
       "@deck.gl-community/layers": ["./modules/layers/src"],
-      "@deck.gl-community/infovis-layers": ["./modules/infovis-layers/src"],
+      "@deck.gl-community/layers/infovis-layers": ["./modules/layers/src/infovis-layers"],
       "@deck.gl-community/react": ["./modules/react/src"],
       "@deck.gl-community/template": ["./modules/template/src"],
       "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"],
-      "@deck.gl-community/timeline-layers": ["./modules/timeline-layers/src"]
+      "@deck.gl-community/layers/timeline-layers": ["./modules/layers/src/timeline-layers"]
     },
     "typeRoots": ["./node_modules/@types"],
     "plugins": [
