@@ -241,6 +241,8 @@ jobs:
 
       - name: Run headless browser tests
         id: headless
+        env:
+          BALANCE_BROWSER_SHARDS: 'true'
         run: yarn test-headless --shard=${{ matrix.shard }}/4
 
   test-webgpu:
@@ -329,6 +331,8 @@ jobs:
           test "$FULLSCREEN_RESULT" = success
 
   website-build:
+    # The Pages workflow builds this same revision on upstream master pushes.
+    if: github.event_name == 'pull_request' || github.repository_owner != 'visgl'
     runs-on: ubuntu-26.04
     timeout-minutes: 15
 

@@ -9,45 +9,28 @@ import {
   type TextureCubeManifest
 } from '@loaders.gl/images';
 import {Layer} from '@deck.gl/core';
-import type {
-  DefaultProps,
-  LayerContext,
-  LayerProps,
-  UpdateParameters,
-  Viewport
-} from '@deck.gl/core';
-import {Matrix4} from '@math.gl/core/matrix';
+import type {DefaultProps, LayerContext, LayerProps, UpdateParameters} from '@deck.gl/core';
 import type {Device, RenderPipelineParameters} from '@luma.gl/core';
 import {CubeGeometry, DynamicTexture, Model, ShaderInputs} from '@luma.gl/engine';
 import type {TextureCubeData} from '@luma.gl/engine';
 import type {ShaderModule} from '@luma.gl/shaders';
 import {convertLoadedCubemapToTextureData, createCubemapLoadOptions} from './cubemap-utils';
-
-type AppUniforms = {
-  /** World transform for the unit cube used to draw the skybox. */
-  modelMatrix: any;
-  /** View transform with translation removed so the skybox stays camera-centered. */
-  viewMatrix: any;
-  /** Projection transform for the active viewport. */
-  projectionMatrix: any;
-};
-
-const app: ShaderModule<AppUniforms, AppUniforms> = {
-  name: 'app',
-  uniformTypes: {
-    modelMatrix: 'mat4x4<f32>',
-    viewMatrix: 'mat4x4<f32>',
-    projectionMatrix: 'mat4x4<f32>'
-  }
-} as any;
+import {getSkyModelRotation, getSkyProjectionProps, skyProjection} from './sky-projection';
 
 const SKYBOX_PARAMETERS: RenderPipelineParameters = {
+  // The camera is inside the cube, so cull the faces that point toward it.
   cullMode: 'front',
   depthWriteEnabled: false,
   depthCompare: 'less-equal'
 };
 
-const SKYBOX_SCALE = new Matrix4().scale([2, 2, 2]);
+// A reflection in `modelMatrix` reverses the winding, so the inside faces become back faces.
+const MIRRORED_SKYBOX_PARAMETERS: RenderPipelineParameters = {
+  ...SKYBOX_PARAMETERS,
+  cullMode: 'back'
+};
+
+const SKYBOX_SCALE = 2;
 
 const defaultProps: DefaultProps<SkyboxLayerProps> = {
   cubemap: null,
@@ -89,6 +72,9 @@ type SkyboxLayerState = {
 /**
  * Renders a camera-centered cubemap background for `MapView`, `GlobeView`,
  * `FirstPersonView`, and other 3D-capable deck.gl views.
+ *
+ * The layer applies the rotation and reflection of `modelMatrix`. It ignores translation, scale
+ * and shear. A singular `modelMatrix` gives the identity rotation.
  */
 export class SkyboxLayer<
   ExtraProps extends Record<string, unknown> = Record<string, unknown>
@@ -147,17 +133,21 @@ export class SkyboxLayer<
       return;
     }
 
-    const viewport = this.context.viewport;
     shaderInputs.setProps({
-      app: {
-        modelMatrix: getSkyboxModelMatrix(this.props.orientation),
-        viewMatrix: getSkyboxViewMatrix(viewport),
-        projectionMatrix: viewport.projectionMatrix
-      }
+      skyProjection: getSkyProjectionProps(this.context.viewport, {
+        orientation: this.props.orientation,
+        modelMatrix: this.props.modelMatrix,
+        scale: SKYBOX_SCALE
+      })
     });
 
     // Deck updates model parameters before draw, so restore the background's depth and cull state.
-    model.setParameters({...model.parameters, ...SKYBOX_PARAMETERS});
+    // The cull mode follows the current modelMatrix, so a runtime reflection takes effect here.
+    const {mirrored} = getSkyModelRotation(this.props.modelMatrix);
+    model.setParameters({
+      ...model.parameters,
+      ...(mirrored ? MIRRORED_SKYBOX_PARAMETERS : SKYBOX_PARAMETERS)
+    });
     model.draw(this.context.renderPass);
   }
 
@@ -260,39 +250,23 @@ function createCubemapTexture(device: Device, data: TextureCubeData): DynamicTex
   });
 }
 
-/** Removes camera translation from the active view matrix for skybox rendering. */
-function getSkyboxViewMatrix(viewport: Viewport): Matrix4 {
-  const viewMatrix = new Matrix4(viewport.viewMatrixUncentered || viewport.viewMatrix);
-  viewMatrix[12] = 0;
-  viewMatrix[13] = 0;
-  viewMatrix[14] = 0;
-  return viewMatrix;
-}
-
-/** Returns the skybox cube transform for the requested cubemap orientation. */
-function getSkyboxModelMatrix(orientation: 'default' | 'y-up' = 'default'): Matrix4 {
-  if (orientation === 'y-up') {
-    return new Matrix4().rotateX(Math.PI / 2).scale([2, 2, 2]);
-  }
-
-  return new Matrix4(SKYBOX_SCALE);
-}
-
 /** Converts the current shader module list into a name-indexed dictionary. */
 function createShaderInputModules(defaultShaderModules: ShaderModule[]): {
   [moduleName: string]: ShaderModule;
 } {
-  return Object.fromEntries([app, ...defaultShaderModules].map(module => [module.name, module]));
+  return Object.fromEntries(
+    [skyProjection, ...defaultShaderModules].map(module => [module.name, module])
+  );
 }
 
 const SKYBOX_WGSL = /* wgsl */ `
-struct appUniforms {
+struct skyProjectionUniforms {
   modelMatrix: mat4x4<f32>,
   viewMatrix: mat4x4<f32>,
   projectionMatrix: mat4x4<f32>,
 };
 
-@group(0) @binding(auto) var<uniform> app : appUniforms;
+@group(0) @binding(auto) var<uniform> skyProjection : skyProjectionUniforms;
 @group(0) @binding(auto) var cubeTexture : texture_cube<f32>;
 @group(0) @binding(auto) var cubeTextureSampler : sampler;
 
@@ -309,9 +283,9 @@ struct VertexOutputs {
 fn vertexMain(inputs: VertexInputs) -> VertexOutputs {
   var outputs : VertexOutputs;
   let clipPosition =
-    app.projectionMatrix *
-    app.viewMatrix *
-    app.modelMatrix *
+    skyProjection.projectionMatrix *
+    skyProjection.viewMatrix *
+    skyProjection.modelMatrix *
     vec4<f32>(inputs.positions, 1.0);
   outputs.position = vec4<f32>(clipPosition.x, clipPosition.y, clipPosition.w, clipPosition.w);
   outputs.direction = inputs.positions;
@@ -327,18 +301,10 @@ fn fragmentMain(inputs: VertexOutputs) -> @location(0) vec4<f32> {
 const SKYBOX_VS = /* glsl */ `#version 300 es
 in vec3 positions;
 
-uniform appUniforms {
-  mat4 modelMatrix;
-  mat4 viewMatrix;
-  mat4 projectionMatrix;
-} app;
-
 out vec3 vDirection;
 
 void main(void) {
-  vec4 clipPosition =
-    app.projectionMatrix * app.viewMatrix * app.modelMatrix * vec4(positions, 1.0);
-  gl_Position = clipPosition.xyww;
+  gl_Position = sky_project(positions);
   vDirection = positions;
 }
 `;

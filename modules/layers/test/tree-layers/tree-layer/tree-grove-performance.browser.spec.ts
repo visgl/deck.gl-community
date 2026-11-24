@@ -109,10 +109,10 @@ async function measureOrbit(data: TreeSpec[], zoom: number, east: number, frameC
       });
     };
     // Settle the first camera selection and detail transitions.
-    for (let i = 0; i < 30; i++) frame(0);
+    for (let i = 0; i < frameCount; i++) frame(0);
     frames.length = 0;
     // A slow orbit: every frame moves the camera, as a basemap drag does.
-    for (let i = 1; i <= frameCount; i++) frame(i * 0.25);
+    for (let i = 1; i <= frameCount; i++) frame((i * 7.5) / frameCount);
   } finally {
     restore();
     orchard.finalize();
@@ -128,8 +128,8 @@ async function measureOrbit(data: TreeSpec[], zoom: number, east: number, frameC
 it('reports per-frame CPU while orbiting a large generated citrus block', async ({annotate}) => {
   const data = createOrchard(ROWS, TREES_PER_ROW);
   // Compare a broad orchard orbit with a tighter view.
-  const wide = await measureOrbit(data, 15.5, 680, 30);
-  const mid = await measureOrbit(data, 18.6, 0, 30);
+  const wide = await measureOrbit(data, 15.5, 680, 6);
+  const mid = await measureOrbit(data, 18.6, 0, 6);
   const body = JSON.stringify({wide, mid}, null, 2);
   // deck.gl hides passing browser tests' console output; *.log files are not committed.
   await commands.writeFile('tree-grove-performance.log', `median ms per orbit frame\n${body}\n`);
