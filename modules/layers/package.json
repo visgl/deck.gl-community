@@ -19,17 +19,17 @@
   "type": "module",
   "sideEffects": false,
   "types": "./dist/index.d.ts",
-  "main": "./dist/index.cjs",
+  "main": "./dist/common-layers/index.cjs",
   "module": "./dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "require": "./dist/index.cjs",
+      "require": "./dist/common-layers/index.cjs",
       "import": "./dist/index.js"
     },
     "./common-layers": {
       "types": "./dist/common-layers/index.d.ts",
-      "require": "./dist/index.cjs",
+      "require": "./dist/common-layers/index.cjs",
       "import": "./dist/common-layers/index.js"
     },
     "./geo-layers": {
