@@ -152,6 +152,7 @@ test.for(['webgl', 'webgpu'] as const)(
 
     try {
       const initial = await render(0);
+      expect((deck.props.layers[0] as RainLayer).getModels()[0].instanceCount).toBe(256);
       expect(
         initial.filter((channel, index) => index % 4 === 0 && channel > 32).length
       ).toBeGreaterThan(40);
@@ -166,6 +167,7 @@ test.for(['webgl', 'webgpu'] as const)(
       expect((deck.props.layers[0] as RainLayer).getModels()[0]).not.toBe(model);
       expect(destroyModel).toHaveBeenCalledOnce();
       const disabled = await render(0, 0);
+      expect((deck.props.layers[0] as RainLayer).getModels()[0].instanceCount).toBe(0);
       expect(disabled.every((channel, index) => index % 4 === 3 || channel === 0)).toBe(true);
       deck.setProps({
         views: new OrbitView({orbitAxis: 'Z', orthographic: true}),
