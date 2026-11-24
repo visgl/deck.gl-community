@@ -65,6 +65,7 @@
     "ajv": "^8.17.1",
     "apache-arrow": "^21.2.0",
     "bin-pack": "^1.0.2",
+    "esbuild": "^0.28.1",
     "playwright": "^1.58.0",
     "pngjs": "^7.0.0",
     "pre-commit": "^1.2.2",
@@ -90,12 +91,12 @@
     "@loaders.gl/tiles": "5.0.0-rc.2",
     "@loaders.gl/ogc": "5.0.0-rc.2",
     "@luma.gl/core": "10.0.0-beta.3",
-    "@luma.gl/engine": "10.0.0-beta.3",
     "@luma.gl/shaders": "10.0.0-beta.3",
     "fast-xml-parser": "5.5.3",
     "fast-uri": "3.1.7",
     "mjolnir.js": "3.1.1",
-    "sigstore@npm:^4.0.0": "patch:sigstore@npm%3A4.1.1#~/.yarn/patches/sigstore-npm-4.1.1-9ab7be1c91.patch"
+    "sigstore@npm:^4.0.0": "patch:sigstore@npm%3A4.1.1#~/.yarn/patches/sigstore-npm-4.1.1-9ab7be1c91.patch",
+    "@luma.gl/engine": "patch:@luma.gl/engine@npm%3A10.0.0-beta.3#~/.yarn/patches/@luma.gl-engine-npm-10.0.0-beta.3-3c01af84b3.patch"
   },
   "packageExtensions": {
     "deck.gl@*": {

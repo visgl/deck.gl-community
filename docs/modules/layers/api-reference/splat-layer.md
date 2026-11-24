@@ -61,6 +61,26 @@ new SplatLayer({data: objects, getSource: asset, maxSplats: 50_000});
 increasingly coarse spatial cells. Each visible instance uses the coarsest level that stays
 within `pixelError`. A finite `maxSplats` gives detail to the instances that gain the most, and
 level changes crossfade.
+Keep the descriptor stable with the source and hierarchy. A direct asset's function accessors and
+picking receive its implicit owner; row accessors and picking receive the original row and index.
+### Scene assets and installation
+
+Use a RAD URL, a RAD Blob, or an explicit scene descriptor. SPLAT, KSPLAT and SPZ URLs
+also use the worker-backed scene renderer. For a static Blob, specify an explicit splats descriptor.
+
+```ts
+new SplatLayer({data: {type: 'rad', url: '/captures/coit.rad'}, coordinateSystem: 'cartesian'});
+```
+
+The default transparency mode selects weighted blending for prepared sources and sorted rendering
+for scene files. Set `sortDomain` with sorted transparency to opt compatible Cartesian
+owner rows into shared scene sorting. RAD requires a perspective Cartesian view.
+Static scenes can also use orthographic Cartesian views. Scene rendering has no prepared-layer
+shadows, wind, or selection pulse.
+
+Scene workers ship with the browser ESM build. A host can also provide a worker factory.
+This workspace patches luma.gl beta.3 for per-page transforms and tint. Publishing scene
+support requires those capabilities in the upstream engine.
 
 ## Properties
 
@@ -73,9 +93,9 @@ arrays.
 
 | Property | Default | Description |
 | --- | --- | --- |
-| `data` | `[]` | Instance rows, or one prepared source. |
-| `getSource` | `d => d.splats` | A [`SplatSource`](#splatsource) or prepared asset, constant or per row. |
-| `getPosition` | `d => d.position` | Instance position. |
+| `data` | `[]` | Direct Gaussian asset, URL/Blob, explicit file descriptor or original owner rows. |
+| `getSource` | `d => d.splats` | Constant prepared asset or per-row accessor. |
+| `getPosition` | `d => d.position` | Owner position in the layer coordinate system. |
 | `getOrientation` | `[0, 0, 0]` | Pitch, yaw and roll in degrees. |
 | `getScale` | `[1, 1, 1]` | XYZ scale. |
 | `getTranslation` | `[0, 0, 0]` | Offset after orientation and scale. Metres in geospatial views. |
@@ -87,7 +107,7 @@ arrays.
 
 | Property | Default | Description |
 | --- | --- | --- |
-| `transparency` | `'weighted'` | Unsorted blending, or `'sorted'` for exact alpha blending at extra cost. |
+| `transparency` | `'auto'` | Weighted blending for prepared assets and sorted rendering for scenes. |
 | `material` | Phong | Lighting, using the source normals. |
 | `kernelVariance` | `0.3` | Anti-aliasing blur added to each Gaussian, in pixels. |
 | `support` | `3` | Gaussian extent in standard deviations, `1`–`6`. |
