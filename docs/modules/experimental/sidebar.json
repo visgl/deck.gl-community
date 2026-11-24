@@ -1,8 +1,0 @@
-{
-  "type": "category",
-  "label": "@deck.gl-community/experimental",
-  "items": [
-    "modules/experimental/README",
-    "modules/experimental/api-reference/data-driven-tile-3d-layer"
-  ]
-}

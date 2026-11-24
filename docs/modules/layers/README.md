@@ -18,33 +18,18 @@ The deck.gl-community repository is semi-maintained. One of its goals is to coll
 npm install @deck.gl-community/layers
 ```
 
-## History
+## Package entry points
 
-Various layers developed by deck.gl maintainers that could be of use to others.
+| Import path | Use it for |
+| --- | --- |
+| `@deck.gl-community/layers/common-layers` | Paths, markers, skybox, Gaussian splats, flame trails, volumetric video, and selection pulse |
+| `@deck.gl-community/layers/geo-layers` | [Geospatial tile layers](../geo-layers/README.md) and shared tilesets |
+| `@deck.gl-community/layers/global-grid-layers` | [Global grid rendering and grid systems](../geo-layers/api-reference/global-grid.md) |
+| `@deck.gl-community/layers/wind-layers` | [Wind layers and station-data utilities](../geo-layers/developer-guide/wind-showcase.md) |
+| `@deck.gl-community/layers/tree-layers` | [Procedural trees and crops](./api-reference/tree-layer.md) |
 
-## What's New
-
-### `@deck.gl-community/layers` v0.0.0
-
-Release date: 2023
-
-- `TileSourceLayer`
-- `DataDrivenTile3DLayer`
-- `SkyboxLayer`
-
-## Exports
-
-- [`SplatLayer`](./api-reference/splat-layer.md): reusable prepared Gaussian renderer
-- [`TreeLayer`](./api-reference/tree-layer.md): canonical procedural tree renderer
-- [`SelectionPulseExtension`](./api-reference/selection-pulse-extension.md): GPU pulse for selected objects
-
-- [`FlameTrailLayer`](./api-reference/flame-trail-layer.md) (WebGL2 and WebGPU)
-- [`VolumetricVideoLayer`](./api-reference/volumetric-video-layer.md) (WebGL2 and WebGPU)
-- [`getVolumetricVideoHistoryBytes`](./api-reference/volumetric-video-layer.md#gpu-and-decoding)
-- `DependencyArrowLayer`
-- `PathMarkerLayer`
-- `PathOutlineLayer`
-- `SkyboxLayer`
+The package root also exports the common layers and tree renderer. The geo overview lists
+the application-installed dependencies for the H3 and A5 adapters and the wind layers.
 
 <p class="badges">
   <img src="https://img.shields.io/badge/From-v9.3-blue.svg?style=flat-square" alt="From v9.3" />

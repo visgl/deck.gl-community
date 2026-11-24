@@ -98,6 +98,7 @@ const config = {
       '@docusaurus/plugin-client-redirects',
       {
         redirects: [
+          {from: '/docs/category/components', to: '/docs/category/packages'},
           {
             from: [
               '/docs/modules/basemap-layers/api-reference/basemap-layer',
