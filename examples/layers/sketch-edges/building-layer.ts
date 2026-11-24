@@ -149,11 +149,11 @@ ${BUILDING_FRAGMENT_WGSL}
   let mottle = buildingMottleNoise(input.worldPosition.xy * 0.12) * 0.55 +
     buildingMottleNoise(input.worldPosition.xz * 0.12) * 0.25 +
     buildingMottleNoise(input.worldPosition.yz * 0.12) * 0.2;
-  var color = shadeBuilding(input, windowCoverage, input.color * (0.84 + mottle * 0.22));
+  var color = shadeBuilding(input, windowCoverage, vec4f(input.color * (0.84 + mottle * 0.22), layer.opacity));
   if (picking.isHighlightActive > 0.5 && distance(input.pickingColor, picking_normalizeColor(picking.highlightedObjectColor)) < 0.00001) {
-    color = mix(color, picking.highlightColor.rgb, picking.highlightColor.a);
+    color = vec4f(mix(color.rgb, picking.highlightColor.rgb, picking.highlightColor.a), color.a);
   }
-  return vec4<f32>(color, layer.opacity);
+  return color;
 }
 `;
 

@@ -50,14 +50,15 @@ export function drawPBRBuildingMesh(
 
 /** Shared WGSL material and window evaluation for a projected façade fragment. */
 export const BUILDING_FRAGMENT_WGSL = /* wgsl */ `
-fn shadeBuilding(input: CityVertex, windowCoverage: f32, baseColor: vec3f) -> vec3f {
+fn shadeBuilding(input: CityVertex, windowCoverage: f32, baseColor: vec4f) -> vec4f {
   fragmentInputs.pbr_vPosition = input.commonPosition;
   fragmentInputs.pbr_vNormal = input.commonNormal;
   fragmentInputs.pbr_vUV0 = vec2f(0.0);
   fragmentInputs.pbr_vUV1 = vec2f(0.0);
-  let color = pbr_filterColor(vec4f(baseColor, 1.0)).rgb;
-  return riverfrontWindowReflection(color, input.commonNormal,
+  let color = pbr_filterColor(baseColor);
+  let reflected = riverfrontWindowReflection(color.rgb, input.commonNormal,
     pbrProjection.camera - input.commonPosition, vec3f(1.0), windowCoverage);
+  return vec4f(reflected, color.a);
 }
 `;
 
