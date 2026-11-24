@@ -13,8 +13,8 @@ import {
   SPLAT_ACCUMULATION_WGSL,
   SPLAT_TRANSMISSION_WGSL,
   SPLAT_WGSL
-} from '../../../src/common-layers/splat-layer/splat.wgsl';
-import {SplatPrimitiveLayer} from '../../../src/common-layers/splat-layer/splat-primitive-layer';
+} from '../../../src/splat-layers/splat-layer/splat.wgsl';
+import {SplatPrimitiveLayer} from '../../../src/splat-layers/splat-layer/splat-primitive-layer';
 import {TreePhotorealCropLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-crop-layer';
 import {TreePhotorealLeafLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-leaf-layer';
 import {TreePhotorealWoodLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-wood-layer';

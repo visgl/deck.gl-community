@@ -7,7 +7,8 @@ import * as WindLayers from '../../src/wind-layers';
 import type {WindFieldOptions} from '../../src/wind-layers';
 
 it('exports the reusable wind showcase layers and field utilities', () => {
-  expect(WindLayers.WindLayer).toBeDefined();
+  expect(WindLayers.WindFieldLayer).toBeDefined();
+  expect(WindLayers).not.toHaveProperty('WindLayer');
   expect(WindLayers.ParticleLayer).toBeDefined();
   expect(WindLayers.DelaunayCoverLayer).toBeDefined();
   expect(WindLayers.ElevationLayer).toBeDefined();

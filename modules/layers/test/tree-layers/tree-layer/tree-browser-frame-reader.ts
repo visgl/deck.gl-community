@@ -3,6 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, type Layer, type LayerManager, type LightingEffect} from '@deck.gl/core';
+import {WindEffect, type WindEffectProps} from '@deck.gl-community/layers/wind-layers/wind-effect';
+import {TreeLayer, type TreeSpec} from '../../../src';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {afterEach, expect} from 'vitest';
 
@@ -16,6 +18,31 @@ export type TreeBrowserScene = {
   settle(frames?: number): Promise<Uint8Array>;
   cleanup(): void;
 };
+
+const testWind = new WeakMap<Layer, WindEffectProps>();
+
+export function createTreeFixture(
+  Type: typeof TreeLayer<TreeSpec>,
+  {windStrength = 0, windDirection = null, windTime = null, ...props}: Record<string, unknown>
+): TreeLayer<TreeSpec> {
+  const layer = new Type(props);
+  testWind.set(layer, {
+    strength: windStrength as number,
+    direction: windDirection as number | null,
+    time: windTime as number | null
+  });
+  return layer;
+}
+
+export function renderTreeFixtures(deck: Deck, layers: Layer[]) {
+  const wind = layers.map(layer => testWind.get(layer)).find(Boolean);
+  if (!wind) {
+    deck.setProps({layers});
+    return;
+  }
+  const effects = deck.props.effects?.filter(effect => !(effect instanceof WindEffect)) ?? [];
+  deck.setProps({layers, effects: [...effects, new WindEffect(wind)]});
+}
 
 const scenes = new Set<TreeBrowserScene>();
 
@@ -66,7 +93,7 @@ export function mountTreeBrowserScene({
     layerManager: () => (deck as unknown as {layerManager: LayerManager}).layerManager,
     setViewState: state => deck.setProps({viewState: state as never}),
     render(layers, frames) {
-      deck.setProps({layers});
+      renderTreeFixtures(deck, layers);
       return settle(frames);
     },
     cleanup() {

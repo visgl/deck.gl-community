@@ -14,6 +14,7 @@ import {
 } from '@deck.gl/core';
 import {Buffer, luma, Texture, type Device, type TextureFormat} from '@luma.gl/core';
 import {Model} from '@luma.gl/engine';
+import {WindEffect} from '@deck.gl-community/layers/wind-layers/wind-effect';
 import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {expect, it} from 'vitest';
 import {requireWebGPUAdapter} from '../../common-layers/webgpu-test-utils';
@@ -382,6 +383,10 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
     }
     const mapDeck = deck!;
     mapDeck.setProps({
+      effects: [
+        ...mapDeck.props.effects,
+        new WindEffect({strength: 0.4, direction: 60, time: 1.25})
+      ],
       views: new MapView(),
       viewState: {longitude: 0, latitude: 0, zoom: 20, pitch: 45},
       layers: [
@@ -393,10 +398,7 @@ it('draws and picks the photoreal TreeLayer wood, blades and crop on WebGPU', as
             {...rows[0], position: [-12, 0, 0], growth: 0.5, health: 0.6, flush: 0.4, damage: 0.3},
             {...rows[1], lean: [40, 90], decay: 0.3},
             {...rows[2], position: [12, 0, 0], foliage: 0.5}
-          ],
-          windStrength: 0.4,
-          windDirection: 60,
-          windTime: 1.25
+          ]
         })
       ]
     });

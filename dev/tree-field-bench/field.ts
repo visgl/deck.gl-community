@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {WindEffect} from '@deck.gl-community/layers/wind-layers/wind-effect';
 import {AmbientLight, Deck, DirectionalLight, OrbitView, type OrbitViewState} from '@deck.gl/core';
 import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
@@ -171,7 +172,14 @@ const deck = new FieldDeck({
   ...(params.has('windTime') && {_animate: true}),
   views: [new OrbitView({id: 'orchard', orbitAxis: 'Z', fovy: FOVY})],
   viewState: {orchard: overview},
-  effects: [lighting],
+  effects: [
+    lighting,
+    new WindEffect({
+      strength: 0.035,
+      direction: null,
+      time: params.has('windTime') ? Number(params.get('windTime')) : null
+    })
+  ],
   layers: [
     ground
       ? new FieldGroundLayer<[number, number, number][]>({
@@ -198,8 +206,6 @@ const deck = new FieldDeck({
       data: trees,
       lodBias: LOD_BIAS,
       pickable: Boolean(interactive),
-      windStrength: 0.035,
-      ...(params.has('windTime') && {windTime: Number(params.get('windTime'))}),
       shadowEnabled: shadows,
       ...(selection && {extensions: [new SelectionPulseExtension()], getSelected: () => false}),
       opacity

@@ -1,6 +1,6 @@
 import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
-# WindLayer
+# WindFieldLayer
 
 ![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
 
@@ -9,7 +9,7 @@ The wind arrow API and styling are experimental. Native triangle glyphs and port
 segments render on WebGL2 and WebGPU, as does the showcase's image-based mountain terrain.
 :::
 
-`WindLayer` renders a Delaunay-interpolated station forecast as directional, speed-colored arrow
+`WindFieldLayer` renders a Delaunay-interpolated station forecast as directional, speed-colored arrow
 glyphs. Its measurements, temporal interpolation, and terrain elevation are shared with
 [`ParticleLayer`](./particle-layer.md).
 
@@ -18,7 +18,7 @@ glyphs. Its measurements, temporal interpolation, and terrain elevation are shar
 ## Import
 
 ```ts
-import {createWindField, parseWindData, WindLayer} from '@deck.gl-community/layers/wind-layers';
+import {createWindField, parseWindData, WindFieldLayer} from '@deck.gl-community/layers/wind-layers';
 ```
 
 ## Example
@@ -28,7 +28,7 @@ const stations = await fetch('/wind/stations.json').then(response => response.js
 const weather = await fetch('/wind/weather.bin').then(response => response.arrayBuffer());
 const windField = createWindField(stations, parseWindData(weather, stations.length));
 
-const arrows = new WindLayer({
+const arrows = new WindFieldLayer({
   id: 'wind-arrows',
   windField,
   time: 12.5,
