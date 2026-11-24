@@ -4,8 +4,10 @@
 
 import {FirstPersonViewport, OrbitViewport} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core';
-import {describe, expect, it} from 'vitest';
+import {log} from '@deck.gl/core';
+import {describe, expect, it, vi} from 'vitest';
 import {
+  getSkyModelRotation,
   getSkyOrientationMatrix,
   getSkyProjectionProps,
   getSkyViewMatrix
@@ -103,5 +105,128 @@ describe('sky projection', () => {
     expect(scaled[0]).toBeCloseTo(unscaled[0], 9);
     expect(scaled[1]).toBeCloseTo(unscaled[1], 9);
     expect(scaled[2]).toBeCloseTo(2 * unscaled[2], 9);
+  });
+
+  it('ignores the scale of the model matrix', () => {
+    const viewport = new OrbitViewport(ORBIT);
+    const rotation = new Matrix4().rotateZ(Math.PI / 2);
+    const distorted = new Matrix4(rotation).scale([3, 0.5, 7]);
+    const direction = [0.2, 0.9, -0.3];
+    const actual = projectSky(viewport, direction, {modelMatrix: distorted});
+    const expected = projectSky(viewport, direction, {modelMatrix: rotation});
+    expect(actual[0]).toBeCloseTo(expected[0], 6);
+    expect(actual[1]).toBeCloseTo(expected[1], 6);
+  });
+});
+
+/** Returns the upper-left 3x3 determinant of a Matrix4. */
+function determinant3(m: Matrix4): number {
+  return (
+    m[0] * (m[5] * m[10] - m[9] * m[6]) -
+    m[4] * (m[1] * m[10] - m[9] * m[2]) +
+    m[8] * (m[1] * m[6] - m[5] * m[2])
+  );
+}
+
+/** Expects the upper-left 3x3 parts of two matrices to agree, and the rest to be the identity. */
+function expectRotation(actual: Matrix4, expected: Matrix4, digits = 9): void {
+  for (let index = 0; index < 16; index++) {
+    const value = [3, 7, 11, 12, 13, 14].includes(index) ? 0 : index === 15 ? 1 : expected[index];
+    expect(actual[index]).toBeCloseTo(value, digits);
+  }
+}
+
+/** Expects M^T M = I for the upper-left 3x3 part. */
+function expectOrthogonal(m: Matrix4): void {
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      let dot = 0;
+      for (let k = 0; k < 3; k++) dot += m[i * 4 + k] * m[j * 4 + k];
+      expect(dot).toBeCloseTo(i === j ? 1 : 0, 9);
+    }
+  }
+}
+
+describe('getSkyModelRotation', () => {
+  const rotation = new Matrix4().rotateZ(0.7).rotateX(-0.4).rotateY(1.9);
+
+  it('returns the identity without a model matrix', () => {
+    expect(getSkyModelRotation(null)).toEqual({matrix: new Matrix4(), mirrored: false});
+  });
+
+  it('keeps a pure rotation and removes translation', () => {
+    const {matrix, mirrored} = getSkyModelRotation(
+      new Matrix4().translate([10, -20, 30]).multiplyRight(rotation)
+    );
+    expect(mirrored).toBe(false);
+    expectRotation(matrix, rotation, 12);
+  });
+
+  it('removes a uniform scale', () => {
+    for (const factor of [1e-4, 0.25, 4, 1e6]) {
+      const {matrix, mirrored} = getSkyModelRotation(new Matrix4(rotation).scale(factor));
+      expect(mirrored).toBe(false);
+      expectRotation(matrix, rotation);
+    }
+  });
+
+  it('removes a nonuniform scale', () => {
+    const {matrix, mirrored} = getSkyModelRotation(new Matrix4(rotation).scale([2, 0.1, 50]));
+    expect(mirrored).toBe(false);
+    expectRotation(matrix, rotation);
+  });
+
+  it('removes shear and gives an orthogonal matrix with determinant 1', () => {
+    const shear = new Matrix4();
+    shear[4] = 0.6; // x += 0.6 y
+    shear[9] = -0.3; // z -= 0.3 y
+    const sheared = new Matrix4(rotation).multiplyRight(shear);
+    const {matrix, mirrored} = getSkyModelRotation(sheared);
+    expect(mirrored).toBe(false);
+    expectOrthogonal(matrix);
+    expect(determinant3(matrix)).toBeCloseTo(1, 12);
+    // Polar decomposition: Q^T A is the symmetric stretch, so Q is the nearest rotation.
+    const stretch = new Matrix4(matrix).transpose().multiplyRight(sheared);
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) expect(stretch[i * 4 + j]).toBeCloseTo(stretch[j * 4 + i], 9);
+    }
+  });
+
+  it('keeps a reflection and reports it', () => {
+    const reflected = new Matrix4(rotation).scale([-1, 1, 1]);
+    const {matrix, mirrored} = getSkyModelRotation(new Matrix4(reflected).scale([3, 1, 0.5]));
+    expect(mirrored).toBe(true);
+    expect(determinant3(matrix)).toBeCloseTo(-1, 12);
+    expectRotation(matrix, reflected);
+  });
+
+  it('does not depend on the axis that carries the reflection', () => {
+    for (const scale of [
+      [-1, 1, 1],
+      [1, -1, 1],
+      [1, 1, -1],
+      [-1, -1, -1]
+    ]) {
+      const {matrix, mirrored} = getSkyModelRotation(new Matrix4().scale(scale));
+      expect(mirrored).toBe(true);
+      expectRotation(matrix, new Matrix4().scale(scale), 12);
+    }
+  });
+
+  it('falls back to the identity for a singular matrix and warns once', () => {
+    const warn = vi.spyOn(log, 'warn').mockReturnValue(() => {});
+    try {
+      for (const singular of [
+        new Matrix4().scale([1, 0, 1]),
+        new Matrix4().scale([1e3, 1e3, 1e-12]),
+        new Matrix4(Array.from({length: 16}, () => 0)),
+        new Matrix4().scale([1, Number.NaN, 1])
+      ]) {
+        expect(getSkyModelRotation(singular)).toEqual({matrix: new Matrix4(), mirrored: false});
+      }
+      expect(warn).toHaveBeenCalledOnce();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

@@ -70,9 +70,13 @@ Controls how the cubemap faces should be interpreted relative to deck.gl's Z-up 
 
 ### `modelMatrix` (number[16], optional)
 
-Rotates the sky in the world, after `orientation`. The layer ignores the translation of the
-matrix. Use it to turn a cubemap from its own frame into the frame of the scene, for example from
-equatorial to ecliptic axes.
+Rotates the sky in the world, after `orientation`. Use it to turn a cubemap from its own frame
+into the frame of the scene, for example from equatorial to ecliptic axes.
+
+The layer applies only the rotation and reflection of the matrix. It ignores translation, scale
+and shear: it uses the nearest orthogonal matrix (the polar decomposition of the upper-left 3x3
+part). A reflection mirrors the sky, and the layer changes its face culling to match. A singular
+matrix gives the identity rotation and a warning.
 
 ### `loadOptions` (TextureCubeLoaderOptions, optional)
 

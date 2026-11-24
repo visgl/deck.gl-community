@@ -15,12 +15,19 @@ import {CubeGeometry, DynamicTexture, Model, ShaderInputs} from '@luma.gl/engine
 import type {TextureCubeData} from '@luma.gl/engine';
 import type {ShaderModule} from '@luma.gl/shaders';
 import {convertLoadedCubemapToTextureData, createCubemapLoadOptions} from './cubemap-utils';
-import {getSkyProjectionProps, skyProjection} from './sky-projection';
+import {getSkyModelRotation, getSkyProjectionProps, skyProjection} from './sky-projection';
 
 const SKYBOX_PARAMETERS: RenderPipelineParameters = {
+  // The camera is inside the cube, so cull the faces that point toward it.
   cullMode: 'front',
   depthWriteEnabled: false,
   depthCompare: 'less-equal'
+};
+
+// A reflection in `modelMatrix` reverses the winding, so the inside faces become back faces.
+const MIRRORED_SKYBOX_PARAMETERS: RenderPipelineParameters = {
+  ...SKYBOX_PARAMETERS,
+  cullMode: 'back'
 };
 
 const SKYBOX_SCALE = 2;
@@ -65,6 +72,9 @@ type SkyboxLayerState = {
 /**
  * Renders a camera-centered cubemap background for `MapView`, `GlobeView`,
  * `FirstPersonView`, and other 3D-capable deck.gl views.
+ *
+ * The layer applies the rotation and reflection of `modelMatrix`. It ignores translation, scale
+ * and shear. A singular `modelMatrix` gives the identity rotation.
  */
 export class SkyboxLayer<
   ExtraProps extends Record<string, unknown> = Record<string, unknown>
@@ -132,7 +142,12 @@ export class SkyboxLayer<
     });
 
     // Deck updates model parameters before draw, so restore the background's depth and cull state.
-    model.setParameters({...model.parameters, ...SKYBOX_PARAMETERS});
+    // The cull mode follows the current modelMatrix, so a runtime reflection takes effect here.
+    const {mirrored} = getSkyModelRotation(this.props.modelMatrix);
+    model.setParameters({
+      ...model.parameters,
+      ...(mirrored ? MIRRORED_SKYBOX_PARAMETERS : SKYBOX_PARAMETERS)
+    });
     model.draw(this.context.renderPass);
   }
 
