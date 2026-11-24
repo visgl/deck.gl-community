@@ -1,0 +1,23 @@
+{
+  "name": "example-sketch-edges",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "build": "vite build",
+    "test:visual": "node scripts/visual-smoke.mjs"
+  },
+  "dependencies": {
+    "@deck.gl-community/layers": "workspace:*",
+    "@deck.gl/core": "10.0.0-alpha.2",
+    "@luma.gl/core": "10.0.0-beta.3",
+    "@luma.gl/engine": "10.0.0-beta.3",
+    "@luma.gl/shaders": "10.0.0-beta.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.58.0",
+    "pngjs": "^7.0.0",
+    "vite": "^7.3.1"
+  }
+}

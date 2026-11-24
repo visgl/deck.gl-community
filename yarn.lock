@@ -656,6 +656,7 @@ __metadata:
     "@loaders.gl/tiles": "npm:5.0.0-rc.2"
     "@luma.gl/core": "npm:10.0.0-beta.3"
     "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/graph": "npm:10.0.0-beta.3"
     "@luma.gl/shaders": "npm:10.0.0-beta.3"
     "@math.gl/core": "npm:5.0.2"
     "@math.gl/earth": "npm:5.0.2"
@@ -677,6 +678,7 @@ __metadata:
     "@loaders.gl/splats": 5.0.0-rc.2
     "@luma.gl/core": 10.0.0-beta.3
     "@luma.gl/engine": 10.0.0-beta.3
+    "@luma.gl/graph": 10.0.0-beta.3
     "@math.gl/earth": 5.0.2
     a5-js: ^0.5.0
     apache-arrow: ">=17"
@@ -684,6 +686,8 @@ __metadata:
     h3-js: ^4.2.1
   peerDependenciesMeta:
     "@loaders.gl/splats":
+      optional: true
+    "@luma.gl/graph":
       optional: true
     "@math.gl/earth":
       optional: true
@@ -6910,6 +6914,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"example-globe-clouds@workspace:examples/layers/globe-clouds":
+  version: 0.0.0-use.local
+  resolution: "example-globe-clouds@workspace:examples/layers/globe-clouds"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    playwright: "npm:^1.58.0"
+    pngjs: "npm:^7.0.0"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "example-horizon-graph-layer@workspace:examples/layers/horizon-graph-layer":
   version: 0.0.0-use.local
   resolution: "example-horizon-graph-layer@workspace:examples/layers/horizon-graph-layer"
@@ -6948,6 +6969,21 @@ __metadata:
     "@vitejs/plugin-react": "npm:^5.1.4"
     react: "npm:^19.2.8"
     react-dom: "npm:^19.2.8"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"example-sketch-edges@workspace:examples/layers/sketch-edges":
+  version: 0.0.0-use.local
+  resolution: "example-sketch-edges@workspace:examples/layers/sketch-edges"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    playwright: "npm:^1.58.0"
+    pngjs: "npm:^7.0.0"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
