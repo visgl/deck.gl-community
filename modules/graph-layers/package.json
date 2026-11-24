@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@luma.gl/shaders": "10.0.0-alpha.14",
+    "@math.gl/core": "5.0.0-beta.8",
     "apache-arrow": "^17.0.0",
     "cardinal-spline-js": "^2.3.10",
     "color": "^4.2.3",

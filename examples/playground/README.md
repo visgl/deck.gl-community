@@ -34,15 +34,15 @@ until a valid document is accepted.
 
 Open the [standalone playground](https://visgl.github.io/deck.gl-community/playground) for a
 full-screen editor and preview. It shares the gallery's templates and constructor registry: all
-35 concrete official deck.gl layers and 45 public community layers. The graph package's `GridLayer`
+35 concrete official deck.gl layers and the public community layers. The graph package's `GridLayer`
 is named `GraphGridLayer` to distinguish it from deck.gl's aggregation layer. Abstract base classes
-are excluded. Layers that require live resources, such as GeoArrow tables, also need host-provided
+are excluded. Layers that require live resources, also need host-provided
 constants; registering a constructor does not create those resources.
 
 Browser tools expose five templates: `imported-points`, `scatterplot`, `arcs`, `geojson`, and
 `heatmap`. They can inspect and replace the page-local `points` source with JSON row arrays or
 base64 Arrow IPC; the imported-points template expects `position: [x, y]`. Arrow imports become
-rows, not native GeoArrow tables. Imported rows last only for the current page session.
+rows that last only for the current page session.
 
 Tools register automatically when WebMCP is available. The rounded **WebMCP** toolbar button shows ✅ active, ❌ unavailable, 🚫 disabled, or
 🚧 initializing. Hover or focus it for a styled tooltip explaining the status and click action.
