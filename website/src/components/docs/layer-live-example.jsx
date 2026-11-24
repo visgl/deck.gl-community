@@ -182,13 +182,13 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
     }
     case 'horizon-graph-layer': {
       const {mountHorizonGraphLayerExample} = await import(
-        '../../../../modules/timeline-layers/examples/horizon-graph-layer/app'
+        '../../../../examples/layers/horizon-graph-layer/app'
       );
       return mountHorizonGraphLayerExample(container, {showInfoWidget: false, ...mountProps});
     }
     case 'multi-horizon-graph-layer': {
       const {mountMultiHorizonGraphLayerExample} = await import(
-        '../../../../modules/timeline-layers/examples/horizon-graph-layer/app'
+        '../../../../examples/layers/horizon-graph-layer/app'
       );
       return mountMultiHorizonGraphLayerExample(container, {showInfoWidget: false, ...mountProps});
     }
@@ -200,7 +200,7 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
     case 'block-layer':
     case 'time-delta-layer': {
       const {mountInfovisLayerPrimitivesExample} = await import(
-        '../../../../examples/infovis-layers/layer-primitives/app'
+        '../../../../examples/layers/layer-primitives/app'
       );
       return mountInfovisLayerPrimitivesExample(container, {
         highlight,
@@ -711,7 +711,7 @@ function createStaticFlowDocsLayers({highlight, LineLayer, TextLayer}) {
 async function mountTimeAxisLayerExample(container, mountProps = {}) {
   const {Deck, OrthographicView} = await import('@deck.gl/core');
   const {LineLayer, TextLayer} = await import('@deck.gl/layers');
-  const {TimeAxisLayer} = await import('@deck.gl-community/timeline-layers');
+  const {TimeAxisLayer} = await import('@deck.gl-community/layers/timeline-layers');
   const rootElement = createRoot(container);
   const {startTimeMs, endTimeMs, checkpoints} = createTimelineDocsData();
 
@@ -771,7 +771,7 @@ async function mountTimeAxisLayerExample(container, mountProps = {}) {
 async function mountVerticalGridLayerExample(container, mountProps = {}) {
   const {Deck, OrthographicView} = await import('@deck.gl/core');
   const {LineLayer, TextLayer} = await import('@deck.gl/layers');
-  const {VerticalGridLayer} = await import('@deck.gl-community/timeline-layers');
+  const {VerticalGridLayer} = await import('@deck.gl-community/layers/timeline-layers');
   const rootElement = createRoot(container);
   const {startTimeMs, endTimeMs, checkpoints} = createTimelineDocsData();
 

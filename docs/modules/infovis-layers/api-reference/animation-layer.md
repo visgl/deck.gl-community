@@ -13,7 +13,7 @@ schedule. Use it for simple pulse, reveal, and emphasis effects without placing
 animation state inside each datum.
 
 ```ts
-import {AnimationLayer} from '@deck.gl-community/infovis-layers';
+import {AnimationLayer} from '@deck.gl-community/layers/infovis-layers';
 
 const layer = new AnimationLayer({
   id: 'selected-block-pulse',
@@ -59,4 +59,4 @@ Delay in milliseconds before each repeated iteration. Default: `0`.
 
 ## Source
 
-[modules/infovis-layers/src/layers/animation-layer/animation-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/infovis-layers/src/layers/animation-layer/animation-layer.ts)
+[modules/layers/src/infovis-layers/layers/animation-layer/animation-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/infovis-layers/layers/animation-layer/animation-layer.ts)

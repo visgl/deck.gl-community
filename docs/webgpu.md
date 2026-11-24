@@ -17,17 +17,17 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `path` mode | ✅ | ✅ | Browser-verified upstream `PathLayer`, outlines, and native WGSL markers. |
 | `@deck.gl-community/layers` | `PathOutlineLayer` | ✅ | ✅ | Upstream dual-backend `PathLayer`; a local WGSL dash plugin bridges the still-GLSL-only `PathStyleExtension`. |
 | `@deck.gl-community/layers` | `PathMarkerLayer` | ✅ | ✅ | Browser-verified outlined and dashed paths with native WGSL marker geometry. |
-| `@deck.gl-community/infovis-layers` | `BlockLayer` | ✅ | ✅ | Native WGSL, projection, picking, fills, outlines, and float32 binary attributes. |
-| `@deck.gl-community/infovis-layers` | `AnimationLayer` | ✅ | 🚧 | Depends on the wrapped layer's backend support. |
-| `@deck.gl-community/infovis-layers` | `TimeDeltaLayer` | ✅ | ✅ | Portable interval guides and native WGSL `FastTextLayer` labels. |
-| `@deck.gl-community/infovis-layers` | `FastTextLayer` | ✅ | ✅ | Native WGSL adapted from luma.gl's text-renderer patterns; existing packed glyphs, bitmap/SDF atlases, clipping, alignment, and mipmaps work on both backends. |
-| `@deck.gl-community/timeline-layers` | `HorizonGraphLayer` | ✅ | ✅ | Native WGSL; WebGPU preserves float bits in baseline-compatible `r32uint` textures. |
-| `@deck.gl-community/timeline-layers` | `MultiHorizonGraphLayer` | ✅ | ✅ | Portable horizon shaders and dual-backend line dividers. |
-| `@deck.gl-community/timeline-layers` | `TimeAxisLayer` | ✅ | ✅ | Browser-verified grid lines and upstream `TextLayer` tick labels. |
-| `@deck.gl-community/timeline-layers` | `VerticalGridLayer` | ✅ | ✅ | Browser-verified portable `LineLayer` grid marks and viewport-driven ticks. |
-| `@deck.gl-community/timeline-layers` | `TimelineLayer` geometry | ✅ | ✅ | Browser-verified tracks, clips, scrubber polygons, and lines using upstream dual-backend layers. |
-| `@deck.gl-community/timeline-layers` | `TimelineLayer` labels | ✅ | ✅ | Browser-verified upstream `TextLayer` track, clip, axis, and scrubber labels. |
-| `@deck.gl-community/timeline-layers` | `TimelineLayer` interactions | ✅ | 🚧 | Pointer, drag, and selection behavior is backend-neutral but still needs browser interaction coverage. |
+| `@deck.gl-community/layers/infovis-layers` | `BlockLayer` | ✅ | ✅ | Native WGSL, projection, picking, fills, outlines, and float32 binary attributes. |
+| `@deck.gl-community/layers/infovis-layers` | `AnimationLayer` | ✅ | 🚧 | Depends on the wrapped layer's backend support. |
+| `@deck.gl-community/layers/infovis-layers` | `TimeDeltaLayer` | ✅ | ✅ | Portable interval guides and native WGSL `FastTextLayer` labels. |
+| `@deck.gl-community/layers/infovis-layers` | `FastTextLayer` | ✅ | ✅ | Native WGSL adapted from luma.gl's text-renderer patterns; existing packed glyphs, bitmap/SDF atlases, clipping, alignment, and mipmaps work on both backends. |
+| `@deck.gl-community/layers/timeline-layers` | `HorizonGraphLayer` | ✅ | ✅ | Native WGSL; WebGPU preserves float bits in baseline-compatible `r32uint` textures. |
+| `@deck.gl-community/layers/timeline-layers` | `MultiHorizonGraphLayer` | ✅ | ✅ | Portable horizon shaders and dual-backend line dividers. |
+| `@deck.gl-community/layers/timeline-layers` | `TimeAxisLayer` | ✅ | ✅ | Browser-verified grid lines and upstream `TextLayer` tick labels. |
+| `@deck.gl-community/layers/timeline-layers` | `VerticalGridLayer` | ✅ | ✅ | Browser-verified portable `LineLayer` grid marks and viewport-driven ticks. |
+| `@deck.gl-community/layers/timeline-layers` | `TimelineLayer` geometry | ✅ | ✅ | Browser-verified tracks, clips, scrubber polygons, and lines using upstream dual-backend layers. |
+| `@deck.gl-community/layers/timeline-layers` | `TimelineLayer` labels | ✅ | ✅ | Browser-verified upstream `TextLayer` track, clip, axis, and scrubber labels. |
+| `@deck.gl-community/layers/timeline-layers` | `TimelineLayer` interactions | ✅ | 🚧 | Pointer, drag, and selection behavior is backend-neutral but still needs browser interaction coverage. |
 | `@deck.gl-community/graph-layers` | `GraphLayer`, `EdgeLayer`, and node layers | ✅ | 🚧 | Static path edges, arrow decorators, and rounded nodes are portable; complete graph styling, images, labels, layouts, and picking still require end-to-end validation. |
 | `@deck.gl-community/graph-layers` | `RoundedRectangleLayer` | ✅ | ✅ | Rounded corners are CPU-tessellated and rendered with upstream dual-backend `PolygonLayer`. |
 | `@deck.gl-community/graph-layers` | `PathEdgeLayer` and `EdgeArrowLayer` | ✅ | ✅ | Browser-verified upstream path rendering and polygon arrowheads. |
