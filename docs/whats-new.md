@@ -7,6 +7,7 @@ This page lists module additions and major changes in each release. For detailed
 - **layers:** Import [SelectionPulseExtension](./modules/layers/api-reference/selection-pulse-extension.md)
   from `@deck.gl-community/layers/extensions`. The existing imports remain available.
 - **layers:** [SplatLayer](./modules/layers/api-reference/splat-layer.md#scene-assets-and-installation) supports worker-backed RAD and static scenes. Existing prepared layers can opt into shared scene sorting with a sort domain.
+- **layers:** The [Coit RAD scene example](/examples/layers/coit) streams a layered Gaussian-splat capture on WebGPU.
 
 - **react-fiber:** removed. The renderer moved to deck.gl, where it is `@deck.gl/react` from v10.
   See the [upgrade guide](./upgrade-guide.md#react-fiber).
