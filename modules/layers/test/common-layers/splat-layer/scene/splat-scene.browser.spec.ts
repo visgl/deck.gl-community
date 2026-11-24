@@ -245,12 +245,7 @@ async function renderSorted(
           };
         })
       | undefined;
-    if (shared) {
-      expect(layersNow[0].state.scene).toBe(false);
-      expect(layersNow[0].state.input.assets[0]).toBe(layersNow[1].state.input.assets[0]);
-    } else {
-      expect(scene!.state.runtime.assets.size).toBe(2);
-    }
+    expect(scene!.state.runtime.assets.size).toBe(shared ? 1 : 2);
     expect(layersNow.find(layer => layer.id === 'blue')!.splatStats.renderedSplats).toBe(
       pickingOnly ? 0 : deepPicking ? 2 : 1
     );
@@ -341,7 +336,7 @@ async function renderSorted(
       deck!.setProps({layerFilter: () => true});
       expect((await deck!.pickObjectAsync({x: 64, y: 64}))?.object).toBe(blue);
       await settle({
-        layers: layersNow.map(layer => layer.clone({coordinateSystem: COORDINATE_SYSTEM.LNGLAT}))
+        layers: layersNow.map(layer => layer.clone({coordinateSystem: 'lnglat'}))
       });
       expect(scene!.state.runtime.domains.size).toBe(0);
       expect(projectionErrors).toHaveLength(4);

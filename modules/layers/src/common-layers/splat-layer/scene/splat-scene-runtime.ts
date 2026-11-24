@@ -587,9 +587,7 @@ export class SplatSceneRuntime implements Effect {
     }
     const domain = this.domains.get(getViewDomainKey(viewport.id, layer.props.sortDomain));
     if (domain?.leader !== layer.id) return;
-    if (domain.renderer instanceof SplatCPUSceneRenderer)
-      domain.renderer.draw(renderPass, parameters);
-    else domain.renderer.draw(renderPass);
+    domain.renderer.draw(renderPass, parameters);
   }
   getStats(id: string) {
     const owners = this.owners.get(id) ?? [];
