@@ -9,7 +9,7 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl-community/geo-layers": "workspace:*",
+    "@deck.gl-community/layers": "workspace:*",
     "@deck.gl/core": "10.0.0-alpha.1",
     "@deck.gl/extensions": "10.0.0-alpha.1",
     "@deck.gl/geo-layers": "10.0.0-alpha.1",

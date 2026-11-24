@@ -20,14 +20,14 @@ back to the CPU.
 ## Import
 
 ```ts
-import {ParticleLayer} from '@deck.gl-community/geo-layers';
+import {ParticleLayer} from '@deck.gl-community/layers/wind-layers';
 ```
 
 ## Example
 
 ```ts
 import {Deck} from '@deck.gl/core';
-import {createWindField, parseWindData, ParticleLayer} from '@deck.gl-community/geo-layers';
+import {createWindField, parseWindData, ParticleLayer} from '@deck.gl-community/layers/wind-layers';
 
 const stations = await fetch('/wind/stations.json').then(response => response.json());
 const weather = await fetch('/wind/weather.bin').then(response => response.arrayBuffer());

@@ -37,8 +37,8 @@ import TabItem from '@theme/TabItem';
 ```ts
 import {Deck} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {SharedTile2DLayer} from '@deck.gl-community/geo-layers';
-import {SharedTileset2D} from '@deck.gl-community/geo-layers/tileset';
+import {SharedTile2DLayer} from '@deck.gl-community/layers/geo-layers';
+import {SharedTileset2D} from '@deck.gl-community/layers/geo-layers/tileset';
 import type {TileSource} from '@loaders.gl/core/loader-utils';
 
 const tileSource: TileSource = {
@@ -82,12 +82,12 @@ new Deck({
 ## Installation
 
 ```bash
-npm install @deck.gl-community/geo-layers
+npm install @deck.gl-community/layers
 ```
 
 ```ts
-import {SharedTile2DLayer} from '@deck.gl-community/geo-layers';
-import type {SharedTile2DLayerProps} from '@deck.gl-community/geo-layers';
+import {SharedTile2DLayer} from '@deck.gl-community/layers/geo-layers';
+import type {SharedTile2DLayerProps} from '@deck.gl-community/layers/geo-layers';
 
 new SharedTile2DLayer<DataT>(...props: SharedTile2DLayerProps<DataT>[]);
 ```
@@ -210,4 +210,4 @@ When a layer uses a shared `SharedTileset2D`, cache and visibility stats live on
 
 ## Source
 
-[modules/geo-layers/src/shared-tile-2d-layer](https://github.com/visgl/deck.gl-community/tree/main/modules/geo-layers/src/shared-tile-2d-layer)
+[modules/layers/src/geo-layers/shared-tile-2d-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/geo-layers/shared-tile-2d-layer)

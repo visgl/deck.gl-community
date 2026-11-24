@@ -3,7 +3,7 @@
 `isGlobeViewport(viewport)` returns `true` when a deck.gl viewport draws a 3D globe. This is a `GlobeView` below zoom 12. Above zoom 12, `GlobeView` uses a Web Mercator viewport, and the function returns `false`.
 
 ```ts
-import {isGlobeViewport} from '@deck.gl-community/geo-layers';
+import {isGlobeViewport} from '@deck.gl-community/layers/geo-layers';
 
 const geographic = isGlobeViewport(this.context.viewport);
 ```

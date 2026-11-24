@@ -26,7 +26,7 @@ import TabItem from '@theme/TabItem';
 
 ```js
 import {Deck} from '@deck.gl/core';
-import {TileSourceLayer} from '@deck.gl/geo-layers';
+import {TileSourceLayer} from '@deck.gl-community/layers/geo-layers';
 import {WMSSource} from '@loaders.gl/wms';
 
 const wmsSource = new WMSSource({
@@ -53,7 +53,7 @@ new Deck({
 
 ```ts
 import {Deck} from '@deck.gl/core';
-import {TileSourceLayer} from '@deck.gl/geo-layers';
+import {TileSourceLayer} from '@deck.gl-community/layers/geo-layers';
 
 const layer = new TileSourceLayer({
   data: 'https://ows.terrestris.de/osm/service',
@@ -78,7 +78,7 @@ new Deck({
 ```tsx
 import React from 'react';
 import DeckGL from '@deck.gl/react';
-import {TileSourceLayer} from '@deck.gl/geo-layers';
+import {TileSourceLayer} from '@deck.gl-community/layers/geo-layers';
 
 function App() {
   const layer = new TileSourceLayer({
@@ -114,8 +114,8 @@ npm install @deck.gl/core @deck.gl/layers @deck.gl/geo-layers
 ```
 
 ```ts
-import {TileSourceLayer} from '@deck.gl/geo-layers';
-import type {TileSourceLayerProps} from '@deck.gl/geo-layers';
+import {TileSourceLayer} from '@deck.gl-community/layers/geo-layers';
+import type {TileSourceLayerProps} from '@deck.gl-community/layers/geo-layers';
 
 new TileSourceLayer(...props: TileSourceLayerProps[]);
 ```
@@ -291,4 +291,4 @@ Receives arguments:
 
 ## Source
 
-[modules/geo-layers/src/wms-layer](https://github.com/visgl/deck.gl/tree/master/modules/geo-layers/src/wms-layer)
+[modules/layers/src/geo-layers/tile-source-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/geo-layers/tile-source-layer)

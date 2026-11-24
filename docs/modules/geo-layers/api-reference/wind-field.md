@@ -32,7 +32,7 @@ import {
   type WindSample,
   type WindStation,
   type WindTriangle
-} from '@deck.gl-community/geo-layers';
+} from '@deck.gl-community/layers/wind-layers';
 ```
 
 ## Load the original forecast
@@ -42,7 +42,7 @@ import {
   createWindField,
   parseWindData,
   type WindStation
-} from '@deck.gl-community/geo-layers';
+} from '@deck.gl-community/layers/wind-layers';
 
 const dataUrl =
   'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/wind';

@@ -149,4 +149,4 @@ getSelected: d => selectedIds.has(d.id),
 updateTriggers: {getFillColor: [colorTheme], getSelected: [selectedIds]}
 ```
 
-[Source](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/selection-pulse-extension)
+[Source](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/common-layers/selection-pulse-extension)

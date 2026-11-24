@@ -10,5 +10,5 @@ check its installation and compatibility requirements before migrating. This is 
 move, not a promise of a drop-in replacement for every community release.
 
 `SharedTile2DLayer`, `SharedTileset2D` and `SharedMVTLayer` remain in
-[`@deck.gl-community/geo-layers`](../geo-layers/README.md). The renderer-neutral
+[`@deck.gl-community/layers/geo-layers`](../geo-layers/README.md). The renderer-neutral
 conformance corpus remains in `dev/basemap-conformance` for cross-repository consumers.

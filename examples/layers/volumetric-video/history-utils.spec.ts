@@ -4,7 +4,7 @@
 
 import {describe, expect, it} from 'vitest';
 import {getDemoHistory, MAX_DEMO_HISTORY_BYTES} from './history-utils';
-import {getFrameHistoryBytes} from '../../../modules/layers/src/volumetric-video-layer/frame-utils';
+import {getFrameHistoryBytes} from '../../../modules/layers/src/common-layers/volumetric-video-layer/frame-utils';
 
 describe('demo video history limits', () => {
   it('blocks multi-GiB native history without changing the sampling grid', () => {

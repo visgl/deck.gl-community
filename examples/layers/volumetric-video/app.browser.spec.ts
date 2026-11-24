@@ -6,11 +6,11 @@ import {describe, expect, it, vi} from 'vitest';
 import {Deck, type OrbitView} from '@deck.gl/core';
 import type {Device} from '@luma.gl/core';
 import type {VolumetricVideoLayer} from '@deck.gl-community/layers';
-import {requireWebGPUAdapter} from '../../../modules/layers/test/webgpu-test-utils';
+import {requireWebGPUAdapter} from '../../../modules/layers/test/common-layers/webgpu-test-utils';
 import {mountVolumetricVideoExample} from './app';
 
 const MOV_URL = new URL(
-  '../../../modules/layers/test/volumetric-video-layer/sample.mov',
+  '../../../modules/layers/test/common-layers/volumetric-video-layer/sample.mov',
   import.meta.url
 ).href;
 

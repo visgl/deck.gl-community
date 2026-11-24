@@ -31,14 +31,15 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/graph-layers` | `RoundedRectangleLayer` | ✅ | ✅ | Rounded corners are CPU-tessellated and rendered with upstream dual-backend `PolygonLayer`. |
 | `@deck.gl-community/graph-layers` | `PathEdgeLayer` and `EdgeArrowLayer` | ✅ | ✅ | Browser-verified upstream path rendering and polygon arrowheads. |
 | `@deck.gl-community/graph-layers` | `FlowPathLayer` | ❌ | ❌ | Existing transform-feedback implementation is incomplete; requires redesign. |
-| `@deck.gl-community/geo-layers` | `ParticleLayer` | ✅ | ✅ | Browser-verified WebGL2 transform-feedback and WebGPU compute advection; production rendering uses GPU particle buffers without readbacks. |
-| `@deck.gl-community/geo-layers` | Wind-field utilities and `DelaunayInterpolation` | ✅ | ✅ | Backend-independent station indexing, explicit sampling, and optional CPU rasterization. |
-| `@deck.gl-community/geo-layers` | `WindLayer` | ✅ | ✅ | Native WGSL/GLSL filled-arrow triangles and portable line shafts and arrowheads. |
-| `@deck.gl-community/geo-layers` | `ElevationLayer` | ✅ | ✅ | Browser-verified image-derived mountain terrain through upstream `TerrainLayer` and `SimpleMeshLayer`. |
-| `@deck.gl-community/geo-layers` | `DelaunayCoverLayer` | ✅ | ✅ | Native WGSL/GLSL station triangles, elevation scaling, and height-based coloring. |
-| `@deck.gl-community/geo-layers` | Complete Wind Map showcase | ✅ | ✅ | Browser-verified image terrain, GPU particles, arrows, labels, state boundaries, and station terrain. |
-| `@deck.gl-community/geo-layers` | `GlobalGridLayer` and `TileGridLayer` | ✅ | ✅ | Browser-verified upstream polygon, path, and text renderers using local grid and tile data. |
-| `@deck.gl-community/geo-layers` | `SharedTile2DLayer` and `TileSourceLayer` | ✅ | 🚧 | Validate tile formats, texture upload, labels, and picking. |
+| `@deck.gl-community/layers/wind-layers` | `ParticleLayer` | ✅ | ✅ | Browser-verified WebGL2 transform-feedback and WebGPU compute advection; production rendering uses GPU particle buffers without readbacks. |
+| `@deck.gl-community/layers/wind-layers` | Wind-field utilities and `DelaunayInterpolation` | ✅ | ✅ | Backend-independent station indexing, explicit sampling, and optional CPU rasterization. |
+| `@deck.gl-community/layers/wind-layers` | `WindLayer` | ✅ | ✅ | Native WGSL/GLSL filled-arrow triangles and portable line shafts and arrowheads. |
+| `@deck.gl-community/layers/wind-layers` | `ElevationLayer` | ✅ | ✅ | Browser-verified image-derived mountain terrain through upstream `TerrainLayer` and `SimpleMeshLayer`. |
+| `@deck.gl-community/layers/wind-layers` | `DelaunayCoverLayer` | ✅ | ✅ | Native WGSL/GLSL station triangles, elevation scaling, and height-based coloring. |
+| `@deck.gl-community/layers/wind-layers` | Complete Wind Map showcase | ✅ | ✅ | Browser-verified image terrain, GPU particles, arrows, labels, state boundaries, and station terrain. |
+| `@deck.gl-community/layers/global-grid-layers` | `GlobalGridLayer` | ✅ | ✅ | Browser-verified upstream polygon, path, and text renderers using local grid and tile data. |
+| `@deck.gl-community/layers/geo-layers` | `TileGridLayer` | ✅ | ✅ | Browser-verified upstream polygon, path, and text renderers using local grid and tile data. |
+| `@deck.gl-community/layers/geo-layers` | `SharedTile2DLayer` and `TileSourceLayer` | ✅ | 🚧 | Validate tile formats, texture upload, labels, and picking. |
 | `@deck.gl-community/editable-layers` | GeoJSON paths, polygons, and edit handles | ✅ | ✅ | Browser-verified `EditableGeoJsonLayer` rendering in `ModifyMode`, including the WebGPU picking-width shader path. |
 | `@deck.gl-community/editable-layers` | Editing and selection interactions | ✅ | 🚧 | Pointer, drag, snapping, and selection behavior still require browser interaction coverage on WebGPU. |
 | `@deck.gl-community/layers` | `SplatLayer` | ✅ | ✅ | Prepared anisotropic Gaussians with instanced deformation, owner picking, and weighted or sorted transparency; no public foliage-shadow integration. |
