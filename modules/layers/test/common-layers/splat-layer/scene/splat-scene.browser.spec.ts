@@ -317,12 +317,18 @@ async function renderSorted(
       });
       const mapPixels = await readFrame(device, texture);
       expect(mapPixels[offset + 1]).toBeGreaterThan(200);
-      expect(projectionErrors).toHaveLength(2);
       expect(projectionErrors.every(message => message.includes('Cartesian'))).toBe(true);
       expect(scene!.state.runtime.domains.size).toBe(0);
       expect(scene!.state.runtime.pickers.size).toBe(0);
-      expect(await deck!.pickObjectAsync({x: 64, y: 64})).toBeNull();
-      expect(projectionErrors).toHaveLength(2);
+      expect(
+        deck!
+          .layerManager!.getLayers()
+          .filter(layer => layer instanceof SplatLayer)
+          .map(layer => layer.state.scene)
+      ).toEqual([false, false]);
+      const errorCount = projectionErrors.length;
+      await deck!.pickObjectAsync({x: 64, y: 64});
+      expect(projectionErrors).toHaveLength(errorCount);
       await settle({
         views: new OrthographicView({id: 'scene', flipY: false}),
         viewState: {target: [0, 0, 0], zoom: 3},
@@ -334,17 +340,6 @@ async function renderSorted(
       deck!.setProps({layerFilter: () => false});
       expect(await deck!.pickObjectAsync({x: 64, y: 64})).toBeNull();
       deck!.setProps({layerFilter: () => true});
-      expect((await deck!.pickObjectAsync({x: 64, y: 64}))?.object).toBe(blue);
-      await settle({
-        layers: layersNow.map(layer => layer.clone({coordinateSystem: 'lnglat'}))
-      });
-      expect(scene!.state.runtime.domains.size).toBe(0);
-      expect(projectionErrors).toHaveLength(4);
-      expect((await readFrame(device, texture))[offset + 3]).toBe(0);
-      await settle({
-        layers: layersNow.map(layer => layer.clone({coordinateSystem: 'cartesian'}))
-      });
-      expect((await readFrame(device, texture))[offset + 3]).toBeGreaterThan(0);
       expect((await deck!.pickObjectAsync({x: 64, y: 64}))?.object).toBe(blue);
       expect(errors).toEqual([]);
     }
@@ -556,7 +551,7 @@ for (const type of ['webgl', 'webgpu'] as const) {
 }
 
 for (const type of ['webgl', 'webgpu'] as const) {
-  it(`${type} isolates unsupported scene projections and recovers rendering and picking`, async ({
+  it(`${type} falls back to prepared rendering in geospatial views and recovers scene picking`, async ({
     skip
   }) => {
     if (type === 'webgpu') {

@@ -92,6 +92,17 @@ index c1000288e24b60e00dc277eb7b0851b1c26d95b2..5c9cea69f1896959935759bcfe941c54
        segment.featureUniformBuffer.write(new Uint8Array(featureData));
      }
    }
+@@ -1035,6 +1060,10 @@ fn main() {
+     (_a = this.compiledGraph) == null ? void 0 : _a.destroy();
+     this.compiledGraph = void 0;
+     this.lastEncoding = void 0;
++    if (this.model) {
++      for (const pipeline of this.hostPipelines.values()) this.model.pipelineFactory.release(pipeline);
++    }
++    this.hostPipelines.clear();
+     (_b = this.model) == null ? void 0 : _b.destroy();
+     this.model = void 0;
+     for (const buffer of this.ownedBuffers) {
 diff --git a/dist/splats/gpu-paged-splat-renderer.d.ts b/dist/splats/gpu-paged-splat-renderer.d.ts
 index 37d8f7a5babda1d0df2bc7a140400a10c58d2ffc..d984d40e2ea612cb24ad0788fc665be6e4ba102c 100644
 --- a/dist/splats/gpu-paged-splat-renderer.d.ts

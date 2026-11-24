@@ -2383,7 +2383,7 @@ __metadata:
 
 "@luma.gl/engine@patch:@luma.gl/engine@npm%3A10.0.0-beta.3#~/.yarn/patches/@luma.gl-engine-npm-10.0.0-beta.3-3c01af84b3.patch":
   version: 10.0.0-beta.3
-  resolution: "@luma.gl/engine@patch:@luma.gl/engine@npm%3A10.0.0-beta.3#~/.yarn/patches/@luma.gl-engine-npm-10.0.0-beta.3-3c01af84b3.patch::version=10.0.0-beta.3&hash=27a693"
+  resolution: "@luma.gl/engine@patch:@luma.gl/engine@npm%3A10.0.0-beta.3#~/.yarn/patches/@luma.gl-engine-npm-10.0.0-beta.3-3c01af84b3.patch::version=10.0.0-beta.3&hash=a9eea8"
   dependencies:
     "@luma.gl/graph": "npm:10.0.0-beta.3"
     "@mapbox/tiny-sdf": "npm:^2.0.7"
@@ -2397,7 +2397,7 @@ __metadata:
   peerDependenciesMeta:
     apache-arrow:
       optional: true
-  checksum: 10c0/5953134facc5d6dd4b2b1281cf103cb78489198b941870ff7a4aca8b94517f66d2c9aaf1a6321d4ed90afe34c2d47ef71d3dea2a34b72ebb993b68d7b75aef37
+  checksum: 10c0/471d309f0291cfc97258b431e63a6a300dd05f7a7b341d80fa61c036c04b40b7916765037989ac7ef9f27eabf05ebefae2a9b6fceab2e5adcd0fc5d11352c6dc
   languageName: node
   linkType: hard
 

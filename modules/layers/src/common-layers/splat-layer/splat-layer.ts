@@ -287,11 +287,6 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     if (!Array.isArray(props.data)) this.state.rowSources = null;
     const sources = Array.isArray(props.data) ? (this.state.rowSources ?? []) : [props.data];
     const maxSplats = getEffectiveMaxSplats(props);
-    const sceneSourceChanged = Boolean(
-      changeFlags.dataChanged ||
-        sourceAccessorChanged ||
-        (sourceTriggers && (sourceTriggers.all || sourceTriggers.getSource))
-    );
     // Direct templates keep the established prepared compositor; owner rows can join scene ordering.
     const sortedCartesian =
       Array.isArray(props.data) &&
@@ -303,8 +298,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       isSplatSceneData(props.data) ||
       Boolean(this.state.rowSources?.some(isSplatSceneData)) ||
       (sortedCartesian &&
-        (!getSplatSceneProjectionError(props.coordinateSystem, this.context.viewport) ||
-          (this.state.scene && !sceneSourceChanged)));
+        !getSplatSceneProjectionError(props.coordinateSystem, this.context.viewport));
     if (scene) {
       if (props.transparency === 'weighted')
         throw new Error('RAD scenes require sorted transparency.');

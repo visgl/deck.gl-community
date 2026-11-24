@@ -1036,6 +1036,30 @@ it('routes sorted Cartesian prepared owner rows through the shared scene rendere
   expect(opticalDepthLayer.state.scene).toBe(false);
 });
 
+it('restores prepared rows when an opted-in scene enters a geospatial view', () => {
+  const cartesian = new OrthographicViewport({width: 256, height: 256});
+  const layer = make(
+    [{position: [0, 0, 0]}],
+    0,
+    {getSource: SOURCE, transparency: 'sorted', sortDomain: 'coit'},
+    cartesian
+  );
+  expect(layer.state.scene).toBe(true);
+  const updateViewport = (viewport: Viewport) => {
+    layer.context.viewport = viewport;
+    layer.updateState({
+      props: layer.props,
+      oldProps: layer.props,
+      changeFlags: {viewportChanged: true}
+    } as any);
+  };
+  updateViewport(new WebMercatorViewport({width: 256, height: 256}));
+  expect(layer.state.scene).toBe(false);
+  expect(layer.renderLayers().some(child => child.id.includes('refinement'))).toBe(true);
+  updateViewport(cartesian);
+  expect(layer.state.scene).toBe(true);
+});
+
 it.each([
   'auto',
   'sorted',
