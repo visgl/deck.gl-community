@@ -168,6 +168,7 @@ describe('Seasonal Farm integration', () => {
         await expect.poll(() => getCrop(orange)).toBeNull();
         setNumber('Wind', 0.05);
         await expect.poll(() => WindEffect.get(deck)?.strength).toBe(0.05);
+        expect(WindEffect.get(deck)?.props.direction).toBeNull();
         setNumber('Size', 1.2);
         await expect.poll(() => trees().props.sizeScale).toBe(1.2);
         const crown = Array.from(

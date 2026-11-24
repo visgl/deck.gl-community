@@ -224,7 +224,7 @@ export function mountSeasonalFarmExample(
   }
 
   function createEffects() {
-    return [lighting, new WindEffect({strength: settings.windStrength})];
+    return [lighting, new WindEffect({strength: settings.windStrength, direction: null})];
   }
 
   function createLayers() {
