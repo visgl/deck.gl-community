@@ -5,7 +5,7 @@
 import {SolidPolygonLayer} from '@deck.gl/layers';
 import type {Model} from '@luma.gl/engine';
 import type {ShaderModule, ShaderPlugin} from '@luma.gl/shaders';
-import {getTreeShadowWgsl} from '../../../modules/layers/src/tree-layer/tree-photoreal-shadow-wgsl';
+import {getTreeShadowWgsl} from '../../../modules/layers/src/common-layers/tree-layer/tree-photoreal-shadow-wgsl';
 import {FARM_COMMON_UNITS_PER_METRE, farmShadow, farmShadowPlugin} from './farm-lighting';
 
 const GROUND_SHADOW_OPACITY = 0.3;

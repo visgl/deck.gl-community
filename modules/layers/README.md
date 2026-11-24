@@ -5,6 +5,9 @@
 
 This module contains a suite of non-official deck.gl layers.
 
+Import the common layers from `@deck.gl-community/layers/common-layers`. The package root also exports them.
+Applications can install `h3-js` and `a5-js` separately when they need those grid libraries. Both are optional peers.
+
 They can be quite useful in applications, however they are not officially supported by the deck.gl team, so use at your own risk.
 
 [`FlameTrailLayer`](../../docs/modules/layers/api-reference/flame-trail-layer.md) renders

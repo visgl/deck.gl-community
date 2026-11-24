@@ -26,6 +26,11 @@
       "types": "./dist/index.d.ts",
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
+    },
+    "./common-layers": {
+      "types": "./dist/common-layers/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/common-layers/index.js"
     }
   },
   "files": [
@@ -50,7 +55,9 @@
     "@deck.gl/mesh-layers": "10.0.0-alpha.1",
     "@loaders.gl/core": "5.0.0-beta.8",
     "@luma.gl/core": "10.0.0-alpha.14",
-    "@luma.gl/engine": "10.0.0-alpha.14"
+    "@luma.gl/engine": "10.0.0-alpha.14",
+    "a5-js": "^0.5.0",
+    "h3-js": "^4.2.1"
   },
   "devDependencies": {
     "@deck.gl/core": "10.0.0-alpha.1",
@@ -63,5 +70,13 @@
     "@luma.gl/core": "10.0.0-alpha.14",
     "@luma.gl/engine": "10.0.0-alpha.14",
     "probe.gl": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "a5-js": {
+      "optional": true
+    },
+    "h3-js": {
+      "optional": true
+    }
   }
 }

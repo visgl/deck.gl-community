@@ -216,4 +216,4 @@ properties. A standalone Gaussian canopy can still use [`SplatLayer`](./splat-la
 
 ## Source
 
-[modules/layers/src/tree-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/tree-layer)
+[modules/layers/src/common-layers/tree-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/common-layers/tree-layer)

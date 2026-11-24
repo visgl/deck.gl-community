@@ -734,6 +734,13 @@ __metadata:
     "@loaders.gl/core": 5.0.0-beta.8
     "@luma.gl/core": 10.0.0-alpha.14
     "@luma.gl/engine": 10.0.0-alpha.14
+    a5-js: ^0.5.0
+    h3-js: ^4.2.1
+  peerDependenciesMeta:
+    a5-js:
+      optional: true
+    h3-js:
+      optional: true
   languageName: unknown
   linkType: soft
 

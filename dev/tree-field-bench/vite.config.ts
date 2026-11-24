@@ -8,7 +8,9 @@ import {defineConfig} from 'vite';
 
 const treeEntry =
   process.env.TREE_LAYER_ENTRY ??
-  fileURLToPath(new URL('../../modules/layers/src/tree-layer/tree-layer.ts', import.meta.url));
+  fileURLToPath(
+    new URL('../../modules/layers/src/common-layers/tree-layer/tree-layer.ts', import.meta.url)
+  );
 const selectionEntry =
   process.env.TREE_SELECTION_ENTRY ??
   resolve(
@@ -19,8 +21,9 @@ const selectionEntry =
 export default defineConfig({
   resolve: {
     alias: {
-      '../../modules/layers/src/tree-layer/tree-layer': treeEntry,
-      '../../modules/layers/src/selection-pulse-extension/selection-pulse-extension': selectionEntry
+      '../../modules/layers/src/common-layers/tree-layer/tree-layer': treeEntry,
+      '../../modules/layers/src/common-layers/selection-pulse-extension/selection-pulse-extension':
+        selectionEntry
     }
   },
   root: fileURLToPath(new URL('.', import.meta.url)),

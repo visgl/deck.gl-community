@@ -9,9 +9,9 @@ import {
   TreeLayer,
   type TreeSpec,
   type TreeType
-} from '../../modules/layers/src/tree-layer/tree-layer';
+} from '../../modules/layers/src/common-layers/tree-layer/tree-layer';
 import {createFieldProfile} from './field-profile';
-import {SelectionPulseExtension} from '../../modules/layers/src/selection-pulse-extension/selection-pulse-extension';
+import {SelectionPulseExtension} from '../../modules/layers/src/common-layers/selection-pulse-extension/selection-pulse-extension';
 import {FieldLightingEffect} from './field-lighting';
 import {FieldGroundLayer} from './field-ground-layer';
 

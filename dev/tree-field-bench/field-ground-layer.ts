@@ -5,7 +5,7 @@
 import {SolidPolygonLayer} from '@deck.gl/layers';
 import type {Model} from '@luma.gl/engine';
 import type {ShaderModule, ShaderPlugin} from '@luma.gl/shaders';
-import {getTreeShadowWgsl} from '../../modules/layers/src/tree-layer/tree-photoreal-shadow-wgsl';
+import {getTreeShadowWgsl} from '../../modules/layers/src/common-layers/tree-layer/tree-photoreal-shadow-wgsl';
 import {FIELD_GROUND_SHADOW_WGSL} from './field-ground-shadow';
 
 const plugins = new WeakMap<ShaderPlugin, ShaderPlugin>();
