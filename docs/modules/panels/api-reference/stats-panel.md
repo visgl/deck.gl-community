@@ -6,7 +6,7 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-`StatsPanel` renders a compact table from a [`Stats`](https://github.com/visgl/probe.gl/tree/master/modules/stats) object from `@probe.gl/stats`.
+`StatsPanel` renders a compact table from a [`Stats`](https://github.com/visgl/probe.gl/tree/master/modules/stats) object from `probe.gl/stats`.
 
 <PanelLiveExample highlight="stats-panel" />
 
@@ -14,7 +14,7 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 ```ts
 import {BoxPanelContainer, PanelManager, StatsPanel} from '@deck.gl-community/panels';
-import {Stats} from '@probe.gl/stats';
+import {Stats} from 'probe.gl/stats';
 
 const stats = new Stats({
   id: 'Tile cache',
