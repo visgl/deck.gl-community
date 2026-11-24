@@ -184,7 +184,12 @@ struct StrokeVertex {
     if (picking_isColorZero(input.pickingColor)) { discard; }
     return vec4<f32>(input.pickingColor, 1.0);
   }
-  return vec4<f32>(sketchEdge.color.rgb, sketchEdge.color.a * coverage);
+  var color = sketchEdge.color.rgb;
+  if (picking.isHighlightActive > 0.5 &&
+      distance(input.pickingColor, picking_normalizeColor(picking.highlightedObjectColor)) < 0.00001) {
+    color = mix(color, picking.highlightColor.rgb, picking.highlightColor.a);
+  }
+  return vec4<f32>(color, sketchEdge.color.a * coverage);
 }
 `;
 
@@ -239,7 +244,11 @@ void main() {
     if (all(equal(pickingColor, vec3(0.0)))) discard;
     fragColor = vec4(pickingColor / 255.0, 1.0);
   } else {
-    fragColor = vec4(sketchEdge.color.rgb, sketchEdge.color.a * coverage);
+    vec3 color = sketchEdge.color.rgb;
+    if (picking.isHighlightActive > 0.5 && all(equal(pickingColor, picking.highlightedObjectColor))) {
+      color = mix(color, picking.highlightColor.rgb, picking.highlightColor.a);
+    }
+    fragColor = vec4(color, sketchEdge.color.a * coverage);
   }
 }
 `;

@@ -152,6 +152,7 @@ export class WeatherParticleLayer extends Layer<WeatherParticleLayerProps> {
     const surfaceBounds = props.surfaceBounds!;
     this.state.model.shaderInputs.setProps({
       precipitation: {
+        ...precipitation.defaultUniforms,
         ...(typeof props.precipitation === 'function'
           ? props.precipitation(this.context.viewport)
           : props.precipitation),

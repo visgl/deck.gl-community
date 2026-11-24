@@ -7,9 +7,14 @@ import {luma, Buffer, Texture} from '@luma.gl/core';
 import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {getTestDevice} from '@luma.gl/core/test-utils';
-import {pointGlow, sketchStroke} from '@luma.gl/shaders';
+import {pointGlow, precipitation, sketchStroke} from '@luma.gl/shaders';
 import {expect, test} from 'vitest';
-import {FireflyLayer, SketchEdgeLayer, WaterSurfaceLayer} from '../../src/effect-layers/index';
+import {
+  FireflyLayer,
+  SketchEdgeLayer,
+  WaterSurfaceLayer,
+  WeatherParticleLayer
+} from '../../src/effect-layers/index';
 
 test.for([
   'webgpu',
@@ -163,6 +168,16 @@ test.for([
       expect(redPeak(translucent)).toBeGreaterThan(25);
       expect(redPeak(translucent)).toBeLessThan(100);
       expect((await deck.pickObjectAsync({x: 32, y: 32, radius: 2}))?.index).toBe(0);
+      const centerOffset = 32 * layout.bytesPerRow + 32 * 4;
+      const highlighted = faintSketch.clone({
+        highlightedObjectIndex: 0,
+        highlightColor: [0, 255, 0, 255]
+      });
+      deck.setProps({layers: [highlighted]});
+      const highlightedPixel = (await readFrame()).slice(centerOffset, centerOffset + 4);
+      expect(highlightedPixel[1]).toBeGreaterThan(25);
+      expect(highlightedPixel[0]).toBeLessThan(8);
+      deck.setProps({layers: [faintSketch.clone({highlightedObjectIndex: null})]});
       segments.write(new Float32Array([-10, 0, 0, 10, 0, 0, -1, 42]));
       await readFrame();
       expect(await deck.pickObjectAsync({x: 32, y: 32, radius: 2})).toBeNull();
@@ -181,7 +196,6 @@ test.for([
         vertexCount: 3
       });
       deck.setProps({layers: [water]});
-      const centerOffset = 32 * layout.bytesPerRow + 32 * 4;
       const opaqueWater = (await readFrame()).slice(centerOffset, centerOffset + 4);
       const translucentWater = water.clone({material: {opacity: 0.25}});
       deck.setProps({layers: [translucentWater]});
@@ -192,6 +206,27 @@ test.for([
       expect(Math.max(...fadedWater.slice(0, 3))).toBeLessThan(
         Math.max(...opaqueWater.slice(0, 3)) / 2
       );
+      const weather = new WeatherParticleLayer({
+        id: 'weather-test',
+        coordinateOrigin: [0, 0, 0],
+        particleCount: 1,
+        precipitation: {fallSpeed: 5, wind: [12, 1]}
+      });
+      deck.setProps({layers: [weather]});
+      await readFrame();
+      expect(weather.state.model.shaderInputs.getUniformValues().precipitation).toMatchObject({
+        fallSpeed: 5,
+        wind: [12, 1]
+      });
+      const defaultWeather = weather.clone({precipitation: {}}) as WeatherParticleLayer;
+      deck.setProps({layers: [defaultWeather]});
+      await readFrame();
+      expect(
+        defaultWeather.state.model.shaderInputs.getUniformValues().precipitation
+      ).toMatchObject({
+        fallSpeed: precipitation.defaultUniforms.fallSpeed,
+        wind: precipitation.defaultUniforms.wind
+      });
       expect(corners.destroyed).toBe(true);
       expect(points.destroyed).toBe(false);
     } finally {
