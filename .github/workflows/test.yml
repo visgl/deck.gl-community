@@ -241,6 +241,8 @@ jobs:
 
       - name: Run headless browser tests
         id: headless
+        env:
+          BALANCE_BROWSER_SHARDS: 'true'
         run: yarn test-headless --shard=${{ matrix.shard }}/4
 
   test-webgpu:
