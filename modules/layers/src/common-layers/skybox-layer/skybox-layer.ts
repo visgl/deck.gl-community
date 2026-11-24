@@ -16,7 +16,7 @@ import type {
   UpdateParameters,
   Viewport
 } from '@deck.gl/core';
-import {Matrix4} from '@math.gl/core';
+import {Matrix4} from '@math.gl/core/matrix';
 import type {Device, RenderPipelineParameters} from '@luma.gl/core';
 import {CubeGeometry, DynamicTexture, Model, ShaderInputs} from '@luma.gl/engine';
 import type {TextureCubeData} from '@luma.gl/engine';

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {type Bounds2D} from '@math.gl/core';
+import {type Bounds2D} from '@math.gl/core/types';
 import {type GlobalGrid} from './global-grid';
 
 /** Decoder for the geohash global grid system */

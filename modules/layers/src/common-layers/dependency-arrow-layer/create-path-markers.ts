@@ -3,10 +3,10 @@
 // Copyright (c) vis.gl contributors
 
 import {createIterable} from '@deck.gl/core';
-import {Vector2} from '@math.gl/core';
+import {Vector2} from '@math.gl/core/matrix';
 
 import type {Accessor, AccessorContext, AccessorFunction, Position} from '@deck.gl/core';
-import type {NumericArray} from '@math.gl/core';
+import type {NumericArray} from '@math.gl/core/types';
 
 /** Path positions accepted by dependency marker helpers. */
 export type PathGeometry = Position[] | NumericArray;

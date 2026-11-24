@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Matrix3, Quaternion, Vector3} from '@math.gl/core';
+import {Matrix3, Quaternion, Vector3} from '@math.gl/core/matrix';
 import {packTreeTubes, type TreePoint as Point, type TreeTube} from './tree-botany';
 import {createTreeRng} from './tree-geometry';
 import {

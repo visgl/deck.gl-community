@@ -2,22 +2,32 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {Accessor, Color, DefaultProps, Position, UpdateParameters} from '@deck.gl/core';
+import type {
+  Accessor,
+  AccessorFunction,
+  Color,
+  DefaultProps,
+  Position,
+  UpdateParameters
+} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
+import type {PathGeometry} from '../dependency-arrow-layer/create-path-markers';
 import {GeometryLayer} from '../dependency-arrow-layer/geometry-layer';
 import {PathOutlineLayer, PathOutlineLayerProps} from '../path-outline-layer/path-outline-layer';
 import {Arrow2DGeometry} from './arrow-2d-geometry';
 
 import {createPathMarkers, PathMarkerDirection} from './create-path-markers';
 import {getClosestPointOnPolyline} from './polyline';
-import {Vector3} from '@math.gl/core';
+import {Vector3} from '@math.gl/core/matrix';
 
 const DISTANCE_FOR_MULTI_ARROWS = 160;
 const DEFAULT_MARKER_SIZE: [number, number] = [0.28, 0.18];
 const DEFAULT_MARKER_LAYER = GeometryLayer;
 
-export type PathMarkerLayerProps<DataT> = PathOutlineLayerProps<DataT> & {
+export type PathMarkerLayerProps<DataT> = Omit<PathOutlineLayerProps<DataT>, 'getPath'> & {
+  /** Accessor returning the geometry of one input row. */
+  getPath?: AccessorFunction<DataT, PathGeometry>;
   /** Accessor returning marker direction flags for one path. */
   getDirection?: (datum: DataT, context: {index: number}) => PathMarkerDirection | null | undefined;
   /** Accessor returning marker color. */

@@ -8,7 +8,7 @@ import {
   RecordBatchReader,
   TimeUnit,
   type Field,
-  type Table,
+  type RecordBatch,
   type Vector
 } from 'apache-arrow';
 import {MAX_DATA_BYTES, MAX_DATA_ROWS, validatePlaygroundRows} from './playground-webmcp-data';
@@ -21,18 +21,15 @@ self.onmessage = async (event: MessageEvent<Uint8Array>) => {
       throw new Error('Invalid Arrow input');
     }
     validateSchema(bytes);
-    // The batch API returns Arrow tables without serializing unsupported dictionary schemas.
+    // Decode native record batches to preserve Arrow dictionary columns.
     const batches = await parseInBatches([bytes], ArrowLoader, {
       worker: false,
-      arrow: {shape: 'arrow-table'}
+      arrow: {shape: 'arrow'}
     });
     const rows: Record<string, unknown>[] = [];
     const appendRows = createRowNormalizer(rows);
     for await (const batch of batches) {
-      if (batch.batchType !== 'data' || batch.shape !== 'arrow-table') {
-        throw new Error('Invalid Arrow result');
-      }
-      appendRows(batch.data);
+      appendRows(batch);
     }
     self.postMessage({ok: true, rows: validatePlaygroundRows(rows)});
   } catch {
@@ -52,7 +49,7 @@ function validateSchema(bytes: Uint8Array): void {
   }
 }
 
-function createRowNormalizer(rows: Record<string, unknown>[]): (table: Table) => void {
+function createRowNormalizer(rows: Record<string, unknown>[]): (batch: RecordBatch) => void {
   let nodes = 1;
   let bytes = 2;
   const encoder = new TextEncoder();
@@ -162,19 +159,19 @@ function createRowNormalizer(rows: Record<string, unknown>[]): (table: Table) =>
     return value;
   };
 
-  return table => {
+  return batch => {
     if (
-      !Number.isSafeInteger(table.numRows) ||
-      table.numRows < 0 ||
-      rows.length + table.numRows > MAX_DATA_ROWS
+      !Number.isSafeInteger(batch.numRows) ||
+      batch.numRows < 0 ||
+      rows.length + batch.numRows > MAX_DATA_ROWS
     ) {
       throw new Error('Too many rows');
     }
-    validateFields(table.schema.fields, 2);
-    const columns = table.schema.fields.map((_, index) => table.getChildAt(index)!);
-    for (let index = 0; index < table.numRows; index++) {
+    validateFields(batch.schema.fields, 2);
+    const columns = batch.schema.fields.map((_, index) => batch.getChildAt(index)!);
+    for (let index = 0; index < batch.numRows; index++) {
       if (rows.length) account(',');
-      rows.push(readFields(table.schema.fields, columns, index, 1));
+      rows.push(readFields(batch.schema.fields, columns, index, 1));
     }
   };
 }

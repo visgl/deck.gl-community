@@ -1,7 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {Matrix4} from '@math.gl/core';
+import {Matrix4} from '@math.gl/core/matrix';
 import {WebMercatorViewport, type Viewport} from '@deck.gl/core';
 import {describe, expect, it, vi} from 'vitest';
 import {

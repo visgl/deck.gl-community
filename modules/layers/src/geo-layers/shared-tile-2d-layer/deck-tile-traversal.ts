@@ -9,8 +9,8 @@ import {
   Plane,
   AxisAlignedBoundingBox,
   makeOrientedBoundingBoxFromPoints
-} from '@math.gl/geometry';
-import {lngLatToWorld} from '@math.gl/web-mercator';
+} from '@math.gl/geometry/culling';
+import {lngLatToWorld} from '@math.gl/geospatial/web-mercator';
 import type {Bounds, TileIndex, ZRange} from '../tileset/types';
 import {osmTile2lngLat} from './deck-tileset-adapter';
 

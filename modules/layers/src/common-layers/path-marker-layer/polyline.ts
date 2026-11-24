@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Vector3, clamp} from '@math.gl/core';
+import {Vector3, clamp} from '@math.gl/core/matrix';
 
 // Return the closest point on a line segment
 export function getClosestPointOnLine({p, p1, p2, clampToLine = true}) {

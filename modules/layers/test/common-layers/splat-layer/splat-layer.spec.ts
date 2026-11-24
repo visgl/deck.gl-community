@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {WebMercatorViewport, _GlobeViewport as GlobeViewport, type Viewport} from '@deck.gl/core';
-import {Matrix4} from '@math.gl/core';
+import {Matrix4} from '@math.gl/core/matrix';
 import {expect, it, vi} from 'vitest';
 import {SplatLayer} from '../../../src/common-layers/splat-layer/splat-layer';
 import {SplatRuntime} from '../../../src/common-layers/splat-layer/splat-runtime';

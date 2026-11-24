@@ -7,7 +7,7 @@ import {
   type TileSource,
   type TileSourceMetadata
 } from '@loaders.gl/core/loader-utils';
-import type {Matrix4} from '@math.gl/core';
+import type {Matrix4} from '@math.gl/core/matrix';
 import {Stats} from 'probe.gl/stats';
 import {SharedTile2DHeader} from './tile-2d-header';
 import type {SharedTileset2DAdapter, SharedTileset2DTileContext} from './adapter';

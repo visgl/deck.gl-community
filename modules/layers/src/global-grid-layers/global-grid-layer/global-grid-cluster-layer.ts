@@ -3,7 +3,9 @@
 // Copyright (c) vis.gl contributors
 
 import {
+  type Accessor,
   type AccessorFunction,
+  type Color,
   type UpdateParameters,
   type DefaultProps,
   createIterable
@@ -84,10 +86,10 @@ export class GlobalGridClusterLayer<DataT = any, ExtraProps extends {} = {}> ext
       data: this.state.polygons,
       getPolygon: d => d.polygon,
 
-      getElevation: this.getSubLayerAccessor(getElevation),
-      getFillColor: this.getSubLayerAccessor(getFillColor),
-      getLineColor: this.getSubLayerAccessor(getLineColor),
-      getLineWidth: this.getSubLayerAccessor(getLineWidth)
+      getElevation: this.getSubLayerAccessor(getElevation as Accessor<DataT, number>),
+      getFillColor: this.getSubLayerAccessor(getFillColor as Accessor<DataT, Color>),
+      getLineColor: this.getSubLayerAccessor(getLineColor as Accessor<DataT, Color>),
+      getLineWidth: this.getSubLayerAccessor(getLineWidth as Accessor<DataT, number>)
     };
   }
 }

@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {type Viewport} from '@deck.gl/core';
-import {Matrix4, equals, type NumericArray} from '@math.gl/core';
+import {Matrix4, equals, type NumericArray} from '@math.gl/core/matrix';
 
 import {memoize} from '../utils/memoize';
 import {

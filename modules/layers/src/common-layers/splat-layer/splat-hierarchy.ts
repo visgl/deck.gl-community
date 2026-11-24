@@ -1,7 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {Matrix3, Quaternion} from '@math.gl/core';
+import {Matrix3, Quaternion} from '@math.gl/core/matrix';
 import {getSplatAxes, validateSplatSource, type SplatSource} from './splat-source';
 
 /** An aggregate preserves the weighted centre, covariance, colour and optical mass of its children. */

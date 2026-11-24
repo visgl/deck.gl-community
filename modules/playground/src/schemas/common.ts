@@ -148,6 +148,9 @@ export const BaseLayerPropsSchema = z
   .strictObject({
     id: z.string().min(1),
     data: DataSchema.optional(),
+    query: z.string().nullable().optional(),
+    sqlFunctions: ConstantSchema.nullable().optional(),
+    _dataLoadOptions: z.enum(['auto', 'batched', 'snapshots']).optional(),
     dataComparator: CallbackSchema,
     _dataDiff: CallbackSchema,
     dataTransform: CallbackSchema,
@@ -176,6 +179,7 @@ export const BaseLayerPropsSchema = z
     highlightedObjectIndex: z.number().int().nullable().optional(),
     highlightColor: ColorAccessorSchema.optional(),
     onDataLoad: CallbackSchema,
+    onDataProgress: CallbackSchema,
     onError: CallbackSchema,
     onHover: CallbackSchema,
     onClick: CallbackSchema,
