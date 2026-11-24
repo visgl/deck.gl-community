@@ -335,7 +335,7 @@ const config = {
             className: 'navbar-badge',
             type: 'html',
             position: 'right',
-            value: '<a class="navbar-package-badge" href="https://www.npmjs.com/package/@deck.gl-community/layers" aria-label="Community layers on npm" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/npm/dm/@deck.gl-community/layers?style=flat-square&amp;label=downloads" alt="" height="20" /><span>npm</span></a>'
+            value: '<a class="navbar-package-badge" href="https://www.npmjs.com/package/@deck.gl-community/layers" aria-label="Monthly downloads for the Layers package on npm" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/npm/dm/@deck.gl-community/layers?style=flat-square&amp;label=layers%20downloads" alt="" height="20" /><span>npm</span></a>'
           },
           {
             className: 'navbar-badge',
