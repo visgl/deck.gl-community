@@ -1,3 +1,4 @@
+import {createTreeFixture, renderTreeFixtures} from './tree-browser-frame-reader';
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 import {
@@ -97,7 +98,7 @@ class WoodOnlyTreeLayer extends TreeLayer<TreeSpec> {
 }
 
 function trees(props: Record<string, unknown> = {}, Type: typeof TreeLayer = TreeLayer) {
-  return new Type<TreeSpec>({
+  return createTreeFixture(Type<TreeSpec>, {
     id: 'trees',
     data: [OAK],
     getTree: (row: TreeSpec) => row,
@@ -139,7 +140,7 @@ function mount() {
     errors,
     /** Layers from `setProps` apply on a later animation frame than an immediate redraw. */
     async render(layers: Layer[]) {
-      deck.setProps({layers});
+      renderTreeFixtures(deck, layers);
       const before = frames;
       await expect.poll(() => frames, {timeout: 30000}).toBeGreaterThan(before + 5);
       return pixels;

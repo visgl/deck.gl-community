@@ -97,7 +97,7 @@ export const ParticleLayerPropsSchema = WindFieldPropsSchema.extend({
 });
 
 /** JSON props for sampled wind arrows using a prepared WindField. */
-export const WindLayerPropsSchema = WindColorPropsSchema.extend({
+export const WindFieldLayerPropsSchema = WindColorPropsSchema.extend({
   time: z.number().optional(),
   gridWidth: z.number().int().nonnegative().optional(),
   gridHeight: z.number().int().nonnegative().optional(),
@@ -244,7 +244,6 @@ export const TreeSpecSchema = z
     lean: Vector2Schema.optional(),
     damage: TreeFractionSchema.optional(),
     decay: TreeFractionSchema.optional(),
-    wind: z.union([z.boolean(), TreeFractionSchema]).optional(),
     trunkColor: ColorSchema.nullable().optional(),
     canopyColor: ColorSchema.nullable().optional(),
     branchLevels: z.number().optional()
@@ -312,9 +311,7 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
   characteristics: TreeCharacteristicsSchema.optional(),
   lodBias: z.number().optional(),
   shadowEnabled: z.boolean().optional(),
-  windStrength: TreeFractionSchema.optional(),
-  windDirection: z.number().nullable().optional(),
-  windTime: z.number().nullable().optional()
+  windEnabled: z.boolean().optional()
 });
 
 /** Prepared Gaussian assets, including their hierarchies, remain host-owned constants. */
@@ -328,10 +325,7 @@ export const SplatLayerPropsSchema = CompositeLayerPropsSchema.extend({
   getTranslation: createAccessorSchema(Vector3Schema).optional(),
   getTransformMatrix: createAccessorSchema(z.array(z.number()).length(16).nullable()).optional(),
   getColor: createAccessorSchema(ColorSchema).optional(),
-  getDeformation: createAccessorSchema(Vector3Schema).optional(),
   getCoverageWeight: NumberAccessorSchema.optional(),
-  deformationStrength: z.number().nonnegative().optional(),
-  deformationTime: z.number().nullable().optional(),
   kernelVariance: z.number().nonnegative().optional(),
   alphaCutoff: z.number().min(0).max(1).optional(),
   support: z.number().positive().optional(),
@@ -365,8 +359,8 @@ export const DelaunayCoverLayerSchema = defineLayer(
 export const ElevationLayerSchema = defineLayer('ElevationLayer', ElevationLayerPropsSchema);
 /** JSON representation of ParticleLayer. */
 export const ParticleLayerSchema = defineLayer('ParticleLayer', ParticleLayerPropsSchema);
-/** JSON representation of WindLayer. */
-export const WindLayerSchema = defineLayer('WindLayer', WindLayerPropsSchema);
+/** JSON representation of WindFieldLayer. */
+export const WindFieldLayerSchema = defineLayer('WindFieldLayer', WindFieldLayerPropsSchema);
 /** JSON representation of GlobalGridLayer. */
 export const GlobalGridLayerSchema = defineLayer('GlobalGridLayer', GlobalGridLayerPropsSchema);
 /** JSON representation of BasemapLayer. */
@@ -388,7 +382,7 @@ export const CommunityGeoLayerSchemas = {
   DelaunayCoverLayer: DelaunayCoverLayerSchema,
   ElevationLayer: ElevationLayerSchema,
   ParticleLayer: ParticleLayerSchema,
-  WindLayer: WindLayerSchema,
+  WindFieldLayer: WindFieldLayerSchema,
   GlobalGridLayer: GlobalGridLayerSchema,
   BasemapLayer: BasemapLayerSchema,
   DataDrivenTile3DLayer: DataDrivenTile3DLayerSchema,

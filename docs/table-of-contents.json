@@ -88,7 +88,6 @@
               "modules/layers/api-reference/path-marker-layer",
               "modules/layers/api-reference/path-outline-layer",
               "modules/layers/api-reference/volumetric-video-layer",
-              "modules/layers/api-reference/splat-layer",
               "modules/layers/api-reference/selection-pulse-extension",
               "modules/layers/api-reference/zoom-opacity-extension"
             ]
@@ -133,6 +132,7 @@
               "id": "modules/geo-layers/developer-guide/wind-showcase"
             },
             "items": [
+              "modules/layers/api-reference/wind-effect",
               "modules/geo-layers/api-reference/wind-field",
               "modules/geo-layers/api-reference/wind-layer",
               "modules/geo-layers/api-reference/particle-layer",
@@ -167,6 +167,11 @@
               "modules/timeline-layers/api-reference/time-axis-layer",
               "modules/timeline-layers/api-reference/vertical-grid-layer"
             ]
+          },
+          {
+            "type": "doc",
+            "label": "Splats",
+            "id": "modules/layers/api-reference/splat-layer"
           },
           {
             "type": "doc",

@@ -5,7 +5,11 @@
 import {OrbitView, type Layer} from '@deck.gl/core';
 import {TreeLayer, type CropConfig, type TreeSpec} from '../../../src';
 import {TreePhotorealCropLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-crop-layer';
-import {mountTreeBrowserScene, type TreeBrowserScene as Scene} from './tree-browser-frame-reader';
+import {
+  createTreeFixture,
+  mountTreeBrowserScene,
+  type TreeBrowserScene as Scene
+} from './tree-browser-frame-reader';
 
 export const SIZE = 256;
 
@@ -57,7 +61,7 @@ export function trees(
   data: TreeSpec[] = [tree],
   Layer = TreeLayer<TreeSpec>
 ) {
-  return new Layer({
+  return createTreeFixture(Layer, {
     ...coordinates,
     id: 'trees',
     data,

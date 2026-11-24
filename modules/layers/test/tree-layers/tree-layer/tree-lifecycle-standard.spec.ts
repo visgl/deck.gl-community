@@ -4,11 +4,11 @@
 
 import {describe, expect, it} from 'vitest';
 import {type CropConfig, type TreeLayerProps, type TreeSpec, type TreeType} from '../../../src';
-import {mountTreeScene} from './tree-layer-test-utils';
+import {mountTreeScene, type TreeTestWind} from './tree-layer-test-utils';
 
 const SPECIES: TreeType[] = ['citrus', 'pine', 'palm'];
 const FRUIT: CropConfig = {kind: 'fruit', color: [240, 140, 20], count: 20, radius: 0.25};
-const OPTIONS: Partial<TreeLayerProps<TreeSpec>> = {windTime: 0};
+const OPTIONS: Partial<TreeLayerProps<TreeSpec>> & TreeTestWind = {windTime: 0};
 
 function tree(species: TreeType = 'oak', authored: Partial<TreeSpec> = {}): TreeSpec {
   return {position: [0, 0, 0], species, height: 12, crownRadius: 3, ...authored};
@@ -18,7 +18,7 @@ function lifecycleScene() {
   const scene = mountTreeScene<TreeSpec>();
   return {
     ...scene,
-    render(data: TreeSpec[], props: Partial<TreeLayerProps<TreeSpec>> = {}) {
+    render(data: TreeSpec[], props: Partial<TreeLayerProps<TreeSpec>> & TreeTestWind = {}) {
       return scene.render({...OPTIONS, ...props, data});
     }
   };
@@ -120,7 +120,7 @@ describe('TreeLayer lifecycle state', () => {
 
   it('gives wood, foliage and crops the same wind and time', () => {
     const scene = lifecycleScene();
-    const data = [tree('citrus', {crop: FRUIT, wind: 1}), tree('oak', {position: [1e-4, 0, 0]})];
+    const data = [tree('citrus', {crop: FRUIT}), tree('oak', {position: [1e-4, 0, 0]})];
     const layer = scene.render(data, {
       windStrength: 0.5,
       windDirection: 90,
@@ -130,7 +130,7 @@ describe('TreeLayer lifecycle state', () => {
     const direction = layer.state.windVector!;
     expect(direction[0]).toBeCloseTo(1, 8);
     expect(direction[1]).toBeCloseTo(0, 8);
-    expect(scene.row(0).windFlex).toBe(1);
+    expect(scene.row(0).windFlex).toBe(0.5);
     expect(scene.row(1).windFlex).toBe(0.5);
     const parts = scene.children().filter(child => /photoreal-(wood|leaves|crops)/.test(child.id));
     expect(parts.some(child => child.id.includes('crops'))).toBe(true);
@@ -305,26 +305,15 @@ describe('TreeLayer timeline transitions', () => {
     expect([...scene.layer().state.photoreal!.groups.values()][0]).toBe(group);
   });
 
-  it('tweens the strongest tree’s wind without changing nearby trees', () => {
+  it('updates the wind reach for all trees when the scene strength changes', () => {
     const scene = lifecycleScene();
-    const render = (wind: number) =>
-      scene.render([tree('oak', {wind}), tree('oak', {position: [1e-4, 0, 0]})], {
-        windStrength: 0.125,
-        transitions: {getTree: 1000}
-      });
-    render(0.75);
-    const previousReach = scene.layer().state.photoreal!.rows[0].bounds!.reach;
-    render(0);
-    expect(scene.row().windFlex).toBe(0.75);
-    expect(scene.layer().state.currentWindStrength).toBe(0.75);
-    scene.tick(1500);
+    const data = [tree(), tree('oak', {position: [1e-4, 0, 0]})];
+    scene.render(data, {windStrength: 0.75});
+    const reach = scene.layer().state.photoreal!.rows[0].bounds!.reach;
+    scene.render(data, {windStrength: 0.375});
     expect(scene.row().windFlex).toBe(0.375);
-    expect(scene.row(1).windFlex).toBe(0.125);
-    expect(scene.layer().state.currentWindStrength).toBe(0.375);
-    expect(scene.layer().state.photoreal!.rows[0].bounds!.reach).toBe(previousReach / 2);
-    scene.tick(2100);
-    expect(scene.row().windFlex).toBe(0);
-    expect(scene.layer().state.currentWindStrength).toBe(0.125);
+    expect(scene.row(1).windFlex).toBe(0.375);
+    expect(scene.layer().state.photoreal!.rows[0].bounds!.reach).toBe(reach / 2);
   });
 
   it('jumps to accessor values when a transition is removed mid-tween', () => {

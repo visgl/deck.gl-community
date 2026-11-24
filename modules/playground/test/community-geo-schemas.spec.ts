@@ -35,7 +35,7 @@ const cases = {
     {windField: '@@#weather', numParticles: 200, trailLength: 12},
     {windField: '@@#weather', numParticles: 2.5}
   ],
-  WindLayer: [
+  WindFieldLayer: [
     {windField: '@@#weather', gridWidth: 32, gridHeight: 16, time: 2.5},
     {windField: {stations: [], frames: []}}
   ],
@@ -157,7 +157,7 @@ test('basemap style documents retain JSON expressions without admitting executab
 
 test('prepared wind fields, tile sources, headers and grid adapters require host references', () => {
   for (const [schema, key] of [
-    [CommunityGeoLayerSchemas.WindLayer, 'windField'],
+    [CommunityGeoLayerSchemas.WindFieldLayer, 'windField'],
     [CommunityGeoLayerSchemas.ParticleLayer, 'windField'],
     [CommunityGeoLayerSchemas.DelaunayCoverLayer, 'windField'],
     [CommunityGeoLayerSchemas.TileSourceLayer, 'tileSource'],
@@ -190,7 +190,7 @@ test('tree accessors accept typed constants and serialized functions', () => {
   };
   expect(schema.safeParse({...layer, ...constants}).success).toBe(true);
   expect(
-    schema.safeParse({...layer, lodBias: -1, windStrength: 0.8, shadowEnabled: false}).success
+    schema.safeParse({...layer, lodBias: -1, windEnabled: false, shadowEnabled: false}).success
   ).toBe(true);
   for (const key of Object.keys(schema.shape).filter(
     name => name.startsWith('get') && name !== 'getPolygonOffset'
@@ -257,7 +257,6 @@ test('supports unified authored traits without requiring renderer configuration'
       height: 5,
       crownRadius: 2,
       season: 'winter',
-      wind: 0.5,
       health: 0.75,
       damage: 0.1,
       characteristics: {leafSize: 1.2, twigDroop: 0.9}

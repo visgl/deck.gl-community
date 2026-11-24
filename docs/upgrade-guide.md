@@ -19,6 +19,23 @@ Install `@deck.gl-community/layers` and update imports from the former standalon
 | `@deck.gl-community/infovis-layers` | `@deck.gl-community/layers/infovis-layers` |
 | `@deck.gl-community/timeline-layers` | `@deck.gl-community/layers/timeline-layers` |
 
+### Wind field visualization
+
+Rename `WindLayer` to `WindFieldLayer` and `WindLayerProps` to `WindFieldLayerProps` in
+`@deck.gl-community/layers/wind-layers`. In serialized layers, use
+`"@@type": "WindFieldLayer"`.
+
+### Scene wind and splats
+
+Import `WindEffect` from `@deck.gl-community/layers/wind-layers/wind-effect` and add it to
+Deck’s `effects`. Move the former `TreeLayer` wind strength, direction and clock to
+`WindEffect({strength, direction, time})`. Set `windEnabled: false` on sheltered tree
+layers. For a mix of sheltered and exposed trees, use a layer for each group.
+
+The canonical SplatLayer import is `@deck.gl-community/layers/splat-layers`. The package
+root and Common Layers also export it. Remove the splat deformation props from standalone
+splat layers.
+
 ## v10.0.0-alpha.3
 
 ### TreeLayer canopy colors

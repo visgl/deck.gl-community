@@ -20,7 +20,7 @@ import {
   parseWindData,
   ParticleLayer,
   sampleWindField,
-  WindLayer,
+  WindFieldLayer,
   type WindField,
   type WindStation
 } from '@deck.gl-community/layers/wind-layers';
@@ -133,7 +133,7 @@ type WindExampleLayerStack = {
   terrain: ElevationLayer | false;
   stationMesh: DelaunayCoverLayer | false;
   boundaries: GeoJsonLayer | false;
-  wind: WindLayer | false;
+  wind: WindFieldLayer | false;
   particles: ParticleLayer | false;
   labels: TextLayer<WindCity>;
   stations: ScatterplotLayer<WindStation> | false;
@@ -364,10 +364,10 @@ export function mountWindExample(
   });
   options.onDeckInitialized?.(deck);
 
-  function createWindLayer(windField: WindField): WindLayer | false {
+  function createWindFieldLayer(windField: WindField): WindFieldLayer | false {
     return (
       settings.showWind &&
-      new WindLayer({
+      new WindFieldLayer({
         id: 'wind-vectors',
         windField,
         time: animationTime,
@@ -467,7 +467,7 @@ export function mountWindExample(
         parameters: {depthCompare: 'always', depthWriteEnabled: false},
         pickable: false
       }),
-      wind: createWindLayer(field),
+      wind: createWindFieldLayer(field),
       particles: createParticleLayer(field),
       labels: new TextLayer<WindCity>({
         id: 'wind-city-labels',
@@ -520,7 +520,7 @@ export function mountWindExample(
       if (field && layerStack) {
         layerStack.particles = createParticleLayer(field);
         if (timestamp - lastVectorFrameTime >= WIND_VECTOR_UPDATE_INTERVAL_MS) {
-          layerStack.wind = createWindLayer(field);
+          layerStack.wind = createWindFieldLayer(field);
           lastVectorFrameTime = timestamp;
         }
         publishLayers();

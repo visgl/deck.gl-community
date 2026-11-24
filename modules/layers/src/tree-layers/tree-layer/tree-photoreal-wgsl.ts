@@ -5,7 +5,7 @@
 import {project32} from '@deck.gl/core';
 import type {ShaderLayout} from '@luma.gl/core';
 import type {ShaderModule} from '@luma.gl/shaders';
-import {SPLAT_GLOBE_WGSL} from '../../common-layers/splat-layer/splat-globe';
+import {SPLAT_GLOBE_WGSL} from '../../splat-layers/splat-layer/splat-globe';
 import {
   TREE_CROP_ANCHOR_STRIDE,
   TREE_CROP_RANK_LEVELS,

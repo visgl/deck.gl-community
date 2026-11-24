@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {Deck, MapView} from '@deck.gl/core';
-import {getSplatPixelsPerMeter} from '../../../modules/layers/src/common-layers/splat-layer/splat-culling';
+import {getSplatPixelsPerMeter} from '../../../modules/layers/src/splat-layers/splat-layer/splat-culling';
 import {TreeLayer} from '@deck.gl-community/layers';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/core/webgl';

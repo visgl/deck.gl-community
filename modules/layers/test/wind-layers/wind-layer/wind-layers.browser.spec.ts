@@ -15,7 +15,7 @@ import {
   DelaunayCoverLayer,
   ElevationLayer,
   ParticleLayer,
-  WindLayer,
+  WindFieldLayer,
   type WindField,
   type WindStation
 } from '../../../src/wind-layers';
@@ -87,7 +87,7 @@ function createLayers(field: WindField, time: number, elevationData: string) {
       meshMaxError: 4
     }),
     new DelaunayCoverLayer({id: 'test-wind-terrain', windField: field, elevationScale: 2}),
-    new WindLayer({
+    new WindFieldLayer({
       id: 'test-wind-arrows',
       windField: field,
       time,

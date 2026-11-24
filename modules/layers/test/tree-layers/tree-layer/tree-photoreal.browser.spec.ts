@@ -19,7 +19,11 @@ import {SelectionPulseExtension, TreeLayer, type TreeSpec} from '../../../src';
 import {TreePhotorealLeafLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-leaf-layer';
 import {TreePhotorealWoodLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-wood-layer';
 import {TreeShellLayer} from '../../../src/tree-layers/tree-layer/tree-shell-layer';
-import {mountTreeBrowserScene, type TreeBrowserScene as Scene} from './tree-browser-frame-reader';
+import {
+  createTreeFixture,
+  mountTreeBrowserScene,
+  type TreeBrowserScene as Scene
+} from './tree-browser-frame-reader';
 import {getTreeRenderTiers} from './tree-grove-test-utils';
 
 const SIZE = 256;
@@ -54,7 +58,7 @@ function mount({
 }
 
 function trees(props: Record<string, unknown> = {}, data: TreeSpec[] = [CITRUS]) {
-  return new TreeLayer<TreeSpec>({
+  return createTreeFixture(TreeLayer<TreeSpec>, {
     ...coordinates,
     id: 'trees',
     data,

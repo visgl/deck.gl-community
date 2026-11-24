@@ -67,6 +67,11 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
   exclude: ['maplibre-gl'],
   include: [
     '@deck.gl/mesh-layers',
+    '@deck.gl/widgets',
+    '@loaders.gl/raster',
+    '@turf/helpers',
+    'delaunator',
+    'supercluster',
     '@deck.gl/react/legacy',
     '@loaders.gl/tables',
     'apache-arrow',
