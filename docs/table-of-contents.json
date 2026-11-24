@@ -249,7 +249,8 @@
           "id": "modules/experimental/README"
         },
         "items": [
-          "modules/experimental/api-reference/data-driven-tile-3d-layer"
+          "modules/experimental/api-reference/data-driven-tile-3d-layer",
+          "modules/experimental/api-reference/cortao-effect"
         ]
       },
       {
