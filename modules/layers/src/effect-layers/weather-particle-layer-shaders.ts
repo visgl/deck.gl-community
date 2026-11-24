@@ -78,7 +78,7 @@ struct WeatherVertex {
   output.coordinates = vec2<f32>((corner.x - 0.5) * 2.0, corner.y);
   output.worldPosition = worldPosition;
   output.opacity = precipitation_getFade(position) * smoothstep(surfaceHeight, surfaceHeight + 3.0, position.z);
-  if (currentClip.w <= 0.0 || tailClip.w <= 0.0) {output.opacity = 0.0;}
+  if (currentClip.w <= 0.0 || (!snow && tailClip.w <= 0.0)) {output.opacity = 0.0;}
   return output;
 }
 @fragment fn fragmentMain(input: WeatherVertex) -> @location(0) vec4<f32> {
@@ -125,7 +125,7 @@ void main() {
   gl_Position = vec4(centerClip.xy + offset * 2.0 / project.viewportSize * centerClip.w, centerClip.zw);
   coordinates = vec2((corner.x - 0.5) * 2.0, corner.y);
   opacity = precipitation_getFade(position) * smoothstep(surfaceHeight, surfaceHeight + 3.0, position.z);
-  if (currentClip.w <= 0.0 || tailClip.w <= 0.0) opacity = 0.0;
+  if (currentClip.w <= 0.0 || (!snow && tailClip.w <= 0.0)) opacity = 0.0;
 }
 `;
 export const FRAGMENT_SHADER = /* glsl */ `#version 300 es

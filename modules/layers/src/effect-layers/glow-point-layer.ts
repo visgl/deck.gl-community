@@ -83,6 +83,7 @@ export class GlowPointLayer extends Layer<GlowPointLayerProps> {
     style: {},
     animation: {},
     time: 0,
+    getPolygonOffset: () => [0, 0],
     parameters: GLOW_PARAMETERS
   };
   declare state: {model: Model; corners: Buffer};

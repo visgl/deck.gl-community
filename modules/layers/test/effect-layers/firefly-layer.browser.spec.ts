@@ -102,6 +102,8 @@ test.for([
   }
   try {
     const first = await readFrame();
+    const firefly = deck.props.layers[0] as FireflyLayer;
+    expect(firefly.props.getPolygonOffset({layerIndex: 3})).toEqual([0, 0]);
     const layout = texture.computeMemoryLayout();
     let strongest = 0;
     let pickedColumn = 0;
@@ -227,6 +229,19 @@ test.for([
         fallSpeed: precipitation.defaultUniforms.fallSpeed,
         wind: precipitation.defaultUniforms.wind
       });
+      const snow = weather.clone({
+        weather: 'snow',
+        particleCount: 32,
+        widthPixels: 4,
+        streakLength: 1,
+        precipitation: {volumeCenter: [0, 0, 20], volumeSize: [40, 40, 1], wind: [0, 0]}
+      });
+      deck.setProps({layers: [snow]});
+      const flakes = await readFrame();
+      expect(flakes.some((value, index) => index % 4 === 3 && value > 0)).toBe(true);
+      // Rain's tail would project above the camera, but a snow sprite has no tail.
+      deck.setProps({layers: [snow.clone({streakLength: 100_000})]});
+      expect(await readFrame()).toEqual(flakes);
       expect(corners.destroyed).toBe(true);
       expect(points.destroyed).toBe(false);
     } finally {
