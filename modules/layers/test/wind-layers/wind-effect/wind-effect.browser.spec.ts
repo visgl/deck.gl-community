@@ -33,6 +33,14 @@ it('updates an existing photoreal tree when the scene wind changes or is removed
   expect(tree.state.photoreal!.groups).toBe(groups);
   expect(tree.state.currentWindStrength).toBeCloseTo(0.4);
 
+  scene.deck.setProps({effects: [new WindEffect({strength: 0.4, direction: 270, time: 1.25})]});
+  const reversed = await scene.settle(3);
+  expect(reversed).not.toEqual(windy);
+
+  scene.deck.setProps({effects: [new WindEffect({strength: 0.4, direction: 270, time: 2.5})]});
+  expect(await scene.settle(3)).not.toEqual(reversed);
+  expect(tree.state.photoreal!.groups).toBe(groups);
+
   scene.deck.setProps({effects: []});
   expect(await scene.settle(4)).toEqual(calm);
   expect(tree.state.currentWindStrength).toBe(0);

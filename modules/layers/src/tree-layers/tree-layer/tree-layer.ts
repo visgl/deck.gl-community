@@ -1434,8 +1434,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       this.updatePhotorealDetail(props, photoreal, store, placementChanged, detailChanged);
     }
     this.uploadStateTexture(store);
-    // A tween's last tick can still change a bucket, and nothing says to render it once it stops.
-    if (changed && photoreal) this.setNeedsUpdate();
+    // A bearing or clock change refreshes child uniforms even when no state rows changed.
+    // A tween's last tick can still change a bucket after it stops.
+    if ((changed || windChanged) && photoreal) this.setNeedsUpdate();
     this.state.ticking = active;
   }
 
