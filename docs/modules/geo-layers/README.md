@@ -1,9 +1,9 @@
+---
+deckVersion: "10.0"
+introduced: "9.1"
+---
+
 # Overview
-
-![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
-
-![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square)
-![WebGPU partially supported](https://img.shields.io/badge/webgpu-partial-yellow.svg?style=flat-square)
 
 This module provides a suite of geospatial layers for [deck.gl](https://deck.gl).
 

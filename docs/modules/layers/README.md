@@ -1,9 +1,9 @@
+---
+deckVersion: "10.0"
+introduced: "9.0"
+---
+
 # Overview
-
-![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
-
-![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
-![WebGPU partial](https://img.shields.io/badge/webgpu-partial-orange.svg?style=flat-square)
 
 This module provides a suite of reusable layers for [deck.gl](https://deck.gl).
 The layers in this module are generic primitives that are intended to be usable in both geospatial and non-geospatial visualizations.
@@ -31,10 +31,6 @@ npm install @deck.gl-community/layers
 The package root also exports the common layers and tree renderer. The geo overview lists
 the application-installed dependencies for the H3 and A5 adapters and the wind layers.
 
-<p class="badges">
-  <img src="https://img.shields.io/badge/From-v9.3-blue.svg?style=flat-square" alt="From v9.3" />
-  <img src="https://img.shields.io/badge/stability-experimental-orange.svg?style=flat-square" alt="Experimental" />
-</p>
 
 ## Examples
 

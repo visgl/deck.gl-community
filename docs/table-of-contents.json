@@ -58,7 +58,11 @@
         "label": "Vega Prototype",
         "id": "modules/vega/README"
       }
-    ]
+    ],
+    "link": {
+      "type": "doc",
+      "id": "getting-started"
+    }
   },
   {
     "type": "category",

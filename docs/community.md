@@ -1,25 +1,44 @@
+---
+title: Community
+description: Meet the deck.gl-community and Open Visualization contributors.
+---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
 # Community
 
-deck.gl-community is a home for deck.gl add-ons maintained by the people who use them. It also
-gives experimental layers and integrations a place to develop.
+## Open governance and community
 
-## Get help
+deck.gl-community is part of Open Visualization, an OpenJS Foundation collaboration for open
+source visualization. The vis.gl Technical Steering Committee oversees the project. The
+repository gives deck.gl add-ons a place to grow and invites the people who use them to help
+maintain them. [Open Visualization](https://www.openvisualization.org/) · [vis.gl governance](https://github.com/visgl/tsc)
 
-Start with the package’s overview and API references. For a reproducible bug, open a GitHub
-issue and include the package version, rendering backend, and a small example. Response times
-vary by package and maintainer availability. [Repository issues](https://github.com/visgl/deck.gl-community/issues)
+<figure>
+  <img
+    src={useBaseUrl('/images/community/zurich-summit-2026.jpg')}
+    alt="Contributors at the 2026 Open Visualization Collaborator Summit in Zürich"
+  />
+  <figcaption style={{textAlign: 'center'}}>The 2026 Open Visualization Collaborator Summit in Zürich.</figcaption>
+</figure>
 
-## Contribute
+## Meet the community
 
-Bug fixes, examples, tests, and documentation are all welcome. Open an issue for a new module
-or a substantial change so contributors can discuss its scope and maintenance. The
-[contribution guide](./CONTRIBUTING.md) covers checkout, verification, and pull requests.
+At the annual Collaborator Summit, contributors share their work and discuss what comes next.
+Between summits, join an Open Visualization community meeting or find other contributors on
+OpenJS Slack. [Summits](https://www.openvisualization.org/summits) · [OpenJS Slack](https://slack-invite.openjsf.org/) · [Meeting calendar](https://www.openvisualization.org/#get-involved)
 
-If you can help maintain a package, mention it in a GitHub issue. We welcome both short-term
-and ongoing contributions.
+## Get help and contribute
 
-## Governance and conduct
+Look for an existing issue before reporting a bug. A small reproduction, the package version,
+and the rendering backend help others investigate. Maintainer availability varies by package.
 
-The project is part of vis.gl. The Open Visualization Technical Steering Committee oversees
-project decisions. The repository’s code of conduct applies to project participation.
-[vis.gl](https://vis.gl/) · [Code of conduct](https://github.com/visgl/deck.gl-community/blob/master/CODE_OF_CONDUCT.md)
+We welcome fixes, examples, tests, documentation, and reviews. Start a discussion in an issue
+for a new module or a substantial change. If you’d like to help maintain one of the packages,
+short-term and ongoing contributions are welcome.
+
+- [Contributing](./CONTRIBUTING.md)
+- [Report an issue](https://github.com/visgl/deck.gl-community/issues)
+- [Working with AI](./working-with-ai.md)
+- [Release workflow](https://github.com/visgl/deck.gl-community/blob/master/.github/workflows/release.yml)
+- [Code of conduct](https://github.com/visgl/deck.gl-community/blob/master/CODE_OF_CONDUCT.md)

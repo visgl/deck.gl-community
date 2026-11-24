@@ -1,6 +1,9 @@
-# `@deck.gl-community/playground`
+---
+deckVersion: "10.0"
+introduced: "9.4"
+---
 
-![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+# `@deck.gl-community/playground`
 
 A customizable document editor, template picker, and preview shell built on
 [`@deck.gl-community/panels`](/docs/modules/panels), without React.

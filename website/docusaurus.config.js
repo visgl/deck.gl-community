@@ -332,9 +332,22 @@ const config = {
             label: 'Playground'
           },
           {
-            href: 'https://github.com/visgl/deck.gl-community',
-            label: 'GitHub',
-            position: 'right'
+            className: 'navbar-badge',
+            type: 'html',
+            position: 'right',
+            value: '<a class="navbar-package-badge" href="https://www.npmjs.com/package/@deck.gl-community/layers" aria-label="Community layers on npm" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/npm/dm/@deck.gl-community/layers?style=flat-square&amp;label=downloads" alt="" height="20" /><span>npm</span></a>'
+          },
+          {
+            className: 'navbar-badge',
+            type: 'html',
+            position: 'right',
+            value: '<a class="navbar-package-badge" href="https://github.com/visgl/deck.gl-community" aria-label="deck.gl-community on GitHub" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/github/stars/visgl/deck.gl-community?style=flat-square&amp;logo=github&amp;label=stars" alt="" height="20" /><span>GitHub</span></a>'
+          },
+          {
+            className: 'navbar-badge',
+            type: 'html',
+            position: 'right',
+            value: '<a class="navbar-openjs" href="https://openvisualization.org/" aria-label="Open Visualization at the OpenJS Foundation" target="_blank" rel="noopener noreferrer"><img class="openjs-logo-light" src="https://raw.githubusercontent.com/openjs-foundation/artwork/main/openjs_foundation/openjs_foundation-logo-horizontal-color.svg" alt="" width="86" /><img class="openjs-logo-dark" src="https://raw.githubusercontent.com/openjs-foundation/artwork/main/openjs_foundation/openjs_foundation-logo-horizontal-color-dark_background.svg" alt="" width="86" /></a>'
           }
         ]
       },
