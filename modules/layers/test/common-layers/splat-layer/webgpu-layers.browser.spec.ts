@@ -81,12 +81,33 @@ async function requireWebGPU(skip: (reason: string) => void): Promise<void> {
   }
 }
 
+/**
+ * A direct source of capture size: a 256 x 256 grid of 2 cm Gaussians, 10 m across. Small, so a
+ * software WebGPU adapter fills it in a few milliseconds a frame.
+ */
+function makeCaptureSizeSource(side = 256, spacing = 0.04) {
+  const count = side * side;
+  const positions = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = ((i % side) - side / 2) * spacing;
+    positions[i * 3 + 1] = (Math.floor(i / side) - side / 2) * spacing;
+  }
+  return {
+    positions,
+    scales: new Float32Array(count * 3).fill(0.02),
+    rotations: new Float32Array(count * 4).map((_, k) => (k % 4 === 0 ? 1 : 0)),
+    colors: new Uint8Array(count * 4).map((_, k) => [80, 180, 60, 255][k % 4]),
+    opacities: new Float32Array(count).fill(0.9)
+  };
+}
+
 async function renderSplatLayer(
   type: 'webgl' | 'webgpu',
-  mode: 'constant' | 'heterogeneous' | 'direct' = 'constant',
+  mode: 'constant' | 'heterogeneous' | 'direct' | 'large' = 'constant',
   transparency: 'weighted' | 'sorted' = 'weighted'
 ): Promise<void> {
   const heterogeneous = mode === 'heterogeneous';
+  const direct = mode === 'direct' || mode === 'large';
   const parent = document.createElement('div');
   parent.style.width = '128px';
   parent.style.height = '128px';
@@ -114,6 +135,8 @@ async function renderSplatLayer(
       opticalDepths: new Float32Array([-Math.log(0.15), -Math.log(0.1)])
     }
   };
+  // capture-sized: as many Gaussians as SplatCaptureLayer takes over on WebGL2
+  const directSource = mode === 'large' ? makeCaptureSizeSource() : source;
   let frames = 0;
   let nativeDevice: NativeGpuDevice | undefined;
   const validationErrors: string[] = [];
@@ -164,9 +187,9 @@ async function renderSplatLayer(
         layers: [
           new SplatLayer({
             id: `splats-${type}`,
-            data: mode === 'direct' ? source : heterogeneous ? [owner, other] : [owner],
-            ...(mode === 'direct' ? {} : {getSource: heterogeneous ? row => row.splats : source}),
-            getPosition: mode === 'direct' ? [0, 0] : row => row.position,
+            data: direct ? directSource : heterogeneous ? [owner, other] : [owner],
+            ...(direct ? {} : {getSource: heterogeneous ? row => row.splats : source}),
+            getPosition: direct ? [0, 0] : row => row.position,
             getTransformMatrix: heterogeneous
               ? [1, 0, 0, 0, 0.4, 1.3, 0, 0, 0, 0, 0.7, 0, 0, 0, 5, 1]
               : null,
@@ -215,13 +238,21 @@ async function renderSplatLayer(
     const picked = (
       await deck!.pickObjectAsync({x: strongest % 128, y: 127 - Math.floor(strongest / 128)})
     )?.object;
-    if (mode === 'direct') expect(picked).toMatchObject({splats: source, position: [0, 0, 0]});
+    if (direct) expect(picked).toMatchObject({splats: directSource, position: [0, 0, 0]});
     else expect(picked).toBe(owner);
     await nativeDevice?.queue.onSubmittedWorkDone();
     expect(device.type).toBe(type);
     expect(validationErrors).toEqual([]);
     const stats = (deck!.props.layers[0] as SplatLayer).splatStats;
     expect(stats.sourceCount).toBe(heterogeneous ? 2 : 1);
+    if (mode === 'large') {
+      // SplatCaptureLayer is WebGL2-only, so WebGPU keeps the instanced renderer
+      const drawnBy = (deck!.props.layers[0] as SplatLayer)
+        .getSubLayers()
+        .map(layer => (layer.constructor as {layerName?: string}).layerName);
+      expect(drawnBy).not.toContain('SplatCaptureLayer');
+      expect(stats.renderedSplats).toBeGreaterThan(0);
+    }
     if (heterogeneous) {
       expect(stats.renderedSplats).toBe(4);
       const otherPixel = Array.from({length: 128 * 128}, (_, i) => i).find(
@@ -676,6 +707,14 @@ describe('SplatLayer graphics backend compatibility', () => {
     await renderSplatLayer('webgpu', 'direct');
     await renderSplatLayer('webgpu', 'constant', 'sorted');
     await renderSplatLayer('webgpu', 'heterogeneous', 'sorted');
+  }, 40_000);
+
+  it('draws a direct source of capture size with the instanced renderer on WebGPU', async ({
+    skip
+  }) => {
+    await requireWebGPU(skip);
+
+    await renderSplatLayer('webgpu', 'large');
   }, 40_000);
 
   it('keeps sorted front-to-back color order equivalent on WebGL2 and WebGPU', async ({skip}) => {
