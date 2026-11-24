@@ -1,6 +1,9 @@
-# Overview
+---
+deckVersion: "10.0"
+introduced: "9.0"
+---
 
-![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+# Overview
 
 This module allows Bing Maps to be used as a basemap for [deck.gl](https://deck.gl).
 More precisely, it wraps the deck.gl renderer in a Bing Maps custom layer.

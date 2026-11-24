@@ -8,8 +8,17 @@
   pointer-events: none;
 }
 
+.packageBadgeRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
 .badge {
   display: inline-flex;
+  white-space: nowrap;
   overflow: hidden;
   border-radius: 4px;
   color: #fff;
@@ -36,6 +45,7 @@
   background: #555;
 }
 
+.version,
 .supported {
   background: #2e7d32;
 }
