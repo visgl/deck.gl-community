@@ -24,7 +24,12 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/layers/geo-layers',
-      items: ['geo-layers/global-grid-layer', 'geo-layers/shared-tile-2d-layer', 'geo-layers/wind']
+      items: [
+        'geo-layers/global-grid-layer',
+        'geo-layers/satellite-orbits',
+        'geo-layers/shared-tile-2d-layer',
+        'geo-layers/wind'
+      ]
     },
     {
       type: 'category',

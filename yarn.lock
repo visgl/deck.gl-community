@@ -10919,6 +10919,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"satellite-orbits-example@workspace:examples/geo-layers/satellite-orbits":
+  version: 0.0.0-use.local
+  resolution: "satellite-orbits-example@workspace:examples/geo-layers/satellite-orbits"
+  dependencies:
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@deck.gl/layers": "npm:10.0.0-alpha.2"
+    satellite.js: "npm:^7.2.0"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"satellite.js@npm:^7.2.0":
+  version: 7.2.0
+  resolution: "satellite.js@npm:7.2.0"
+  checksum: 10c0/959e79c3525e8e2ce1c7a940973de8944a9cb6172caa61d97f291de99be1b0771536fa449a35f0bca64d9ca6e57641c1824b7991a8f01de9033c727525f750df
+  languageName: node
+  linkType: hard
+
 "scheduler@npm:^0.19.1":
   version: 0.19.1
   resolution: "scheduler@npm:0.19.1"
