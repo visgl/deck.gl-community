@@ -329,6 +329,8 @@ jobs:
           test "$FULLSCREEN_RESULT" = success
 
   website-build:
+    # The Pages workflow builds this same revision on upstream master pushes.
+    if: github.event_name == 'pull_request' || github.repository_owner != 'visgl'
     runs-on: ubuntu-26.04
     timeout-minutes: 15
 
