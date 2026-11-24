@@ -19,7 +19,6 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "paths": {
-      "@deck.gl-community/arrow-layers": ["./modules/arrow-layers/src"],
       "@deck.gl-community/bing-maps": ["./modules/bing-maps/src"],
       "@deck.gl-community/leaflet": ["./modules/leaflet/src"],
       "@deck.gl-community/editable-layers": ["./modules/editable-layers/src"],

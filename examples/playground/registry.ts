@@ -6,7 +6,6 @@ import * as layers from '@deck.gl/layers';
 import * as aggregation from '@deck.gl/aggregation-layers';
 import * as geo from '@deck.gl/geo-layers';
 import * as mesh from '@deck.gl/mesh-layers';
-import * as arrow from '@deck.gl-community/arrow-layers';
 import * as editable from '@deck.gl-community/editable-layers';
 import * as experimental from '@deck.gl-community/experimental';
 import * as communityGeo from '@deck.gl-community/geo-layers';
@@ -28,7 +27,6 @@ const LAYERS = Object.fromEntries(
     ...aggregation,
     ...geo,
     ...mesh,
-    ...arrow,
     ...editable,
     ...experimental,
     ...communityGeo,
