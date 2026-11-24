@@ -10,7 +10,7 @@ import blockSource from '../../../infovis-layers/src/layers/block-layer/block-la
 import {blockUniforms} from '../../../infovis-layers/src/layers/block-layer/block-layer-uniforms';
 import fastTextSource from '../../../infovis-layers/src/layers/fast-text-layer/fast-text-layer.wgsl';
 import {fastTextUniforms} from '../../../infovis-layers/src/layers/fast-text-layer/fast-text-layer';
-import windTriangleSource from '../../../geo-layers/src/wind-layer/wind-triangle-layer.wgsl';
+import windTriangleSource from '../../src/wind-layers/wind-layer/wind-triangle-layer.wgsl';
 import horizonSource from '../../../timeline-layers/src/layers/horizon-graph-layer/horizon-graph-layer.wgsl';
 import {horizonLayerUniforms} from '../../../timeline-layers/src/layers/horizon-graph-layer/horizon-graph-layer-uniforms';
 import geometrySource from '../../src/common-layers/dependency-arrow-layer/geometry-layer.wgsl';

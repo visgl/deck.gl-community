@@ -8,8 +8,8 @@ import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
 import {AccordionPanel, ColumnPanel, MarkdownPanel, StatsPanel} from '../../../modules/panels/src';
 import {BoxPanelWidget} from '../../../modules/widgets/src';
-import {SharedTile2DLayer, TileGridLayer} from '../../../modules/geo-layers/src';
-import {SharedTileset2D} from '../../../modules/geo-layers/src/tileset';
+import {SharedTile2DLayer, TileGridLayer} from '../../../modules/layers/src/geo-layers';
+import {SharedTileset2D} from '../../../modules/layers/src/geo-layers/tileset';
 import {TableTileSourceLoader} from '@loaders.gl/tiles/mvt';
 import type {TileSource} from '@loaders.gl/core/loader-utils';
 

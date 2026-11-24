@@ -31,6 +31,36 @@
       "types": "./dist/common-layers/index.d.ts",
       "require": "./dist/index.cjs",
       "import": "./dist/common-layers/index.js"
+    },
+    "./geo-layers": {
+      "types": "./dist/geo-layers/index.d.ts",
+      "require": "./dist/geo-layers/index.cjs",
+      "import": "./dist/geo-layers/index.js"
+    },
+    "./global-grid-layers": {
+      "types": "./dist/global-grid-layers/index.d.ts",
+      "require": "./dist/global-grid-layers/index.cjs",
+      "import": "./dist/global-grid-layers/index.js"
+    },
+    "./wind-layers": {
+      "types": "./dist/wind-layers/index.d.ts",
+      "require": "./dist/wind-layers/index.cjs",
+      "import": "./dist/wind-layers/index.js"
+    },
+    "./geo-layers/tileset": {
+      "types": "./dist/geo-layers/tileset/index.d.ts",
+      "require": "./dist/geo-layers/tileset/index.cjs",
+      "import": "./dist/geo-layers/tileset/index.js"
+    },
+    "./global-grid-layers/a5": {
+      "types": "./dist/global-grid-layers/a5.d.ts",
+      "require": "./dist/global-grid-layers/a5.cjs",
+      "import": "./dist/global-grid-layers/a5.js"
+    },
+    "./global-grid-layers/h3": {
+      "types": "./dist/global-grid-layers/h3.d.ts",
+      "require": "./dist/global-grid-layers/h3.cjs",
+      "import": "./dist/global-grid-layers/h3.js"
     }
   },
   "files": [
@@ -43,9 +73,14 @@
   },
   "dependencies": {
     "@loaders.gl/images": "5.0.0-beta.8",
+    "@loaders.gl/raster": "5.0.0-beta.8",
+    "@loaders.gl/tiles": "5.0.0-beta.8",
     "@luma.gl/shaders": "10.0.0-alpha.14",
     "@math.gl/core": "5.0.0-beta.8",
-    "mediabunny": "^1.61.3"
+    "@math.gl/geometry": "5.0.0-beta.8",
+    "@math.gl/web-mercator": "5.0.0-beta.8",
+    "mediabunny": "^1.61.3",
+    "probe.gl": "^5.0.0"
   },
   "peerDependencies": {
     "@deck.gl/core": "10.0.0-alpha.1",
@@ -57,6 +92,7 @@
     "@luma.gl/core": "10.0.0-alpha.14",
     "@luma.gl/engine": "10.0.0-alpha.14",
     "a5-js": "^0.5.0",
+    "delaunator": "^5.1.0",
     "h3-js": "^4.2.1"
   },
   "devDependencies": {
@@ -69,10 +105,16 @@
     "@loaders.gl/core": "5.0.0-beta.8",
     "@luma.gl/core": "10.0.0-alpha.14",
     "@luma.gl/engine": "10.0.0-alpha.14",
+    "a5-js": "^0.5.0",
+    "delaunator": "^5.1.0",
+    "h3-js": "^4.2.1",
     "probe.gl": "^5.0.0"
   },
   "peerDependenciesMeta": {
     "a5-js": {
+      "optional": true
+    },
+    "delaunator": {
       "optional": true
     },
     "h3-js": {

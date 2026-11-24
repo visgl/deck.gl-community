@@ -10,7 +10,9 @@ import * as mesh from '@deck.gl/mesh-layers';
 import * as arrow from '@deck.gl-community/arrow-layers';
 import * as editable from '@deck.gl-community/editable-layers';
 import * as experimental from '@deck.gl-community/experimental';
-import * as communityGeo from '@deck.gl-community/geo-layers';
+import * as communityGeo from '@deck.gl-community/layers/geo-layers';
+import * as communityWind from '@deck.gl-community/layers/wind-layers';
+import * as communityGrids from '@deck.gl-community/layers/global-grid-layers';
 import * as graph from '@deck.gl-community/graph-layers';
 import * as infovis from '@deck.gl-community/infovis-layers';
 import * as communityLayers from '@deck.gl-community/layers';
@@ -34,7 +36,9 @@ const PACKAGES = {
   '@deck.gl-community/arrow-layers': arrow,
   '@deck.gl-community/editable-layers': editable,
   '@deck.gl-community/experimental': experimental,
-  '@deck.gl-community/geo-layers': communityGeo,
+  '@deck.gl-community/layers/geo-layers': communityGeo,
+  '@deck.gl-community/layers/global-grid-layers': communityGrids,
+  '@deck.gl-community/layers/wind-layers': communityWind,
   '@deck.gl-community/graph-layers': graph,
   '@deck.gl-community/infovis-layers': infovis,
   '@deck.gl-community/layers': communityLayers,

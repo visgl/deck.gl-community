@@ -14,7 +14,6 @@ const TERRAIN_ALIASES = DECK_GL_SOURCE
   : [];
 
 const ALIASES = [
-  {find: /^@deck\.gl-community\/geo-layers$/, replacement: fileURLToPath(new URL('./modules/geo-layers/src/index.ts', import.meta.url))},
   ...TERRAIN_ALIASES,
   {find: 'crypto', replacement: 'node:crypto'}, // ensure Vite/Vitest get Node's crypto
   {
@@ -38,8 +37,8 @@ const ALIASES = [
     replacement: fileURLToPath(new URL('./modules/infovis-layers/src/index.ts', import.meta.url))
   },
   {
-    find: /^@deck\.gl-community\/layers$/,
-    replacement: fileURLToPath(new URL('./modules/layers/src/index.ts', import.meta.url))
+    find: '@deck.gl-community/layers',
+    replacement: fileURLToPath(new URL('./modules/layers/src', import.meta.url))
   },
   {
     find: /^@deck\.gl-community\/timeline-layers$/,

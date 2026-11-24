@@ -18,7 +18,7 @@ glyphs. Its measurements, temporal interpolation, and terrain elevation are shar
 ## Import
 
 ```ts
-import {createWindField, parseWindData, WindLayer} from '@deck.gl-community/geo-layers';
+import {createWindField, parseWindData, WindLayer} from '@deck.gl-community/layers/wind-layers';
 ```
 
 ## Example

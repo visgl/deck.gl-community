@@ -227,7 +227,7 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
 
 async function mountGlobalGridLayerExample(container, mountProps = {}) {
   const {Deck} = await import('@deck.gl/core');
-  const {GlobalGridLayer, GeohashGrid} = await import('@deck.gl-community/geo-layers');
+  const {GlobalGridLayer, GeohashGrid} = await import('@deck.gl-community/layers/global-grid-layers');
   const rootElement = createRoot(container);
 
   const data = [
@@ -283,7 +283,7 @@ async function mountGlobalGridLayerExample(container, mountProps = {}) {
 
 async function mountTileSourceLayerExample(container, mountProps = {}) {
   const {Deck} = await import('@deck.gl/core');
-  const {TileSourceLayer} = await import('@deck.gl-community/geo-layers');
+  const {TileSourceLayer} = await import('@deck.gl-community/layers/geo-layers');
   const rootElement = createRoot(container);
   const tileSource = createCanvasTileSource(rootElement.ownerDocument);
 
