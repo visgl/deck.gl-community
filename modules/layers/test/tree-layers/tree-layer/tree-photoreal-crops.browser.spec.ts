@@ -53,6 +53,7 @@ const TREE: TreeSpec = {
 
 function mount(options: Partial<Parameters<typeof mountTreeBrowserScene>[0]> = {}): Scene {
   return mountTreeBrowserScene({
+    staticFrames: true,
     size: SIZE,
     views: ORBIT_VIEW,
     viewState: ORBIT_STATE,
@@ -336,7 +337,7 @@ describe('TreeLayer photoreal crops', () => {
         CropFixture
       );
     // Sample only the frames used by assertions and release each software GPU context before the next.
-    const scene = mount({viewState: near, staticFrames: true});
+    const scene = mount({viewState: near});
     expect(countPatch(await scene.render([make(0, 100)]))).toBeLessThan(20);
     const atRest = await scene.render([make(240, 200)]);
     const meshes = cropLayers(scene).filter(
@@ -367,7 +368,6 @@ describe('TreeLayer photoreal crops', () => {
     };
     const inSun = async (toward: number) => {
       const lit = mount({
-        staticFrames: true,
         viewState: {...near, target: [0, 0, 0], rotationOrbit: 0, zoom: 5.4},
         effects: [
           new LightingEffect({
@@ -425,7 +425,6 @@ describe('TreeLayer photoreal crops', () => {
     'flower'
   ] as const)('renders %s at every mesh level, and in the shadow pass', async kind => {
     const scene = mount({
-      staticFrames: true,
       effects: [
         new LightingEffect({
           ambient: new AmbientLight({intensity: 0.6}),

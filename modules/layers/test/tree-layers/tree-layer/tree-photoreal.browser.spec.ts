@@ -49,9 +49,8 @@ function mount({
   effects?: LightingEffect[];
   views?: unknown;
   viewState?: unknown;
-  staticFrames?: boolean;
 } = {}): Scene {
-  return mountTreeBrowserScene({size: SIZE, views, viewState, ...options});
+  return mountTreeBrowserScene({size: SIZE, views, viewState, staticFrames: true, ...options});
 }
 
 function trees(props: Record<string, unknown> = {}, data: TreeSpec[] = [CITRUS]) {
@@ -305,8 +304,7 @@ describe('TreeLayer photoreal rendering', () => {
   it('keeps close shadow filtering stable when the same leaves move across the screen', async () => {
     const scene = mount({
       effects: [lighting(true, [1, 0.6, -1])],
-      viewState: {...ORBIT_STATE, zoom: 7.6, target: [0, -0.9, 3.4]},
-      staticFrames: true
+      viewState: {...ORBIT_STATE, zoom: 7.6, target: [0, -0.9, 3.4]}
     });
     const shift = new ShiftShadowReceivers({pixels: 0});
     const original = await scene.render([
@@ -531,7 +529,7 @@ describe('TreeLayer photoreal rendering', () => {
   }, 120000);
 
   it('keeps the mature shader and pulse colors with SelectionPulseExtension', async () => {
-    const scene = mount({staticFrames: true});
+    const scene = mount();
     const prototype = TreePhotorealLeafLayer.prototype as any;
     const getDrawModel = prototype.getDrawModel;
     let reference = false;
@@ -591,7 +589,7 @@ describe('TreeLayer photoreal rendering', () => {
   }, 60000);
 
   it('preserves individual leaves when specializing upright trees in undirected wind', async () => {
-    const scene = mount({staticFrames: true, effects: [lighting(true)]});
+    const scene = mount({effects: [lighting(true)]});
     const prototype = TreePhotorealLeafLayer.prototype as unknown as {
       getDrawModel(
         this: TreePhotorealLeafLayer,
@@ -660,7 +658,6 @@ describe('TreeLayer photoreal rendering', () => {
   // Synchronous shadow and picking readback are slow on CI software rendering.
   it('compacts offscreen near leaves without changing macro pixels, shadows or picking', async () => {
     const scene = mount({
-      staticFrames: true,
       effects: [
         new LightingEffect({
           ambient: new AmbientLight(),
