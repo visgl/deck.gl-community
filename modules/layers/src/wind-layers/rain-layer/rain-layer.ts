@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {fp64LowPart, Layer, project32} from '@deck.gl/core';
-import type {Color, DefaultProps, LayerProps, Position} from '@deck.gl/core';
+import type {Color, DefaultProps, LayerProps, Position, UpdateParameters} from '@deck.gl/core';
 import type {RenderPipelineParameters} from '@luma.gl/core';
 import {Model} from '@luma.gl/engine';
 import {rainUniforms, RAIN_FS, RAIN_VS, RAIN_WGSL} from './rain-layer-shaders';
@@ -60,7 +60,7 @@ export class RainLayer extends Layer<Required<_RainLayerProps>> {
   static layerName = 'RainLayer';
   static defaultProps = defaultProps;
 
-  declare state: {model: Model};
+  declare state: {model?: Model};
 
   override getAttributeManager() {
     return null;
@@ -75,17 +75,22 @@ export class RainLayer extends Layer<Required<_RainLayerProps>> {
     });
   }
 
-  initializeState(): void {
-    this.setState({
-      model: new Model(this.context.device, {
+  initializeState(): void {}
+
+  override updateState(params: UpdateParameters<this>): void {
+    super.updateState(params);
+    if (!this.state.model || params.changeFlags.extensionsChanged) {
+      const model = new Model(this.context.device, {
         ...this.getShaders(),
         id: this.props.id,
         topology: 'triangle-strip',
         vertexCount: 4,
         isInstanced: true,
         parameters: RAIN_PARAMETERS
-      })
-    });
+      });
+      this.state.model?.destroy();
+      this.setState({model});
+    }
   }
 
   getNumInstances(): number {
@@ -101,6 +106,7 @@ export class RainLayer extends Layer<Required<_RainLayerProps>> {
     const {model} = this.state;
     const {position, size, velocity, exposure, streakWidth, color, time, seed} = this.props;
     if (
+      !model ||
       shaderModuleProps?.shadow?.drawToShadowMap ||
       !this.getNumInstances() ||
       !(exposure > 0 && Number.isFinite(exposure)) ||

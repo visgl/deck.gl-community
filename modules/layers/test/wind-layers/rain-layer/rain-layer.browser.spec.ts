@@ -2,14 +2,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, OrbitView, type Layer} from '@deck.gl/core';
+import {Deck, LayerExtension, OrbitView, type Layer} from '@deck.gl/core';
 import {SolidPolygonLayer} from '@deck.gl/layers';
 import {Buffer, luma, Texture, type Device} from '@luma.gl/core';
 import {webgl2Adapter, type WebGLDevice} from '@luma.gl/core/webgl';
 import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/core/webgpu';
-import {expect, test} from 'vitest';
+import {expect, test, vi} from 'vitest';
 import {RainLayer} from '@deck.gl-community/layers/wind-layers';
 import {requireWebGPUAdapter} from '../../common-layers/webgpu-test-utils';
+
+class RainTestExtension extends LayerExtension {
+  static extensionName = 'RainTestExtension';
+}
 
 const SIZE = 128;
 
@@ -103,7 +107,15 @@ test.for(['webgl', 'webgpu'] as const)(
     function render(
       time: number,
       count = 256,
-      {before = [], after = []}: {before?: Layer[]; after?: Layer[]} = {}
+      {
+        before = [],
+        after = [],
+        extensions = []
+      }: {
+        before?: Layer[];
+        after?: Layer[];
+        extensions?: LayerExtension[];
+      } = {}
     ): Promise<Uint8Array> {
       const layer = new RainLayer({
         id: 'rain',
@@ -114,7 +126,8 @@ test.for(['webgl', 'webgpu'] as const)(
         color: [240, 160, 80, 220],
         count,
         time,
-        seed: 7
+        seed: 7,
+        extensions
       });
       const layers = [...before, layer, ...after];
       return new Promise((resolve, reject) => {
@@ -147,6 +160,11 @@ test.for(['webgl', 'webgpu'] as const)(
       expect(wrapped.every((channel, index) => channel === initial[index])).toBe(true);
       const moved = await render(0.7);
       expect(moved.some((channel, index) => channel !== initial[index])).toBe(true);
+      const model = (deck.props.layers[0] as RainLayer).getModels()[0];
+      const destroyModel = vi.spyOn(model, 'destroy');
+      await render(0, 256, {extensions: [new RainTestExtension()]});
+      expect((deck.props.layers[0] as RainLayer).getModels()[0]).not.toBe(model);
+      expect(destroyModel).toHaveBeenCalledOnce();
       const disabled = await render(0, 0);
       expect(disabled.every((channel, index) => index % 4 === 3 || channel === 0)).toBe(true);
       deck.setProps({
