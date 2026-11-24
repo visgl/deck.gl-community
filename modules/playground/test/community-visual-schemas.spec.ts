@@ -48,6 +48,37 @@ describe('community visual layer schemas', () => {
     }
   });
 
+  it('validates seeded rain volumes and their explicit clocks', () => {
+    expect(
+      parseLayer('RainLayer', {
+        position: [-122.4194, 37.7749, 40],
+        size: [240, 180, 80],
+        velocity: [2, -1, -8.5],
+        count: 4000,
+        time: -1.5,
+        exposure: 1 / 60,
+        streakWidth: 1.5,
+        color: [200, 220, 235, 128],
+        seed: 0xffffffff,
+        shadowEnabled: false
+      }).success
+    ).toBe(true);
+    for (const props of [
+      {position: [0]},
+      {size: [240, 180, 0]},
+      {velocity: [2, -1]},
+      {count: 1.5},
+      {time: Infinity},
+      {exposure: -1},
+      {streakWidth: -1},
+      {color: [200, 220]},
+      {seed: 0x100000000},
+      {shadowEnabled: true}
+    ]) {
+      expect(parseLayer('RainLayer', props).success).toBe(false);
+    }
+  });
+
   it('accepts finite nonnegative graph layout intervals in JSON', () => {
     for (const interval of [0, 16, 100]) {
       expect(parseLayer('GraphLayer', {layoutUpdateInterval: interval}).success).toBe(true);
