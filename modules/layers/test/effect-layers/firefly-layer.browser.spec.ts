@@ -142,6 +142,7 @@ test.for([
         coordinateOrigin: [0, 0, 0],
         segments,
         segmentCount: 1,
+        pickable: true,
         style: {width: 4, sketch: 0},
         color: [255, 0, 0, 255]
       });
@@ -155,6 +156,10 @@ test.for([
       expect(redPeak(opaque)).toBeGreaterThan(200);
       expect(redPeak(translucent)).toBeGreaterThan(25);
       expect(redPeak(translucent)).toBeLessThan(100);
+      expect((await deck.pickObjectAsync({x: 32, y: 32, radius: 2}))?.index).toBe(0);
+      segments.write(new Float32Array([-10, 0, 0, 10, 0, 0, -1, 42]));
+      await readFrame();
+      expect(await deck.pickObjectAsync({x: 32, y: 32, radius: 2})).toBeNull();
       expect(corners.destroyed).toBe(true);
       expect(points.destroyed).toBe(false);
     } finally {

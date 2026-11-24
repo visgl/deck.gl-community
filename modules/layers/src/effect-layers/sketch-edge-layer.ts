@@ -16,7 +16,7 @@ import {Model} from '@luma.gl/engine';
 import {sketchStroke, type SketchStrokeProps, type ShaderModule} from '@luma.gl/shaders';
 
 export type SketchEdgeLayerProps = LayerProps & {
-  /** Borrowed interleaved float32 rows: start.xyz, end.xyz, featureIndex, stable seed. */
+  /** Borrowed interleaved float32 rows: start.xyz, end.xyz, featureIndex (negative to disable picking), stable seed. */
   segments: Buffer;
   segmentCount: number;
   color?: Color;
@@ -152,7 +152,10 @@ struct StrokeVertex {
   output.position = vec4<f32>(0.0, 0.0, 2.0, 1.0);
   output.weightedCoordinates = vec3<f32>(0.0, 0.0, 1.0);
   output.metrics = vec2<f32>(0.0, seed);
-  output.pickingColor = picking_getPickingColorFromIndex(u32(featureIndex));
+  output.pickingColor = vec3<f32>(0.0);
+  if (featureIndex >= 0.0) {
+    output.pickingColor = picking_getPickingColorFromIndex(u32(featureIndex));
+  }
   if (start.z < 0.0 && end.z < 0.0) { return output; }
   if (start.z < 0.0) { start = mix(start, end, -start.z / (end.z - start.z)); }
   if (end.z < 0.0) { end = mix(end, start, -end.z / (start.z - end.z)); }
