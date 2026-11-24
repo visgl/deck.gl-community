@@ -4,9 +4,9 @@
   <a href="https://github.com/visgl/deck.gl-community/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT license" height="20" /></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/6.0.3-3178c6?style=flat-square&amp;logo=typescript&amp;logoColor=white" alt="TypeScript 6.0.3" height="20" /></a>
   <a href="https://www.npmjs.com/package/@deck.gl-community/layers"><img src="https://img.shields.io/npm/v/@deck.gl-community/layers?style=flat-square&amp;color=8064a2" alt="Latest layers release" height="20" /></a>
-  <a href="https://www.npmjs.com/package/@deck.gl-community/layers"><img src="https://img.shields.io/npm/dm/@deck.gl-community/layers?style=flat-square&amp;label=layers%20downloads&amp;color=8064a2" alt="Monthly downloads for the layers package" height="20" /></a>
-  <a href="https://github.com/visgl/deck.gl-community"><img src="https://img.shields.io/github/stars/visgl/deck.gl-community?style=flat-square&amp;logo=github" alt="GitHub stars" height="20" /></a>
-  <a href="https://github.com/visgl/deck.gl-community/graphs/contributors"><img src="https://img.shields.io/github/contributors/visgl/deck.gl-community?style=flat-square&amp;logo=github" alt="GitHub contributors" height="20" /></a>
+  <a href="https://www.npmjs.com/package/@deck.gl-community/editable-layers"><img src="https://img.shields.io/npm/dm/@deck.gl-community/editable-layers?style=flat-square&amp;label=downloads&amp;color=8064a2" alt="Monthly downloads for @deck.gl-community/editable-layers" height="20" /></a>
+  <a href="https://github.com/visgl/deck.gl-community"><img src="https://img.shields.io/github/stars/visgl/deck.gl-community?style=flat-square&amp;label=%E2%98%85&amp;logo=github&amp;logoColor=white&amp;color=24292f&amp;labelColor=24292f" alt="GitHub stars" height="20" /></a>
+  <a href="https://github.com/visgl/deck.gl-community/graphs/contributors"><img src="https://img.shields.io/github/contributors/visgl/deck.gl-community?style=flat-square&amp;logo=github&amp;logoColor=white&amp;color=24292f&amp;labelColor=24292f" alt="GitHub contributors" height="20" /></a>
 </p>
 
 deck.gl-community publishes add-on layers, UI components, and integrations for

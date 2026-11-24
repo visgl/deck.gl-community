@@ -336,13 +336,13 @@ const config = {
             className: 'navbar-badge',
             type: 'html',
             position: 'right',
-            value: '<a class="navbar-package-badge" href="https://www.npmjs.com/package/@deck.gl-community/layers" aria-label="Monthly downloads for the Layers package on npm" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/npm/dm/@deck.gl-community/layers?style=flat-square&amp;label=layers%20downloads" alt="" height="20" /><span>npm</span></a>'
+            value: '<a class="navbar-package-badge" href="https://www.npmjs.com/package/@deck.gl-community/editable-layers" aria-label="Monthly downloads for @deck.gl-community/editable-layers on npm" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/npm/dm/@deck.gl-community/editable-layers?style=flat-square&amp;label=downloads" alt="" height="20" /><span>npm</span></a>'
           },
           {
             className: 'navbar-badge',
             type: 'html',
             position: 'right',
-            value: '<a class="navbar-package-badge" href="https://github.com/visgl/deck.gl-community" aria-label="deck.gl-community on GitHub" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/github/stars/visgl/deck.gl-community?style=flat-square&amp;logo=github&amp;label=stars" alt="" height="20" /><span>GitHub</span></a>'
+            value: '<a class="navbar-package-badge" href="https://github.com/visgl/deck.gl-community" aria-label="deck.gl-community on GitHub" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/github/stars/visgl/deck.gl-community?style=flat-square&amp;label=%E2%98%85&amp;logo=github&amp;logoColor=white&amp;color=24292f&amp;labelColor=24292f" alt="" height="20" /><span>GitHub</span></a>'
           },
           {
             className: 'navbar-badge',
