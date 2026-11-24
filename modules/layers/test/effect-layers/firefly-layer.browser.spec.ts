@@ -7,7 +7,7 @@ import {luma, Buffer, Texture} from '@luma.gl/core';
 import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {getTestDevice} from '@luma.gl/core/test-utils';
-import {pointGlow} from '@luma.gl/shaders';
+import {pointGlow, sketchStroke} from '@luma.gl/shaders';
 import {expect, test} from 'vitest';
 import {FireflyLayer, SketchEdgeLayer} from '../../src/effect-layers/index';
 
@@ -134,25 +134,28 @@ test.for([
     );
     const corners = replacement.state.corners;
     const segments = device.createBuffer({
-      data: new Float32Array([-10, 0, 0, 10, 0, 0, 0, 42])
+      data: new Float32Array([-10, 0, 0, 10, 0, 0, 0, 42, -10, 0, 0, 10, 0, 0, 1, 17])
     });
     try {
       const sketch = new SketchEdgeLayer({
         id: 'sketch-test',
         coordinateOrigin: [0, 0, 0],
         segments,
-        segmentCount: 1,
+        segmentCount: 0,
         pickable: true,
         style: {width: 4, sketch: 0},
         color: [255, 0, 0, 255]
       });
       deck.setProps({layers: [sketch]});
-      const opaque = await readFrame();
-      const faintSketch = sketch.clone({opacity: 0.25});
-      deck.setProps({layers: [faintSketch]});
-      const translucent = await readFrame();
       const redPeak = (pixels: Uint8Array) =>
         pixels.reduce((peak, value, index) => (index % 4 === 0 ? Math.max(peak, value) : peak), 0);
+      expect(redPeak(await readFrame())).toBe(0);
+      const opaqueSketch = sketch.clone({segmentCount: 1}) as SketchEdgeLayer;
+      deck.setProps({layers: [opaqueSketch]});
+      const opaque = await readFrame();
+      const faintSketch = opaqueSketch.clone({opacity: 0.25}) as SketchEdgeLayer;
+      deck.setProps({layers: [faintSketch]});
+      const translucent = await readFrame();
       expect(redPeak(opaque)).toBeGreaterThan(200);
       expect(redPeak(translucent)).toBeGreaterThan(25);
       expect(redPeak(translucent)).toBeLessThan(100);
@@ -160,6 +163,14 @@ test.for([
       segments.write(new Float32Array([-10, 0, 0, 10, 0, 0, -1, 42]));
       await readFrame();
       expect(await deck.pickObjectAsync({x: 32, y: 32, radius: 2})).toBeNull();
+      expect(faintSketch.state.model.shaderInputs.getUniformValues().sketchStroke?.width).toBe(4);
+      const multiple = faintSketch.clone({segmentCount: 2, style: {}}) as SketchEdgeLayer;
+      deck.setProps({layers: [multiple]});
+      await readFrame();
+      expect((await deck.pickObjectAsync({x: 32, y: 32, radius: 2}))?.index).toBe(1);
+      expect(multiple.state.model.shaderInputs.getUniformValues().sketchStroke?.width).toBe(
+        sketchStroke.defaultUniforms.width
+      );
       expect(corners.destroyed).toBe(true);
       expect(points.destroyed).toBe(false);
     } finally {

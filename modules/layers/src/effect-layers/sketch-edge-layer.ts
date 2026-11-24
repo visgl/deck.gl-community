@@ -76,6 +76,7 @@ export class SketchEdgeLayer extends Layer<SketchEdgeLayerProps> {
         }),
         id: `${this.id}-strokes`,
         topology: 'triangle-list',
+        isInstanced: true,
         vertexCount: 6,
         instanceCount: this.props.segmentCount,
         bufferLayout: [
