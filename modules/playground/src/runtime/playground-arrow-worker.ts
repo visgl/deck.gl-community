@@ -1,8 +1,6 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 
-import {ArrowLoader} from '@loaders.gl/tables';
-import {parseInBatches} from '@loaders.gl/core';
 import {
   DataType,
   RecordBatchReader,
@@ -13,41 +11,29 @@ import {
 } from 'apache-arrow';
 import {MAX_DATA_BYTES, MAX_DATA_ROWS, validatePlaygroundRows} from './playground-webmcp-data';
 
-// Decode through loaders.gl inside this worker, never through its remote worker fallback.
-self.onmessage = async (event: MessageEvent<Uint8Array>) => {
+// Decode IPC inside this disposable worker.
+self.onmessage = (event: MessageEvent<Uint8Array>) => {
   try {
     const bytes = event.data;
     if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > MAX_DATA_BYTES) {
       throw new Error('Invalid Arrow input');
     }
-    validateSchema(bytes);
-    // Decode native record batches to preserve Arrow dictionary columns.
-    const batches = await parseInBatches([bytes], ArrowLoader, {
-      worker: false,
-      arrow: {shape: 'arrow'}
-    });
-    const rows: Record<string, unknown>[] = [];
-    const appendRows = createRowNormalizer(rows);
-    for await (const batch of batches) {
-      appendRows(batch);
+    const reader = RecordBatchReader.from(bytes);
+    try {
+      reader.open();
+      if (!reader.schema) throw new Error('Missing Arrow schema');
+      const rows: Record<string, unknown>[] = [];
+      const appendRows = createRowNormalizer(rows);
+      for (const batch of reader) appendRows(batch);
+      self.postMessage({ok: true, rows: validatePlaygroundRows(rows)});
+    } finally {
+      reader.cancel();
     }
-    self.postMessage({ok: true, rows: validatePlaygroundRows(rows)});
   } catch {
     // Parser messages can contain input values; only a fixed status crosses the worker boundary.
     self.postMessage({ok: false});
   }
 };
-
-function validateSchema(bytes: Uint8Array): void {
-  // tableFromIPC accepts some incomplete streams as empty tables; require an actual IPC schema.
-  const reader = RecordBatchReader.from(bytes);
-  try {
-    reader.open();
-    if (!reader.schema) throw new Error('Missing Arrow schema');
-  } finally {
-    reader.cancel();
-  }
-}
 
 function createRowNormalizer(rows: Record<string, unknown>[]): (batch: RecordBatch) => void {
   let nodes = 1;
