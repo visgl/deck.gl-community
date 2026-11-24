@@ -46,7 +46,7 @@ class OccluderLayer extends Layer {
   }
 }
 
-test.each(['webgpu', 'webgl'] as const)(
+test.for(['webgpu', 'webgl'] as const)(
   'globe clouds on %s render cover, drift, sunlight, occlusion and clean up',
   async (backend, context) => {
     if (!(await getTestDevice(backend))) return context.skip(`${backend} unavailable`);
