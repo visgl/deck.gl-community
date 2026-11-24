@@ -109,8 +109,8 @@ async function measureOrbit(data: TreeSpec[], zoom: number, east: number, frameC
       });
     };
     // Settle the first camera selection and detail transitions.
-    for (let i = 0; i < frameCount; i++) frame(0);
-    frames.length = 0;
+    orchard.frame(viewState);
+    orchard.frame(viewState);
     // A slow orbit: every frame moves the camera, as a basemap drag does.
     for (let i = 1; i <= frameCount; i++) frame((i * 7.5) / frameCount);
   } finally {

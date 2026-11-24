@@ -308,7 +308,9 @@ describe('TreeLayer photoreal rendering', () => {
     });
     const shift = new ShiftShadowReceivers({pixels: 0});
     const original = await scene.render([
-      trees({lodBias: -2, windStrength: 0, windTime: 0, extensions: [shift]})
+      trees({lodBias: -2, windStrength: 0, windTime: 0, extensions: [shift]}, [
+        {...CITRUS, characteristics: {leafDensity: 0.25}}
+      ])
     ]);
     const offset = 16;
     shift.opts.pixels = offset;

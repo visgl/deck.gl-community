@@ -1,7 +1,7 @@
 import {relative} from 'node:path';
 import {BaseSequencer, type TestSpecification} from 'vitest/node';
 
-// Approximate seconds on the hosted software renderer (Actions runs 45452757851, 45453762991 and 45462654200).
+// Approximate seconds on the hosted software renderer (Actions runs 45452757851, 45453762991 and 45465550022).
 // Include the long suites only. New files participate automatically.
 const SUITE_SECONDS: Record<string, number> = {
   'examples/layers/flame-trail/scene.browser.spec.ts': 38,
@@ -12,14 +12,15 @@ const SUITE_SECONDS: Record<string, number> = {
   'modules/layers/test/tree-layers/tree-layer/render-correctness.browser.spec.ts': 24,
   'modules/layers/test/tree-layers/tree-layer/tree-canopy-colors.browser.spec.ts': 44,
   'modules/layers/test/tree-layers/tree-layer/tree-contract.browser.spec.ts': 37,
-  'modules/layers/test/tree-layers/tree-layer/tree-grove-performance.browser.spec.ts': 36,
+  'modules/layers/test/tree-layers/tree-layer/tree-grove-performance.browser.spec.ts': 70,
   'modules/layers/test/tree-layers/tree-layer/tree-grove.browser.spec.ts': 32,
-  'modules/layers/test/tree-layers/tree-layer/tree-lifecycle-standard.browser.spec.ts': 210,
-  'modules/layers/test/tree-layers/tree-layer/tree-mixed-species.browser.spec.ts': 125,
-  'modules/layers/test/tree-layers/tree-layer/tree-photoreal-crops.browser.spec.ts': 405,
-  'modules/layers/test/tree-layers/tree-layer/tree-photoreal.browser.spec.ts': 215,
+  'modules/layers/test/tree-layers/tree-layer/tree-lifecycle-standard.browser.spec.ts': 285,
+  'modules/layers/test/tree-layers/tree-layer/tree-mixed-species.browser.spec.ts': 140,
+  'modules/layers/test/tree-layers/tree-layer/tree-photoreal-crops.browser.spec.ts': 430,
+  'modules/layers/test/tree-layers/tree-layer/tree-photoreal.browser.spec.ts': 320,
   'modules/layers/test/tree-layers/tree-layer/tree-shadows.browser.spec.ts': 95,
-  'modules/layers/test/tree-layers/tree-layer/webgpu-layers.browser.spec.ts': 21
+  'modules/layers/test/tree-layers/tree-layer/webgpu-layers.browser.spec.ts': 23,
+  'modules/vega/test/map-to-stacks.browser.spec.ts': 14
 };
 
 export default class BrowserTestSequencer extends BaseSequencer {
