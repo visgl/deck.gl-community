@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, MapView, OrthographicView} from '@deck.gl/core';
+import {Deck, MapView, OrthographicView, type Effect, type View} from '@deck.gl/core';
 import {SolidPolygonLayer} from '@deck.gl/layers';
-import {luma, type Device} from '@luma.gl/core';
+import {Buffer, Texture, luma, type Device, type Framebuffer} from '@luma.gl/core';
 import {webgl2Adapter, type WebGLDevice} from '@luma.gl/core/webgl';
-import {webgpuAdapter} from '@luma.gl/core/webgpu';
-import {afterEach, expect, it} from 'vitest';
-import {requireWebGPUAdapter} from '../../../layers/test/webgpu-test-utils';
+import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/core/webgpu';
+import {afterEach, describe, expect, it} from 'vitest';
+import {requireWebGPUAdapter} from '../../../layers/test/common-layers/webgpu-test-utils';
 import {CORTAOEffect} from '../../src';
+
+type Backend = 'webgl' | 'webgpu';
 
 const SIZE = 256;
 /** Half the side of the box, in degrees. About 33 meters. */
@@ -49,67 +51,136 @@ function createLayers() {
   ];
 }
 
-let deck: Deck | null = null;
+// The tests use map and orthographic views, so the view state type is not fixed.
+let deck: Deck<any> | null = null;
 let device: Device | null = null;
-let canvas: HTMLCanvasElement | null = null;
+let container: HTMLDivElement | null = null;
+/** The WebGPU render target. The tests read it back with a texture copy. */
+let framebuffer: Framebuffer | null = null;
+let colorTexture: Texture | null = null;
+const errors: string[] = [];
 
-afterEach(() => {
+afterEach(async () => {
+  if (device?.type === 'webgpu') {
+    await (device as WebGPUDevice).handle.queue.onSubmittedWorkDone();
+  }
   deck?.finalize();
   deck = null;
+  framebuffer?.destroy();
+  framebuffer = null;
+  colorTexture?.destroy();
+  colorTexture = null;
   device?.destroy();
   device = null;
-  canvas = null;
+  container?.remove();
+  container = null;
+  errors.length = 0;
 });
 
-/** Creates a deck and waits for the first frame. */
-async function createDeck(
-  effect: CORTAOEffect | null,
+/**
+ * Creates a deck and waits for the first frame. On WebGPU, the deck renders into an offscreen
+ * framebuffer, because a copy of a WebGPU canvas with `drawImage()` is empty on Linux Chrome with
+ * SwiftShader.
+ */
+async function createDeck({
+  type,
+  effects,
   views = new MapView(),
-  type: 'webgl' | 'webgpu' = 'webgl'
-): Promise<Deck> {
-  const container = document.createElement('div');
+  viewState = VIEW_STATE,
+  layers = createLayers()
+}: {
+  type: Backend;
+  effects: Effect[];
+  views?: View | View[];
+  viewState?: Record<string, unknown>;
+  layers?: SolidPolygonLayer[];
+}): Promise<Deck<any>> {
+  container = document.createElement('div');
   container.style.cssText = `width: ${SIZE}px; height: ${SIZE}px`;
   document.body.append(container);
-  const errors: string[] = [];
   device = await luma.createDevice({
     type,
     adapters: [webgl2Adapter, webgpuAdapter],
     createCanvasContext: {container, width: SIZE, height: SIZE, useDevicePixels: false},
     webgl: {preserveDrawingBuffer: true},
-    onError: error => errors.push(error.message)
+    onError: error => {
+      errors.push(error.message);
+      return true;
+    }
   });
+  if (type === 'webgpu') {
+    colorTexture = device.createTexture({
+      width: SIZE,
+      height: SIZE,
+      format: device.preferredColorFormat,
+      usage: Texture.RENDER_ATTACHMENT | Texture.COPY_SRC
+    });
+    framebuffer = device.createFramebuffer({
+      width: SIZE,
+      height: SIZE,
+      colorAttachments: [colorTexture],
+      depthStencilAttachment: 'depth24plus'
+    });
+  }
   await new Promise<void>((resolve, reject) => {
-    deck = new Deck({
+    deck = new Deck<any>({
       device: device!,
-      parent: container,
+      parent: container!,
       width: SIZE,
       height: SIZE,
       useDevicePixels: false,
       views,
-      initialViewState: VIEW_STATE,
-      effects: effect ? [effect] : [],
-      layers: createLayers(),
+      initialViewState: viewState,
+      effects,
+      layers,
+      _framebuffer: framebuffer,
       onError: reject,
       onAfterRender: () => resolve()
     });
   });
   deck!.redraw('test');
-  canvas = container.querySelector('canvas');
-  expect(errors).toEqual([]);
   return deck!;
 }
 
-/** Reads one RGBA pixel of the canvas. `y` counts from the top, like deck.gl screen pixels. */
-function readCanvasPixel(x: number, y: number, type: 'webgl' | 'webgpu' = 'webgl'): number[] {
-  if (type === 'webgpu') {
-    const copy = document.createElement('canvas');
-    copy.width = SIZE;
-    copy.height = SIZE;
-    const context = copy.getContext('2d')!;
-    // Submit the redraw so the canvas has the latest frame.
+/**
+ * Waits for the submitted GPU work and checks that the device reported no errors. WebGPU reports
+ * validation errors asynchronously, after the work that caused them.
+ */
+async function expectNoDeviceErrors(): Promise<void> {
+  device!.submit();
+  if (device!.type === 'webgpu') {
+    await (device as WebGPUDevice).handle.queue.onSubmittedWorkDone();
+  }
+  // The browser dispatches the error events after the work is done.
+  await new Promise(resolve => setTimeout(resolve, 100));
+  expect(errors).toEqual([]);
+}
+
+/** Reads one RGBA pixel of the render target. `y` counts from the top, like deck.gl pixels. */
+async function readPixel(x: number, y: number): Promise<number[]> {
+  if (device!.type === 'webgpu') {
+    // Submit the redraw before the copy.
     device!.submit();
-    context.drawImage(canvas!, 0, 0);
-    return Array.from(context.getImageData(Math.round(x), Math.round(y), 1, 1).data);
+    const buffer = device!.createBuffer({
+      byteLength: 256,
+      usage: Buffer.COPY_DST | Buffer.MAP_READ
+    });
+    try {
+      const encoder = device!.createCommandEncoder();
+      encoder.copyTextureToBuffer({
+        sourceTexture: colorTexture!,
+        destinationBuffer: buffer,
+        origin: [Math.round(x), Math.round(y), 0],
+        width: 1,
+        height: 1,
+        bytesPerRow: 256
+      });
+      device!.submit(encoder.finish());
+      const [r, g, b, a] = Array.from((await buffer.readAsync()).subarray(0, 4));
+      return colorTexture!.format === 'bgra8unorm' ? [b, g, r, a] : [r, g, b, a];
+    } finally {
+      buffer.destroy();
+    }
   }
   const gl = (device as WebGLDevice).gl;
   const pixel = new Uint8Array(4);
@@ -118,63 +189,87 @@ function readCanvasPixel(x: number, y: number, type: 'webgl' | 'webgpu' = 'webgl
   return Array.from(pixel);
 }
 
-/** Gets the screen pixel of a ground position. */
-function project(lngLat: [number, number]): [number, number] {
-  const [x, y] = deck!.getViewports()[0].project([...lngLat, 0]);
-  return [x, y];
+/** Reads several pixels of the render target. */
+async function readPixels(pixels: [number, number][]): Promise<number[][]> {
+  const values: number[][] = [];
+  for (const pixel of pixels) {
+    values.push(await readPixel(...pixel));
+  }
+  return values;
+}
+
+/** Gets the pixel of a ground position in a viewport. */
+function project(lngLat: [number, number], viewportIndex = 0): [number, number] {
+  const viewport = deck!.getViewports()[viewportIndex];
+  const [x, y] = viewport.project([...lngLat, 0]);
+  return [viewport.x + x, viewport.y + y];
+}
+
+/** Redraws the deck and reads pixels, then redraws without effects and reads the same pixels. */
+async function readPixelsWithAndWithoutEffects(pixels: [number, number][]): Promise<{
+  on: number[][];
+  off: number[][];
+}> {
+  deck!.redraw('test');
+  const on = await readPixels(pixels);
+  deck!.setProps({effects: []});
+  deck!.redraw('test');
+  const off = await readPixels(pixels);
+  return {on, off};
+}
+
+/** Skips a WebGPU test when the browser has no WebGPU adapter, unless CI requires one. */
+async function requireBackend(type: Backend, skip: (message: string) => void): Promise<void> {
+  if (type === 'webgpu') {
+    await requireWebGPUAdapter(skip);
+  }
 }
 
 // Software GPUs in CI compile the CORTAO shaders slowly.
 const TIMEOUT = 120000;
 
-async function testOcclusion(type: 'webgl' | 'webgpu'): Promise<void> {
+async function testOcclusion(type: Backend, getEffects: (effect: CORTAOEffect) => Effect[]) {
   const effect = new CORTAOEffect({showOcclusion: true});
-  await createDeck(effect, new MapView(), type);
-  if (type === 'webgpu') expect(effect.backend).toBe('webgpu');
+  await createDeck({type, effects: getEffects(effect)});
+  expect(effect.backend).toBe(type);
 
   // The camera looks north. The ground in front of the south face is in contact with the box.
   const base = project([0, -BOX - 0.00002]);
   const openGround = project([0, -BOX * 4]);
-  expect(readCanvasPixel(...base, type)[0]).toBeLessThan(200);
-  expect(readCanvasPixel(...openGround, type)[0]).toBeGreaterThan(235);
+  const [occlusionAtBase, occlusionOnOpenGround] = await readPixels([base, openGround]);
+  expect(occlusionAtBase[0]).toBeLessThan(200);
+  expect(occlusionOnOpenGround[0]).toBeGreaterThan(235);
 
   effect.setProps({showOcclusion: false});
-  deck!.redraw('test');
-  const onBase = readCanvasPixel(...base, type);
-  const onOpen = readCanvasPixel(...openGround, type);
-
-  deck!.setProps({effects: []});
-  deck!.redraw('test');
-  const offBase = readCanvasPixel(...base, type);
-  const offOpen = readCanvasPixel(...openGround, type);
-
-  expect(onBase[0]).toBeLessThan(offBase[0] - 20);
-  expect(Math.abs(onOpen[0] - offOpen[0])).toBeLessThanOrEqual(8);
+  const {on, off} = await readPixelsWithAndWithoutEffects([base, openGround]);
+  // An empty readback would pass the checks above, so check that the scene is there.
+  expect(off[1]).toEqual([200, 200, 200, 255]);
+  expect(on[0][0]).toBeLessThan(off[0][0] - 20);
+  expect(Math.abs(on[1][0] - off[1][0])).toBeLessThanOrEqual(8);
+  await expectNoDeviceErrors();
 }
 
-it('darkens only the ground at the base of an extruded box on WebGL 2', {
-  timeout: TIMEOUT
-}, async () => {
-  await testOcclusion('webgl');
+describe.each([
+  ['webgl', 'WebGL 2'],
+  ['webgpu', 'WebGPU']
+] as const)('CORTAOEffect', (type, name) => {
+  it(`darkens only the ground at the base of an extruded box on ${name}`, {
+    timeout: TIMEOUT
+  }, async ({skip}) => {
+    await requireBackend(type, skip);
+    await testOcclusion(type, effect => [effect]);
+  });
 });
 
-it('darkens only the ground at the base of an extruded box on WebGPU', {timeout: TIMEOUT}, async ({
-  skip
-}) => {
-  await requireWebGPUAdapter(skip);
-  await testOcclusion('webgpu');
-});
-
-it('passes the scene through for an orthographic view', {timeout: TIMEOUT}, async () => {
-  const effect = new CORTAOEffect();
-  await createDeck(effect, new OrthographicView() as unknown as MapView);
-  deck!.setProps({initialViewState: {target: [0, 0, 0], zoom: 14}});
-  deck!.redraw('test');
-  const onPixel = readCanvasPixel(SIZE / 2, SIZE / 2);
-
-  deck!.setProps({effects: []});
-  deck!.redraw('test');
-  const offPixel = readCanvasPixel(SIZE / 2, SIZE / 2);
-  expect(offPixel[3]).toBe(255);
-  expect(onPixel).toEqual(offPixel);
+it('passes the scene through for an orthographic view on WebGL 2', {timeout: TIMEOUT}, async () => {
+  await createDeck({
+    type: 'webgl',
+    effects: [new CORTAOEffect()],
+    views: new OrthographicView(),
+    viewState: {target: [0, 0, 0], zoom: 14}
+  });
+  const center: [number, number] = [SIZE / 2, SIZE / 2];
+  const {on, off} = await readPixelsWithAndWithoutEffects([center]);
+  expect(off[0][3]).toBe(255);
+  expect(on).toEqual(off);
 });
