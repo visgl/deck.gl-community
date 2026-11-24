@@ -72,12 +72,11 @@ const BROWSER_RESOLVE_CONFIG = {
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
   // Preserve each importer's MapLibre worker version.
-  exclude: ['maplibre-gl'],
+  exclude: ['maplibre-gl', '@loaders.gl/splats', '@loaders.gl/compression', 'compress-utils'],
   include: [
     '@deck.gl/mesh-layers',
     '@deck.gl/react/legacy',
     '@loaders.gl/tables',
-    '@loaders.gl/splats',
     'apache-arrow',
     'react',
     'react-dom',
