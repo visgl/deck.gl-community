@@ -4,7 +4,7 @@
 
 import {PathLayer} from '@deck.gl/layers';
 
-import type {NumericArray} from '@math.gl/core';
+import type {NumericArray} from '@math.gl/core/types';
 import type {ShaderModule, ShaderPlugin} from '@luma.gl/shaders';
 
 type WebGpuPathStyleProps = {

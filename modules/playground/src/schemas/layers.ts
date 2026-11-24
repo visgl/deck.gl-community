@@ -318,7 +318,8 @@ export const MultiIconLayerPropsSchema = IconLayerPropsSchema.extend({
   sdf: z.boolean().optional(),
   smoothing: z.number().optional(),
   outlineWidth: nonnegative.optional(),
-  outlineColor: ColorSchema.optional()
+  outlineColor: ColorSchema.optional(),
+  outlineColorUseByteColors: z.boolean().optional()
 });
 /** JSON-safe props for TextBackgroundLayer; compose or extend with Zod. */
 export const TextBackgroundLayerPropsSchema = BaseLayerPropsSchema.extend({

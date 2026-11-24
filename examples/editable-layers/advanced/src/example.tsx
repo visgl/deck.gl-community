@@ -6,7 +6,7 @@
 import {EXAMPLE_PANEL_STYLE} from '../../../utils/panel-theme';
 import * as React from 'react';
 import {useState, useCallback} from 'react';
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {MapView, MapController} from '@deck.gl/core';
 import {Map as StaticMap} from 'react-map-gl/maplibre';
 import circle from '@turf/circle';

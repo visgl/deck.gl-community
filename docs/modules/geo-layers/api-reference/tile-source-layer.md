@@ -77,7 +77,7 @@ new Deck({
 
 ```tsx
 import React from 'react';
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {TileSourceLayer} from '@deck.gl-community/layers/geo-layers';
 
 function App() {

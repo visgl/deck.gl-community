@@ -4,7 +4,7 @@
 
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {WebMercatorViewport, _GlobeViewport} from '@deck.gl/core';
-import {CullingVolume} from '@math.gl/geometry';
+import {CullingVolume} from '@math.gl/geometry/culling';
 import {
   getOSMTileIndices,
   isOutsideCullingVolume

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {addMetersToLngLat} from '@math.gl/web-mercator';
+import {addMetersToLngLat} from '@math.gl/geospatial/web-mercator';
 import type {Color} from '@deck.gl/core';
 import type {CropConfig, CropKind, Season, TreeType} from '@deck.gl-community/layers';
 

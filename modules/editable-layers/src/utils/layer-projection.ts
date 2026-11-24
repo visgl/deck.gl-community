@@ -4,13 +4,13 @@
 
 import {WebMercatorViewport} from '@deck.gl/core';
 import type {Layer} from '@deck.gl/core';
-import {Matrix4} from '@math.gl/core';
+import {Matrix4} from '@math.gl/core/matrix';
 import {
   getDistanceScales,
   lngLatToWorld,
   pixelsToWorld,
   worldToPixels
-} from '@math.gl/web-mercator';
+} from '@math.gl/geospatial/web-mercator';
 import type {EditModeProjection} from '../edit-modes/types';
 import type {Position} from './geojson-types';
 

@@ -15,7 +15,7 @@ The widget renders content with **Preact**. You can generate `items` with `preac
 instantiating the widget from a React app.
 
 ```tsx
-import DeckGL from '@deck.gl/react';
+import DeckGL from '@deck.gl/react/legacy';
 import {h} from 'preact';
 import {HtmlOverlayItem, HtmlOverlayWidget} from '@deck.gl-community/widgets';
 
