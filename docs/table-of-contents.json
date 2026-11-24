@@ -89,7 +89,8 @@
               "modules/layers/api-reference/path-outline-layer",
               "modules/layers/api-reference/volumetric-video-layer",
               "modules/layers/api-reference/selection-pulse-extension",
-              "modules/layers/api-reference/zoom-opacity-extension"
+              "modules/layers/api-reference/zoom-opacity-extension",
+              "modules/layers/api-reference/fog-extension"
             ]
           },
           {

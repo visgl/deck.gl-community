@@ -13,3 +13,5 @@ export type {
   ZoomOpacityStop,
   ZoomOpacityStops
 } from './zoom-opacity-extension/zoom-opacity';
+
+export {FogExtension, type FogExtensionProps} from './fog-extension/fog-extension';

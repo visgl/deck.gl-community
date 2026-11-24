@@ -32,6 +32,7 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/graph-layers` | `RoundedRectangleLayer` | ✅ | ✅ | Rounded corners are CPU-tessellated and rendered with upstream dual-backend `PolygonLayer`. |
 | `@deck.gl-community/graph-layers` | `PathEdgeLayer` and `EdgeArrowLayer` | ✅ | ✅ | Browser-verified upstream path rendering and polygon arrowheads. |
 | `@deck.gl-community/graph-layers` | `FlowPathLayer` | ❌ | ❌ | Existing transform-feedback implementation is incomplete; requires redesign. |
+| `@deck.gl-community/layers/extensions` | `FogExtension` | ✅ | — | Distance fog via the WebGL2 projection and color hooks. |
 | `@deck.gl-community/layers/wind-layers` | `ParticleLayer` | ✅ | ✅ | Browser-verified WebGL2 transform-feedback and WebGPU compute advection; production rendering uses GPU particle buffers without readbacks. |
 | `@deck.gl-community/layers/wind-layers` | Wind-field utilities and `DelaunayInterpolation` | ✅ | ✅ | Backend-independent station indexing, explicit sampling, and optional CPU rasterization. |
 | `@deck.gl-community/layers/wind-layers/wind-effect` | `WindEffect`, `WindExtension` | ✅ | Partial | Photoreal trees use scene wind on both backends. The stock-layer extension uses the WebGL2 vertex hook. |
