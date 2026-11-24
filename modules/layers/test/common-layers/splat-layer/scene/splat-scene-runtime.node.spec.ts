@@ -634,6 +634,19 @@ it('stages query-only picking and forwards the actual pass and cull rectangle', 
       layerFilter: filter
     } as PreRenderOptions);
     expect(picker.destroy).toHaveBeenCalledOnce();
+    // A props update can invalidate the screen frontier before the next pick.
+    runtime['pickers'].set(JSON.stringify(['view', 'query']), picker as never);
+    runtime.register(layer);
+    runtime.preRender({
+      layers: [layer],
+      viewports: [viewport],
+      isPicking: true,
+      pass: 'picking:query',
+      cullRect: rect,
+      layerFilter: filter
+    } as PreRenderOptions);
+    expect(picker.destroy).toHaveBeenCalledTimes(2);
+    expect(runtime['pickers'].size).toBe(0);
   } finally {
     runtime.cleanup();
     device.destroy();

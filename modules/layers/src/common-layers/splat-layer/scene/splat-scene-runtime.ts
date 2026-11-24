@@ -313,7 +313,11 @@ export class SplatSceneRuntime implements Effect {
             continue;
           }
           const entries = this.pickingEntries.get(key);
-          if (!entries?.length) continue;
+          if (!entries?.length) {
+            this.pickers.get(key)?.destroy();
+            this.pickers.delete(key);
+            continue;
+          }
           let picker = this.pickers.get(key);
           if (!picker) {
             picker = new SplatCPUSceneRenderer(this.device, true);
