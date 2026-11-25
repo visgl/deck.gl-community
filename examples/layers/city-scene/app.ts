@@ -82,11 +82,11 @@ export function createCityScene(parent: HTMLDivElement, options: DeckExampleDevi
       ? [1, 0]
       : [0, 1];
   const waterMesh = makeCityMesh(waterFeatures);
-  const waterVertices = new Float32Array((waterMesh.length / 10) * 3);
+  const waterVertices = new Float32Array((waterMesh.length / 13) * 3);
   for (
     let sourceIndex = 0, targetIndex = 0;
     sourceIndex < waterMesh.length;
-    sourceIndex += 10, targetIndex += 3
+    sourceIndex += 13, targetIndex += 3
   ) {
     waterVertices.set(waterMesh.subarray(sourceIndex, sourceIndex + 3), targetIndex);
   }

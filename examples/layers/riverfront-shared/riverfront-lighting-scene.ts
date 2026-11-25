@@ -243,9 +243,9 @@ export function createRiverfrontLightingScene(
           data: new Float32Array(lamps.flatMap((lamp, index) => [...lamp, 1, index]))
         });
         const mesh = makeCityMesh(waterFeatures);
-        const vertices = new Float32Array((mesh.length / 10) * 3);
-        for (let index = 0; index < mesh.length / 10; index++)
-          vertices.set(mesh.subarray(index * 10, index * 10 + 3), index * 3);
+        const vertices = new Float32Array((mesh.length / 13) * 3);
+        for (let index = 0; index < mesh.length / 13; index++)
+          vertices.set(mesh.subarray(index * 13, index * 13 + 3), index * 3);
         waterPositions = device.createBuffer({id: 'firefly-water-positions', data: vertices});
       }
       const rows: number[] = [];

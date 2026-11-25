@@ -42,11 +42,11 @@ export class CityMeshLayer extends Layer<CityMeshLayerProps> {
         }),
         id: `${this.id}-mesh`,
         topology: 'triangle-list',
-        vertexCount: mesh.length / 10,
+        vertexCount: mesh.length / 13,
         bufferLayout: [
           {
             name: 'vertices',
-            byteStride: 40,
+            byteStride: 52,
             attributes: [
               {attribute: 'position', format: 'float32x3', byteOffset: 0},
               {attribute: 'normal', format: 'float32x3', byteOffset: 12},
