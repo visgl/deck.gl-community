@@ -42,6 +42,16 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: '@deck.gl-community/layers/effect-layers',
+      items: ['layers/sketch-edges']
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers/sky-layers',
+      items: ['layers/globe-clouds', 'layers/sky-layers']
+    },
+    {
+      type: 'category',
       label: '@deck.gl-community/layers/geo-layers',
       items: [
         'geo-layers/satellite-orbits',
@@ -62,6 +72,7 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/layers/timeline-layers',
       items: [
+        'timeline-layers/timeline-layer',
         'timeline-layers/horizon-graph-layer',
         'timeline-layers/multi-horizon-graph-layer'
       ]

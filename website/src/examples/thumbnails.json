@@ -1,4 +1,8 @@
 {
+  "timeline-layers/timeline-layer": "/images/examples/timeline-layers/timeline-layer.jpg",
+  "layers/sky-layers": "/images/examples/layers/sky-layers.jpg",
+  "layers/sketch-edges": "/images/examples/layers/sketch-edges.jpg",
+  "layers/globe-clouds": "/images/examples/layers/globe-clouds.jpg",
   "layers/sky": "/images/examples/layers/sky.webp",
   "layers/grass-layer": "/images/examples/layers/grass-layer.jpg",
   "playground": "/images/examples/playground.jpg",
