@@ -58,3 +58,18 @@ export {
   timeAxisFormatters,
   type GenerateTicksOptions
 } from './layers/timeline-layer/timeline-utils';
+
+export {TimeDeltaLayer, type TimeDeltaLayerProps} from './layers/time-delta-layer';
+export {
+  formatTraceTimeMs,
+  formatTraceTimeRangeMs,
+  type FormatTraceTimeMsOptions
+} from './utils/trace-format-utils';
+export {
+  HEADER_VIEW_HEIGHT,
+  LEGEND_VIEW_WIDTH,
+  SYNCHRONIZED_VIEWS,
+  SYNCHRONIZED_VIEW_STATE_CONSTRAINTS,
+  getSynchronizedViewStates,
+  fitSynchronizedViewStatesToBounds
+} from './synchronized-views/synchronized-views';

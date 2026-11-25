@@ -61,58 +61,6 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     this._engageWorker();
   }
 
-  _engageWorker(isResume = false) {
-    this.stop();
-    if (!this._graph) {
-      return;
-    }
-
-    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
-    const options = {...this.props, alpha: isResume ? this.props.resumeAlpha : this.props.alpha};
-    delete options.onLayoutStart;
-    delete options.onLayoutChange;
-    delete options.onLayoutDone;
-    delete options.onLayoutError;
-
-    const worker = this._worker;
-    worker.onmessage = event => {
-      if (this._worker !== worker) {
-        return;
-      }
-      log.log(0, 'D3ForceLayout: worker message', event.data?.type, event.data);
-      if (event.data.type === 'tick') {
-        this._applyWorkerNodes(event.data.nodes);
-        this._onLayoutChange();
-      } else if (event.data.type === 'end') {
-        this._applyWorkerNodes(event.data.nodes);
-        this.stop();
-        this._onLayoutChange();
-        this._onLayoutDone();
-      }
-    };
-
-    this._onLayoutStart();
-    // A start callback may stop or replace the calculation before it is dispatched.
-    if (this._worker !== worker) {
-      return;
-    }
-    worker.postMessage({
-      nodes: Array.from(this._graph.getNodes(), node => {
-        const id = node.getId();
-        return {
-          id,
-          ...this._positionsByNodeId.get(id)
-        };
-      }),
-      edges: Array.from(this._graph.getEdges(), edge => ({
-        id: edge.getId(),
-        source: edge.getSourceNodeId(),
-        target: edge.getTargetNodeId()
-      })),
-      options
-    });
-  }
-
   /** Restarts from cached positions using resumeAlpha. */
   resume() {
     this._engageWorker(true);
@@ -188,6 +136,58 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     d3Node.fx = null;
     d3Node.fy = null;
   };
+
+  _engageWorker(isResume = false) {
+    this.stop();
+    if (!this._graph) {
+      return;
+    }
+
+    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
+    const options = {...this.props, alpha: isResume ? this.props.resumeAlpha : this.props.alpha};
+    delete options.onLayoutStart;
+    delete options.onLayoutChange;
+    delete options.onLayoutDone;
+    delete options.onLayoutError;
+
+    const worker = this._worker;
+    worker.onmessage = event => {
+      if (this._worker !== worker) {
+        return;
+      }
+      log.log(0, 'D3ForceLayout: worker message', event.data?.type, event.data);
+      if (event.data.type === 'tick') {
+        this._applyWorkerNodes(event.data.nodes);
+        this._onLayoutChange();
+      } else if (event.data.type === 'end') {
+        this._applyWorkerNodes(event.data.nodes);
+        this.stop();
+        this._onLayoutChange();
+        this._onLayoutDone();
+      }
+    };
+
+    this._onLayoutStart();
+    // A start callback may stop or replace the calculation before it is dispatched.
+    if (this._worker !== worker) {
+      return;
+    }
+    worker.postMessage({
+      nodes: Array.from(this._graph.getNodes(), node => {
+        const id = node.getId();
+        return {
+          id,
+          ...this._positionsByNodeId.get(id)
+        };
+      }),
+      edges: Array.from(this._graph.getEdges(), edge => ({
+        id: edge.getId(),
+        source: edge.getSourceNodeId(),
+        target: edge.getTargetNodeId()
+      })),
+      options
+    });
+  }
 
   protected override _updateBounds(): void {
     const positions = Array.from(

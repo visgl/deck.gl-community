@@ -10,7 +10,7 @@ import {
   type Widget
 } from '@deck.gl/core';
 import {LineLayer} from '@deck.gl/layers';
-import {FastTextLayer} from '@deck.gl-community/layers/infovis-layers';
+import {FastTextLayer} from '@deck.gl-community/layers/common-layers';
 import {MultiHorizonGraphLayer} from '@deck.gl-community/layers/timeline-layers';
 import {
   MarkdownPanel,
@@ -312,7 +312,7 @@ export function mountHorizonGraphLayerExample(
     id: 'horizon-graph-sidebar',
     placement: 'top-right',
     side: 'right',
-    widthPx: 360,
+    widthPx: 260,
     title: resolvedConfig.sidebarTitle,
     triggerLabel: 'Toggle controls',
     button: true,

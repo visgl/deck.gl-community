@@ -19,7 +19,6 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "paths": {
-      "@deck.gl-community/bing-maps": ["./modules/bing-maps/src"],
       "@deck.gl-community/leaflet": ["./modules/leaflet/src"],
       "@deck.gl-community/editable-layers": ["./modules/editable-layers/src"],
       "@deck.gl-community/experimental": ["./modules/experimental/src"],
@@ -28,7 +27,7 @@
       "@deck.gl-community/widgets": ["./modules/widgets/src"],
       "@deck.gl-community/layers/*": ["./modules/layers/src/*"],
       "@deck.gl-community/layers": ["./modules/layers/src"],
-      "@deck.gl-community/layers/infovis-layers": ["./modules/layers/src/infovis-layers"],
+      "@deck.gl-community/layers/common-layers": ["./modules/layers/src/common-layers"],
       "@deck.gl-community/react": ["./modules/react/src"],
       "@deck.gl-community/template": ["./modules/template/src"],
       "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"],

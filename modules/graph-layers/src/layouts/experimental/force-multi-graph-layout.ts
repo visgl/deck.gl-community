@@ -57,38 +57,6 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     return 1 / Math.min(sourceDegree, targetDegree);
   };
 
-  _generateSimulator() {
-    if (this._simulator) {
-      this._simulator.on('tick', null).on('end', null);
-      this._simulator = null;
-    }
-    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax} = this.props;
-
-    const g = this._d3Graph;
-    this._simulator = d3
-      .forceSimulation(g.nodes)
-      .force(
-        'edge',
-        d3
-          .forceLink(g.edges)
-          // @ts-ignore TODO id not defined?
-          .id(n => n.id)
-          .strength(this._strength)
-      )
-      .force(
-        'charge',
-        d3
-          .forceManyBody()
-          .strength(nBodyStrength)
-          .distanceMin(nBodyDistanceMin)
-          .distanceMax(nBodyDistanceMax)
-      )
-      .force('center', d3.forceCenter())
-      .alpha(alpha);
-    // register event callbacks
-    this._simulator.on('tick', this._onLayoutChange).on('end', this._onLayoutDone);
-  }
-
   start() {
     this._generateSimulator();
     this._simulator.restart();
@@ -190,13 +158,6 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     this._d3Graph.edges = newD3Edges;
   }
 
-  private _getNodeCoordinates(d3Node: D3Node | undefined): [number, number] {
-    if (!d3Node) {
-      return [0, 0];
-    }
-    return [Number.isFinite(d3Node.x) ? d3Node.x : 0, Number.isFinite(d3Node.y) ? d3Node.y : 0];
-  }
-
   /** Returns finite coordinates, using zero for coordinates not assigned by the simulation. */
   getNodePosition = (node: NodeInterface): [number, number] => {
     return this._getNodeCoordinates(this._nodeMap.get(node.getId()));
@@ -264,6 +225,45 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     this._onLayoutChange();
     this._onLayoutDone();
   };
+
+  _generateSimulator() {
+    if (this._simulator) {
+      this._simulator.on('tick', null).on('end', null);
+      this._simulator = null;
+    }
+    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax} = this.props;
+
+    const g = this._d3Graph;
+    this._simulator = d3
+      .forceSimulation(g.nodes)
+      .force(
+        'edge',
+        d3
+          .forceLink(g.edges)
+          // @ts-ignore TODO id not defined?
+          .id(n => n.id)
+          .strength(this._strength)
+      )
+      .force(
+        'charge',
+        d3
+          .forceManyBody()
+          .strength(nBodyStrength)
+          .distanceMin(nBodyDistanceMin)
+          .distanceMax(nBodyDistanceMax)
+      )
+      .force('center', d3.forceCenter())
+      .alpha(alpha);
+    // register event callbacks
+    this._simulator.on('tick', this._onLayoutChange).on('end', this._onLayoutDone);
+  }
+
+  private _getNodeCoordinates(d3Node: D3Node | undefined): [number, number] {
+    if (!d3Node) {
+      return [0, 0];
+    }
+    return [Number.isFinite(d3Node.x) ? d3Node.x : 0, Number.isFinite(d3Node.y) ? d3Node.y : 0];
+  }
 
   protected override _updateBounds(): void {
     const positions = Array.from(this._nodeMap.values(), node => this._normalizePosition(node));

@@ -1,0 +1,20 @@
+---
+title: Satellite orbits
+hide_title: true
+---
+
+import Demo from './satellite-orbits';
+
+<Demo />
+
+:::caution Prototype
+This example is a prototype for a possible OMM/TLE loader and an `OrbitLayer`. It uses
+`satellite.js` for SGP4 propagation in a Web Worker.
+:::
+
+The example shows satellites from CelesTrak general perturbations (GP) data on a `GlobeView`, at
+their altitude. Colors show the orbit class (LEO, MEO, GEO, HEO). Click a satellite to show its
+orbit for one period and its ground track for one period before and after the current time. The
+default data is a small checked-in sample. Select a CelesTrak group to load live data.
+
+Orbital data: [CelesTrak](https://celestrak.org).

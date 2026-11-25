@@ -7,7 +7,7 @@ import geojsonExample from './examples/03-geojson.json';
 import heatmapExample from './examples/04-heatmap.json';
 import markerLayerExample from './examples/05-marker-layer.json';
 import globalGridExample from './examples/06-global-grid.json';
-import infovisBlocksExample from './examples/07-infovis-blocks.json';
+import animatedBlocksExample from './examples/07-animated-blocks.json';
 import horizonGraphExample from './examples/08-horizon-graph.json';
 import pathMarkersExample from './examples/09-path-markers.json';
 import communityMixExample from './examples/10-community-mix.json';
@@ -27,7 +27,7 @@ export const TEMPLATES: Record<string, PlaygroundTemplate> = {
   heatmap: heatmapExample,
   'marker-layer': markerLayerExample,
   'global-grid': globalGridExample,
-  'infovis-blocks': infovisBlocksExample,
+  'animated-blocks': animatedBlocksExample,
   'horizon-graph': horizonGraphExample,
   'path-markers': pathMarkersExample,
   'community-mix': communityMixExample,

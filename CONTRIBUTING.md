@@ -26,9 +26,9 @@ If you consider opening a PR, here are some documentations to get you started:
 Start by setting up a development environment as described above. Once
 installation and tests succeed:
 
-1. Open `examples/bing-maps`, or another example
+1. Open `examples/leaflet/get-started`, or another example
     ```bash
-    cd examples/bing-maps
+    cd examples/leaflet/get-started
     ```
 2. Install the example's dependencies
     ```bash
@@ -55,7 +55,7 @@ deck.gl-community development is governed by the vis.gl Technical Steering Commi
 ### Maintainers
 
 - [Charles Richardson](https://github.com/charlieforward9) - editable-layers
-- [Ib Green](https://github.com/ibgreen) - infovis-layers, graph-layers
+- [Ib Green](https://github.com/ibgreen) - common-layers, timeline-layers, graph-layers
 
 Maintainers of deck.gl-community have commit access to this GitHub repository, and take part in the decision making process.
 

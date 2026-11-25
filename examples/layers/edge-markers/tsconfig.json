@@ -1,0 +1,9 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": ["./*.ts"],
+  "compilerOptions": {
+    "jsxImportSource": "preact",
+    "typeRoots": ["../../../node_modules/@types", "../../../node_modules"],
+    "types": ["vite/client"]
+  }
+}

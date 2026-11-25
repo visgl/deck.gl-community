@@ -66,7 +66,17 @@ const config = {
     ]
   ],
 
+  staticDirectories: ['static', '.standalone-static'],
   plugins: [
+    function standaloneExamples() {
+      return {
+        name: 'standalone-examples',
+        async loadContent() {
+          const {buildStandaloneExamples} = await import('./scripts/build-standalone-examples.mjs');
+          await buildStandaloneExamples();
+        }
+      };
+    },
     [
       '@signalwire/docusaurus-plugin-llms-txt',
       {
@@ -98,6 +108,7 @@ const config = {
       '@docusaurus/plugin-client-redirects',
       {
         redirects: [
+          {from: '/examples/editable-layers/widget', to: '/examples/editable-layers/editor'},
           {from: '/docs/category/components', to: '/docs/category/packages'},
           {
             from: [
@@ -152,7 +163,6 @@ const config = {
           // particular, loaders.gl and MapLibre may require different pbf majors.
           modules: ['node_modules', resolve('node_modules'), resolve('../node_modules')],
           alias: {
-            '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
             '@deck.gl-community/leaflet': resolve('../modules/leaflet/src'),
             '@deck.gl-community/graph-layers': resolve('../modules/graph-layers/src'),
             '@deck.gl-community/react': resolve('../modules/react/src'),
@@ -200,6 +210,10 @@ const config = {
           // These modules break server side bundling
           new rspack.IgnorePlugin({
             resourceRegExp: /asciify-image/
+          }),
+          // The satellite.js WASM threads build imports these only when it runs in Node.
+          new rspack.IgnorePlugin({
+            resourceRegExp: /^node:(module|worker_threads)$/
           })
         ],
         module: {

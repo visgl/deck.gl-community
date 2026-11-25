@@ -10,14 +10,19 @@ Update deck.gl to `10.0.0-alpha.2`, luma.gl to `10.0.0-beta.3`, loaders.gl to
 `5.0.0-rc.2`, math.gl to `5.0.2`, and Probe.gl to `5.0.0`. Import Web Mercator
 utilities from `@math.gl/geospatial/web-mercator`.
 
+The upcoming release removes the `@deck.gl-community/bing-maps` overlay package.
+
 ### Infovis and timeline packages
 
 Install `@deck.gl-community/layers` and update imports from the former standalone packages.
 
 | Previous import | New import |
 | --- | --- |
-| `@deck.gl-community/infovis-layers` | `@deck.gl-community/layers/infovis-layers` |
+| Infovis animation, block, text, view and Arrow helpers | `@deck.gl-community/layers/common-layers` |
+| Infovis time delta, synchronized views and trace formatters | `@deck.gl-community/layers/timeline-layers` |
 | `@deck.gl-community/timeline-layers` | `@deck.gl-community/layers/timeline-layers` |
+
+The `/infovis-layers` subpath has been removed. Its time formatters are now `formatTraceTimeMs` and `formatTraceTimeRangeMs`.
 
 ### Wind field visualization
 

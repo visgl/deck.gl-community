@@ -196,13 +196,16 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       return mountTimeAxisLayerExample(container, mountProps);
     case 'vertical-grid-layer':
       return mountVerticalGridLayerExample(container, mountProps);
-    case 'animation-layer':
-    case 'block-layer':
     case 'time-delta-layer': {
-      const {mountInfovisLayerPrimitivesExample} = await import(
-        '../../../../examples/layers/layer-primitives/app'
+      const {mountTimeDeltaExample} = await import('../../../../examples/layers/time-delta-layer/app');
+      return mountTimeDeltaExample(container, {showInfoOverlay: false, ...mountProps});
+    }
+    case 'animation-layer':
+    case 'block-layer': {
+      const {mountAnimatedBlocksExample} = await import(
+        '../../../../examples/layers/animated-blocks/app'
       );
-      return mountInfovisLayerPrimitivesExample(container, {
+      return mountAnimatedBlocksExample(container, {
         highlight,
         showInfoOverlay: false,
         ...mountProps

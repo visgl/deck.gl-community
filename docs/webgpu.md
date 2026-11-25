@@ -17,10 +17,10 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `path` mode | ✅ | ✅ | Browser-verified upstream `PathLayer`, outlines, and native WGSL markers. |
 | `@deck.gl-community/layers` | `PathOutlineLayer` | ✅ | ✅ | Upstream dual-backend `PathLayer`; a local WGSL dash plugin bridges the still-GLSL-only `PathStyleExtension`. |
 | `@deck.gl-community/layers` | `PathMarkerLayer` | ✅ | ✅ | Browser-verified outlined and dashed paths with native WGSL marker geometry. |
-| `@deck.gl-community/layers/infovis-layers` | `BlockLayer` | ✅ | ✅ | Native WGSL, projection, picking, fills, outlines, and float32 binary attributes. |
-| `@deck.gl-community/layers/infovis-layers` | `AnimationLayer` | ✅ | 🚧 | Depends on the wrapped layer's backend support. |
-| `@deck.gl-community/layers/infovis-layers` | `TimeDeltaLayer` | ✅ | ✅ | Portable interval guides and native WGSL `FastTextLayer` labels. |
-| `@deck.gl-community/layers/infovis-layers` | `FastTextLayer` | ✅ | ✅ | Native WGSL adapted from luma.gl's text-renderer patterns; existing packed glyphs, bitmap/SDF atlases, clipping, alignment, and mipmaps work on both backends. |
+| `@deck.gl-community/layers/common-layers` | `BlockLayer` | ✅ | ✅ | Native WGSL, projection, picking, fills, outlines, and float32 binary attributes. |
+| `@deck.gl-community/layers/common-layers` | `AnimationLayer` | ✅ | 🚧 | Depends on the wrapped layer's backend support. |
+| `@deck.gl-community/layers/timeline-layers` | `TimeDeltaLayer` | ✅ | ✅ | Portable interval guides and native WGSL `FastTextLayer` labels. |
+| `@deck.gl-community/layers/common-layers` | `FastTextLayer` | ✅ | ✅ | Native WGSL adapted from luma.gl's text-renderer patterns; existing packed glyphs, bitmap/SDF atlases, clipping, alignment, and mipmaps work on both backends. |
 | `@deck.gl-community/layers/timeline-layers` | `HorizonGraphLayer` | ✅ | ✅ | Native WGSL; WebGPU preserves float bits in baseline-compatible `r32uint` textures. |
 | `@deck.gl-community/layers/timeline-layers` | `MultiHorizonGraphLayer` | ✅ | ✅ | Portable horizon shaders and dual-backend line dividers. |
 | `@deck.gl-community/layers/timeline-layers` | `TimeAxisLayer` | ✅ | ✅ | Browser-verified grid lines and upstream `TextLayer` tick labels. |
@@ -32,6 +32,10 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/graph-layers` | `RoundedRectangleLayer` | ✅ | ✅ | Rounded corners are CPU-tessellated and rendered with upstream dual-backend `PolygonLayer`. |
 | `@deck.gl-community/graph-layers` | `PathEdgeLayer` and `EdgeArrowLayer` | ✅ | ✅ | Browser-verified upstream path rendering and polygon arrowheads. |
 | `@deck.gl-community/graph-layers` | `FlowPathLayer` | ❌ | ❌ | Existing transform-feedback implementation is incomplete; requires redesign. |
+| `@deck.gl-community/layers/extensions` | `FogExtension` | ✅ | — | Distance fog via the WebGL2 projection and color hooks. |
+| `@deck.gl-community/layers/wind-layers` | `SkyLayer` | ✅ | ✅ | Standalone procedural clear-sky background with sun, haze, and exposure controls. |
+| `@deck.gl-community/layers/wind-layers` | `RainLayer` | ✅ | ✅ | Standalone seeded rain volume with shutter-based streaks. |
+| `@deck.gl-community/layers/wind-layers` | `GrassLayer` | ✅ | ✅ | Procedural grass patches driven by the scene wind. |
 | `@deck.gl-community/layers/wind-layers` | `ParticleLayer` | ✅ | ✅ | Browser-verified WebGL2 transform-feedback and WebGPU compute advection; production rendering uses GPU particle buffers without readbacks. |
 | `@deck.gl-community/layers/wind-layers` | Wind-field utilities and `DelaunayInterpolation` | ✅ | ✅ | Backend-independent station indexing, explicit sampling, and optional CPU rasterization. |
 | `@deck.gl-community/layers/wind-layers/wind-effect` | `WindEffect`, `WindExtension` | ✅ | Partial | Photoreal trees use scene wind on both backends. The stock-layer extension uses the WebGL2 vertex hook. |
@@ -47,7 +51,6 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/layers/splat-layers` | `SplatLayer` | ✅ | ✅ | Prepared anisotropic Gaussians with owner picking, and weighted or sorted transparency; no public foliage-shadow integration. |
 | `@deck.gl-community/layers` | `TreeLayer` | ✅ | ✅ | Photoreal wood, foliage, and crops with GLSL/WGSL scene wind and shadows. |
 | `@deck.gl-community/leaflet` | Leaflet map overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
-| `@deck.gl-community/bing-maps` | Bing Maps overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
 | `@deck.gl-community/widgets` | `DeviceManagerController` and `DeviceTabsWidget` | ✅ | ✅ | Selects and attaches an independently managed real rendering device. |
 
 ## Selecting a graphics backend
@@ -130,7 +133,7 @@ routes now render through the selected backend.
 | Graph geometry | `RoundedRectangleLayer`, `PathEdgeLayer`, and `EdgeArrowLayer` | Replace the fragment-only rounded rectangle and mesh arrowhead with CPU-tessellated polygons, then validate static path and polygon geometry on both backends. Full `GraphLayer` integration remains in progress. |
 | Dedicated redesign | `FlowPathLayer` and animated graph flows | The current transform-feedback implementation is incomplete and WebGL-specific. Replace it with a backend-neutral animation or compute design; do not treat shader translation alone as a port. |
 | Subsequent validation | Editable interactions, geospatial tile sources, graph composition, and basemap layers | Validate picking and drag interactions, tile and texture formats, complete graph styling/layout, and each basemap style independently. |
-| Host-dependent integrations | Leaflet, Bing Maps, and external map renderers | Support depends on the host renderer and canvas ownership. A host-owned WebGL context cannot be switched to WebGPU by adding device tabs. |
+| Host-dependent integrations | Leaflet and external map renderers | Support depends on the host renderer and canvas ownership. A host-owned WebGL context cannot be switched to WebGPU by adding device tabs. |
 
 
 ## Porting a custom layer

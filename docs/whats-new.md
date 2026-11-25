@@ -12,9 +12,13 @@ This page lists module additions and major changes in each release. For detailed
   former `WindLayer` export for station-based wind visualization.
 - **layers:** [SplatLayer](./modules/layers/api-reference/splat-layer.md) is available from
   `@deck.gl-community/layers/splat-layers`. Existing imports remain available.
+- **layers:** experimental [EdgeMarkerLayer](./modules/layers/api-reference/edge-marker-layer.md)
+  shows targets as rings inside the viewport margins and docks arrows for targets outside the
+  margins, behind the camera, or beyond the globe horizon. Import it from
+  `@deck.gl-community/layers/common-layers`.
 - **layers:** [ZoomOpacityExtension](./modules/layers/api-reference/zoom-opacity-extension.md)
   fades layers by viewport zoom on WebGL2 and WebGPU.
-- **layers:** [Infovis and timeline layers](./upgrade-guide.md#infovis-and-timeline-packages) now ship as subpaths of the Layers package.
+- **layers:** Moved the infovis primitives into the [common and timeline subpaths](./upgrade-guide.md#infovis-and-timeline-packages).
 
 - **layers:** Import [SelectionPulseExtension](./modules/layers/api-reference/selection-pulse-extension.md)
   from `@deck.gl-community/layers/extensions`. The existing imports remain available.
@@ -262,6 +266,8 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
 - The BasemapLayers overview includes a synchronized comparison with MapLibre, with map, globe, and first-person views.
 
 - The standalone playground adds local JSON, GeoJSON, CSV, and Arrow IPC uploads with Arrow inspection and `datasource://source-id` layer references.
+- Graph layouts support validated prop-update hooks; `SimpleLayout` refreshes positions when its accessor changes.
+
 - `GraphLayer.layoutTransitionDuration` enables opt-in position interpolation independently of layout redraw throttling.
 
 - The graph viewer includes a live mini-map with click-to-recenter navigation. The playground
@@ -323,3 +329,12 @@ Released: November 20, 2024
 
 - **layers — new module (December 2023):** reusable community layers, initially including tile-source and data-driven 3D tile layers.
 - **graph-layers — new module (April 2023):** graph visualization forked from the archived graph.gl repository.
+
+### Experimental playground SQL adapter
+
+The optional `@deck.gl-community/playground/sql` entry point connects math.gl's SQL parser to
+loaders.gl's Arrow query engine through the existing query-provider contract. Named parameters,
+relational queries, catalog discovery, JSON-backed upload field access, input invalidation and
+optional stable picking IDs are supported. The standalone **SQL filtered points (POC)** example
+demonstrates parameterized filtering and ordering over named Arrow tables. See the SQL provider
+API for supported upstream operations and host responsibilities.

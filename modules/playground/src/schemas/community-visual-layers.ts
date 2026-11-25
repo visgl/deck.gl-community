@@ -30,6 +30,7 @@ import {
   ArcLayerPropsSchema,
   FontSettingsSchema,
   IconLayerPropsSchema,
+  IconMappingEntrySchema,
   LineLayerPropsSchema,
   PathLayerPropsSchema,
   SolidPolygonLayerPropsSchema,
@@ -111,6 +112,43 @@ export const PathMarkerLayerPropsSchema = PathOutlineLayerPropsSchema.extend({
 });
 /** JSON configuration for PathMarkerLayer. */
 export const PathMarkerLayerSchema = defineLayer('PathMarkerLayer', PathMarkerLayerPropsSchema);
+
+/** JSON props for markers that dock to the viewport edge. */
+export const EdgeMarkerLayerPropsSchema = CompositeLayerPropsSchema.extend({
+  getPosition: PositionAccessorSchema.optional(),
+  getColor: ColorAccessorSchema.optional(),
+  getLabel: FunctionSchema.nullable().optional(),
+  margins: z
+    .union([
+      z.number(),
+      z.strictObject({
+        top: z.number().optional(),
+        right: z.number().optional(),
+        bottom: z.number().optional(),
+        left: z.number().optional()
+      })
+    ])
+    .optional(),
+  minDistance: nonnegative.optional(),
+  maxDistance: nonnegative.optional(),
+  yStretch: z.number().optional(),
+  integerCoordinates: z.boolean().optional(),
+  devicePixelRatio: nonnegative.nullable().optional(),
+  behindCamera: z.enum(['dock', 'hide']).optional(),
+  beyondHorizon: z.enum(['dock', 'hide', 'ignore']).optional(),
+  showOnScreen: z.boolean().optional(),
+  iconAtlas: z.string().optional(),
+  iconMapping: z.record(z.string(), IconMappingEntrySchema).optional(),
+  edgeIcon: z.string().optional(),
+  onScreenIcon: z.string().optional(),
+  edgeIconSize: nonnegative.optional(),
+  onScreenIconSize: nonnegative.optional(),
+  fontSize: nonnegative.optional(),
+  fontFamily: z.string().optional(),
+  labelColor: ColorSchema.optional()
+});
+/** JSON configuration for EdgeMarkerLayer. */
+export const EdgeMarkerLayerSchema = defineLayer('EdgeMarkerLayer', EdgeMarkerLayerPropsSchema);
 
 /** JSON props for path, line or arc dependency arrows. */
 export const DependencyArrowLayerPropsSchema = CompositeLayerPropsSchema.extend({
@@ -638,12 +676,57 @@ export const MarkerLayerPropsSchema = IconLayerPropsSchema.extend({
 /** JSON configuration for MarkerLayer. */
 export const MarkerLayerSchema = defineLayer('MarkerLayer', MarkerLayerPropsSchema);
 
+/** JSON props for procedural grass patches with sizes in meters. */
+export const GrassLayerPropsSchema = BaseLayerPropsSchema.extend({
+  getPosition: PositionAccessorSchema.optional(),
+  getSize: createAccessorSchema(z.tuple([nonnegative, nonnegative])).optional(),
+  getHeight: createAccessorSchema(nonnegative).optional(),
+  getBladeWidth: createAccessorSchema(nonnegative).optional(),
+  getColor: ColorAccessorSchema.optional(),
+  getDensity: createAccessorSchema(fraction).optional(),
+  getSeed: createAccessorSchema(z.number().int().min(0).max(16777215)).optional(),
+  bladesPerPatch: z.number().int().min(1).max(4096).optional(),
+  windEnabled: z.boolean().optional(),
+  shadowEnabled: z.literal(false).optional()
+});
+/** JSON configuration for GrassLayer. */
+export const GrassLayerSchema = defineLayer('GrassLayer', GrassLayerPropsSchema);
+
+/** JSON props for a world-space rain volume. */
+export const RainLayerPropsSchema = BaseLayerPropsSchema.extend({
+  position: DeckGLPositionSchema.optional(),
+  size: z.tuple([z.number().positive(), z.number().positive(), z.number().positive()]).optional(),
+  velocity: Vector3Schema.optional(),
+  count: nonnegative.int().max(0x7fffffff).optional(),
+  time: z.number().optional(),
+  exposure: nonnegative.optional(),
+  streakWidth: nonnegative.optional(),
+  color: ColorSchema.optional(),
+  seed: nonnegative.int().max(0xffffffff).optional(),
+  shadowEnabled: z.literal(false).optional()
+});
+/** JSON configuration for RainLayer. */
+export const RainLayerSchema = defineLayer('RainLayer', RainLayerPropsSchema);
+
+/** JSON props for a procedural clear sky. */
+export const SkyLayerPropsSchema = BaseLayerPropsSchema.extend({
+  sunDirection: Vector3Schema.optional(),
+  aerosolOpticalDepth: nonnegative.max(2).optional(),
+  exposure: nonnegative.max(32).optional()
+});
+/** JSON configuration for SkyLayer. */
+export const SkyLayerSchema = defineLayer('SkyLayer', SkyLayerPropsSchema);
+
 /** All public visual, information, timeline and graph layer constructors. */
 export const CommunityVisualLayerSchemas = {
+  SkyLayer: SkyLayerSchema,
+  RainLayer: RainLayerSchema,
+  GrassLayer: GrassLayerSchema,
   FlameTrailLayer: FlameTrailLayerSchema,
   VolumetricVideoLayer: VolumetricVideoLayerSchema,
   PathOutlineLayer: PathOutlineLayerSchema,
   PathMarkerLayer: PathMarkerLayerSchema,
+  EdgeMarkerLayer: EdgeMarkerLayerSchema,
   DependencyArrowLayer: DependencyArrowLayerSchema,
   SkyboxLayer: SkyboxLayerSchema,
   TimeDeltaLayer: TimeDeltaLayerSchema,

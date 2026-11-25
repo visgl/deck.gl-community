@@ -17,6 +17,84 @@ const REQUIRED_PROPS: Partial<Record<LayerName, Record<string, unknown>>> = {
 };
 
 describe('community visual layer schemas', () => {
+  it('validates grass patches with meter dimensions, density, seed and wind', () => {
+    expect(
+      parseLayer('GrassLayer', {
+        coordinateSystem: 'lnglat',
+        data: [{position: [-122.451, 62.346], seed: 19}],
+        getPosition: '@@=position',
+        getSize: [6, 4],
+        getHeight: 0.3,
+        getBladeWidth: 0.025,
+        getColor: [86, 123, 49, 255],
+        getDensity: 0.8,
+        getSeed: '@@=seed',
+        bladesPerPatch: 1024,
+        windEnabled: false,
+        shadowEnabled: false
+      }).success
+    ).toBe(true);
+    for (const props of [
+      {getSize: [4, -4]},
+      {getHeight: -1},
+      {getBladeWidth: -1},
+      {getDensity: 1.1},
+      {getSeed: 16777216},
+      {bladesPerPatch: 4097},
+      {windEnabled: 'yes'},
+      {shadowEnabled: true}
+    ]) {
+      expect(parseLayer('GrassLayer', props).success).toBe(false);
+    }
+  });
+
+  it('validates seeded rain volumes and their explicit clocks', () => {
+    expect(
+      parseLayer('RainLayer', {
+        position: [-122.4194, 37.7749, 40],
+        size: [240, 180, 80],
+        velocity: [2, -1, -8.5],
+        count: 4000,
+        time: -1.5,
+        exposure: 1 / 60,
+        streakWidth: 1.5,
+        color: [200, 220, 235, 128],
+        seed: 0xffffffff,
+        shadowEnabled: false
+      }).success
+    ).toBe(true);
+    for (const props of [
+      {position: [0]},
+      {size: [240, 180, 0]},
+      {velocity: [2, -1]},
+      {count: 1.5},
+      {time: Infinity},
+      {exposure: -1},
+      {streakWidth: -1},
+      {color: [200, 220]},
+      {seed: 0x100000000},
+      {shadowEnabled: true}
+    ]) {
+      expect(parseLayer('RainLayer', props).success).toBe(false);
+    }
+  });
+
+  it('validates SkyLayer directions, haze and exposure', () => {
+    expect(
+      parseLayer('SkyLayer', {sunDirection: [0, 1, 0.35], aerosolOpticalDepth: 0.12, exposure: 1})
+        .success
+    ).toBe(true);
+    for (const props of [
+      {sunDirection: [0, 1]},
+      {aerosolOpticalDepth: -1},
+      {aerosolOpticalDepth: 2.1},
+      {exposure: -1},
+      {exposure: 33}
+    ]) {
+      expect(parseLayer('SkyLayer', props).success).toBe(false);
+    }
+  });
+
   it('accepts finite nonnegative graph layout intervals in JSON', () => {
     for (const interval of [0, 16, 100]) {
       expect(parseLayer('GraphLayer', {layoutUpdateInterval: interval}).success).toBe(true);

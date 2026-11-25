@@ -244,3 +244,38 @@ test('allows retry after failed registration and announces asynchronous status c
   toggle.click();
   expect(liveStatus.textContent).toBe('WebMCP disabled');
 }, 20_000);
+
+test('SQL POC template renders filtered Arrow results', async () => {
+  setContext(undefined);
+  const {host, ready} = mount();
+  await ready();
+  const layer = () => {
+    const deck = vi.mocked(Deck.prototype.setProps).mock.contexts.at(-1) as Deck;
+    return (deck.props.layers as ScatterplotLayer[])[0];
+  };
+  Array.from(host.querySelectorAll('button'))
+    .find(button => button.textContent === 'Examples')!
+    .click();
+  await vi.waitFor(() => expect(host.querySelector('[data-template="sql-points"]')).not.toBeNull());
+  host.querySelector<HTMLButtonElement>('[data-template="sql-points"]')!.click();
+  await vi.waitFor(
+    () =>
+      expect(layer().props.data).toEqual([
+        {position: [40, -20], value: 3},
+        {position: [0, 20], value: 2}
+      ]),
+    {timeout: 10000}
+  );
+  const canvas = host.querySelector('canvas');
+  Array.from(host.querySelectorAll('button'))
+    .find(button => button.textContent === 'Data Sources')!
+    .click();
+  await vi.waitFor(() => expect(host.querySelector('input[type=file]')).not.toBeNull());
+  const transfer = new DataTransfer();
+  transfer.items.add(new File(['[{"position":[10,20],"value":5}]'], 'demo_points.json'));
+  const input = host.querySelector<HTMLInputElement>('input[type=file]')!;
+  input.files = transfer.files;
+  input.dispatchEvent(new Event('change', {bubbles: true}));
+  await vi.waitFor(() => expect(layer().props.data).toEqual([{position: [10, 20], value: 5}]));
+  expect(host.querySelector('canvas')).toBe(canvas);
+});

@@ -1,0 +1,20 @@
+{
+  "name": "satellite-orbits-example",
+  "version": "9.4.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../../vite.config.local.mjs",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@deck.gl/core": "10.0.0-alpha.2",
+    "@deck.gl/layers": "10.0.0-alpha.2",
+    "satellite.js": "^7.2.0"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}
