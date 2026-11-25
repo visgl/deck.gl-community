@@ -187,17 +187,6 @@
       },
       {
         "type": "category",
-        "label": "Bing Maps",
-        "link": {
-          "type": "doc",
-          "id": "modules/bing-maps/README"
-        },
-        "items": [
-          "modules/bing-maps/api-reference/deck-overlay"
-        ]
-      },
-      {
-        "type": "category",
         "label": "Editable Layers",
         "link": {
           "type": "doc",

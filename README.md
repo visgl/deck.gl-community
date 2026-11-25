@@ -19,7 +19,6 @@ An awesome list of community-driven modules, integrations, and tools built with 
 | **[widgets](./modules/widgets)**                 | [![npm](https://img.shields.io/npm/v/@deck.gl-community/widgets.svg)](https://www.npmjs.com/package/@deck.gl-community/widgets)                 | UI widgets (pan, zoom range, etc.) that integrate with deck.gl view state management.          |
 | **[react](./modules/react)**                     | [![npm](https://img.shields.io/npm/v/@deck.gl-community/react.svg)](https://www.npmjs.com/package/@deck.gl-community/react)                     | React components and hooks for building deck.gl applications.                                  |
 | **[leaflet](./modules/leaflet)**                 | [![npm](https://img.shields.io/npm/v/@deck.gl-community/leaflet.svg)](https://www.npmjs.com/package/@deck.gl-community/leaflet)                 | Leaflet custom layer that wraps deck.gl, rendering layers synchronized with a Leaflet basemap. |
-| **[bing-maps](./modules/bing-maps)**             | [![npm](https://img.shields.io/npm/v/@deck.gl-community/bing-maps.svg)](https://www.npmjs.com/package/@deck.gl-community/bing-maps)             | deck.gl as a Bing Maps custom layer.                                                           |
 | **[experimental](./modules/experimental)**       | [![npm](https://img.shields.io/npm/v/@deck.gl-community/experimental.svg)](https://www.npmjs.com/package/@deck.gl-community/experimental)       | Early-stage, exploratory layers and utilities — use at your own risk.                          |
 
 ---

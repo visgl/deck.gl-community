@@ -40,8 +40,7 @@ export default defineConfig(async () => {
       'import.meta.env.DECK_GL_TERRAIN_WEBGPU': JSON.stringify(Boolean(deckSource)),
       'process.env.GoogleMapsAPIKey': JSON.stringify(process.env.GoogleMapsAPIKey),
       'process.env.GoogleMapsMapId': JSON.stringify(process.env.GoogleMapsMapId),
-      'process.env.MapboxAccessToken': JSON.stringify(process.env.MapboxAccessToken),
-      'process.env.BingMapsAPIKey': JSON.stringify(process.env.BingMapsAPIKey)
+      'process.env.MapboxAccessToken': JSON.stringify(process.env.MapboxAccessToken)
     },
     server: {
       ...(deckSource && {fs: {allow: [rootDir, resolve(deckSource)]}}),

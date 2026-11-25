@@ -484,14 +484,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/bing-maps@workspace:*, @deck.gl-community/bing-maps@workspace:modules/bing-maps":
-  version: 0.0.0-use.local
-  resolution: "@deck.gl-community/bing-maps@workspace:modules/bing-maps"
-  peerDependencies:
-    "@deck.gl/core": 10.0.0-alpha.2
-  languageName: unknown
-  linkType: soft
-
 "@deck.gl-community/editable-layers@workspace:*, @deck.gl-community/editable-layers@workspace:modules/editable-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/editable-layers@workspace:modules/editable-layers"
@@ -5223,22 +5215,6 @@ __metadata:
   checksum: 10c0/d433db5fba086d1585e268c0b0b7ae6ec359df60b9135112d1fd4dcf2f8a8820caab7e2523bbbca0a9cae0725486f67a6663a87b5637f0e58f4201985e6e5b0b
   languageName: node
   linkType: hard
-
-"bing-deck-get-started-example@workspace:examples/bing-maps/get-started":
-  version: 0.0.0-use.local
-  resolution: "bing-deck-get-started-example@workspace:examples/bing-maps/get-started"
-  dependencies:
-    "@deck.gl-community/bing-maps": "workspace:*"
-    "@deck.gl/core": "npm:10.0.0-alpha.2"
-    "@deck.gl/layers": "npm:10.0.0-alpha.2"
-    "@loaders.gl/core": "npm:5.0.0-rc.2"
-    "@luma.gl/core": "npm:10.0.0-beta.3"
-    "@luma.gl/engine": "npm:10.0.0-beta.3"
-    "@luma.gl/shaders": "npm:10.0.0-beta.3"
-    typescript: "npm:6.0.3"
-    vite: "npm:^7.3.1"
-  languageName: unknown
-  linkType: soft
 
 "bl@npm:4.1.0, bl@npm:^4.0.3, bl@npm:^4.1.0":
   version: 4.1.0

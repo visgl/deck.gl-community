@@ -152,7 +152,6 @@ const config = {
           // particular, loaders.gl and MapLibre may require different pbf majors.
           modules: ['node_modules', resolve('node_modules'), resolve('../node_modules')],
           alias: {
-            '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
             '@deck.gl-community/leaflet': resolve('../modules/leaflet/src'),
             '@deck.gl-community/graph-layers': resolve('../modules/graph-layers/src'),
             '@deck.gl-community/react': resolve('../modules/react/src'),
