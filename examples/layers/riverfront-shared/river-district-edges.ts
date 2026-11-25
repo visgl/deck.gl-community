@@ -22,9 +22,9 @@ export function makeEdges(
   const segments: number[] = [];
   features.forEach((feature, featureIndex) => {
     const mesh = makeCityMesh([feature]);
-    const positions = new Float32Array((mesh.length / 13) * 3);
-    for (let offset = 0; offset < mesh.length; offset += 13) {
-      positions.set(mesh.subarray(offset, offset + 3), (offset / 13) * 3);
+    const positions = new Float32Array((mesh.length / 10) * 3);
+    for (let offset = 0; offset < mesh.length; offset += 10) {
+      positions.set(mesh.subarray(offset, offset + 3), (offset / 10) * 3);
     }
     const geometry = new Geometry({topology: 'triangle-list', attributes: {POSITION: positions}});
     const edges = makeEdgeGeometry(geometry, options);

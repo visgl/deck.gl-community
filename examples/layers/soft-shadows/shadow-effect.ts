@@ -83,11 +83,11 @@ void main() {
 @fragment fn fragmentMain() {}`,
           shaderInputs: new ShaderInputs({riverfrontCaster: casterUniforms}),
           topology: 'triangle-list',
-          vertexCount: mesh.length / 13,
+          vertexCount: mesh.length / 10,
           bufferLayout: [
             {
               name: 'vertices',
-              byteStride: 52,
+              byteStride: 40,
               attributes: [{attribute: 'position', format: 'float32x3', byteOffset: 0}]
             }
           ],
