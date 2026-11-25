@@ -13,3 +13,4 @@ export {
 export {SunLayer, type SunLayerProps} from './sun-layer';
 export {MoonLayer, type MoonLayerProps} from './moon-layer';
 export {StarfieldLayer, type StarfieldLayerProps} from './starfield-layer';
+export {getMeterOffsetPosition} from './projection/meter-offset-position';
