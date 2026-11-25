@@ -17,10 +17,10 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `path` mode | ✅ | ✅ | Browser-verified upstream `PathLayer`, outlines, and native WGSL markers. |
 | `@deck.gl-community/layers` | `PathOutlineLayer` | ✅ | ✅ | Upstream dual-backend `PathLayer`; a local WGSL dash plugin bridges the still-GLSL-only `PathStyleExtension`. |
 | `@deck.gl-community/layers` | `PathMarkerLayer` | ✅ | ✅ | Browser-verified outlined and dashed paths with native WGSL marker geometry. |
-| `@deck.gl-community/layers/infovis-layers` | `BlockLayer` | ✅ | ✅ | Native WGSL, projection, picking, fills, outlines, and float32 binary attributes. |
-| `@deck.gl-community/layers/infovis-layers` | `AnimationLayer` | ✅ | 🚧 | Depends on the wrapped layer's backend support. |
-| `@deck.gl-community/layers/infovis-layers` | `TimeDeltaLayer` | ✅ | ✅ | Portable interval guides and native WGSL `FastTextLayer` labels. |
-| `@deck.gl-community/layers/infovis-layers` | `FastTextLayer` | ✅ | ✅ | Native WGSL adapted from luma.gl's text-renderer patterns; existing packed glyphs, bitmap/SDF atlases, clipping, alignment, and mipmaps work on both backends. |
+| `@deck.gl-community/layers/common-layers` | `BlockLayer` | ✅ | ✅ | Native WGSL, projection, picking, fills, outlines, and float32 binary attributes. |
+| `@deck.gl-community/layers/common-layers` | `AnimationLayer` | ✅ | 🚧 | Depends on the wrapped layer's backend support. |
+| `@deck.gl-community/layers/timeline-layers` | `TimeDeltaLayer` | ✅ | ✅ | Portable interval guides and native WGSL `FastTextLayer` labels. |
+| `@deck.gl-community/layers/common-layers` | `FastTextLayer` | ✅ | ✅ | Native WGSL adapted from luma.gl's text-renderer patterns; existing packed glyphs, bitmap/SDF atlases, clipping, alignment, and mipmaps work on both backends. |
 | `@deck.gl-community/layers/timeline-layers` | `HorizonGraphLayer` | ✅ | ✅ | Native WGSL; WebGPU preserves float bits in baseline-compatible `r32uint` textures. |
 | `@deck.gl-community/layers/timeline-layers` | `MultiHorizonGraphLayer` | ✅ | ✅ | Portable horizon shaders and dual-backend line dividers. |
 | `@deck.gl-community/layers/timeline-layers` | `TimeAxisLayer` | ✅ | ✅ | Browser-verified grid lines and upstream `TextLayer` tick labels. |

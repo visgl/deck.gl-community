@@ -6,10 +6,10 @@ import {color, getShaderAssembler, picking, project32} from '@deck.gl/core';
 import type {ShaderModule} from '@luma.gl/shaders';
 import {describe, expect, it} from 'vitest';
 
-import blockSource from '../../src/infovis-layers/layers/block-layer/block-layer.wgsl';
-import {blockUniforms} from '../../src/infovis-layers/layers/block-layer/block-layer-uniforms';
-import fastTextSource from '../../src/infovis-layers/layers/fast-text-layer/fast-text-layer.wgsl';
-import {fastTextUniforms} from '../../src/infovis-layers/layers/fast-text-layer/fast-text-layer';
+import blockSource from '../../src/common-layers/block-layer/block-layer.wgsl';
+import {blockUniforms} from '../../src/common-layers/block-layer/block-layer-uniforms';
+import fastTextSource from '../../src/common-layers/fast-text-layer/fast-text-layer.wgsl';
+import {fastTextUniforms} from '../../src/common-layers/fast-text-layer/fast-text-layer';
 import windTriangleSource from '../../src/wind-layers/wind-layer/wind-triangle-layer.wgsl';
 import horizonSource from '../../src/timeline-layers/layers/horizon-graph-layer/horizon-graph-layer.wgsl';
 import {horizonLayerUniforms} from '../../src/timeline-layers/layers/horizon-graph-layer/horizon-graph-layer-uniforms';

@@ -81,6 +81,9 @@
             "label": "Common",
             "items": [
               "modules/layers/api-reference/flame-trail-layer",
+              "modules/layers/api-reference/animation-layer",
+              "modules/layers/api-reference/block-layer",
+              "modules/layers/api-reference/fast-text-layer",
               "modules/layers/api-reference/skybox-layer",
               "modules/layers/api-reference/sky-layers",
               "modules/layers/api-reference/effect-layers",
@@ -148,19 +151,6 @@
           },
           {
             "type": "category",
-            "label": "Infovis",
-            "link": {
-              "type": "doc",
-              "id": "modules/infovis-layers/README"
-            },
-            "items": [
-              "modules/infovis-layers/api-reference/animation-layer",
-              "modules/infovis-layers/api-reference/block-layer",
-              "modules/infovis-layers/api-reference/time-delta-layer"
-            ]
-          },
-          {
-            "type": "category",
             "label": "Timeline",
             "link": {
               "type": "doc",
@@ -169,6 +159,7 @@
             "items": [
               "modules/timeline-layers/api-reference/horizon-graph-layer",
               "modules/timeline-layers/api-reference/multi-horizon-graph-layer",
+              "modules/timeline-layers/api-reference/time-delta-layer",
               "modules/timeline-layers/api-reference/time-axis-layer",
               "modules/timeline-layers/api-reference/vertical-grid-layer"
             ]
