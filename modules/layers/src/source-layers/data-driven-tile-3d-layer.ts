@@ -100,7 +100,7 @@ export class DataDrivenTile3DLayer<
     const {props, oldProps, changeFlags} = params;
 
     if (props.data && props.data !== oldProps.data) {
-      this._loadTileset(props.data);
+      this.loadTileset(props.data);
     } else if (props.colorsByAttribute !== oldProps.colorsByAttribute) {
       this.setState({colorsByAttribute: props.colorsByAttribute});
       this._colorizeTileset();
@@ -124,7 +124,7 @@ export class DataDrivenTile3DLayer<
   }
 
   /** Loads the root tileset and installs traversal hooks on the resolved `Tileset3D`. */
-  private override async _loadTileset(tilesetUrl: string): Promise<void> {
+  protected async loadTileset(tilesetUrl: string): Promise<void> {
     let {loadOptions = {}} = this.props;
 
     let loader: any = this.props.loader || this.props.loaders;

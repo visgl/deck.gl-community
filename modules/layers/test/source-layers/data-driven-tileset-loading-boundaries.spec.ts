@@ -67,7 +67,7 @@ function createLayer(props: Record<string, unknown>) {
     /** Local state inspected after source initialization. */
     state: DataDrivenTile3DLayer['state'];
     /** Invokes the layer's root-loading lifecycle directly. */
-    _loadTileset: (url: string) => Promise<void>;
+    loadTileset: (url: string) => Promise<void>;
   };
 }
 
@@ -92,7 +92,7 @@ test('data-driven root loading selects array loaders and merges preload credenti
     onTilesetLoad,
     loadOptions: {core: {credentials: [existingCredential]}}
   });
-  await layer._loadTileset('https://archive.invalid/tileset.json');
+  await layer.loadTileset('https://archive.invalid/tileset.json');
   expect(loader.preload).toHaveBeenCalledOnce();
   expect(loadingMocks.load).toHaveBeenCalledWith(
     'https://archive.invalid/tileset.json',
@@ -112,7 +112,7 @@ test('data-driven root loading merges header fallbacks and initializes viewports
     preload: vi.fn(async () => ({credentials: [], headers: {authorization: 'token'}}))
   };
   const layer = createLayer({loader, loadOptions: {core: {fetch: {credentials: 'include'}}}});
-  await layer._loadTileset('tileset.json');
+  await layer.loadTileset('tileset.json');
   expect(loadingMocks.load).toHaveBeenCalledWith(
     'tileset.json',
     loader,
@@ -136,7 +136,7 @@ test.each([
 ])('data-driven root loading accepts minimal loaders (preload: %s)', async withPreload => {
   const loader = {id: 'tiles', ...(withPreload ? {preload: vi.fn(async () => ({}))} : {})};
   const layer = createLayer({loader});
-  await layer._loadTileset('tileset.json');
+  await layer.loadTileset('tileset.json');
   expect(loadingMocks.load).toHaveBeenCalledWith('tileset.json', loader, {});
   expect(layer.state.tileset3d).toBeTruthy();
 });
@@ -145,7 +145,7 @@ test('data-driven root loading propagates parser failures without clearing exist
   const failure = new Error('invalid tileset');
   loadingMocks.load.mockRejectedValue(failure);
   const layer = createLayer({loader: {id: 'tiles'}});
-  await expect(layer._loadTileset('tileset.json')).rejects.toBe(failure);
+  await expect(layer.loadTileset('tileset.json')).rejects.toBe(failure);
   expect(layer.state.layerMap).toEqual({stale: {}});
   expect(loadingMocks.options).toBeNull();
 });

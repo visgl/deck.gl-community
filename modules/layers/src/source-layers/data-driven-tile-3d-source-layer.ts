@@ -25,17 +25,11 @@ export class SourceDataDrivenTile3DLayer<
   /** deck.gl layer name used for warnings, defaults, and diagnostics. */
   static layerName = 'SourceDataDrivenTile3DLayer';
 
-  /** Install source-backed loading hooks after the base layer initializes its state. */
-  initializeState(): void {
-    super.initializeState();
-    (this as any)._loadTileset = this.loadSourceTileset.bind(this);
-  }
-
   /**
    * Loads a tileset using explicit source construction.
    * @param tilesetUrl Root tileset metadata URL.
    */
-  private async loadSourceTileset(tilesetUrl: string): Promise<void> {
+  protected override async loadTileset(tilesetUrl: string): Promise<void> {
     let {loadOptions = {}} = this.props;
 
     // TODO: deprecate `loader` in v9.0

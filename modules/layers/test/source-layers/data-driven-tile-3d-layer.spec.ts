@@ -120,7 +120,7 @@ test('data-driven updateState handles data, styling, viewport, loading, and fall
     .spyOn(Tile3DLayer.prototype as any, 'updateState')
     .mockImplementation(() => {});
   const layer = createLayer();
-  layer._loadTileset = vi.fn();
+  layer.loadTileset = vi.fn();
   layer._colorizeTileset = vi.fn();
   layer._filterTileset = vi.fn();
 
@@ -129,7 +129,7 @@ test('data-driven updateState handles data, styling, viewport, loading, and fall
     oldProps: {...layer.props, data: null},
     changeFlags: {}
   });
-  expect(layer._loadTileset).toHaveBeenCalledWith('tileset.json');
+  expect(layer.loadTileset).toHaveBeenCalledWith('tileset.json');
 
   const colorsByAttribute = {attributeName: 'height'};
   layer.updateState({

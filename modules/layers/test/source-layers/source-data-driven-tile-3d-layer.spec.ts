@@ -63,6 +63,22 @@ function createLayer(loader: Record<string, unknown>) {
   return {layer, onTilesetLoad};
 }
 
+test('dispatches a data change to the source loader on a replacement layer', async () => {
+  const {layer} = createLayer({id: 'tiles'});
+  const replacement = layer.clone({data: 'replacement.json'});
+  replacement.state = layer.state;
+  replacement.setState = layer.setState;
+  replacement._updateTileset = vi.fn();
+  replacement.updateState({props: replacement.props, oldProps: layer.props, changeFlags: {}});
+  await vi.waitFor(() =>
+    expect(sourceLayerMocks.createSource).toHaveBeenCalledWith(
+      'replacement.json',
+      expect.objectContaining({id: 'tiles'}),
+      expect.anything()
+    )
+  );
+});
+
 test('SourceDataDrivenTile3DLayer merges preload URLs and credentials', async () => {
   const loader = {
     id: 'tiles',
@@ -74,7 +90,7 @@ test('SourceDataDrivenTile3DLayer merges preload URLs and credentials', async ()
   };
   const {layer, onTilesetLoad} = createLayer(loader);
 
-  await layer.loadSourceTileset('tileset.json');
+  await layer.loadTileset('tileset.json');
 
   expect(sourceLayerMocks.createSource).toHaveBeenCalledWith(
     'resolved.json',
@@ -95,7 +111,7 @@ test('SourceDataDrivenTile3DLayer forwards preload headers for legacy loaders', 
   const {layer} = createLayer(loader);
   layer.props = {...layer.props, loaders: undefined, loader};
 
-  await layer.loadSourceTileset('tileset.json');
+  await layer.loadTileset('tileset.json');
 
   expect(sourceLayerMocks.createSource).toHaveBeenCalledWith(
     'tileset.json',

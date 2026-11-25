@@ -59,7 +59,17 @@ export function convertGeoArrowTableToBinaryFeatureCollection(
     const {binaryGeometries} = convertGeoArrowToBinaryFeatureCollection(column, encoding, {
       triangulate: isPolygonEncoding(encoding)
     });
-    return completeBinaryFeatureCollection(mergeNativeBinaryGeometries(binaryGeometries, encoding));
+    const collection = mergeNativeBinaryGeometries(binaryGeometries, encoding);
+    const getProperties = createArrowPropertyResolver(table, geometryColumn);
+    for (const bin of [collection.points, collection.lines, collection.polygons]) {
+      if (bin) {
+        bin.properties = bin.properties.map((properties, rowIndex) => ({
+          ...properties,
+          ...getProperties(rowIndex)
+        }));
+      }
+    }
+    return completeBinaryFeatureCollection(collection);
   }
 
   if (encoding === 'geoarrow.wkb' || encoding === 'geoarrow.wkt') {
