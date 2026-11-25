@@ -32,6 +32,11 @@
     "./vega-layers": {
       "types": "./dist/vega-layers/index.d.ts",
       "import": "./dist/vega-layers/index.js"
+    },
+    "./sql": {
+      "types": "./dist/sql.d.ts",
+      "import": "./dist/sql.js",
+      "require": "./dist/sql.cjs"
     }
   },
   "files": [
@@ -42,7 +47,7 @@
   ],
   "scripts": {
     "prepack": "yarn --cwd ../.. build",
-    "build": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs && node ./scripts/build-arrow-worker.mjs",
+    "build": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs && node ./scripts/build-arrow-worker.mjs && esbuild src/sql.ts --bundle --packages=external --platform=neutral --format=cjs --outfile=dist/sql.cjs",
     "build:schema": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs",
     "test": "vitest run",
     "test-watch": "vitest"
@@ -52,13 +57,14 @@
     "@deck.gl/core": "10.0.0-alpha.2",
     "@deck.gl/json": "10.0.0-alpha.2",
     "@deck.gl/layers": "10.0.0-alpha.2",
-    "@loaders.gl/core": "5.0.0-rc.2",
+    "@loaders.gl/core": "5.0.0",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
     "@luma.gl/shaders": "10.0.0-beta.3",
     "vega": "^6.2.0"
   },
   "dependencies": {
+    "@math.gl/sql": "5.0.3",
     "apache-arrow": "^21.2.0",
     "d3-color": "^3.1.0",
     "d3-ease": "^3.0.1",
@@ -70,7 +76,7 @@
     "@deck.gl/core": "10.0.0-alpha.2",
     "@deck.gl/json": "10.0.0-alpha.2",
     "@deck.gl/layers": "10.0.0-alpha.2",
-    "@loaders.gl/core": "5.0.0-rc.2",
+    "@loaders.gl/core": "5.0.0",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
     "@luma.gl/shaders": "10.0.0-beta.3",

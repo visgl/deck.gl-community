@@ -69,7 +69,7 @@
     "@deck.gl/core": "10.0.0-alpha.2",
     "@deck.gl/layers": "10.0.0-alpha.2",
     "@deck.gl/widgets": "10.0.0-alpha.2",
-    "@loaders.gl/core": "5.0.0-rc.2",
+    "@loaders.gl/core": "5.0.0",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
     "zod": "^4.0.0"
