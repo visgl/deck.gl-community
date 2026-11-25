@@ -8,7 +8,7 @@ import {webgl2Adapter, type WebGLDevice} from '@luma.gl/core/webgl';
 import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/core/webgpu';
 import {Deck, FirstPersonView} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core/matrix';
-import {requireWebGPUAdapter} from '../webgpu-test-utils';
+import {requireWebGPUAdapter} from '../../common-layers/webgpu-test-utils';
 import {SkyboxLayer} from '@deck.gl-community/layers/sky-layers';
 
 const SIZE = 64;
