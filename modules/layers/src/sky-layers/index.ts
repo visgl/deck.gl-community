@@ -16,3 +16,4 @@ export {StarfieldLayer, type StarfieldLayerProps} from './starfield-layer';
 
 export {SkyboxLayer, type SkyboxLayerProps} from './skybox-layer/skybox-layer';
 export {ProceduralSkyLayer, type ProceduralSkyLayerProps} from './procedural-sky-layer/index';
+export {getMeterOffsetPosition} from './projection/meter-offset-position';

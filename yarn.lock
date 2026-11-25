@@ -557,6 +557,38 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/example-city-scene@workspace:examples/layers/city-scene":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-city-scene@workspace:examples/layers/city-scene"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/example-depth-of-field@workspace:examples/layers/depth-of-field":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-depth-of-field@workspace:examples/layers/depth-of-field"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/example-edge-markers@workspace:examples/layers/edge-markers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/example-edge-markers@workspace:examples/layers/edge-markers"
@@ -570,6 +602,22 @@ __metadata:
     "@luma.gl/core": "npm:10.0.0-beta.3"
     "@luma.gl/engine": "npm:10.0.0-beta.3"
     "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/example-fireflies@workspace:examples/layers/fireflies":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-fireflies@workspace:examples/layers/fireflies"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -595,6 +643,39 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/example-flow-particles@workspace:examples/layers/flow-particles":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-flow-particles@workspace:examples/layers/flow-particles"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/graph": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/example-global-illumination@workspace:examples/layers/global-illumination":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-global-illumination@workspace:examples/layers/global-illumination"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/example-grass-layer@workspace:examples/vegetation-layers/grass-layer":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/example-grass-layer@workspace:examples/vegetation-layers/grass-layer"
@@ -606,6 +687,118 @@ __metadata:
     "@luma.gl/core": "npm:10.0.0-beta.3"
     "@luma.gl/engine": "npm:10.0.0-beta.3"
     "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/example-hdr-night-lighting@workspace:examples/layers/hdr-night-lighting":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-hdr-night-lighting@workspace:examples/layers/hdr-night-lighting"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/example-light-shafts@workspace:examples/layers/light-shafts":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-light-shafts@workspace:examples/layers/light-shafts"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/example-pattern-fills@workspace:examples/layers/pattern-fills":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-pattern-fills@workspace:examples/layers/pattern-fills"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/example-point-glow@workspace:examples/layers/point-glow":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-point-glow@workspace:examples/layers/point-glow"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/example-scene-buffers@workspace:examples/layers/scene-buffers":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-scene-buffers@workspace:examples/layers/scene-buffers"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/example-soft-shadows@workspace:examples/layers/soft-shadows":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-soft-shadows@workspace:examples/layers/soft-shadows"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/example-styled-paths@workspace:examples/layers/styled-paths":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-styled-paths@workspace:examples/layers/styled-paths"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -625,6 +818,22 @@ __metadata:
     "@luma.gl/core": "npm:10.0.0-beta.3"
     "@luma.gl/engine": "npm:10.0.0-beta.3"
     "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/example-weather@workspace:examples/layers/weather":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-weather@workspace:examples/layers/weather"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
@@ -695,6 +904,7 @@ __metadata:
     "@loaders.gl/images": "npm:5.0.0-rc.2"
     "@loaders.gl/raster": "npm:5.0.0-rc.2"
     "@loaders.gl/tiles": "npm:5.0.0-rc.2"
+    "@luma.gl/anari": "npm:10.0.0-beta.3"
     "@luma.gl/core": "npm:10.0.0-beta.3"
     "@luma.gl/engine": "npm:10.0.0-beta.3"
     "@luma.gl/graph": "npm:10.0.0-beta.3"
@@ -716,6 +926,7 @@ __metadata:
     "@deck.gl/layers": 10.0.0-alpha.2
     "@deck.gl/mesh-layers": 10.0.0-alpha.2
     "@loaders.gl/core": 5.0.0
+    "@luma.gl/anari": 10.0.0-beta.3
     "@luma.gl/core": 10.0.0-beta.3
     "@luma.gl/engine": 10.0.0-beta.3
     "@luma.gl/graph": 10.0.0-beta.3
@@ -725,6 +936,8 @@ __metadata:
     delaunator: ^5.1.0
     h3-js: ^4.2.1
   peerDependenciesMeta:
+    "@luma.gl/anari":
+      optional: true
     "@luma.gl/graph":
       optional: true
     "@math.gl/earth":
@@ -2332,6 +2545,22 @@ __metadata:
   peerDependencies:
     "@loaders.gl/core": ~5.0.0-alpha.0
   checksum: 10c0/0d8fe4920bc1fa47a61be725fa0fc9a11d23cac45da6a1f373a66bf4f44abe34346e072246e7817e1bfa87cf10581b29c1d21fa41d9ae69a174d9eae4f8ebef9
+  languageName: node
+  linkType: hard
+
+"@luma.gl/anari@npm:10.0.0-beta.3":
+  version: 10.0.0-beta.3
+  resolution: "@luma.gl/anari@npm:10.0.0-beta.3"
+  dependencies:
+    "@luma.gl/graph": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:^5.0.0"
+    "@math.gl/geometry": "npm:^5.0.0"
+    zod: "npm:^4.4.3"
+  peerDependencies:
+    "@luma.gl/core": ~10.0.0-beta.3
+    "@luma.gl/engine": ~10.0.0-beta.3
+    "@luma.gl/shaders": ~10.0.0-beta.3
+  checksum: 10c0/e303e35161985c9fd13dc771feb27961c06e4368848a24028cf7f0859966c4a55c03981ce1a04c0e2603354c8eb005c6dd274fe6be4d2b7f1d5228133be23215
   languageName: node
   linkType: hard
 
@@ -13248,7 +13477,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:^4.0.0, zod@npm:^4.1.12":
+"zod@npm:^4.0.0, zod@npm:^4.1.12, zod@npm:^4.4.3":
   version: 4.6.7
   resolution: "zod@npm:4.6.7"
   checksum: 10c0/4ce2eb14034317b7254e347ca37b5ad591cf8333147030cf05b9b5d31692d45073f7f2747aa50cf8c6b29012194d2b22978cecc89969cf34a0d18e89d0ee7d7b

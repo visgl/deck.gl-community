@@ -41,7 +41,22 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/layers/effect-layers',
-      items: ['layers/sketch-edges']
+      items: [
+        'layers/weather',
+        'layers/soft-shadows',
+        'layers/city-scene',
+        'layers/flow-particles',
+        'layers/point-glow',
+        'layers/fireflies',
+        'layers/hdr-night-lighting',
+        'layers/global-illumination',
+        'layers/light-shafts',
+        'layers/depth-of-field',
+        'layers/scene-buffers',
+        'layers/pattern-fills',
+        'layers/styled-paths',
+        'layers/sketch-edges'
+      ]
     },
     {
       type: 'category',
