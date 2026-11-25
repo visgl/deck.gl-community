@@ -154,7 +154,6 @@ class MVTSourceLoaderLayer extends MVTLayer<any> {
     const {props, changeFlags} = params;
     if (changeFlags.dataChanged && props.data) {
       this.setState({
-        vectorTileSource: props.data,
         binary: props.data.mimeType === 'application/vnd.apache.arrow.stream'
       });
     }
@@ -163,7 +162,7 @@ class MVTSourceLoaderLayer extends MVTLayer<any> {
   /** Fetch tile payloads directly from the wrapped loaders.gl tile source. */
   async getTileData(parameters: GetTileDataParameters): Promise<any> {
     try {
-      const vectorTileSource = (this.state as any).vectorTileSource as TileSourceRuntime | null;
+      const vectorTileSource = this.props.data as unknown as TileSourceRuntime | null;
       const data = vectorTileSource ? await vectorTileSource.getTileData(parameters) : null;
       return getArrowTileRenderData(data);
     } catch (error) {

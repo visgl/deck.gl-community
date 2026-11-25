@@ -24,7 +24,10 @@ import type {
 } from '@loaders.gl/core/loader-utils';
 import {supportsSourceCreation} from '@loaders.gl/core/loader-utils';
 import {ImageSet, type ImageSetRequest} from '@loaders.gl/tiles';
-import {projectWGS84ToPseudoMercator} from './image-source-layer/utils';
+import {
+  projectWGS84ToPseudoMercator,
+  unprojectPseudoMercatorBounds
+} from './image-source-layer/utils';
 import {
   finalizeOwnedSource,
   getFirstSourceLayerName,
@@ -273,12 +276,10 @@ export class ImageSourceLayer extends CompositeLayer<ImageSourceLayerProps> {
       image,
       parameters: {boundingBox, crs}
     } = currentRequest;
-    const bounds = [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]] as [
-      number,
-      number,
-      number,
-      number
-    ];
+    const bounds: [number, number, number, number] =
+      crs === 'EPSG:3857'
+        ? unprojectPseudoMercatorBounds(boundingBox)
+        : [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]];
 
     return new BitmapLayer({
       ...this.getSubLayerProps({id: 'bitmap'}),

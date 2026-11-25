@@ -143,10 +143,11 @@ test('data-driven updateState handles data, styling, viewport, loading, and fall
 
   const filtersByAttribute = {attributeName: 'height'};
   layer.updateState({
-    props: {...layer.props, filtersByAttribute},
-    oldProps: {...layer.props, filtersByAttribute: null},
+    props: {...layer.props, filtersByAttribute, colorsByAttribute},
+    oldProps: {...layer.props, filtersByAttribute: null, colorsByAttribute: null},
     changeFlags: {}
   });
+  expect(layer._colorizeTileset).toHaveBeenCalledTimes(2);
   expect(layer.state.filtersByAttribute).toBe(filtersByAttribute);
   expect(layer._filterTileset).toHaveBeenCalled();
 

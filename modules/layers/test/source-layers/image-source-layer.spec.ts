@@ -316,7 +316,14 @@ test('ImageSourceLayer renders accepted images in geographic and Cartesian coord
   expect(geographic.props._imageCoordinateSystem).toBe('lnglat');
 
   layer.state.imageSet.currentRequest.parameters.crs = 'EPSG:3857';
-  expect(layer.renderLayers().props._imageCoordinateSystem).toBe('cartesian');
+  layer.state.imageSet.currentRequest.parameters.boundingBox = [
+    [0, 0],
+    [1113194.9079, 1118889.9749]
+  ];
+  const mercator = layer.renderLayers();
+  expect(mercator.props._imageCoordinateSystem).toBe('cartesian');
+  expect(mercator.props.bounds[2]).toBeCloseTo(10);
+  expect(mercator.props.bounds[3]).toBeCloseTo(10);
 });
 
 test('ImageSourceLayer skips incomplete requests and WMS requests without layers', async () => {

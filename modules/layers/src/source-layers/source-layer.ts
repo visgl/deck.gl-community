@@ -177,8 +177,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
       changeFlags.dataChanged ||
       props.loader !== oldProps.loader ||
       props.loaders !== oldProps.loaders ||
-      !compareLoaderOptions(props.sourceOptions, oldProps.sourceOptions) ||
-      props.layers !== oldProps.layers
+      !compareLoaderOptions(props.sourceOptions, oldProps.sourceOptions)
     ) {
       void this.resolveSource(props);
     }
@@ -186,8 +185,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
 
   /** Renders the adapter matching the resolved runtime contract. */
   renderLayers(): LayersList | null {
-    const {resolvedSource, metadata, resolvedLayers, resolvedCoordinateReferenceSystem} =
-      this.state;
+    const {resolvedSource, metadata, resolvedCoordinateReferenceSystem} = this.state;
     if (!resolvedSource) {
       return null;
     }
@@ -204,6 +202,8 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
       onSourceError,
       ...layerProps
     } = this.props;
+    const resolvedLayers =
+      layers === undefined || layers === 'auto' ? this.state.resolvedLayers : layers;
     const childProps = this.getSubLayerProps({...layerProps, id: resolvedSource.sourceType});
 
     switch (resolvedSource.sourceType) {
@@ -322,14 +322,10 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
         await finalizeOwnedSource(previousSource.source);
       }
 
-      const resolvedLayers =
-        props.layers === undefined || props.layers === 'auto'
-          ? getFirstSourceLayerName(metadata) || undefined
-          : props.layers;
       this.setState({
         resolvedSource,
         metadata,
-        resolvedLayers,
+        resolvedLayers: getFirstSourceLayerName(metadata) || undefined,
         resolvedCoordinateReferenceSystem: getSourceCoordinateReferenceSystem(metadata),
         isResolving: false
       });

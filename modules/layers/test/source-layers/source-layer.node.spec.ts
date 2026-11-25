@@ -166,5 +166,7 @@ test('SourceLayer reports resolution errors and starts fresh resolution on prop 
     oldProps: {...layer.props, layers: ['old']},
     changeFlags: {dataChanged: false}
   });
+  expect(resolveSource).not.toHaveBeenCalled();
+  layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {dataChanged: true}});
   expect(resolveSource).toHaveBeenCalledOnce();
 });

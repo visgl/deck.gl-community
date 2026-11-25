@@ -90,6 +90,8 @@ test('SourceDataDrivenTile3DLayer merges preload URLs and credentials', async ()
   };
   const {layer, onTilesetLoad} = createLayer(loader);
 
+  layer.state.lastUpdatedViewports = layer.state.activeViewports;
+  layer.state.activeViewports = {};
   await layer.loadTileset('tileset.json');
 
   expect(sourceLayerMocks.createSource).toHaveBeenCalledWith(

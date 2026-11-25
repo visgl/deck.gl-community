@@ -54,7 +54,7 @@ test.each([
       oldProps: localLayer.props,
       changeFlags: {dataChanged: true}
     });
-    expect(localLayer.setState).toHaveBeenCalledWith({vectorTileSource: source, binary: true});
+    expect(localLayer.setState).toHaveBeenCalledWith({binary: true});
     const renderData = await localLayer.getTileData({index});
     expect(renderData.shape).toBe('binary-feature-collection');
     expect([...renderData.points.positions.value]).toEqual([0.25, 0.5]);
@@ -279,19 +279,19 @@ test('Tile2DSourceLayer renders local MVT sources and forwards tile errors', asy
   expect(mvtLayer.props.minZoom).toBe(2);
   expect(mvtLayer.props.maxZoom).toBe(8);
   expect(mvtLayer.props.zoomOffset).toBe(0);
-  mvtLayer.state = {vectorTileSource: source};
+  // A first request may run before updateState finishes.
+  mvtLayer.state = {};
   await expect(mvtLayer.getTileData({index: {x: 0, y: 0, z: 0}})).resolves.toBeNull();
   expect(onTileError).toHaveBeenCalledTimes(1);
 
-  mvtLayer.state = {vectorTileSource: null};
-  await expect(mvtLayer.getTileData({})).resolves.toBeNull();
+  expect(source.getTileData).toHaveBeenCalledOnce();
   mvtLayer.setState = vi.fn();
   mvtLayer.updateState({
     props: {...mvtLayer.props, data: source},
     oldProps: mvtLayer.props,
     changeFlags: {dataChanged: true}
   });
-  expect(mvtLayer.setState).toHaveBeenCalledWith({vectorTileSource: source, binary: false});
+  expect(mvtLayer.setState).toHaveBeenCalledWith({binary: false});
 });
 
 test('Tile2DSourceLayer derives explicit tileset options and metadata bounds', () => {

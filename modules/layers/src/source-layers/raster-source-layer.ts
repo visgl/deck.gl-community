@@ -26,7 +26,11 @@ import type {
 } from '@loaders.gl/core/loader-utils';
 import {sampleRaster, computeRasterStatistics} from '@loaders.gl/core/loader-utils';
 import {RasterSet, type RasterSetRequest} from '@loaders.gl/tiles';
-import {projectWGS84ToPseudoMercator} from './image-source-layer/utils';
+import {
+  projectWGS84ToPseudoMercator,
+  unprojectPseudoMercator,
+  unprojectPseudoMercatorBounds
+} from './image-source-layer/utils';
 import {
   finalizeOwnedSource,
   getCoordinateReferenceSystemIdentifier,
@@ -565,22 +569,6 @@ function sampleColorRamp(value: number): [number, number, number] {
 
 function flattenBounds(bounds: RasterBoundingBox): [number, number, number, number] {
   return [bounds[0][0], bounds[0][1], bounds[1][0], bounds[1][1]];
-}
-
-function unprojectPseudoMercatorBounds(
-  bounds: RasterBoundingBox
-): [number, number, number, number] {
-  const minimum = unprojectPseudoMercator(bounds[0]);
-  const maximum = unprojectPseudoMercator(bounds[1]);
-  return [minimum[0], minimum[1], maximum[0], maximum[1]];
-}
-
-function unprojectPseudoMercator(position: [number, number]): [number, number] {
-  const earthRadius = 6378137;
-  const longitude = (position[0] / earthRadius) * (180 / Math.PI);
-  const latitude =
-    (2 * Math.atan(Math.exp(position[1] / earthRadius)) - Math.PI / 2) * (180 / Math.PI);
-  return [longitude, latitude];
 }
 
 function clamp(value: number): number {

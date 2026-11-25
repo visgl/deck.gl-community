@@ -413,7 +413,13 @@ describe('SourceLayer lifecycle and dispatch', () => {
     expect(onSourceLoad).toHaveBeenCalledOnce();
     expect(onMetadataLoad).toHaveBeenCalledOnce();
     expect(onViewStateLoad).toHaveBeenCalledOnce();
-    expect(layer.state.resolvedLayers).toEqual([]);
+    const resolveAgain = vi.spyOn(layer, 'resolveSource');
+    layer.updateState({
+      props: layer.clone({layers: ['roads']}).props,
+      oldProps: layer.props,
+      changeFlags: {}
+    });
+    expect(resolveAgain).not.toHaveBeenCalled();
   });
 
   test('suppresses stale async resolutions and finalizes their owned runtime', async () => {

@@ -101,13 +101,16 @@ export class DataDrivenTile3DLayer<
 
     if (props.data && props.data !== oldProps.data) {
       this.loadTileset(props.data);
-    } else if (props.colorsByAttribute !== oldProps.colorsByAttribute) {
+    }
+    if (props.colorsByAttribute !== oldProps.colorsByAttribute) {
       this.setState({colorsByAttribute: props.colorsByAttribute});
       this._colorizeTileset();
-    } else if (props.filtersByAttribute !== oldProps.filtersByAttribute) {
+    }
+    if (props.filtersByAttribute !== oldProps.filtersByAttribute) {
       this.setState({filtersByAttribute: props.filtersByAttribute});
       this._filterTileset();
-    } else if (changeFlags.viewportChanged) {
+    }
+    if (changeFlags.viewportChanged) {
       const {activeViewports} = this.state;
       const viewportCount = Object.keys(activeViewports).length;
       if (viewportCount) {
@@ -118,7 +121,7 @@ export class DataDrivenTile3DLayer<
         this.state.lastUpdatedViewports = activeViewports;
         this.state.activeViewports = {};
       }
-    } else {
+    } else if (props.data === oldProps.data) {
       super.updateState(params);
     }
   }
@@ -174,9 +177,20 @@ export class DataDrivenTile3DLayer<
       layerMap: {}
     });
 
-    // @ts-expect-error deck.gl keeps this method private on the base class.
-    super._updateTileset(this.state.activeViewports);
+    this.refreshLoadedTileset();
     this.props.onTilesetLoad?.(tileset3d);
+  }
+
+  /** Refresh the live layer using its latest populated set of viewports. */
+  protected refreshLoadedTileset(): void {
+    const liveLayer = (this.getCurrentLayer() || this) as this;
+    const {activeViewports, lastUpdatedViewports} = liveLayer.state;
+    const viewports =
+      activeViewports && Object.keys(activeViewports).length
+        ? activeViewports
+        : lastUpdatedViewports;
+    // @ts-expect-error deck.gl keeps the traversal method private.
+    liveLayer._updateTileset(viewports);
   }
 
   /** Reapplies data-driven changes when a new tile is loaded. */

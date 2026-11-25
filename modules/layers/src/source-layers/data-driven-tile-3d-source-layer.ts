@@ -87,7 +87,7 @@ export class SourceDataDrivenTile3DLayer<
     });
 
     await tileset3d.tilesetInitializationPromise;
-    (this as any)._updateTileset(this.state.activeViewports);
+    this.refreshLoadedTileset();
     this.props.onTilesetLoad?.(tileset3d);
   }
 }
