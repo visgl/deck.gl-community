@@ -15,7 +15,8 @@ import {
   TimelineLayer,
   VerticalGridLayer
 } from '../../src/timeline-layers';
-import {BlockLayer, FastTextLayer, TimeDeltaLayer} from '../../src/infovis-layers';
+import {BlockLayer, FastTextLayer} from '../../src/common-layers';
+import {TimeDeltaLayer} from '../../src/timeline-layers';
 import {EditableGeoJsonLayer, ModifyMode} from '../../../editable-layers/src';
 import {EdgeArrowLayer} from '../../../graph-layers/src/layers/edge-layers/edge-arrow-layer';
 import {PathEdgeLayer} from '../../../graph-layers/src/layers/edge-layers/path-edge-layer';

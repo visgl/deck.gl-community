@@ -108,9 +108,9 @@ test('renders the gallery forward, backward, and across different view types', a
     'skybox-map',
     'skybox-first-person',
     'skybox-globe',
-    'infovis-blocks',
+    'animated-blocks',
     'community-mix',
-    'infovis-blocks'
+    'animated-blocks'
   ];
   for (const name of selections) {
     const template = TEMPLATES[name];

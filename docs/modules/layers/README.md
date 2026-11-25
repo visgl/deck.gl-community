@@ -22,12 +22,11 @@ npm install @deck.gl-community/layers
 
 | Import path | Use it for |
 | --- | --- |
-| `@deck.gl-community/layers/common-layers` | Paths, markers, [edge markers](./api-reference/edge-marker-layer.md) (experimental), skybox, Gaussian splats, flame trails, volumetric video, and selection pulse |
+| `@deck.gl-community/layers/common-layers` | [Animation](./api-reference/animation-layer.md), [blocks](./api-reference/block-layer.md), [fast text](./api-reference/fast-text-layer.md), orthographic view helpers, paths, markers, [edge markers](./api-reference/edge-marker-layer.md) (experimental), skybox, Gaussian splats, flame trails, volumetric video, and selection pulse |
 | `@deck.gl-community/layers/geo-layers` | [Geospatial tile layers](../geo-layers/README.md) and shared tilesets |
 | `@deck.gl-community/layers/global-grid-layers` | [Global grid rendering and grid systems](../geo-layers/api-reference/global-grid.md) |
 | `@deck.gl-community/layers/wind-layers` | [Wind layers and station-data utilities](../geo-layers/developer-guide/wind-showcase.md) |
 | `@deck.gl-community/layers/tree-layers` | [Procedural trees and crops](./api-reference/tree-layer.md) |
-| `@deck.gl-community/layers/infovis-layers` | [Information visualization layers and view helpers](../infovis-layers/README.md) |
 | `@deck.gl-community/layers/timeline-layers` | [Horizon graphs, timelines, and time axes](../timeline-layers/README.md) |
 | `@deck.gl-community/layers/wind-layers/wind-effect` | [Scene wind and WindExtension](./api-reference/wind-effect.md) |
 | `@deck.gl-community/layers/splat-layers` | [Gaussian splat layers and source utilities](./api-reference/splat-layer.md) |

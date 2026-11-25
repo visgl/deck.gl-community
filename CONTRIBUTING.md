@@ -55,7 +55,7 @@ deck.gl-community development is governed by the vis.gl Technical Steering Commi
 ### Maintainers
 
 - [Charles Richardson](https://github.com/charlieforward9) - editable-layers
-- [Ib Green](https://github.com/ibgreen) - infovis-layers, graph-layers
+- [Ib Green](https://github.com/ibgreen) - common-layers, timeline-layers, graph-layers
 
 Maintainers of deck.gl-community have commit access to this GitHub repository, and take part in the decision making process.
 

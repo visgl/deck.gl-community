@@ -18,7 +18,7 @@ This page lists module additions and major changes in each release. For detailed
   `@deck.gl-community/layers/common-layers`.
 - **layers:** [ZoomOpacityExtension](./modules/layers/api-reference/zoom-opacity-extension.md)
   fades layers by viewport zoom on WebGL2 and WebGPU.
-- **layers:** [Infovis and timeline layers](./upgrade-guide.md#infovis-and-timeline-packages) now ship as subpaths of the Layers package.
+- **layers:** Moved the infovis primitives into the [common and timeline subpaths](./upgrade-guide.md#infovis-and-timeline-packages).
 
 - **layers:** Import [SelectionPulseExtension](./modules/layers/api-reference/selection-pulse-extension.md)
   from `@deck.gl-community/layers/extensions`. The existing imports remain available.

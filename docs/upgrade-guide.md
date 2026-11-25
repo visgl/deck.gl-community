@@ -18,8 +18,11 @@ Install `@deck.gl-community/layers` and update imports from the former standalon
 
 | Previous import | New import |
 | --- | --- |
-| `@deck.gl-community/infovis-layers` | `@deck.gl-community/layers/infovis-layers` |
+| Infovis animation, block, text, view and Arrow helpers | `@deck.gl-community/layers/common-layers` |
+| Infovis time delta, synchronized views and trace formatters | `@deck.gl-community/layers/timeline-layers` |
 | `@deck.gl-community/timeline-layers` | `@deck.gl-community/layers/timeline-layers` |
+
+The `/infovis-layers` subpath has been removed. Its time formatters are now `formatTraceTimeMs` and `formatTraceTimeRangeMs`.
 
 ### Wind field visualization
 
