@@ -20,7 +20,7 @@ const examples = [
   'scene-buffers',
   'pattern-fills',
   'styled-paths',
-  'globe-clouds', 'sketch-edges', 'sky-layers', 'timeline-layer'];
+  'wind-atlas', 'globe-clouds', 'sketch-edges', 'sky-layers', 'timeline-layer'];
 
 export async function buildStandaloneExamples() {
   await build({

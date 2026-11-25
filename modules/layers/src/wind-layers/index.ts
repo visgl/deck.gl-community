@@ -35,3 +35,6 @@ export type {WindFieldLayerProps} from './wind-layer/wind-field-layer';
 export * from '@deck.gl-community/layers/wind-layers/wind-effect';
 
 export {RainLayer, type RainLayerProps} from '@deck.gl-community/layers/wind-layers/rain-layer';
+
+export {WindParticleLayer, type WindParticleLayerProps} from './wind-particle-layer';
+export {WindSimulationEffect, type WindSimulationEffectProps} from './wind-simulation-effect';

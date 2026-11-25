@@ -218,3 +218,7 @@ wind-layer documentation.
 - [ElevationLayer](../api-reference/elevation-layer.md)
 - [DelaunayCoverLayer](../api-reference/delaunay-cover-layer.md)
 - [DelaunayInterpolation](../api-reference/delaunay-interpolation.md)
+
+## Wind Atlas
+
+[Wind Atlas](/examples/layers/wind-atlas) demonstrates GPU-resident particle advection on WebGPU. A `WindSimulationEffect` records RK2 or RK4 integration into Deck’s frame encoder. A `WindParticleLayer` borrows the simulation buffers and draws streaks without reading particle positions back to the CPU. The example uses a synthetic field in longitude and latitude.
