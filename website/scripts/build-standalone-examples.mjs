@@ -6,7 +6,21 @@ import {build} from 'vite';
 // HTML entries together so the embedded demos share dependencies and standalone behavior.
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 const root = resolve(repo, 'examples/layers');
-const examples = ['globe-clouds', 'sketch-edges', 'sky-layers', 'timeline-layer'];
+const examples = [
+  'weather',
+  'soft-shadows',
+  'city-scene',
+  'flow-particles',
+  'point-glow',
+  'fireflies',
+  'hdr-night-lighting',
+  'global-illumination',
+  'light-shafts',
+  'depth-of-field',
+  'scene-buffers',
+  'pattern-fills',
+  'styled-paths',
+  'globe-clouds', 'sketch-edges', 'sky-layers', 'timeline-layer'];
 
 export async function buildStandaloneExamples() {
   await build({

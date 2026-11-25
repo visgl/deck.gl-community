@@ -31,3 +31,15 @@ The application advances that simulation and owns its buffers.
 [Original implementations](https://github.com/visgl/deck.gl/tree/66542993e71b937f83cf07c81fda14e317075b10/modules/proposals/src/layers)
 
 The [Sketch Edges example](https://github.com/visgl/deck.gl-community/tree/master/examples/layers/sketch-edges) renders an interactive riverfront with architectural outlines and PBR building materials.
+
+## Scene effects
+
+Import `SceneBufferEffect`, `ShaderPassEffect`, and `SceneShaderPassEffect` from
+`@deck.gl-community/layers/effects`. Install the matching `@luma.gl/anari` peer
+for scene capture. `SceneBufferEffect` captures per-view color, depth, normals,
+and optional motion. `ShaderPassEffect` applies a luma.gl shader pass to the
+frame. `SceneShaderPassEffect` supplies scene buffers and camera information
+to a shader pass.
+
+See [Scene Buffers](/examples/layers/scene-buffers), [Depth of Field](/examples/layers/depth-of-field),
+and [Global Illumination](/examples/layers/global-illumination) for working configurations.
