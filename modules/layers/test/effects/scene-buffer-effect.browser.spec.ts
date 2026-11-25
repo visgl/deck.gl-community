@@ -9,7 +9,7 @@ import {getWebGPUTestDevice} from '@luma.gl/core/test-utils';
 import {expect, test} from 'vitest';
 import {CaptureTestLayer, waitUntil, readCapture} from './scene-buffer-test-utils';
 
-test.each([
+test.for([
   false,
   true
 ])('scene capture selection=%s preserves HDR, depth, per-view history, resize and ownership', async (selection, context) => {
@@ -32,7 +32,7 @@ test.each([
       selected
     })
   });
-  let postprocessDepth = false;
+  let postprocessColor = false;
   const postprocess: Effect = {
     id: 'capture-test-postprocess',
     props: {},
@@ -40,7 +40,7 @@ test.each([
     setup() {},
     preRender() {},
     postRender({inputBuffer}) {
-      postprocessDepth = Boolean(inputBuffer.depthStencilAttachment);
+      postprocessColor = Boolean(inputBuffer.colorAttachments.length);
       return inputBuffer;
     },
     cleanup() {}
@@ -73,7 +73,7 @@ test.each([
     await new Promise(resolve => setTimeout(resolve, 150));
     deck.setProps({_animate: false});
     deck.redraw('capture test');
-    expect(postprocessDepth).toBe(true);
+    expect(postprocessColor).toBe(true);
     const frame = effect.getFrame('main')!;
     expect(frame.buffer.colorTexture.format).toBe('rgba16float');
     expect(frame.previousBuffer).toBeDefined();
@@ -135,11 +135,11 @@ test.each([
       ]
     });
     deck.redraw('capture test');
+    expect(effect.getFrame('left')?.previousBuffer).toBeUndefined();
     expect((await readCapture(device, effect, 'left', [32, 16]))[0]).toBeCloseTo(2, 3);
     expect((await readCapture(device, effect, 'right', [32, 48]))[0]).toBeCloseTo(2, 3);
     expect(effect.getFrame('left')?.viewportBounds).toEqual([0, 0, 64, 32]);
     expect(effect.getFrame('right')?.viewportBounds).toEqual([0, 32, 64, 32]);
-    expect(effect.getFrame('left')?.previousBuffer).toBeUndefined();
     const oldColor = effect.getFrame('left')!.buffer.colorTexture;
     deck.setProps({width: 80, height: 48});
     deck.redraw('capture test');

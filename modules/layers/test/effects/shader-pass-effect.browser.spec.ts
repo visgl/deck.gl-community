@@ -22,7 +22,7 @@ vec4 invertEffectTest_filterColor_ext(vec4 color, vec2 size, vec2 coordinate) {
   passes: [{filter: true}]
 };
 
-test.each([
+test.for([
   'webgpu',
   'webgl'
 ] as const)('ShaderPassEffect %s composes targets, resizes, bypasses and borrows inputs', async (backend, context) => {

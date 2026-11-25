@@ -68,12 +68,12 @@ test('motion capture reprojects the camera without full history and resets on cu
     time = 3;
     deck.setProps({initialViewState: {target: [8, 0], zoom: 0}});
     deck.redraw('camera motion');
+    expect(effect.getFrame('main')!.previousTime).toBe(2);
+    expect(effect.getFrame('main')!.time).toBe(3);
     const moving = await readCapture(device, effect, 'main', [32, 32], true);
     // The camera moves right by eight pixels: stationary surfaces move left in texture UV.
     expect(moving[0]).toBeCloseTo(-8 / 64, 3);
     expect(moving[1]).toBeCloseTo(0, 5);
-    expect(effect.getFrame('main')!.previousTime).toBe(2);
-    expect(effect.getFrame('main')!.time).toBe(3);
     effect.resetHistory('main');
     deck.redraw('camera cut');
     expect(effect.getFrame('main')!.historyValid).toBe(false);
