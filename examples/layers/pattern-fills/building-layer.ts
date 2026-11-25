@@ -143,11 +143,11 @@ ${BUILDING_FRAGMENT_WGSL}
     if (picking_isColorZero(input.pickingColor)) { discard; }
     return vec4<f32>(input.pickingColor, 1.0);
   }
-  var color = shadeBuilding(input, windowCoverage, mix(input.color, input.color * 0.18, coverage));
+  var color = shadeBuilding(input, windowCoverage, vec4f(mix(input.color, input.color * 0.18, coverage), layer.opacity));
   if (picking.isHighlightActive > 0.5 && distance(input.pickingColor, picking_normalizeColor(picking.highlightedObjectColor)) < 0.00001) {
-    color = mix(color, picking.highlightColor.rgb, picking.highlightColor.a);
+    color = vec4f(mix(color.rgb, picking.highlightColor.rgb, picking.highlightColor.a), color.a);
   }
-  return vec4<f32>(color, layer.opacity);
+  return color;
 }
 `;
 
