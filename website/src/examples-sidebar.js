@@ -103,14 +103,6 @@ const sidebars = {
       ]
     },
     {type: 'category', label: 'Vega (private)', items: ['vega/geospatial', 'vega/map-to-stacks', 'vega/mark-transitions', 'vega/unit-layouts']},
-    // TODO - need BING map key
-    // {
-    //   type: 'category',
-    //   label: '@deck.gl-community/bing-maps',
-    //   items: [
-    //     "bing-maps/get-started"
-    //   ]
-    // },
 
     // TODO - unclear why not rendering
     {

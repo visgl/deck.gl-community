@@ -51,7 +51,6 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/layers/splat-layers` | `SplatLayer` | ✅ | ✅ | Prepared anisotropic Gaussians with owner picking, and weighted or sorted transparency; no public foliage-shadow integration. |
 | `@deck.gl-community/layers` | `TreeLayer` | ✅ | ✅ | Photoreal wood, foliage, and crops with GLSL/WGSL scene wind and shadows. |
 | `@deck.gl-community/leaflet` | Leaflet map overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
-| `@deck.gl-community/bing-maps` | Bing Maps overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
 | `@deck.gl-community/widgets` | `DeviceManagerController` and `DeviceTabsWidget` | ✅ | ✅ | Selects and attaches an independently managed real rendering device. |
 
 ## Selecting a graphics backend
@@ -134,7 +133,7 @@ routes now render through the selected backend.
 | Graph geometry | `RoundedRectangleLayer`, `PathEdgeLayer`, and `EdgeArrowLayer` | Replace the fragment-only rounded rectangle and mesh arrowhead with CPU-tessellated polygons, then validate static path and polygon geometry on both backends. Full `GraphLayer` integration remains in progress. |
 | Dedicated redesign | `FlowPathLayer` and animated graph flows | The current transform-feedback implementation is incomplete and WebGL-specific. Replace it with a backend-neutral animation or compute design; do not treat shader translation alone as a port. |
 | Subsequent validation | Editable interactions, geospatial tile sources, graph composition, and basemap layers | Validate picking and drag interactions, tile and texture formats, complete graph styling/layout, and each basemap style independently. |
-| Host-dependent integrations | Leaflet, Bing Maps, and external map renderers | Support depends on the host renderer and canvas ownership. A host-owned WebGL context cannot be switched to WebGPU by adding device tabs. |
+| Host-dependent integrations | Leaflet and external map renderers | Support depends on the host renderer and canvas ownership. A host-owned WebGL context cannot be switched to WebGPU by adding device tabs. |
 
 
 ## Porting a custom layer
