@@ -119,7 +119,7 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
   switch (highlight) {
     case 'skybox-layer': {
       const {mountSkyboxMapViewExample} = await import(
-        '../../../../examples/layers/skybox-map-view/app'
+        '../../../../examples/sky-layers/skybox-map-view/app'
       );
       return mountSkyboxMapViewExample(container, {showInfoOverlay: false, ...mountProps});
     }
@@ -163,7 +163,7 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       return mountGettingStartedExample(container, {showControlsWidget: false, ...mountProps});
     }
     case 'tree-layer': {
-      const {mountSeasonalFarmExample} = await import('../../../../examples/layers/seasonal-farm/app');
+      const {mountSeasonalFarmExample} = await import('../../../../examples/vegetation-layers/seasonal-farm/app');
       return mountSeasonalFarmExample(container, mountProps);
     }
     case 'flame-trail-layer': {

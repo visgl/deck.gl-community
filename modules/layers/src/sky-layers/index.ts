@@ -13,3 +13,6 @@ export {
 export {SunLayer, type SunLayerProps} from './sun-layer';
 export {MoonLayer, type MoonLayerProps} from './moon-layer';
 export {StarfieldLayer, type StarfieldLayerProps} from './starfield-layer';
+
+export {SkyboxLayer, type SkyboxLayerProps} from './skybox-layer/skybox-layer';
+export {ProceduralSkyLayer, type ProceduralSkyLayerProps} from './procedural-sky-layer/index';

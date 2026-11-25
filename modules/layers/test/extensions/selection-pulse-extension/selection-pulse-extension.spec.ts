@@ -15,10 +15,10 @@ import {
   SPLAT_WGSL
 } from '../../../src/splat-layers/splat-layer/splat.wgsl';
 import {SplatPrimitiveLayer} from '../../../src/splat-layers/splat-layer/splat-primitive-layer';
-import {TreePhotorealCropLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-crop-layer';
-import {TreePhotorealLeafLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-leaf-layer';
-import {TreePhotorealWoodLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-wood-layer';
-import {mountTreeScene} from '../../tree-layers/tree-layer/tree-layer-test-utils';
+import {TreePhotorealCropLayer} from '../../../src/vegetation-layers/tree-layer/tree-photoreal-crop-layer';
+import {TreePhotorealLeafLayer} from '../../../src/vegetation-layers/tree-layer/tree-photoreal-leaf-layer';
+import {TreePhotorealWoodLayer} from '../../../src/vegetation-layers/tree-layer/tree-photoreal-wood-layer';
+import {mountTreeScene} from '../../vegetation-layers/tree-layer/tree-layer-test-utils';
 
 type Point = {id: number; position: [number, number]; selected: boolean};
 const POINTS: Point[] = [

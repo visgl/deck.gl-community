@@ -3,10 +3,10 @@
 // Copyright (c) vis.gl contributors
 
 import {OrbitView} from '@deck.gl/core';
-import {TreeLayer, type TreeSpec} from '@deck.gl-community/layers/tree-layers';
+import {TreeLayer, type TreeSpec} from '@deck.gl-community/layers/vegetation-layers';
 import {WindEffect} from '@deck.gl-community/layers/wind-layers/wind-effect';
 import {expect, it} from 'vitest';
-import {mountTreeBrowserScene} from '../../tree-layers/tree-layer/tree-browser-frame-reader';
+import {mountTreeBrowserScene} from '../../vegetation-layers/tree-layer/tree-browser-frame-reader';
 
 it('updates an existing photoreal tree when the scene wind changes or is removed', {
   timeout: 120_000

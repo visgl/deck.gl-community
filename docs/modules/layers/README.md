@@ -26,7 +26,7 @@ npm install @deck.gl-community/layers
 | `@deck.gl-community/layers/geo-layers` | [Geospatial tile layers](../geo-layers/README.md) and shared tilesets |
 | `@deck.gl-community/layers/global-grid-layers` | [Global grid rendering and grid systems](../geo-layers/api-reference/global-grid.md) |
 | `@deck.gl-community/layers/wind-layers` | [Wind layers and station-data utilities](../geo-layers/developer-guide/wind-showcase.md) |
-| `@deck.gl-community/layers/tree-layers` | [Procedural trees and crops](./api-reference/tree-layer.md) |
+| `@deck.gl-community/layers/vegetation-layers` | [Procedural trees and crops](./api-reference/tree-layer.md) |
 | `@deck.gl-community/layers/timeline-layers` | [Horizon graphs, timelines, and time axes](../timeline-layers/README.md) |
 | `@deck.gl-community/layers/wind-layers/wind-effect` | [Scene wind and WindExtension](./api-reference/wind-effect.md) |
 | `@deck.gl-community/layers/splat-layers` | [Gaussian splat layers and source utilities](./api-reference/splat-layer.md) |
@@ -46,6 +46,6 @@ Community layer extensions are available from `@deck.gl-community/layers/extensi
 - [EdgeMarkerLayer](/examples/layers/edge-markers)
 - [VolumetricVideoLayer](/examples/layers/volumetric-video)
 - [Path outline, marker, and dependency arrow](/examples/layers/path-outline-and-markers)
-- [SkyboxLayer MapView](/examples/layers/skybox-map-view)
-- [SkyboxLayer GlobeView](/examples/layers/skybox-globe)
-- [SkyboxLayer FirstPersonView](/examples/layers/skybox-first-person)
+- [SkyboxLayer MapView](/examples/sky-layers/skybox-map-view)
+- [SkyboxLayer GlobeView](/examples/sky-layers/skybox-globe)
+- [SkyboxLayer FirstPersonView](/examples/sky-layers/skybox-first-person)

@@ -47,10 +47,10 @@
       "require": "./dist/wind-layers/index.cjs",
       "import": "./dist/wind-layers/index.js"
     },
-    "./wind-layers/grass-layer": {
-      "types": "./dist/wind-layers/grass-layer/index.d.ts",
-      "require": "./dist/wind-layers/grass-layer/index.cjs",
-      "import": "./dist/wind-layers/grass-layer/index.js"
+    "./vegetation-layers/grass-layer": {
+      "types": "./dist/vegetation-layers/grass-layer/index.d.ts",
+      "require": "./dist/vegetation-layers/grass-layer/index.cjs",
+      "import": "./dist/vegetation-layers/grass-layer/index.js"
     },
     "./geo-layers/tileset": {
       "types": "./dist/geo-layers/tileset/index.d.ts",
@@ -67,10 +67,10 @@
       "require": "./dist/global-grid-layers/h3.cjs",
       "import": "./dist/global-grid-layers/h3.js"
     },
-    "./tree-layers": {
-      "types": "./dist/tree-layers/index.d.ts",
-      "require": "./dist/tree-layers/index.cjs",
-      "import": "./dist/tree-layers/index.js"
+    "./vegetation-layers": {
+      "types": "./dist/vegetation-layers/index.d.ts",
+      "require": "./dist/vegetation-layers/index.cjs",
+      "import": "./dist/vegetation-layers/index.js"
     },
     "./sky-layers": {
       "types": "./dist/sky-layers/index.d.ts",
@@ -107,10 +107,10 @@
       "require": "./dist/wind-layers/rain-layer/index.cjs",
       "import": "./dist/wind-layers/rain-layer/index.js"
     },
-    "./wind-layers/sky-layer": {
-      "types": "./dist/wind-layers/sky-layer/index.d.ts",
-      "require": "./dist/wind-layers/sky-layer/index.cjs",
-      "import": "./dist/wind-layers/sky-layer/index.js"
+    "./sky-layers/procedural-sky-layer": {
+      "types": "./dist/sky-layers/procedural-sky-layer/index.d.ts",
+      "require": "./dist/sky-layers/procedural-sky-layer/index.cjs",
+      "import": "./dist/sky-layers/procedural-sky-layer/index.js"
     }
   },
   "files": [
