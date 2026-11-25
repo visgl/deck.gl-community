@@ -5,7 +5,7 @@
 const assert = require('node:assert/strict');
 const root = require('@deck.gl-community/layers');
 const common = require('@deck.gl-community/layers/common-layers');
-const tree = require('@deck.gl-community/layers/tree-layers');
+const tree = require('@deck.gl-community/layers/vegetation-layers');
 const extensions = require('@deck.gl-community/layers/extensions');
 
 assert.equal(root.PathOutlineLayer, common.PathOutlineLayer);

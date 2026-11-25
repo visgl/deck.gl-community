@@ -79,8 +79,6 @@
               "modules/layers/api-reference/animation-layer",
               "modules/layers/api-reference/block-layer",
               "modules/layers/api-reference/fast-text-layer",
-              "modules/layers/api-reference/skybox-layer",
-              "modules/layers/api-reference/sky-layers",
               "modules/layers/api-reference/effect-layers",
               "modules/layers/api-reference/dependency-arrow-layer",
               "modules/layers/api-reference/path-marker-layer",
@@ -133,9 +131,7 @@
             },
             "items": [
               "modules/layers/api-reference/wind-effect",
-              "modules/layers/api-reference/procedural-sky-layer",
               "modules/layers/api-reference/rain-layer",
-              "modules/layers/api-reference/grass-layer",
               "modules/geo-layers/api-reference/wind-field",
               "modules/geo-layers/api-reference/wind-layer",
               "modules/geo-layers/api-reference/particle-layer",
@@ -165,9 +161,14 @@
             "id": "modules/layers/api-reference/splat-layer"
           },
           {
-            "type": "doc",
-            "label": "Tree",
-            "id": "modules/layers/api-reference/tree-layer"
+            "type": "category",
+            "label": "Vegetation",
+            "items": ["modules/layers/api-reference/tree-layer", "modules/layers/api-reference/grass-layer"]
+          },
+          {
+            "type": "category",
+            "label": "Sky",
+            "items": ["modules/layers/api-reference/sky-layers", "modules/layers/api-reference/procedural-sky-layer", "modules/layers/api-reference/skybox-layer"]
           }
         ]
       },

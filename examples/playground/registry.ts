@@ -11,6 +11,7 @@ import * as experimental from '@deck.gl-community/experimental';
 import * as communityGeo from '@deck.gl-community/layers/geo-layers';
 import {H3Grid} from '@deck.gl-community/layers/global-grid-layers/h3';
 import {A5Grid} from '@deck.gl-community/layers/global-grid-layers/a5';
+import {SkyboxLayer, ProceduralSkyLayer} from '@deck.gl-community/layers/sky-layers';
 import * as communityWind from '@deck.gl-community/layers/wind-layers';
 import * as communityGrids from '@deck.gl-community/layers/global-grid-layers';
 import * as graph from '@deck.gl-community/graph-layers';
@@ -34,6 +35,8 @@ const LAYERS = Object.fromEntries(
     ...experimental,
     ...communityGeo,
     ...communityWind,
+    SkyboxLayer,
+    ProceduralSkyLayer,
     ...communityGrids,
     ...graph,
     ...communityLayers,

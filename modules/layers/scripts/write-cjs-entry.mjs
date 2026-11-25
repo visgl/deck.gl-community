@@ -8,7 +8,7 @@ writeFileSync(
   new URL('../dist/index.cjs', import.meta.url),
   `module.exports = {
   ...require('./common-layers/index.cjs'),
-  ...require('./tree-layers/index.cjs')
+  ...require('./vegetation-layers/index.cjs')
 };
 `
 );

@@ -2,7 +2,7 @@
   "name": "Skybox GlobeView",
   "description": "A globe scene with a camera-centered skybox and flight arcs.",
   "metadata": {
-    "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/layers/skybox-globe.png"
+    "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/sky-layers/skybox-globe.png"
   },
   "views": {
     "@@type": "_GlobeView",
@@ -20,12 +20,12 @@
       "cubemap": {
         "shape": "image-texture-cube",
         "faces": {
-          "+X": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/examples/layers/skybox-assets/tycho-posx.jpg",
-          "-X": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/examples/layers/skybox-assets/tycho-negx.jpg",
-          "+Y": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/examples/layers/skybox-assets/tycho-posy.jpg",
-          "-Y": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/examples/layers/skybox-assets/tycho-negy.jpg",
-          "+Z": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/examples/layers/skybox-assets/tycho-posz.jpg",
-          "-Z": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/examples/layers/skybox-assets/tycho-negz.jpg"
+          "+X": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/examples/sky-layers/skybox-assets/tycho-posx.jpg",
+          "-X": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/examples/sky-layers/skybox-assets/tycho-negx.jpg",
+          "+Y": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/examples/sky-layers/skybox-assets/tycho-posy.jpg",
+          "-Y": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/examples/sky-layers/skybox-assets/tycho-negy.jpg",
+          "+Z": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/examples/sky-layers/skybox-assets/tycho-posz.jpg",
+          "-Z": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/examples/sky-layers/skybox-assets/tycho-negz.jpg"
         }
       }
     },

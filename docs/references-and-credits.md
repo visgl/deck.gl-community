@@ -36,7 +36,7 @@ formats, and example assets each have their own provenance. [Repository contribu
 - The [Community photograph](./community.md) comes from the shared vis.gl documentation for the
   2026 Open Visualization Collaborator Summit in Zürich. [Image source](https://github.com/visgl/math.gl/blob/317715c422c01c3b6fa3ab02841eb46cf0957997/website/static/images/community/zurich-summit-2026.jpg)
 - The Skybox examples use **NASA’s Tycho Star Map**, converted to cubemap faces, and images
-  from the **luma.gl cubemap example contributors**. [NASA Tycho Star Map](https://science.nasa.gov/3d-resources/tycho-star-map/) · [Cubemap sources](https://github.com/visgl/deck.gl-community/blob/master/examples/layers/skybox-assets/cubemap.ts)
+  from the **luma.gl cubemap example contributors**. [NASA Tycho Star Map](https://science.nasa.gov/3d-resources/tycho-star-map/) · [Cubemap sources](https://github.com/visgl/deck.gl-community/blob/master/examples/sky-layers/skybox-assets/cubemap.ts)
 
 ## Licenses and notices
 

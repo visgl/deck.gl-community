@@ -24,6 +24,10 @@ Install `@deck.gl-community/layers` and update imports from the former standalon
 
 The `/infovis-layers` subpath has been removed. Its time formatters are now `formatTraceTimeMs` and `formatTraceTimeRangeMs`.
 
+### Vegetation and sky imports
+
+Use `@deck.gl-community/layers/vegetation-layers` for `TreeLayer` and `GrassLayer`. Import `SkyboxLayer` and `ProceduralSkyLayer` from `@deck.gl-community/layers/sky-layers`. The former wind subpath exported the procedural layer as `SkyLayer`. The celestial composite retains the name `SkyLayer`.
+
 ### Wind field visualization
 
 Rename `WindLayer` to `WindFieldLayer` and `WindLayerProps` to `WindFieldLayerProps` in

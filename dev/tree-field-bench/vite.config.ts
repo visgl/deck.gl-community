@@ -10,7 +10,7 @@ import {defineConfig} from 'vite';
 const treeEntry =
   process.env.TREE_LAYER_ENTRY ??
   fileURLToPath(
-    new URL('../../modules/layers/src/tree-layers/tree-layer/tree-layer.ts', import.meta.url)
+    new URL('../../modules/layers/src/vegetation-layers/tree-layer/tree-layer.ts', import.meta.url)
   );
 const defaultSelectionEntry = fileURLToPath(
   new URL('../../modules/layers/src/extensions/index.ts', import.meta.url)
@@ -37,7 +37,7 @@ if (!selectionEntry) {
 export default defineConfig({
   resolve: {
     alias: {
-      '../../modules/layers/src/tree-layers/tree-layer/tree-layer': treeEntry,
+      '../../modules/layers/src/vegetation-layers/tree-layer/tree-layer': treeEntry,
       '@deck.gl-community/layers/extensions': selectionEntry
     }
   },

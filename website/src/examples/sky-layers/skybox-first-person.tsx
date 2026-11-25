@@ -1,0 +1,16 @@
+import {GITHUB_TREE} from '../../constants/defaults';
+import {makeImperativeExample} from '../../components';
+
+export default makeImperativeExample(
+  {
+    title: 'SkyboxLayer FirstPersonView',
+    code: `${GITHUB_TREE}/examples/sky-layers/skybox-first-person`,
+    async mount(container, props) {
+      const {mountSkyboxFirstPersonExample} = await import(
+        '../../../../examples/sky-layers/skybox-first-person/app'
+      );
+      return mountSkyboxFirstPersonExample(container, props);
+    }
+  },
+  {addInfoPanel: false}
+);
