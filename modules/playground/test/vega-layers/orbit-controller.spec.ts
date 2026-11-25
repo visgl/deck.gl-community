@@ -3,8 +3,8 @@
 import {expect, it, vi} from 'vitest';
 import {LinearInterpolator, OrbitViewport} from '@deck.gl/core';
 import {Timeline} from '@luma.gl/engine';
-import {LinearInterpolator as CameraInterpolator} from '../src/deck.gl-classes/linear-interpolator';
-import {createOrbitControllerClass} from '../src/deck.gl-classes/orbit-controller';
+import {LinearInterpolator as CameraInterpolator} from '../../src/vega-layers/deck.gl-classes/linear-interpolator';
+import {createOrbitControllerClass} from '../../src/vega-layers/deck.gl-classes/orbit-controller';
 
 it('preserves controller identity and interpolates camera updates and interrupted return', () => {
   const Controller = createOrbitControllerClass({});

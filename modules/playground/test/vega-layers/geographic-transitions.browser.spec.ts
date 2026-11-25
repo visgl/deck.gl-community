@@ -1,7 +1,7 @@
 import {expect, it} from 'vitest';
 import {parse, type Spec} from 'vega';
-import {ViewGl} from '../src';
-import spec from '../../../examples/vega/geospatial/spec.json';
+import {ViewGl} from '../../src/vega-layers';
+import spec from '../../../../examples/vega/geospatial/spec.json';
 
 it('animates projected polygons and routes on the GPU and survives interrupted clipping changes', async () => {
   const host = document.createElement('div');

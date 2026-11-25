@@ -1,10 +1,14 @@
 import {expect, it} from 'vitest';
 import {View, parse, type Spec} from 'vega';
-import {createStage, defaultPresenterConfig, defaultPresenterStyle} from '../src/defaults';
-import {getLayers} from '../src/layers';
-import type {Presenter} from '../src/presenter';
-import {sceneToStage} from '../src/stagers';
-import spec from '../../../examples/vega/geospatial/spec.json';
+import {
+  createStage,
+  defaultPresenterConfig,
+  defaultPresenterStyle
+} from '../../src/vega-layers/defaults';
+import {getLayers} from '../../src/vega-layers/layers';
+import type {Presenter} from '../../src/vega-layers/presenter';
+import {sceneToStage} from '../../src/vega-layers/stagers';
+import spec from '../../../../examples/vega/geospatial/spec.json';
 
 it('stages projected polygons with holes, separate islands, routes and geographic symbols', async () => {
   const view = new View(parse(spec as unknown as Spec), {renderer: 'none'});

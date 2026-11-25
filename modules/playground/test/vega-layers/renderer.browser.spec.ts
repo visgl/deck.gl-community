@@ -1,12 +1,12 @@
 import {expect, it, vi} from 'vitest';
-import {Presenter} from '../src/presenter';
-import {outerSize} from '../src/html-helpers';
-import {getLayers} from '../src/layers';
-import {createStage, defaultPresenterConfig} from '../src/defaults';
+import {Presenter} from '../../src/vega-layers/presenter';
+import {outerSize} from '../../src/vega-layers/html-helpers';
+import {getLayers} from '../../src/vega-layers/layers';
+import {createStage, defaultPresenterConfig} from '../../src/vega-layers/defaults';
 import {parse, type Spec} from 'vega';
-import {ViewGl, base} from '../src/index';
-import {createExample} from '../demo/example';
-import {createVegaView} from '../../../examples/vega/create-vega-view';
+import {ViewGl, base} from '../../src/vega-layers/index';
+import {createExample} from '../../../../examples/vega/unit-layouts/example';
+import {createVegaView} from '../../../../examples/vega/create-vega-view';
 
 it.each([
   '2d',

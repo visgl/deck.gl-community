@@ -2,8 +2,8 @@ import {expect, it} from 'vitest';
 import {
   replaceGeographicEntries,
   normalizeGeographicEntries
-} from '../src/replace-geographic-entries';
-import type {Polygon, Path, Stage} from '../src/interfaces';
+} from '../../src/vega-layers/replace-geographic-entries';
+import type {Polygon, Path, Stage} from '../../src/vega-layers/interfaces';
 const polygon: Polygon = {
   isGeographic: true,
   datum: {},

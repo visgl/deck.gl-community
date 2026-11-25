@@ -1,7 +1,7 @@
 import {expect, it} from 'vitest';
-import {Presenter} from '../src';
-import {createStage} from '../src/defaults';
-import type {Polygon} from '../src/interfaces';
+import {Presenter} from '../../src/vega-layers';
+import {createStage} from '../../src/vega-layers/defaults';
+import type {Polygon} from '../../src/vega-layers/interfaces';
 it('removes converted legacy squares when polygonData is replaced', async () => {
   const host = document.createElement('div');
   host.style.cssText = 'position:relative;width:320px;height:240px';

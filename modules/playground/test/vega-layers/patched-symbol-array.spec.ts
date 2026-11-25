@@ -1,6 +1,6 @@
 import {expect, it} from 'vitest';
-import {patchSymbolArray} from '../src/patched-symbol-array';
-import type {SymbolMark} from '../src/interfaces';
+import {patchSymbolArray} from '../../src/vega-layers/patched-symbol-array';
+import type {SymbolMark} from '../../src/vega-layers/interfaces';
 const symbol = (ordinal: number): SymbolMark => ({
   ordinal,
   datum: {id: ordinal},

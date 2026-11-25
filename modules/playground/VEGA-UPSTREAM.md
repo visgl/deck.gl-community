@@ -4,7 +4,7 @@
 - Commit: `5f2c1e58467b9417bd626f0ef404bd3bda11f068`
 - Imported component: `packages/vega-deck.gl/src` (package version 3.3.6).
 - Additional imported types: `packages/chart-types/src/view.ts`.
-- License: MIT, copyright Microsoft Corporation; retained in `LICENSE` and
+- License: MIT, copyright Microsoft Corporation; retained in `VEGA-LICENSE` and
   upstream source headers.
 - Cube layer and shaders contain Uber Technologies' MIT notice, retained in
   those source files.
@@ -12,7 +12,7 @@
 Community modifications migrate public deck.gl types/imports, Device/Model
 resource handling, uniform buffers and GLSL 300 ES, initialize dependencies as
 ES modules, remove obsolete injected dependency/typings packages, use local
-chart-view types, and add private-workspace guards and regression coverage.
+chart-view types, and add regression coverage.
 
 Vega is BSD-3-Clause and remains a dependency, rather than copied source.
 Other upstream runtime dependencies retained for this first port are d3-color,

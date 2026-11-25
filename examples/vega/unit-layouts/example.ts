@@ -1,5 +1,5 @@
-import unitLayouts from '../../../examples/vega/specs/unit-layouts.json';
-import {createVegaView} from '../../../examples/vega/create-vega-view';
+import unitLayouts from '../specs/unit-layouts.json';
+import {createVegaView} from '../create-vega-view';
 import type {Spec} from 'vega';
 
 /** Shared JSON defines the records, layouts and native Vega signal controls. */

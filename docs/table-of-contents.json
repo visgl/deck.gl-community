@@ -52,11 +52,6 @@
         "type": "doc",
         "label": "Working with AI",
         "id": "working-with-ai"
-      },
-      {
-        "type": "doc",
-        "label": "Vega Prototype",
-        "id": "modules/vega/README"
       }
     ],
     "link": {
@@ -459,7 +454,8 @@
         "items": [
           "modules/playground/api-reference/playground",
           "modules/playground/api-reference/geojson-schema",
-          "modules/playground/api-reference/deckgl-schema"
+          "modules/playground/api-reference/deckgl-schema",
+          "modules/playground/vega-layers"
         ]
       },
       {

@@ -29,6 +29,10 @@
     },
     "./geojson-schema.json": "./dist/geojson-schema.json",
     "./deckgl-schema.json": "./dist/deckgl-schema.json",
+    "./vega-layers": {
+      "types": "./dist/vega-layers/index.d.ts",
+      "import": "./dist/vega-layers/index.js"
+    },
     "./sql": {
       "types": "./dist/sql.d.ts",
       "import": "./dist/sql.js",
@@ -37,7 +41,9 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "VEGA-LICENSE",
+    "VEGA-UPSTREAM.md"
   ],
   "scripts": {
     "prepack": "yarn --cwd ../.. build",
@@ -50,17 +56,51 @@
     "@deck.gl-community/panels": "10.0.0-alpha.3",
     "@deck.gl/core": "10.0.0-alpha.2",
     "@deck.gl/json": "10.0.0-alpha.2",
-    "@loaders.gl/core": "5.0.0"
+    "@deck.gl/layers": "10.0.0-alpha.2",
+    "@loaders.gl/core": "5.0.0",
+    "@luma.gl/core": "10.0.0-beta.3",
+    "@luma.gl/engine": "10.0.0-beta.3",
+    "@luma.gl/shaders": "10.0.0-beta.3",
+    "vega": "^6.2.0"
   },
   "dependencies": {
     "@math.gl/sql": "5.0.3",
     "apache-arrow": "^21.2.0",
+    "d3-color": "^3.1.0",
+    "d3-ease": "^3.0.1",
+    "deepmerge": "^4.3.1",
+    "tsx-create-element": "^2.2.9",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@deck.gl/core": "10.0.0-alpha.2",
     "@deck.gl/json": "10.0.0-alpha.2",
+    "@deck.gl/layers": "10.0.0-alpha.2",
     "@loaders.gl/core": "5.0.0",
-    "esbuild": "^0.28.1"
+    "@luma.gl/core": "10.0.0-beta.3",
+    "@luma.gl/engine": "10.0.0-beta.3",
+    "@luma.gl/shaders": "10.0.0-beta.3",
+    "@types/d3-color": "^3.1.3",
+    "@types/d3-ease": "^3.0.2",
+    "@types/react": "^18.3.3",
+    "esbuild": "^0.28.1",
+    "vega": "^6.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@deck.gl/layers": {
+      "optional": true
+    },
+    "@luma.gl/core": {
+      "optional": true
+    },
+    "@luma.gl/engine": {
+      "optional": true
+    },
+    "@luma.gl/shaders": {
+      "optional": true
+    },
+    "vega": {
+      "optional": true
+    }
   }
 }
