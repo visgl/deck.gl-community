@@ -52,5 +52,18 @@
   "leaflet/get-started": "/images/examples/leaflet/get-started.jpg",
   "leaflet/scripting": "/images/examples/leaflet/scripting.png",
   "react/multi-canvas": "/images/examples/react/multi-canvas.jpg",
-  "timeline-layers/time-delta-layer": "/images/examples/timeline-layers/time-delta-layer.jpg"
+  "timeline-layers/time-delta-layer": "/images/examples/timeline-layers/time-delta-layer.jpg",
+  "layers/weather": "/images/examples/layers/weather.jpg",
+  "layers/soft-shadows": "/images/examples/layers/soft-shadows.jpg",
+  "layers/city-scene": "/images/examples/layers/city-scene.jpg",
+  "layers/flow-particles": "/images/examples/layers/flow-particles.jpg",
+  "layers/point-glow": "/images/examples/layers/point-glow.jpg",
+  "layers/fireflies": "/images/examples/layers/fireflies.jpg",
+  "layers/hdr-night-lighting": "/images/examples/layers/hdr-night-lighting.jpg",
+  "layers/global-illumination": "/images/examples/layers/global-illumination.jpg",
+  "layers/light-shafts": "/images/examples/layers/light-shafts.jpg",
+  "layers/depth-of-field": "/images/examples/layers/depth-of-field.jpg",
+  "layers/scene-buffers": "/images/examples/layers/scene-buffers.jpg",
+  "layers/pattern-fills": "/images/examples/layers/pattern-fills.jpg",
+  "layers/styled-paths": "/images/examples/layers/styled-paths.jpg"
 }
