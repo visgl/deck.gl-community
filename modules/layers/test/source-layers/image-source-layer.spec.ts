@@ -189,6 +189,10 @@ test('ImageSourceLayer#keeps auto-SRS request shaping behavior', () => {
   });
   expect(geographicParameters.crs).toBe('EPSG:4326');
   expect(mercatorParameters.crs).toBe('EPSG:3857');
+  expect(mercatorParameters.boundingBox[1][1]).toBeGreaterThan(0);
+  expect(mercatorParameters.boundingBox[1][1]).toBeGreaterThan(
+    mercatorParameters.boundingBox[0][1]
+  );
   expect(mercatorParameters.boundingBox).not.toEqual([
     [1, 2],
     [3, 4]

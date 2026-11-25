@@ -36,9 +36,6 @@ const sidebars = {
         'layers/flame-trail',
         'layers/edge-markers',
         'layers/source-layers',
-        'layers/skybox-map-view',
-        'layers/skybox-globe',
-        'layers/skybox-first-person',
         'layers/volumetric-video'
       ]
     },
@@ -65,7 +62,7 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/layers/sky-layers',
-      items: ['layers/globe-clouds', 'layers/sky-layers']
+      items: ['layers/globe-clouds', 'layers/sky-layers', 'sky-layers/procedural-sky', 'sky-layers/skybox-map-view', 'sky-layers/skybox-globe', 'sky-layers/skybox-first-person']
     },
     {
       type: 'category',
@@ -92,17 +89,15 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '@deck.gl-community/layers/tree-layers',
-      items: ['layers/seasonal-farm']
+      label: '@deck.gl-community/layers/vegetation-layers',
+      items: ['vegetation-layers/seasonal-farm', 'vegetation-layers/grass-layer']
     },
     {
       type: 'category',
       label: '@deck.gl-community/layers/wind-layers',
       items: [
         'geo-layers/wind',
-        'layers/wind-garden',
-        'layers/grass-layer',
-        'layers/sky'
+        'layers/wind-garden'
       ]
     },
     {

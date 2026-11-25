@@ -7,7 +7,7 @@ title: GrassLayer
 `GrassLayer` renders curved blades inside rectangular patches on WebGL2 and WebGPU. Each data row places a patch and controls its height, color, and coverage. The GPU generates a repeatable blade pattern from the patch's seed. Panning and zooming keep the blades in place.
 
 ```ts
-import {GrassLayer} from '@deck.gl-community/layers/wind-layers/grass-layer';
+import {GrassLayer} from '@deck.gl-community/layers/vegetation-layers/grass-layer';
 
 new GrassLayer({
   id: 'meadow',
@@ -40,6 +40,6 @@ wind. The effect’s `time` prop can freeze a pose for repeatable frames.
 
 A patch represents a level surface. Use each patch's position to place it at the desired elevation. For large areas, submit patches near the camera and use smaller blade budgets as needed.
 
-Try the [interactive example](/examples/layers/grass-layer).
+Try the [interactive example](/examples/vegetation-layers/grass-layer).
 
-The layer is also exported from `@deck.gl-community/layers/wind-layers`.
+The layer is also exported from `@deck.gl-community/layers/vegetation-layers`.

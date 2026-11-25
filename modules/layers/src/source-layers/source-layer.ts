@@ -102,6 +102,7 @@ export type SourceLayerProps<DataT = unknown> = Omit<CompositeLayerProps, 'data'
   };
 
 type SourceLayerState = {
+  resolutionId?: number;
   resolvedSource: ResolvedVisualSource | null;
   metadata: unknown | null;
   resolvedLayers: string | string[] | undefined;
@@ -138,8 +139,6 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
   /** Typed source resolution state. */
   state = null as unknown as SourceLayerState;
 
-  private resolutionId = 0;
-
   /** Creates a source layer without deck.gl's parser-only loader constraint. */
   constructor(props: SourceLayerProps<DataT>) {
     super(props as any);
@@ -158,7 +157,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
 
   /** Releases layer-owned runtime sources and invalidates pending resolutions. */
   finalizeState(context: LayerContext): void {
-    this.resolutionId++;
+    this.state.resolutionId = (this.state.resolutionId ?? 0) + 1;
     const resolvedSource = this.state?.resolvedSource;
     if (resolvedSource?.owned) {
       void finalizeOwnedSource(resolvedSource.source);
@@ -274,7 +273,8 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
   }
 
   private async resolveSource(props: SourceLayerProps<DataT>): Promise<void> {
-    const resolutionId = ++this.resolutionId;
+    const resolutionId = (this.state.resolutionId ?? 0) + 1;
+    this.state.resolutionId = resolutionId;
     const previousSource = this.state.resolvedSource;
     let activeResolvedSource: ResolvedVisualSource | null = null;
     let activeInfo: SourceLayerLoadInfo | undefined;
@@ -289,7 +289,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
     try {
       const resolvedSource = await resolveVisualSource(props);
       activeResolvedSource = resolvedSource;
-      if (resolutionId !== this.resolutionId) {
+      if (resolutionId !== this.state.resolutionId) {
         if (resolvedSource.owned) {
           await finalizeOwnedSource(resolvedSource.source);
         }
@@ -300,7 +300,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
       activeInfo = info;
       this.props.onSourceLoad?.(info);
       const metadata = props.metadata || (await loadVisualSourceMetadata(resolvedSource));
-      if (resolutionId !== this.resolutionId) {
+      if (resolutionId !== this.state.resolutionId) {
         if (resolvedSource.owned) {
           await finalizeOwnedSource(resolvedSource.source);
         }
@@ -314,12 +314,19 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
         resolvedSource.sourceType === 'tile-3d'
           ? null
           : await createSourceViewState(resolvedSource.source, metadata);
-      if (viewState && resolutionId === this.resolutionId) {
+      if (viewState && resolutionId === this.state.resolutionId) {
         this.props.onViewStateLoad?.(viewState, info);
       }
 
       if (previousSource?.owned && previousSource.source !== resolvedSource.source) {
         await finalizeOwnedSource(previousSource.source);
+      }
+
+      if (resolutionId !== this.state.resolutionId) {
+        if (resolvedSource.owned) {
+          await finalizeOwnedSource(resolvedSource.source);
+        }
+        return;
       }
 
       this.setState({
@@ -330,7 +337,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
         isResolving: false
       });
     } catch (error) {
-      if (resolutionId !== this.resolutionId) {
+      if (resolutionId !== this.state.resolutionId) {
         return;
       }
       const normalizedError = error instanceof Error ? error : new Error(String(error));

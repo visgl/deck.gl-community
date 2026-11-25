@@ -106,7 +106,7 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
 
 - Shorter [`TreeLayer`](/docs/modules/layers/api-reference/tree-layer) and
   [`SplatLayer`](/docs/modules/layers/api-reference/splat-layer) reference pages. The
-  [Seasonal Farm](/examples/layers/seasonal-farm) TreeLayer demo uses a settings panel for season,
+  [Seasonal Farm](/examples/vegetation-layers/seasonal-farm) TreeLayer demo uses a settings panel for season,
   crops, wind, size, crown characteristics and canopy budgets, with no text drawn over the canvas.
   The Tree Lab example is removed.
 

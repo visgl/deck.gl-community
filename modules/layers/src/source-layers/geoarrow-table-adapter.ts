@@ -260,9 +260,7 @@ function mergePointFeatures(points: Array<BinaryPointFeature | undefined>): Bina
   return {
     type: 'Point',
     positions: {
-      value: new Float64Array(
-        concatTypedArrays(validPoints.map(point => point.positions.value)).buffer
-      ),
+      value: concatPositions(validPoints.map(point => point.positions.value)),
       size: validPoints[0].positions.size
     },
     featureIds: {
@@ -289,9 +287,7 @@ function mergeLineFeatures(lines: Array<BinaryLineFeature | undefined>): BinaryL
   return {
     type: 'LineString',
     positions: {
-      value: new Float64Array(
-        concatTypedArrays(validLines.map(line => line.positions.value)).buffer
-      ),
+      value: concatPositions(validLines.map(line => line.positions.value)),
       size: validLines[0].positions.size
     },
     pathIndices: {
@@ -348,9 +344,7 @@ function mergePolygonFeatures(
   return {
     type: 'Polygon',
     positions: {
-      value: new Float64Array(
-        concatTypedArrays(validPolygons.map(polygon => polygon.positions.value)).buffer
-      ),
+      value: concatPositions(validPolygons.map(polygon => polygon.positions.value)),
       size: positionSize
     },
     polygonIndices: {
@@ -431,6 +425,16 @@ function concatenateNumericProps(features: Array<{numericProps: Record<string, B
   }
 
   return numericProps;
+}
+
+function concatPositions(arrays: ArrayLike<number>[]): Float64Array {
+  const positions = new Float64Array(arrays.reduce((length, array) => length + array.length, 0));
+  let offset = 0;
+  for (const array of arrays) {
+    positions.set(array, offset);
+    offset += array.length;
+  }
+  return positions;
 }
 
 function concatTypedArrays(arrays: ArrayBufferView[]): Uint8Array {

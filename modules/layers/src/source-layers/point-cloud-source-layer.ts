@@ -78,8 +78,10 @@ export class PointCloudSourceLayer extends Tile3DLayer<any, PointCloudSourceLaye
     onSourceError: {type: 'function', value: () => {}}
   } as any;
 
-  private resolutionId = 0;
-  private resolvedSource: ResolvedVisualSource | null = null;
+  declare state: Tile3DLayer['state'] & {
+    resolutionId?: number;
+    resolvedSource?: ResolvedVisualSource | null;
+  };
 
   /** Creates a point-cloud layer with mixed parser and source loader support. */
   constructor(props: PointCloudSourceLayerProps) {
@@ -88,7 +90,7 @@ export class PointCloudSourceLayer extends Tile3DLayer<any, PointCloudSourceLaye
 
   /** Releases point-cloud traversal and layer-owned source resources. */
   finalizeState(context?: LayerContext): void {
-    this.resolutionId++;
+    this.state.resolutionId = (this.state.resolutionId ?? 0) + 1;
     if (this.internalState) {
       super.finalizeState(context as LayerContext);
     } else {
@@ -97,10 +99,10 @@ export class PointCloudSourceLayer extends Tile3DLayer<any, PointCloudSourceLaye
       this.state.tileset3d = null;
       this.state.layerMap = {};
     }
-    if (this.resolvedSource?.owned) {
-      void finalizeOwnedSource(this.resolvedSource.source);
+    if (this.state.resolvedSource?.owned) {
+      void finalizeOwnedSource(this.state.resolvedSource.source);
     }
-    this.resolvedSource = null;
+    this.state.resolvedSource = null;
   }
 
   /**
@@ -187,8 +189,9 @@ export class PointCloudSourceLayer extends Tile3DLayer<any, PointCloudSourceLaye
   }
 
   private async resolveSource(props: PointCloudSourceLayerProps): Promise<void> {
-    const resolutionId = ++this.resolutionId;
-    const previousSource = this.resolvedSource;
+    const resolutionId = (this.state.resolutionId ?? 0) + 1;
+    this.state.resolutionId = resolutionId;
+    const previousSource = this.state.resolvedSource;
     try {
       const resolvedSource = await resolveVisualSource(props);
       if (resolvedSource.sourceType !== 'point-cloud') {
@@ -199,7 +202,7 @@ export class PointCloudSourceLayer extends Tile3DLayer<any, PointCloudSourceLaye
           `PointCloudSourceLayer expected a point-cloud source but resolved ${resolvedSource.sourceType}.`
         );
       }
-      if (resolutionId !== this.resolutionId) {
+      if (resolutionId !== this.state.resolutionId) {
         if (resolvedSource.owned) {
           await finalizeOwnedSource(resolvedSource.source);
         }
@@ -208,10 +211,10 @@ export class PointCloudSourceLayer extends Tile3DLayer<any, PointCloudSourceLaye
       if (previousSource?.owned && previousSource.source !== resolvedSource.source) {
         await finalizeOwnedSource(previousSource.source);
       }
-      this.resolvedSource = resolvedSource;
+      this.state.resolvedSource = resolvedSource;
       this.loadTileset(resolvedSource.source as PointCloudTilesetSource);
     } catch (error) {
-      if (resolutionId === this.resolutionId) {
+      if (resolutionId === this.state.resolutionId) {
         const normalizedError = error instanceof Error ? error : new Error(String(error));
         this.props.onSourceError?.(normalizedError);
         this.raiseError(normalizedError, 'resolving point-cloud source');

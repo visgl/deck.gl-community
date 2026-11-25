@@ -10,7 +10,7 @@ import {
   TreeLayer,
   type TreeSpec,
   type TreeType
-} from '../../modules/layers/src/tree-layers/tree-layer/tree-layer';
+} from '../../modules/layers/src/vegetation-layers/tree-layer/tree-layer';
 import {createFieldProfile} from './field-profile';
 import {SelectionPulseExtension} from '@deck.gl-community/layers/extensions';
 import {FieldLightingEffect} from './field-lighting';

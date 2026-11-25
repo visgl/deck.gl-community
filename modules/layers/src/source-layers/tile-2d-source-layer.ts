@@ -119,6 +119,7 @@ export type Tile2DSourceLayerPickingInfo<
 };
 
 type Tile2DSourceLayerState<DataT> = {
+  resolutionId?: number;
   resolvedData: TileSourceRuntime | null;
   resolvedSource: ResolvedVisualSource | null;
   tileset: Tileset2D<DataT, any> | null;
@@ -210,8 +211,6 @@ export class Tile2DSourceLayer<DataT = any> extends CompositeLayer<Tile2DSourceL
   /** Typed deck.gl state for source resolution, traversal views, and tile sublayers. */
   state = null as unknown as Tile2DSourceLayerState<DataT>;
 
-  private resolutionId = 0;
-
   /** Creates a 2D tile layer with mixed parser and source loader support. */
   constructor(props: Tile2DSourceLayerProps<DataT>) {
     super(props as any);
@@ -237,7 +236,7 @@ export class Tile2DSourceLayer<DataT = any> extends CompositeLayer<Tile2DSourceL
 
   /** Finalizes owned resources and detaches from the shared tileset. */
   finalizeState(context: LayerContext): void {
-    this.resolutionId++;
+    this.state.resolutionId = (this.state.resolutionId ?? 0) + 1;
     this._releaseTileset();
     if (this.state.resolvedSource?.owned) {
       void finalizeOwnedSource(this.state.resolvedSource.source);
@@ -289,7 +288,8 @@ export class Tile2DSourceLayer<DataT = any> extends CompositeLayer<Tile2DSourceL
   }
 
   private async resolveTileSource(props: Tile2DSourceLayerProps<DataT>): Promise<void> {
-    const resolutionId = ++this.resolutionId;
+    const resolutionId = (this.state.resolutionId ?? 0) + 1;
+    this.state.resolutionId = resolutionId;
     const previousSource = this.state.resolvedSource;
     const previousResolvedData = this.state.resolvedData;
     try {
@@ -302,7 +302,7 @@ export class Tile2DSourceLayer<DataT = any> extends CompositeLayer<Tile2DSourceL
           `Tile2DSourceLayer expected a 2D tile source but resolved ${resolvedSource.sourceType}.`
         );
       }
-      if (resolutionId !== this.resolutionId) {
+      if (resolutionId !== this.state.resolutionId) {
         if (resolvedSource.owned) {
           await finalizeOwnedSource(resolvedSource.source);
         }
@@ -318,7 +318,7 @@ export class Tile2DSourceLayer<DataT = any> extends CompositeLayer<Tile2DSourceL
         updateTriggersChanged: false
       });
     } catch (error) {
-      if (resolutionId === this.resolutionId) {
+      if (resolutionId === this.state.resolutionId) {
         const normalizedError = error instanceof Error ? error : new Error(String(error));
         this.props.onSourceError?.(normalizedError);
         this.raiseError(normalizedError, 'resolving 2D tile source');

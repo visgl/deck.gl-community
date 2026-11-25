@@ -676,9 +676,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/example-grass-layer@workspace:examples/layers/grass-layer":
+"@deck.gl-community/example-grass-layer@workspace:examples/vegetation-layers/grass-layer":
   version: 0.0.0-use.local
-  resolution: "@deck.gl-community/example-grass-layer@workspace:examples/layers/grass-layer"
+  resolution: "@deck.gl-community/example-grass-layer@workspace:examples/vegetation-layers/grass-layer"
   dependencies:
     "@deck.gl-community/layers": "workspace:*"
     "@deck.gl/core": "npm:10.0.0-alpha.2"
@@ -10577,6 +10577,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"procedural-sky-9494d8@workspace:examples/sky-layers/procedural-sky":
+  version: 0.0.0-use.local
+  resolution: "procedural-sky-9494d8@workspace:examples/sky-layers/procedural-sky"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@deck.gl/layers": "npm:10.0.0-alpha.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "process-nextick-args@npm:~1.0.6":
   version: 1.0.7
   resolution: "process-nextick-args@npm:1.0.7"
@@ -11330,9 +11341,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"seasonal-farm-7257db@workspace:examples/layers/seasonal-farm":
+"seasonal-farm-c1a180@workspace:examples/vegetation-layers/seasonal-farm":
   version: 0.0.0-use.local
-  resolution: "seasonal-farm-7257db@workspace:examples/layers/seasonal-farm"
+  resolution: "seasonal-farm-c1a180@workspace:examples/vegetation-layers/seasonal-farm"
   dependencies:
     "@deck.gl-community/layers": "workspace:*"
     "@deck.gl-community/panels": "workspace:*"
@@ -11561,20 +11572,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sky-f853f6@workspace:examples/layers/sky":
+"skybox-first-person-62a750@workspace:examples/sky-layers/skybox-first-person":
   version: 0.0.0-use.local
-  resolution: "sky-f853f6@workspace:examples/layers/sky"
-  dependencies:
-    "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl/core": "npm:10.0.0-alpha.2"
-    "@deck.gl/layers": "npm:10.0.0-alpha.2"
-    vite: "npm:^7.3.1"
-  languageName: unknown
-  linkType: soft
-
-"skybox-first-person-a4390b@workspace:examples/layers/skybox-first-person":
-  version: 0.0.0-use.local
-  resolution: "skybox-first-person-a4390b@workspace:examples/layers/skybox-first-person"
+  resolution: "skybox-first-person-62a750@workspace:examples/sky-layers/skybox-first-person"
   dependencies:
     "@deck.gl-community/layers": "workspace:*"
     "@deck.gl/core": "npm:10.0.0-alpha.2"
@@ -11588,9 +11588,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"skybox-globe-c5fa13@workspace:examples/layers/skybox-globe":
+"skybox-globe-4bc82a@workspace:examples/sky-layers/skybox-globe":
   version: 0.0.0-use.local
-  resolution: "skybox-globe-c5fa13@workspace:examples/layers/skybox-globe"
+  resolution: "skybox-globe-4bc82a@workspace:examples/sky-layers/skybox-globe"
   dependencies:
     "@deck.gl-community/layers": "workspace:*"
     "@deck.gl-community/panels": "workspace:*"
@@ -11609,9 +11609,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"skybox-map-view-9054d9@workspace:examples/layers/skybox-map-view":
+"skybox-map-view-b146a9@workspace:examples/sky-layers/skybox-map-view":
   version: 0.0.0-use.local
-  resolution: "skybox-map-view-9054d9@workspace:examples/layers/skybox-map-view"
+  resolution: "skybox-map-view-b146a9@workspace:examples/sky-layers/skybox-map-view"
   dependencies:
     "@deck.gl-community/layers": "workspace:*"
     "@deck.gl/core": "npm:10.0.0-alpha.2"

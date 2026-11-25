@@ -70,6 +70,7 @@ export type ImageSourceLayerProps = Omit<CompositeLayerProps, 'data' | 'loaders'
 };
 
 type ImageSourceLayerState = {
+  resolutionId?: number;
   resolvedData: ImageSource | null;
   resolvedSource: ResolvedVisualSource | null;
   resolvedLayers: string[];
@@ -120,8 +121,6 @@ export class ImageSourceLayer extends CompositeLayer<ImageSourceLayerProps> {
   /** Typed deck.gl state for resolved source and image manager lifecycle. */
   state = null as unknown as ImageSourceLayerState;
 
-  private resolutionId = 0;
-
   /** Creates an image source layer with mixed parser and source loader support. */
   constructor(props: ImageSourceLayerProps) {
     super(props as any);
@@ -150,7 +149,7 @@ export class ImageSourceLayer extends CompositeLayer<ImageSourceLayerProps> {
 
   /** Finalizes subscriptions and owned resources. */
   finalizeState(context: LayerContext): void {
-    this.resolutionId++;
+    this.state.resolutionId = (this.state.resolutionId ?? 0) + 1;
     this._releaseImageSet();
     if (this.state.resolvedSource?.owned) {
       void finalizeOwnedSource(this.state.resolvedSource.source);
@@ -195,7 +194,8 @@ export class ImageSourceLayer extends CompositeLayer<ImageSourceLayerProps> {
   }
 
   private async resolveImageSource(props: ImageSourceLayerProps): Promise<void> {
-    const resolutionId = ++this.resolutionId;
+    const resolutionId = (this.state.resolutionId ?? 0) + 1;
+    this.state.resolutionId = resolutionId;
     const previousSource = this.state.resolvedSource;
     try {
       const resolvedSource = await resolveVisualSource({
@@ -219,7 +219,7 @@ export class ImageSourceLayer extends CompositeLayer<ImageSourceLayerProps> {
           `ImageSourceLayer expected an image source but resolved ${resolvedSource.sourceType}.`
         );
       }
-      if (resolutionId !== this.resolutionId) {
+      if (resolutionId !== this.state.resolutionId) {
         if (resolvedSource.owned) {
           await finalizeOwnedSource(resolvedSource.source);
         }
@@ -255,7 +255,7 @@ export class ImageSourceLayer extends CompositeLayer<ImageSourceLayerProps> {
         this.loadImage(this.context.viewport, 0);
       }
     } catch (error) {
-      if (resolutionId === this.resolutionId) {
+      if (resolutionId === this.state.resolutionId) {
         const normalizedError = error instanceof Error ? error : new Error(String(error));
         this.props.onSourceError?.(normalizedError);
         this.raiseError(normalizedError, 'resolving image source');

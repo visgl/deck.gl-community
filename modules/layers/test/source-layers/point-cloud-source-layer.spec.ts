@@ -241,7 +241,7 @@ describe('PointCloudSourceLayer', () => {
     const layer = createLayer(createPointCloudSource());
     layer.state.tileset3d = {destroy};
     layer.state.layerMap = {tile: {}};
-    layer.resolvedSource = {source: {close}, sourceType: 'point-cloud', owned: true};
+    layer.state.resolvedSource = {source: {close}, sourceType: 'point-cloud', owned: true};
 
     expect(layer.filterSubLayer({layer: {props: {}}} as any)).toBe(true);
     layer.finalizeState();

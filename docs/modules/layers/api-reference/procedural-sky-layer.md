@@ -1,20 +1,20 @@
 ---
-title: Procedural SkyLayer
+title: ProceduralSkyLayer
 ---
 
-# Procedural SkyLayer
+# ProceduralSkyLayer
 
-`SkyLayer` renders a procedural clear-sky background with an adjustable sun and haze. It models Rayleigh and aerosol scattering with ozone absorption, follows the camera's orientation, and draws at the far plane without writing depth.
+`ProceduralSkyLayer` renders a procedural clear-sky background with an adjustable sun and haze. It models Rayleigh and aerosol scattering with ozone absorption, follows the camera's orientation, and draws at the far plane without writing depth.
 
 ```ts
 import {Deck, FirstPersonView} from '@deck.gl/core';
-import {SkyLayer} from '@deck.gl-community/layers/wind-layers/sky-layer';
+import {ProceduralSkyLayer} from '@deck.gl-community/layers/sky-layers/procedural-sky-layer';
 
 new Deck({
   views: new FirstPersonView(),
   controller: true,
   initialViewState: {position: [0, 0, 1.7], bearing: 0, pitch: -9},
-  layers: [new SkyLayer({id: 'sky', sunDirection: [0, 1, 0.25], aerosolOpticalDepth: 0.18})]
+  layers: [new ProceduralSkyLayer({id: 'sky', sunDirection: [0, 1, 0.25], aerosolOpticalDepth: 0.18})]
 });
 ```
 
@@ -28,6 +28,6 @@ For Z-up Cartesian views, the axes correspond to X, Y, Z. Y-up `OrbitView` uses 
 
 The layer provides background color on WebGL2 and WebGPU. Configure a deck.gl `LightingEffect` separately to light the foreground. Draw the sky before translucent scene layers so they blend against it.
 
-Try the [SkyLayer example](/examples/layers/sky).
+Try the [SkyLayer example](/examples/sky-layers/procedural-sky).
 
-The layer is also exported from `@deck.gl-community/layers/wind-layers`. The [celestial scene layer](./sky-layers.md) has its own `SkyLayer` export under `@deck.gl-community/layers/sky-layers`.
+The layer is also exported from `@deck.gl-community/layers/sky-layers`. The [celestial scene layer](./sky-layers.md) has its own `SkyLayer` export under `@deck.gl-community/layers/sky-layers`.

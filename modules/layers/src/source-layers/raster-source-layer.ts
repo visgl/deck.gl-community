@@ -108,6 +108,7 @@ export type RasterSourceLayerProps = Omit<CompositeLayerProps, 'data' | 'loaders
 };
 
 type RasterSourceLayerState = {
+  resolutionId?: number;
   resolvedSource: ResolvedVisualSource | null;
   rasterSet: RasterSet | null;
   unsubscribeRasterSetEvents: (() => void) | null;
@@ -149,8 +150,6 @@ export class RasterSourceLayer extends CompositeLayer<RasterSourceLayerProps> {
   /** Typed raster runtime state. */
   state = null as unknown as RasterSourceLayerState;
 
-  private resolutionId = 0;
-
   /** Creates a raster source layer with mixed parser and source loader support. */
   constructor(props: RasterSourceLayerProps) {
     super(props as any);
@@ -174,7 +173,7 @@ export class RasterSourceLayer extends CompositeLayer<RasterSourceLayerProps> {
 
   /** Releases pending requests and layer-owned sources. */
   finalizeState(context: LayerContext): void {
-    this.resolutionId++;
+    this.state.resolutionId = (this.state.resolutionId ?? 0) + 1;
     this.releaseRasterSet();
     if (this.state.resolvedSource?.owned) {
       void finalizeOwnedSource(this.state.resolvedSource.source);
@@ -226,7 +225,8 @@ export class RasterSourceLayer extends CompositeLayer<RasterSourceLayerProps> {
   }
 
   private async resolveSource(props: RasterSourceLayerProps): Promise<void> {
-    const resolutionId = ++this.resolutionId;
+    const resolutionId = (this.state.resolutionId ?? 0) + 1;
+    this.state.resolutionId = resolutionId;
     const previousSource = this.state.resolvedSource;
     try {
       const resolvedSource = await resolveVisualSource(props);
@@ -238,7 +238,7 @@ export class RasterSourceLayer extends CompositeLayer<RasterSourceLayerProps> {
           `RasterSourceLayer expected a raster source but resolved ${resolvedSource.sourceType}.`
         );
       }
-      if (resolutionId !== this.resolutionId) {
+      if (resolutionId !== this.state.resolutionId) {
         if (resolvedSource.owned) {
           await finalizeOwnedSource(resolvedSource.source);
         }
@@ -270,7 +270,7 @@ export class RasterSourceLayer extends CompositeLayer<RasterSourceLayerProps> {
         await rasterSet.loadMetadata();
       }
     } catch (error) {
-      if (resolutionId === this.resolutionId) {
+      if (resolutionId === this.state.resolutionId) {
         const normalizedError = error instanceof Error ? error : new Error(String(error));
         this.props.onSourceError?.(normalizedError);
         this.raiseError(normalizedError, 'resolving raster source');

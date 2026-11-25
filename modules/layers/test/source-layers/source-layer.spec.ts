@@ -448,8 +448,9 @@ describe('SourceLayer lifecycle and dispatch', () => {
       data: 'https://example.com/current',
       loaders: [currentLoader]
     };
-    layer.props = currentProps;
-    const currentResolution = layer.resolveSource(currentProps);
+    const replacement = createTestLayer(currentProps);
+    replacement.state = layer.state;
+    const currentResolution = replacement.resolveSource(replacement.props);
     await currentResolution;
     resolvePreload(staleRuntimeLoader);
     await staleResolution;

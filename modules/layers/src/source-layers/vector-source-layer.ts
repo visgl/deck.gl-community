@@ -71,6 +71,7 @@ export type VectorSourceLayerProps = Omit<CompositeLayerProps, 'data' | 'loaders
 };
 
 type VectorSourceLayerState = {
+  resolutionId?: number;
   resolvedData: VectorSource | null;
   resolvedSource: ResolvedVisualSource | null;
   vectorSet: VectorSet | null;
@@ -121,8 +122,6 @@ export class VectorSourceLayer extends CompositeLayer<VectorSourceLayerProps> {
   /** Reusable scratch buffers for WKB/WKT conversion. */
   private geometryScratch: GeometryColumnBinaryFeatureCollectionScratch = {};
 
-  private resolutionId = 0;
-
   /** Creates a vector source layer with mixed parser and source loader support. */
   constructor(props: VectorSourceLayerProps) {
     super(props as any);
@@ -150,7 +149,7 @@ export class VectorSourceLayer extends CompositeLayer<VectorSourceLayerProps> {
 
   /** Finalizes subscriptions and owned vector state. */
   finalizeState(context: LayerContext): void {
-    this.resolutionId++;
+    this.state.resolutionId = (this.state.resolutionId ?? 0) + 1;
     this._releaseVectorSet();
     if (this.state.resolvedSource?.owned) {
       void finalizeOwnedSource(this.state.resolvedSource.source);
@@ -205,7 +204,8 @@ export class VectorSourceLayer extends CompositeLayer<VectorSourceLayerProps> {
   }
 
   private async resolveVectorSource(props: VectorSourceLayerProps): Promise<void> {
-    const resolutionId = ++this.resolutionId;
+    const resolutionId = (this.state.resolutionId ?? 0) + 1;
+    this.state.resolutionId = resolutionId;
     const previousSource = this.state.resolvedSource;
     try {
       const resolvedSource = await resolveVisualSource(props);
@@ -217,7 +217,7 @@ export class VectorSourceLayer extends CompositeLayer<VectorSourceLayerProps> {
           `VectorSourceLayer expected a vector source but resolved ${resolvedSource.sourceType}.`
         );
       }
-      if (resolutionId !== this.resolutionId) {
+      if (resolutionId !== this.state.resolutionId) {
         if (resolvedSource.owned) {
           await finalizeOwnedSource(resolvedSource.source);
         }
@@ -238,7 +238,7 @@ export class VectorSourceLayer extends CompositeLayer<VectorSourceLayerProps> {
         void this._updateViewport();
       }
     } catch (error) {
-      if (resolutionId === this.resolutionId) {
+      if (resolutionId === this.state.resolutionId) {
         const normalizedError = error instanceof Error ? error : new Error(String(error));
         this.props.onSourceError?.(normalizedError);
         this.raiseError(normalizedError, 'resolving vector source');

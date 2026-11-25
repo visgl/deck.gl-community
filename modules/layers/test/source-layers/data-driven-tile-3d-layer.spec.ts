@@ -38,7 +38,9 @@ async function flushPromises(): Promise<void> {
 afterEach(() => vi.restoreAllMocks());
 
 test('data-driven traversal applies color and filter hooks to mesh tiles', async () => {
-  vi.spyOn(Tile3DLayer.prototype as any, '_updateTileset').mockImplementation(() => {});
+  const refresh = vi
+    .spyOn(Tile3DLayer.prototype as any, '_updateTileset')
+    .mockImplementation(() => {});
   const customizeColors = vi
     .fn()
     .mockResolvedValueOnce({id: 'changed', isColored: true})
@@ -51,6 +53,7 @@ test('data-driven traversal applies color and filter hooks to mesh tiles', async
   const layer = createLayer({customizeColors, filterTile, onTraversalComplete});
   layer.state.colorsByAttribute = {attributeName: 'height'};
   layer.state.filtersByAttribute = {attributeName: 'height'};
+  layer.state.lastUpdatedViewports = {main: {id: 'main'}};
   layer.state.layerMap = {changed: {cached: true}, unchanged: {cached: true}};
   const tiles = [
     {id: 'changed', type: TILE_TYPE.MESH},
@@ -66,6 +69,7 @@ test('data-driven traversal applies color and filter hooks to mesh tiles', async
   expect(layer.state.layerMap.changed).toBeUndefined();
   expect(layer.state.layerMap.unchanged).toEqual({cached: true});
   expect(layer.state.loadingCounter).toBe(0);
+  expect(refresh).toHaveBeenCalledWith(layer.state.lastUpdatedViewports);
   expect(layer.setNeedsUpdate).toHaveBeenCalled();
 });
 

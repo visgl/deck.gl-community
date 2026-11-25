@@ -9,12 +9,12 @@ foliage and crop attachments for eight species, with individual leaves up close,
 leaf clumps at middle distances and fitted crown hulls farther away. Trees sharing a
 template can vary in size, growth, foliage, color, crops and wind.
 
-The demo above is the [Seasonal Farm example](/examples/layers/seasonal-farm).
+The demo above is the [Seasonal Farm example](/examples/vegetation-layers/seasonal-farm).
 
 ## Usage
 
 ```ts
-import {TreeLayer} from '@deck.gl-community/layers/tree-layers';
+import {TreeLayer} from '@deck.gl-community/layers/vegetation-layers';
 
 new TreeLayer({
   id: 'trees',
@@ -214,4 +214,4 @@ properties. A standalone Gaussian canopy can still use [`SplatLayer`](./splat-la
 
 ## Source
 
-[modules/layers/src/tree-layers/tree-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/tree-layers/tree-layer)
+[modules/layers/src/vegetation-layers/tree-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/vegetation-layers/tree-layer)

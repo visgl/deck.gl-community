@@ -233,8 +233,7 @@ export class DataDrivenTile3DLayer<
           }
         }
         if (isTileChanged && !this.state.loadingCounter) {
-          // @ts-expect-error deck.gl keeps this method private on the base class.
-          super._updateTileset(this.state.activeViewports);
+          this.refreshLoadedTileset();
           this.setNeedsUpdate();
         }
       });
@@ -273,8 +272,7 @@ export class DataDrivenTile3DLayer<
           }
         }
         if (isTileChanged && !this.state.loadingCounter) {
-          // @ts-expect-error deck.gl keeps this method private on the base class.
-          super._updateTileset(this.state.activeViewports);
+          this.refreshLoadedTileset();
           this.setNeedsUpdate();
         }
       });
