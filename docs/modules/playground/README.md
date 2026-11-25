@@ -209,3 +209,6 @@ The [API reference](./api-reference/playground.md) covers registration, picking,
 and standalone schemas. The
 [host bindings example](https://github.com/visgl/deck.gl-community/blob/master/examples/playground/host-bindings.ts)
 shows shared sources, row updates, picking, and cleanup.
+
+The experimental [SQL provider](./api-reference/sql-provider.md) connects math.gl parsing to
+loaders.gl Arrow queries through the existing source manager.
