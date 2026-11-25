@@ -230,6 +230,7 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
         | Record<string, {'@@sql': string; parameters?: unknown}>
         | undefined;
       const sourceLayers = (value as {layers?: Record<string, unknown>[]}).layers ?? [];
+      const inlineQueries = new Map<string, string>();
       const layerBindings = new Map<string, string>();
       const resolvedBindings: PlaygroundBindings = Object.create(null);
       const ids = new Set<string>();
@@ -278,12 +279,22 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
             typeof data === 'string'
               ? /^\s*SELECT\s+\*\s+FROM\s+(?:"([^"\r\n]+)"|([a-zA-Z0-9_-]+))\s*;?\s*$/i.exec(data)
               : null;
-          if (sourceUrl || tableQuery || (isRecord(data) && Object.hasOwn(data, '@@data'))) {
+          const inlineQuery =
+            typeof data === 'string' && !tableQuery && /^\s*(?:SELECT|SHOW|DESCRIBE)\b/i.test(data);
+          if (
+            sourceUrl ||
+            tableQuery ||
+            inlineQuery ||
+            (isRecord(data) && Object.hasOwn(data, '@@data'))
+          ) {
             const bindingName = sourceUrl
               ? data.slice('datasource://'.length)
               : tableQuery
                 ? (tableQuery[1] ?? tableQuery[2])
-                : String(data['@@data']);
+                : inlineQuery
+                  ? `${namespace}-sql-${id}`
+                  : String(data['@@data']);
+            if (inlineQuery) inlineQueries.set(bindingName, data as string);
             if (!bindingName.trim()) throw new Error('A datasource URL must contain a source ID');
             const hasOverride = Object.hasOwn(bindings, bindingName);
             const binding = hasOverride ? bindings[bindingName] : dataSources?.get(bindingName);
@@ -346,16 +357,19 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
       }
       // Complete all synchronous schema, registry, expression, and layer-id validation before
       // starting host work. Invalid edits must not replace sources used by the accepted preview.
-      if (sources) {
+      if (sources || inlineQueries.size) {
         if (!dataSources?.addQuery) {
           throw new Error('SQL sources require a data source manager with a query provider');
         }
-        for (const [dataSourceId, source] of Object.entries(sources)) {
+        for (const [dataSourceId, source] of Object.entries(sources ?? {})) {
           dataSources.addQuery({
             dataSourceId,
             query: {sql: source['@@sql'], parameters: source.parameters as any}
           });
         }
+      }
+      for (const [dataSourceId, sql] of inlineQueries) {
+        dataSources!.addQuery!({dataSourceId, query: {sql}});
       }
       const sourceIds = [...new Set(layerBindings.values())];
       const unavailable = sourceIds.filter(name => !Object.hasOwn(resolvedBindings, name));

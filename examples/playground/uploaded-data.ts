@@ -7,7 +7,12 @@ import {Table, tableFromIPC, tableFromJSON} from 'apache-arrow';
 import {GeoJSONSchema} from '@deck.gl-community/playground';
 
 /** An uploaded file's canonical Arrow table and deck.gl row adapter. */
-export type UploadedData = {table: Table; data: Record<string, unknown>[]; format: string};
+export type UploadedData = {
+  table: Table;
+  data: Record<string, unknown>[];
+  format: string;
+  decodeRow?: (row: Record<string, unknown>) => Record<string, unknown>;
+};
 
 /** Restores nested Arrow values as ordinary objects and arrays for deck.gl accessors. */
 function toPlainValue(value: unknown): any {
@@ -65,7 +70,7 @@ export async function loadUploadedData(file: File): Promise<UploadedData> {
   if (!isCsv && value.length && value.every(row => row.type === 'Feature')) {
     return createGeojsonData(value.map(validateGeojson));
   }
-  return createTabularData(value, isCsv ? 'CSV' : 'JSON');
+  return createUploadedRows(value, isCsv ? 'CSV' : 'JSON');
 }
 
 /** Compares inferred Arrow values without losing missing fields or nested JSON structure. */
@@ -81,7 +86,7 @@ function hasSameValues(left: unknown, right: unknown): boolean {
 }
 
 /** Keeps Arrow canonical while avoiding lossy inference for sparse or heterogeneous rows. */
-function createTabularData(rows: Record<string, unknown>[], format: string): UploadedData {
+export function createUploadedRows(rows: Record<string, unknown>[], format: string): UploadedData {
   try {
     const adapted = createUploadedData(rows.length ? tableFromJSON(rows) : new Table(), format);
     if (hasSameValues(rows, adapted.data)) return adapted;
@@ -89,7 +94,8 @@ function createTabularData(rows: Record<string, unknown>[], format: string): Upl
     // Mixed JSON values need a lossless representation instead of Arrow type coercion.
   }
   const table = tableFromJSON(rows.map(row => ({row: JSON.stringify(row)})));
-  return {table, format, data: Array.from(table, row => JSON.parse(row.row))};
+  const decodeRow = (row: Record<string, unknown>) => JSON.parse(String(row.row));
+  return {table, format, decodeRow, data: Array.from(table, row => decodeRow(row.toJSON()))};
 }
 
 /** Stores heterogeneous GeoJSON features losslessly, including foreign members. */
@@ -103,7 +109,13 @@ function createGeojsonData(features: Record<string, any>[]): UploadedData {
         }))
       )
     : new Table();
-  return {table, format: 'GeoJSON', data: Array.from(table, row => JSON.parse(row.feature))};
+  const decodeRow = (row: Record<string, unknown>) => JSON.parse(String(row.feature));
+  return {
+    table,
+    format: 'GeoJSON',
+    decodeRow,
+    data: Array.from(table, row => decodeRow(row.toJSON()))
+  };
 }
 
 /** Gives upload users a concise validation error instead of raw schema diagnostics. */

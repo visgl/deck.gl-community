@@ -113,6 +113,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
   readonly jsonSchema: Record<string, unknown>;
   private readonly resolver: ReturnType<typeof createPlaygroundResolver>;
   private bindings: PlaygroundBindings;
+  private resolving = false;
   private resolved?: ResolvedPlaygroundConfiguration;
   private request?: {value: unknown; sourceIds: Set<string>; text?: string; resetView?: boolean};
   private resetViewOnUpdate = false;
@@ -207,6 +208,12 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     ) {
       return;
     }
+    if (this.resolving) {
+      // Query registration can notify synchronously while this.request still holds the previous
+      // document. Retry after accepting the new request, never re-register the previous SQL.
+      queueMicrotask(() => this.handleSourceChange(sourceId));
+      return;
+    }
     this.setBindings(this.bindings);
   };
 
@@ -254,6 +261,19 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
   }
 
   private applyDocument(
+    value: unknown,
+    bindings: PlaygroundBindings,
+    resetView = false
+  ): ResolvedPlaygroundConfiguration {
+    this.resolving = true;
+    try {
+      return this.resolveDocument(value, bindings, resetView);
+    } finally {
+      this.resolving = false;
+    }
+  }
+
+  private resolveDocument(
     value: unknown,
     bindings: PlaygroundBindings,
     resetView = false

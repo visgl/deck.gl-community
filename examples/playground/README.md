@@ -101,3 +101,32 @@ registry, uploaded sources, or WebMCP tools. The renderer remains private and un
 
 This work builds on [Microsoft Research SandDance](https://github.com/microsoft/SandDance),
 including Dan Marshall's renderer engineering. See the Vega module's attribution and provenance.
+
+## SQL queries
+
+Choose **SQL filtered points (POC)** for a parameterized, ordered query over the demo Arrow table.
+Uploaded tables are available under their assigned names. Changing catalog inputs automatically
+refreshes query results without editing SQL. The live browser points source is also available as
+`points`.
+
+Use `"data": "SELECT id, position FROM points WHERE value >= 2 ORDER BY value DESC LIMIT 10"`
+in a layer, or declare a reusable parameterized source:
+
+```json
+{
+  "sources": {"filtered": {"@@sql": "SELECT * FROM demo_points WHERE value >= :minimum ORDER BY value DESC LIMIT 2", "parameters": {"minimum": 2}}},
+  "layers": [{"@@type": "ScatterplotLayer", "id": "points", "data": "datasource://filtered",
+    "getPosition": "@@=position"}]
+}
+```
+
+The optional adapter supports upstream inner/left joins, grouping, sorting, UNION ALL, projection,
+filtering, pagination and named parameters. SHOW TABLES, SHOW SOURCES and DESCRIBE inspect only
+the allowed catalog. Unique projected ID columns can preserve picking identities. Sparse JSON
+and GeoJSON columns can be queried through JSON_NUMBER/JSON_VALUE paths; single-table SELECT *
+restores original uploaded row/feature objects after filtering. Explicit projections return SQL rows.
+
+See the [SQL provider API](../../docs/modules/playground/api-reference/sql-provider.md) for
+configuration, lifecycle and remaining upstream constraints. Remote execution remains host-provided
+through the existing query-provider contract. All core peers use loaders.gl 5.0.0; other loaders
+are unchanged.
