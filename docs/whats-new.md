@@ -325,3 +325,10 @@ Released: November 20, 2024
 
 - **layers — new module (December 2023):** reusable community layers, initially including tile-source and data-driven 3D tile layers.
 - **graph-layers — new module (April 2023):** graph visualization forked from the archived graph.gl repository.
+
+### Experimental playground SQL adapter
+
+The optional `@deck.gl-community/playground/sql` entry point connects math.gl's SQL parser to
+loaders.gl's Arrow query engine through the existing query-provider contract. The standalone
+**SQL filtered points (POC)** example demonstrates projection, filtering and limits over named
+Arrow tables. See the playground example README for the POC's boundaries.

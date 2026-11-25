@@ -3,6 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import {DeckPlayground, PlaygroundDataSourceManager} from '@deck.gl-community/playground';
+import {createPlaygroundSQLProvider} from '@deck.gl-community/playground/sql';
+import {tableFromJSON} from 'apache-arrow';
 import {createPlaygroundRegistry} from './registry';
 import {TEMPLATES as GALLERY_TEMPLATES} from './templates';
 import {createVegaPanel} from './vega-panel';
@@ -28,6 +30,24 @@ const TEMPLATES = {
         radiusUnits: 'pixels',
         getFillColor: [40, 120, 220],
         pickable: true
+      }
+    ]
+  },
+  'sql-points': {
+    name: 'SQL filtered points (POC)',
+    description: 'math.gl parses SQL; loaders.gl queries Arrow; deck.gl renders rows.',
+    sources: {filtered: {'@@sql': 'SELECT * FROM points WHERE value >= 2 LIMIT 2'}},
+    views: {'@@type': 'OrthographicView', id: 'plot'},
+    initialViewState: {target: [0, 0, 0], zoom: 1},
+    layers: [
+      {
+        '@@type': 'ScatterplotLayer',
+        id: 'filtered-points',
+        data: 'datasource://filtered',
+        getPosition: '@@=position',
+        getRadius: 8,
+        radiusUnits: 'pixels',
+        getFillColor: [220, 100, 40]
       }
     ]
   },
@@ -57,7 +77,19 @@ export function mountStandalonePlayground(
     setState: setToolState,
     destroy: destroyToolButton
   } = createWebMcpButton(root.querySelector<HTMLElement>('[data-webmcp]')!);
-  const sources = new PlaygroundDataSourceManager();
+  const pointsTable = tableFromJSON([
+    {position: [-40, -20], value: 1},
+    {position: [0, 20], value: 2},
+    {position: [40, -20], value: 3}
+  ]);
+  const sources = new PlaygroundDataSourceManager({
+    queryProvider: createPlaygroundSQLProvider({
+      getTable: name =>
+        name === 'points'
+          ? pointsTable
+          : uploads.entries.find(entry => entry.tableName === name)?.value?.table
+    })
+  });
   sources.add({
     dataSourceId: 'points',
     dataSource: {

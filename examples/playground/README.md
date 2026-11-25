@@ -101,3 +101,28 @@ registry, uploaded sources, or WebMCP tools. The renderer remains private and un
 
 This work builds on [Microsoft Research SandDance](https://github.com/microsoft/SandDance),
 including Dan Marshall's renderer engineering. See the Vega module's attribution and provenance.
+
+## SQL query provider POC
+
+Choose **SQL filtered points (POC)** in the standalone playground. The optional playground SQL
+adapter uses `@math.gl/sql/parser` and loaders.gl's Arrow query engine:
+
+```json
+{
+  "sources": {"filtered": {"@@sql": "SELECT * FROM points WHERE value >= 2 LIMIT 2"}},
+  "layers": [{"@@type": "ScatterplotLayer", "id": "points", "data": "datasource://filtered",
+    "getPosition": "@@=position"}]
+}
+```
+
+Uploaded table names can replace `points`. This POC supports single-table SELECT, projection,
+filtering and limits over the canonical Arrow representation. Sparse JSON/GeoJSON uploads expose
+their stored JSON columns rather than reconstructed feature properties. Parameters, joins, remote
+SQL and automatic query refresh after changing an input table are outside this POC. Change the SQL
+(or reload the page) to request a new result. The existing manager owns cancellation, async errors,
+and persistent preview recovery.
+
+Import `createPlaygroundSQLProvider` from `@deck.gl-community/playground/sql` and pass its result
+as the manager's `queryProvider`. Supply `getTable(name)` to allowlist host-owned Arrow tables.
+The POC upgrades the workspace core resolution to loaders.gl 5.0.0 for its public scan query API.
+Other loaders remain at their existing versions; compatibility needs validation before adoption.

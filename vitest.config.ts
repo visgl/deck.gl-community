@@ -74,6 +74,8 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     'supercluster',
     '@deck.gl/react/legacy',
     '@loaders.gl/tables',
+    '@loaders.gl/core/query',
+    '@math.gl/sql/parser',
     'apache-arrow',
     'react',
     'react-dom',
