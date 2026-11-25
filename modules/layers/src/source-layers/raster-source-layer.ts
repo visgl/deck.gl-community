@@ -109,7 +109,13 @@ export type RasterSourceLayerProps = Omit<CompositeLayerProps, 'data' | 'loaders
   ) => GetRasterParameters | Record<string, unknown>;
   /** Optional raster-to-bitmap colorizer for the CPU path. */
   colorizeRaster?: (raster: RasterData, context: RasterColorizerContext) => RasterRenderResult;
-  /** Props forwarded to either bitmap sublayer. */
+  /**
+   * Props forwarded to either bitmap sublayer.
+   *
+   * With deck.gl 10.0.0-alpha.2, keep `_projectionTolerance` unset or `0` for a projected raster
+   * in `MapView` or `GlobeView`. Those views pack the raster to WGS84, and a nonzero value throws
+   * `requires projected coordinates with linear units`. visgl/deck.gl#11343 adds support.
+   */
   bitmapLayerProps?: Partial<BitmapLayerProps>;
   /** Uses GPU colorization for single-band rasters when set to `'gpu'`. Defaults to `'cpu'`. */
   rendering?: 'cpu' | 'gpu';

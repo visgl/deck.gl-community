@@ -33,6 +33,10 @@ Use `onSourceLoad` to inspect the resolved source, `onMetadataLoad` to read its 
 
 For image and vector services that expose multiple named layers, set `layers` to a name or a list of names. Pass explicit `sourceOptions.core.type` when a URL can represent more than one source type.
 
+## Projected rasters
+
+`RasterSourceLayer` forwards `bitmapLayerProps` to `BitmapLayer`. With deck.gl 10.0.0-alpha.2, do not set `bitmapLayerProps._projectionTolerance` to a nonzero value for a projected raster (for example UTM) in `MapView` or `GlobeView`. These views pack the raster to WGS84, and `BitmapLayer` then throws `_projectionTolerance requires projected coordinates with linear units`. Keep the value unset or `0` in these views. [visgl/deck.gl#11343](https://github.com/visgl/deck.gl/pull/11343) adds support for these views.
+
 ## Using the community entry point
 
 Examples that already use the private loaders.gl module can change the layer import while keeping their loader list, source options, and callbacks.
