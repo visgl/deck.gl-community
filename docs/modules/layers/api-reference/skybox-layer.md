@@ -13,20 +13,20 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 Renders a camera-centered cubemap background using a luma.gl cube texture.
 
-See the [SkyboxLayer MapView example](/examples/layers/skybox-map-view), the
-[SkyboxLayer GlobeView example](/examples/layers/skybox-globe), and the
-[SkyboxLayer FirstPersonView example](/examples/layers/skybox-first-person).
+See the [SkyboxLayer MapView example](/examples/sky-layers/skybox-map-view), the
+[SkyboxLayer GlobeView example](/examples/sky-layers/skybox-globe), and the
+[SkyboxLayer FirstPersonView example](/examples/sky-layers/skybox-first-person).
 
 ## Import
 
 ```ts
-import {SkyboxLayer} from '@deck.gl-community/layers';
+import {SkyboxLayer} from '@deck.gl-community/layers/sky-layers';
 ```
 
 ## Example
 
 ```ts
-import {SkyboxLayer} from '@deck.gl-community/layers';
+import {SkyboxLayer} from '@deck.gl-community/layers/sky-layers';
 
 new SkyboxLayer({
   id: 'skybox',

@@ -18,10 +18,6 @@ it('exports DependencyArrowLayer', () => {
   expect(Layers.DependencyArrowLayer).toBeDefined();
 });
 
-it('exports SkyboxLayer', () => {
-  expect(Layers.SkyboxLayer).toBeDefined();
-});
-
 it('exports VolumetricVideoLayer', () => {
   expect(Layers.VolumetricVideoLayer).toBeDefined();
 });

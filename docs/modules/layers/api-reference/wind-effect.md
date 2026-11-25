@@ -13,7 +13,7 @@ See it in the [Wind Garden](/examples/layers/wind-garden) example.
 
 ```ts
 import {Deck} from '@deck.gl/core';
-import {TreeLayer} from '@deck.gl-community/layers/tree-layers';
+import {TreeLayer} from '@deck.gl-community/layers/vegetation-layers';
 import {WindEffect} from '@deck.gl-community/layers/wind-layers/wind-effect';
 
 new Deck({
@@ -122,7 +122,7 @@ the scene's centre and pass the result to the effect:
 
 ```ts
 import {sampleWindField} from '@deck.gl-community/layers/wind-layers';
-import {TreeLayer} from '@deck.gl-community/layers/tree-layers';
+import {TreeLayer} from '@deck.gl-community/layers/vegetation-layers';
 import {WindEffect} from '@deck.gl-community/layers/wind-layers/wind-effect';
 
 // WindSample.direction is the direction of travel, counterclockwise radians from east.
