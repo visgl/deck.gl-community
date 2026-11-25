@@ -258,6 +258,8 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
 - The BasemapLayers overview includes a synchronized comparison with MapLibre, with map, globe, and first-person views.
 
 - The standalone playground adds local JSON, GeoJSON, CSV, and Arrow IPC uploads with Arrow inspection and `datasource://source-id` layer references.
+- Graph layouts support validated prop-update hooks; `SimpleLayout` refreshes positions when its accessor changes.
+
 - `GraphLayer.layoutTransitionDuration` enables opt-in position interpolation independently of layout redraw throttling.
 
 - The graph viewer includes a live mini-map with click-to-recenter navigation. The playground
