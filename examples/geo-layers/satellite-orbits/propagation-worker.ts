@@ -15,13 +15,14 @@ import {
 
 /** Messages from the main thread to the worker. */
 export type WorkerRequest =
-  | {type: 'init'; records: GpRecord[]}
+  | {type: 'init'; generation: number; records: GpRecord[]}
   | {type: 'propagate'; requestId: number; timeMs: number};
 
 /** Messages from the worker to the main thread. */
 export type WorkerResponse =
   | {
       type: 'ready';
+      generation: number;
       /** Index into the `records` that were sent, for each satellite that SGP4 accepted. */
       recordIndices: Int32Array;
       /** Index into `ORBIT_CLASSES`. */
@@ -31,6 +32,7 @@ export type WorkerResponse =
     }
   | {
       type: 'positions';
+      generation: number;
       requestId: number;
       timeMs: number;
       /** `[lng, lat, altitude meters]` per satellite; NaN when SGP4 failed. */
@@ -39,6 +41,7 @@ export type WorkerResponse =
       propagateMs: number;
     };
 
+let generation = 0;
 let satrecs: SatRec[] = [];
 
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
@@ -46,6 +49,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   if (message.type === 'init') {
     const start = performance.now();
     const recordIndices: number[] = [];
+    generation = message.generation;
     satrecs = [];
     message.records.forEach((record, index) => {
       const satrec = createSatRec(record);
@@ -56,6 +60,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
     });
     const response: WorkerResponse = {
       type: 'ready',
+      generation,
       recordIndices: Int32Array.from(recordIndices),
       orbitClasses: Uint8Array.from(satrecs, s => ORBIT_CLASSES.indexOf(classifyOrbit(s))),
       periodsMinutes: Float32Array.from(satrecs, getOrbitalPeriodMinutes),
@@ -75,6 +80,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   }
   const response: WorkerResponse = {
     type: 'positions',
+    generation,
     requestId: message.requestId,
     timeMs: message.timeMs,
     positions,

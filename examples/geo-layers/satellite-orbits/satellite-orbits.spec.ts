@@ -4,8 +4,9 @@
 
 import {readFileSync} from 'node:fs';
 import {gstime} from 'satellite.js';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 
+import {mountSatelliteOrbitsExample, type SatelliteOrbitsHandle} from './app';
 import fixture from './data/gp-fixture.omm.json';
 import {createSatRec, parseOmmJson, parseTleText} from './gp-records';
 import {
@@ -16,6 +17,14 @@ import {
   interpolateLngLatAlt,
   propagateToLngLatAlt
 } from './orbit-math';
+import type {WorkerRequest, WorkerResponse} from './propagation-worker';
+
+vi.mock('@deck.gl/core', () => ({
+  Deck: class {
+    finalize = vi.fn();
+  },
+  GlobeView: class {}
+}));
 
 const records = parseOmmJson(fixture as unknown[]);
 const tleRecords = parseTleText(
@@ -30,6 +39,110 @@ function getLngLatAlt(record = getRecord(ISS), date = DATE): Float64Array {
   propagateToLngLatAlt(createSatRec(record)!, date, gstime(date), position, 0);
   return position;
 }
+
+describe('satellite orbits: dataset switching', () => {
+  it('ignores a late live fetch and a stale worker reply after switching to the fixture', async () => {
+    let resolveLive: (response: Response) => void;
+    const slowLive = new Promise<Response>(resolve => {
+      resolveLive = resolve;
+    });
+    const liveBody = JSON.stringify(fixture.slice(0, 1));
+    const fetchGroup = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(liveBody))
+      .mockReturnValueOnce(slowLive);
+
+    const controls = new Map<
+      string,
+      {value?: string; onchange?: () => void; textContent?: string}
+    >();
+    const panel = {
+      style: {},
+      remove: vi.fn(),
+      querySelector(selector: string) {
+        if (!controls.has(selector)) controls.set(selector, {});
+        return controls.get(selector);
+      }
+    };
+    const getControl = (id: string) => controls.get(`[data-id="${id}"]`)!;
+    const container = {style: {}, appendChild: vi.fn()} as unknown as HTMLElement;
+
+    const replies: WorkerResponse[] = [];
+    const workerScope = {
+      onmessage: null as (event: {data: WorkerRequest}) => void,
+      postMessage: (data: WorkerResponse) => replies.push(data)
+    };
+    let worker: TestWorker;
+    class TestWorker {
+      onmessage: (event: {data: WorkerResponse}) => void;
+      terminate = vi.fn();
+
+      constructor() {
+        worker = this;
+      }
+
+      postMessage(data: WorkerRequest) {
+        workerScope.onmessage({data});
+      }
+    }
+
+    vi.useFakeTimers();
+    vi.stubGlobal('document', {createElement: () => panel});
+    vi.stubGlobal('localStorage', {getItem: () => null, setItem: vi.fn()});
+    vi.stubGlobal('fetch', fetchGroup);
+    vi.stubGlobal('requestAnimationFrame', () => 0);
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    vi.stubGlobal('Worker', TestWorker);
+    vi.stubGlobal('self', workerScope);
+
+    let handle: SatelliteOrbitsHandle;
+    let cleanup: (() => void) | undefined;
+    try {
+      await import('./propagation-worker');
+      cleanup = mountSatelliteOrbitsExample(container, {
+        group: 'gps-ops',
+        onReady: value => {
+          handle = value;
+        }
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      const [staleReady] = replies;
+      expect(staleReady).toMatchObject({type: 'ready', generation: 1});
+
+      const group = getControl('group');
+      group.value = 'stations';
+      group.onchange!();
+      expect(fetchGroup).toHaveBeenLastCalledWith(expect.stringContaining('GROUP=stations'));
+      group.value = 'fixture';
+      group.onchange!();
+      await vi.advanceTimersByTimeAsync(0);
+      const [, fixtureReady] = replies;
+      expect(fixtureReady).toMatchObject({type: 'ready', generation: 3});
+
+      worker.onmessage({data: staleReady});
+      expect(getControl('status').textContent).toBe('Loading fixture...');
+      expect(handle.stats.count).toBe(0);
+      expect(replies).toHaveLength(2);
+
+      worker.onmessage({data: fixtureReady});
+      const [, , fixturePositions] = replies;
+      expect(fixturePositions).toMatchObject({type: 'positions', generation: 3});
+      worker.onmessage({data: fixturePositions});
+      expect(handle.getPosition(ISS)).not.toBeNull();
+
+      resolveLive!(new Response(liveBody));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(group.value).toBe('fixture');
+      expect(getControl('status').textContent).toBe(`${records.length} satellites`);
+      expect(handle.stats.count).toBe(records.length);
+      expect(replies).toHaveLength(3);
+    } finally {
+      cleanup?.();
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+});
 
 describe('satellite orbits: GP parsing', () => {
   it('parses the OMM JSON fixture', () => {

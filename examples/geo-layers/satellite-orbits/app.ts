@@ -102,6 +102,7 @@ for (let lng = -180; lng < 180; lng += 5) {
 type Sample = {timeMs: number; positions: Float64Array; speedsKmS: Float32Array};
 
 type Dataset = {
+  generation: number;
   records: GpRecord[];
   satrecs: (SatRec | null)[];
   colors: Uint8Array;
@@ -122,6 +123,8 @@ export function mountSatelliteOrbitsExample(
     propagateCount: 0,
     propagateTotalMs: 0
   };
+  let generation = 0;
+  let pendingDataset: {records: GpRecord[]; originMs: number} | null = null;
   let dataset: Dataset | null = null;
   let previous: Sample | null = null;
   let latest: Sample | null = null;
@@ -186,35 +189,35 @@ export function mountSatelliteOrbitsExample(
   props.onReady?.({deck, stats, getPosition, setPlaying: playing => clock.setPlaying(playing)});
 
   async function loadGroup(group: string, format: 'json' | 'tle'): Promise<void> {
+    const loadGeneration = ++generation;
+    const isCurrent = () => !disposed && loadGeneration === generation;
+    pendingDataset = null;
     panel.setStatus(`Loading ${group}...`);
     try {
-      const records = await loadRecords(group, format);
-      if (disposed) return;
+      const records = await loadRecords(group, format, isCurrent);
+      if (!isCurrent() || !records) return;
       // The fixture runs at its median epoch, so that it stays accurate offline.
       const epochs = records.map(record => record.epochMs).sort((a, b) => a - b);
-      clock.setOrigin(group === 'fixture' ? epochs[epochs.length >> 1] : Date.now());
-      dataset = {
-        records,
-        satrecs: [],
-        colors: new Uint8Array(0),
-        periodsMinutes: new Float32Array(0),
-        orbitClasses: new Uint8Array(0)
-      };
-      previous = latest = null;
-      selectedIndex = -1;
-      updateTracks();
-      postToWorker({type: 'init', records});
+      const originMs = group === 'fixture' ? epochs[epochs.length >> 1] : Date.now();
+      pendingDataset = {records, originMs};
+      postToWorker({type: 'init', generation: loadGeneration, records});
     } catch (error) {
-      panel.setStatus(`Could not load ${group}: ${(error as Error).message}`);
+      if (isCurrent()) {
+        panel.setStatus(`Could not load ${group}: ${(error as Error).message}`);
+      }
     }
   }
 
   function onWorkerMessage(message: WorkerResponse): void {
-    if (!dataset) return;
+    if (disposed || message.generation !== generation) return;
     if (message.type === 'ready') {
+      if (!pendingDataset) return;
+      const {records: loadedRecords, originMs} = pendingDataset;
+      pendingDataset = null;
       // Keep only the records that SGP4 accepted, in worker order.
-      const records = Array.from(message.recordIndices, index => dataset!.records[index]);
+      const records = Array.from(message.recordIndices, index => loadedRecords[index]);
       dataset = {
+        generation: message.generation,
         records,
         satrecs: records.map(() => null),
         colors: Uint8Array.from(
@@ -226,18 +229,19 @@ export function mountSatelliteOrbitsExample(
       stats.count = records.length;
       stats.initMs = message.initMs;
       current = new Float64Array(records.length * 3);
-      if (props.selectNoradId) {
-        selectedIndex = records.findIndex(record => record.noradId === props.selectNoradId);
-      }
+      clock.setOrigin(originMs);
+      previous = latest = null;
+      selectedIndex = props.selectNoradId
+        ? records.findIndex(record => record.noradId === props.selectNoradId)
+        : -1;
+      updateTracks();
       panel.setStatus(`${records.length} satellites`);
-      pendingRequest = false;
       requestNow();
       return;
     }
+    if (message.requestId !== requestId) return;
     pendingRequest = false;
-    if (message.requestId !== requestId || message.positions.length !== current.length) {
-      return;
-    }
+    if (message.positions.length !== current.length) return;
     stats.lastPropagateMs = message.propagateMs;
     stats.propagateCount++;
     stats.propagateTotalMs += message.propagateMs;
@@ -254,7 +258,7 @@ export function mountSatelliteOrbitsExample(
 
   /** Asks the worker for the positions at the simulated time of the next update. */
   function requestAhead(): void {
-    if (!dataset || pendingRequest) return;
+    if (dataset?.generation !== generation || pendingRequest) return;
     const timeMs = clock.at(performance.now() + UPDATE_INTERVAL_MS);
     if (latest && timeMs === latest.timeMs) return;
     pendingRequest = true;
@@ -263,7 +267,7 @@ export function mountSatelliteOrbitsExample(
 
   /** Drops the old samples and asks for the current time, after a seek or speed change. */
   function requestNow(): void {
-    if (!dataset) return;
+    if (dataset?.generation !== generation) return;
     resetOnNextSample = true;
     pendingRequest = true;
     postToWorker({type: 'propagate', requestId: ++requestId, timeMs: clock.now()});
@@ -440,7 +444,11 @@ export function mountSatelliteOrbitsExample(
   };
 }
 
-async function loadRecords(group: string, format: 'json' | 'tle'): Promise<GpRecord[]> {
+async function loadRecords(
+  group: string,
+  format: 'json' | 'tle',
+  isCurrent: () => boolean
+): Promise<GpRecord[] | null> {
   if (group === 'fixture') {
     return parseOmmJson(fixture as unknown[]);
   }
@@ -454,6 +462,7 @@ async function loadRecords(group: string, format: 'json' | 'tle'): Promise<GpRec
       throw new Error(`HTTP ${response.status}`);
     }
     text = await response.text();
+    if (!isCurrent()) return null;
     writeCache(cacheKey, text);
   }
   return format === 'json' ? parseOmmJson(text) : parseTleText(text);
