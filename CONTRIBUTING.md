@@ -26,9 +26,9 @@ If you consider opening a PR, here are some documentations to get you started:
 Start by setting up a development environment as described above. Once
 installation and tests succeed:
 
-1. Open `examples/bing-maps`, or another example
+1. Open `examples/leaflet/get-started`, or another example
     ```bash
-    cd examples/bing-maps
+    cd examples/leaflet/get-started
     ```
 2. Install the example's dependencies
     ```bash

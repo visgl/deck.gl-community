@@ -50,7 +50,6 @@ const NOT_APPLICABLE_DOC_ID_PATTERNS = [
 ];
 
 const MODULE_STATUS = {
-  'bing-maps': 'unsupported',
   'editable-layers': 'partial',
   experimental: 'unsupported',
   'geo-layers': 'partial',
