@@ -66,8 +66,27 @@ export abstract class GraphLayout<PropsT extends GraphLayoutProps = GraphLayoutP
   }
 
   setProps(props: Partial<PropsT>): void {
-    this.props = {...this.props, ...props};
+    const nextProps = this._validateProps({...this.props, ...props});
+    if (isEqual(this.props, nextProps)) {
+      return;
+    }
+    const previousProps = this.props;
+    this.props = nextProps;
+    this._onPropsUpdated(previousProps, nextProps);
   }
+
+  /** Validate a merged update before committing it. Throw to reject the update. */
+  // eslint-disable-next-line class-methods-use-this
+  protected _validateProps(nextProps: Required<PropsT>): Required<PropsT> {
+    return nextProps;
+  }
+
+  /** Subclasses invalidate caches or recompute after a committed prop change. */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, class-methods-use-this
+  protected _onPropsUpdated(
+    previousProps: Readonly<Required<PropsT>>,
+    nextProps: Readonly<Required<PropsT>>
+  ): void {}
 
   /**
    * Check the equality of two layouts
