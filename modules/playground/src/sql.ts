@@ -98,22 +98,29 @@ export function createPlaygroundSQLProvider({
           tables.set(name, table);
         }
       }
+      const input = compound.inputs[0];
+      const tableName = input.from.inputTable ?? input.from.name;
       let result: Table;
-      if (simple && !('command' in simple) && typeof simple.from === 'string') {
+      if (
+        simple &&
+        !('command' in simple) &&
+        simple.from === tableName &&
+        !input.from.alias &&
+        !input.from.inputTable
+      ) {
         const {query} = await import('@loaders.gl/core/query');
         result = await query(
           {...simple, from: undefined},
-          {source: tables.get(simple.from)!, signal, functions: sqlFunctions}
+          {source: tables.get(tableName)!, signal, functions: sqlFunctions}
         );
       } else {
         const {queryArrowSQL} = await import('@math.gl/sql/query');
         result = queryArrowSQL(request.sql, tables, {...options, signal});
       }
       signal?.throwIfAborted();
-      const input = compound.inputs[0];
       const restore =
         compound.inputs.length === 1 && !input.select && !input.joins.length
-          ? getRowAdapter?.(input.from.name)
+          ? getRowAdapter?.(tableName)
           : undefined;
       const data = Array.from(result, row => {
         const plain = toPlainValue(row);

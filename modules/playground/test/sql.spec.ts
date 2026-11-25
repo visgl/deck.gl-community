@@ -188,6 +188,14 @@ test('JSON-backed sparse rows and GeoJSON can be filtered and restored without c
   await expect(
     json.execute({sql: "SELECT JSON_VALUE(row, 'invalid') AS label FROM rows"})
   ).rejects.toThrow();
+  expect(
+    (await json.execute({sql: "SELECT * FROM rows AS r WHERE JSON_NUMBER(r.row, '$.value') >= 2"}))
+      .data
+  ).toEqual([rows[0], rows[2]]);
+  catalog.setTable('warehouse.rows', table);
+  expect((await json.execute({sql: 'SHOW TABLES FROM "warehouse.rows"'})).data).toEqual([
+    {name: 'warehouse.rows'}
+  ]);
   catalog.finalize();
 });
 
