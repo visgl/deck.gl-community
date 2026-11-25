@@ -181,15 +181,10 @@ export class DataDrivenTile3DLayer<
 
   /** Reapplies data-driven changes when a new tile is loaded. */
   private override _onTileLoad(tileHeader: Tile3D): void {
-    const {lastUpdatedViewports} = this.state;
     this._colorizeTiles([tileHeader]);
     this._filterTiles([tileHeader]);
-    this.props.onTileLoad?.(tileHeader);
-    if (!this.state.colorsByAttribute && !this.state.filtersByAttribute) {
-      // @ts-expect-error deck.gl keeps this method private on the base class.
-      super._updateTileset(lastUpdatedViewports);
-      this.setNeedsUpdate();
-    }
+    // @ts-expect-error deck.gl keeps its tile-load lifecycle hook private.
+    super._onTileLoad(tileHeader);
   }
 
   /** Applies data-driven tile updates after traversal finishes. */

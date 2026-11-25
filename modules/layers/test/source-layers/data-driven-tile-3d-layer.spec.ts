@@ -109,7 +109,8 @@ test('data-driven tileset-wide hooks and tile loads cover empty and populated st
   layer.state.colorsByAttribute = {attributeName: 'height'};
   updateTileset.mockClear();
   layer._onTileLoad(tiles[0]);
-  expect(updateTileset).not.toHaveBeenCalled();
+  expect(updateTileset).toHaveBeenCalledWith(layer.state.lastUpdatedViewports);
+  expect(tiles[0]).toHaveProperty('tileDrawn', false);
 });
 
 test('data-driven updateState handles data, styling, viewport, loading, and fallback updates', () => {
