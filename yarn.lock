@@ -486,6 +486,7 @@ __metadata:
     "@deck.gl-community/playground": "workspace:*"
     react: "npm:^18.3.1"
     vega: "npm:^6.2.0"
+    vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
 
