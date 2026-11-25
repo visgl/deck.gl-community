@@ -31,6 +31,7 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/layers/common-layers',
       items: [
+        'layers/animated-blocks',
         'layers/path-outline-and-markers',
         'layers/flame-trail',
         'layers/edge-markers',
@@ -65,13 +66,9 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '@deck.gl-community/layers/infovis-layers',
-      items: ['infovis-layers/layer-primitives']
-    },
-    {
-      type: 'category',
       label: '@deck.gl-community/layers/timeline-layers',
       items: [
+        'timeline-layers/time-delta-layer',
         'timeline-layers/timeline-layer',
         'timeline-layers/horizon-graph-layer',
         'timeline-layers/multi-horizon-graph-layer'

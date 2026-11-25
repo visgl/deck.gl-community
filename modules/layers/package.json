@@ -82,11 +82,6 @@
       "require": "./dist/extensions/index.cjs",
       "import": "./dist/extensions/index.js"
     },
-    "./infovis-layers": {
-      "types": "./dist/infovis-layers/index.d.ts",
-      "require": "./dist/infovis-layers/index.cjs",
-      "import": "./dist/infovis-layers/index.js"
-    },
     "./timeline-layers": {
       "types": "./dist/timeline-layers/index.d.ts",
       "require": "./dist/timeline-layers/index.cjs",

@@ -12,7 +12,7 @@ npm install @deck.gl-community/layers
 ```
 
 :::note
-These layers originated in the standalone Infovis Layers package and contains HorizonGraph-based timeline renderers alongside the TimeAxis and VerticalGrid timeline utilities.
+These layers originated in the standalone Infovis Layers package and include HorizonGraph-based timeline renderers alongside the TimeAxis and VerticalGrid timeline utilities.
 :::
 
 ## Exports
@@ -22,9 +22,12 @@ These layers originated in the standalone Infovis Layers package and contains Ho
 - `TimelineLayer`
 - `TimeAxisLayer`
 - `VerticalGridLayer`
-- `formatDuration`
+- `TimeDeltaLayer` and synchronized timeline, header, and legend views
+- `formatDuration`, `formatTraceTimeMs`, and `formatTraceTimeRangeMs`
 
 ## API Reference
+
+- [TimeDeltaLayer](./api-reference/time-delta-layer.md)
 
 - [HorizonGraphLayer](./api-reference/horizon-graph-layer.md)
 - [MultiHorizonGraphLayer](./api-reference/multi-horizon-graph-layer.md)
