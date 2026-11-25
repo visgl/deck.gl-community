@@ -409,6 +409,7 @@ export function mountSatelliteOrbitsExample(
   function flyTo(target: 'iss' | 'geo' | 'all'): void {
     if (target === 'all') {
       follow = false;
+      panel.setFollow(false);
       viewState = {...INITIAL_VIEW_STATE};
       return;
     }
@@ -462,8 +463,9 @@ async function loadRecords(
       throw new Error(`HTTP ${response.status}`);
     }
     text = await response.text();
-    if (!isCurrent()) return null;
+    // Keep a late download: CelesTrak asks for one request per group and update interval.
     writeCache(cacheKey, text);
+    if (!isCurrent()) return null;
   }
   return format === 'json' ? parseOmmJson(text) : parseTleText(text);
 }
@@ -580,6 +582,9 @@ function createPanel(
     element,
     setStatus: (text: string) => {
       status.textContent = text;
+    },
+    setFollow: (value: boolean) => {
+      follow.checked = value;
     },
     setTime: (timeMs: number, stats: SatelliteStats) => {
       time.textContent = `${new Date(timeMs).toISOString().slice(0, 19)}Z, SGP4 ${stats.lastPropagateMs.toFixed(1)} ms`;
