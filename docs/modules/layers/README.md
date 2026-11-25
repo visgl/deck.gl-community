@@ -22,7 +22,7 @@ npm install @deck.gl-community/layers
 
 | Import path | Use it for |
 | --- | --- |
-| `@deck.gl-community/layers/common-layers` | Paths, markers, skybox, Gaussian splats, flame trails, volumetric video, and selection pulse |
+| `@deck.gl-community/layers/common-layers` | Paths, markers, [edge markers](./api-reference/edge-marker-layer.md) (experimental), skybox, Gaussian splats, flame trails, volumetric video, and selection pulse |
 | `@deck.gl-community/layers/geo-layers` | [Geospatial tile layers](../geo-layers/README.md) and shared tilesets |
 | `@deck.gl-community/layers/global-grid-layers` | [Global grid rendering and grid systems](../geo-layers/api-reference/global-grid.md) |
 | `@deck.gl-community/layers/wind-layers` | [Wind layers and station-data utilities](../geo-layers/developer-guide/wind-showcase.md) |
@@ -44,6 +44,7 @@ Community layer extensions are available from `@deck.gl-community/layers/extensi
 ## Examples
 
 - [FlameTrailLayer](/examples/layers/flame-trail)
+- [EdgeMarkerLayer](/examples/layers/edge-markers)
 - [VolumetricVideoLayer](/examples/layers/volumetric-video)
 - [Path outline, marker, and dependency arrow](/examples/layers/path-outline-and-markers)
 - [SkyboxLayer MapView](/examples/layers/skybox-map-view)

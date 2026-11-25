@@ -38,3 +38,17 @@ export {SelectionPulseExtension} from '@deck.gl-community/layers/extensions';
 export type {SelectionPulseExtensionProps} from '@deck.gl-community/layers/extensions';
 
 export * from '@deck.gl-community/layers/splat-layers';
+
+export {EdgeMarkerLayer} from './edge-marker-layer/edge-marker-layer';
+export type {EdgeMarkerLayerProps} from './edge-marker-layer/edge-marker-layer';
+export {
+  computeEdgeMarkers,
+  createEdgeMarkerFrame,
+  EdgeMarkerState,
+  DEFAULT_EDGE_MARKER_OPTIONS
+} from './edge-marker-layer/compute-edge-markers';
+export type {
+  EdgeMarkerFrame,
+  EdgeMarkerMargins,
+  EdgeMarkerOptions
+} from './edge-marker-layer/compute-edge-markers';

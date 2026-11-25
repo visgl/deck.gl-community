@@ -54,6 +54,7 @@ const sidebars = {
       items: [
         'layers/path-outline-and-markers',
         'layers/flame-trail',
+        'layers/edge-markers',
         'layers/seasonal-farm',
         'layers/grass-layer',
         'layers/wind-garden',

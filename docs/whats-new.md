@@ -12,6 +12,10 @@ This page lists module additions and major changes in each release. For detailed
   former `WindLayer` export for station-based wind visualization.
 - **layers:** [SplatLayer](./modules/layers/api-reference/splat-layer.md) is available from
   `@deck.gl-community/layers/splat-layers`. Existing imports remain available.
+- **layers:** experimental [EdgeMarkerLayer](./modules/layers/api-reference/edge-marker-layer.md)
+  shows targets as rings inside the viewport margins and docks arrows for targets outside the
+  margins, behind the camera, or beyond the globe horizon. Import it from
+  `@deck.gl-community/layers/common-layers`.
 - **layers:** [ZoomOpacityExtension](./modules/layers/api-reference/zoom-opacity-extension.md)
   fades layers by viewport zoom on WebGL2 and WebGPU.
 - **layers:** [Infovis and timeline layers](./upgrade-guide.md#infovis-and-timeline-packages) now ship as subpaths of the Layers package.

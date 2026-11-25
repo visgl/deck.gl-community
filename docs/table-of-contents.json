@@ -86,6 +86,7 @@
               "modules/layers/api-reference/effect-layers",
               "modules/layers/api-reference/dependency-arrow-layer",
               "modules/layers/api-reference/path-marker-layer",
+              "modules/layers/api-reference/edge-marker-layer",
               "modules/layers/api-reference/path-outline-layer",
               "modules/layers/api-reference/volumetric-video-layer",
               "modules/layers/api-reference/selection-pulse-extension",
