@@ -109,11 +109,11 @@ function renderLoaded(
   });
 }
 
-/** Resolve with the very first frame drawn after `viewState` changes. */
-function renderFirstFrameAfter(viewState: MapViewState): Promise<Uint8Array> {
+/** Resolve with the very first frame drawn after a props update. */
+function renderFirstFrameAfter(props: Parameters<Deck<View>['setProps']>[0]): Promise<Uint8Array> {
   return new Promise(resolve => {
     deck!.setProps({
-      viewState,
+      ...props,
       onAfterRender: () => {
         const pixels = readFrame();
         deck!.setProps({onAfterRender: () => {}});
@@ -151,9 +151,31 @@ describe('EdgeMarkerLayer rendering', () => {
     expect(countRed(before, SIZE / 2 + 30, SIZE / 2, 8)).toBeGreaterThan(10);
     // A pan moves the anchor and the offsets together, so a one-frame lag would look right.
     // A zoom does not: a lagging marker stays at +30 px.
-    const after = await renderFirstFrameAfter({...CENTER, zoom: ZOOM + 1});
+    const zoomed: MapViewState = {...CENTER, zoom: ZOOM + 1};
+    const after = await renderFirstFrameAfter({viewState: zoomed});
     expect(countRed(after, SIZE / 2 + 60, SIZE / 2, 8)).toBeGreaterThan(10);
     expect(countRed(after, SIZE / 2 + 30, SIZE / 2, 8)).toBe(0);
+  });
+
+  it('hides on-screen markers when showOnScreen changes with the same data and camera', async () => {
+    const data: Target[] = [
+      {position: [0, 0, 0]},
+      {position: [SIZE * DEGREES_PER_PIXEL * 3, 0, 0]}
+    ];
+    const layer = makeLayer(data, {showOnScreen: true});
+    const before = await renderLoaded(CENTER, layer);
+    const viewport = deck!.getViewports()[0];
+    expect(countRed(before, SIZE / 2, SIZE / 2)).toBeGreaterThan(20);
+    const dockedPixels = countRed(before, SIZE - MARGIN, SIZE / 2);
+    expect(dockedPixels).toBeGreaterThan(20);
+
+    const after = await renderFirstFrameAfter({
+      viewState: CENTER,
+      layers: [layer.clone({showOnScreen: false})]
+    });
+    expect(deck!.getViewports()[0]).toBe(viewport);
+    expect(countRed(after, SIZE / 2, SIZE / 2)).toBe(0);
+    expect(countRed(after, SIZE - MARGIN, SIZE / 2)).toBe(dockedPixels);
   });
 
   it('hides targets outside the distance range', async () => {

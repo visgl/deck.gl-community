@@ -30,6 +30,7 @@ import {
   ArcLayerPropsSchema,
   FontSettingsSchema,
   IconLayerPropsSchema,
+  IconMappingEntrySchema,
   LineLayerPropsSchema,
   PathLayerPropsSchema,
   SolidPolygonLayerPropsSchema,
@@ -111,6 +112,43 @@ export const PathMarkerLayerPropsSchema = PathOutlineLayerPropsSchema.extend({
 });
 /** JSON configuration for PathMarkerLayer. */
 export const PathMarkerLayerSchema = defineLayer('PathMarkerLayer', PathMarkerLayerPropsSchema);
+
+/** JSON props for markers that dock to the viewport edge. */
+export const EdgeMarkerLayerPropsSchema = CompositeLayerPropsSchema.extend({
+  getPosition: PositionAccessorSchema.optional(),
+  getColor: ColorAccessorSchema.optional(),
+  getLabel: FunctionSchema.nullable().optional(),
+  margins: z
+    .union([
+      z.number(),
+      z.strictObject({
+        top: z.number().optional(),
+        right: z.number().optional(),
+        bottom: z.number().optional(),
+        left: z.number().optional()
+      })
+    ])
+    .optional(),
+  minDistance: nonnegative.optional(),
+  maxDistance: nonnegative.optional(),
+  yStretch: z.number().optional(),
+  integerCoordinates: z.boolean().optional(),
+  devicePixelRatio: nonnegative.nullable().optional(),
+  behindCamera: z.enum(['dock', 'hide']).optional(),
+  beyondHorizon: z.enum(['dock', 'hide', 'ignore']).optional(),
+  showOnScreen: z.boolean().optional(),
+  iconAtlas: z.string().optional(),
+  iconMapping: z.record(z.string(), IconMappingEntrySchema).optional(),
+  edgeIcon: z.string().optional(),
+  onScreenIcon: z.string().optional(),
+  edgeIconSize: nonnegative.optional(),
+  onScreenIconSize: nonnegative.optional(),
+  fontSize: nonnegative.optional(),
+  fontFamily: z.string().optional(),
+  labelColor: ColorSchema.optional()
+});
+/** JSON configuration for EdgeMarkerLayer. */
+export const EdgeMarkerLayerSchema = defineLayer('EdgeMarkerLayer', EdgeMarkerLayerPropsSchema);
 
 /** JSON props for path, line or arc dependency arrows. */
 export const DependencyArrowLayerPropsSchema = CompositeLayerPropsSchema.extend({
@@ -644,6 +682,7 @@ export const CommunityVisualLayerSchemas = {
   VolumetricVideoLayer: VolumetricVideoLayerSchema,
   PathOutlineLayer: PathOutlineLayerSchema,
   PathMarkerLayer: PathMarkerLayerSchema,
+  EdgeMarkerLayer: EdgeMarkerLayerSchema,
   DependencyArrowLayer: DependencyArrowLayerSchema,
   SkyboxLayer: SkyboxLayerSchema,
   TimeDeltaLayer: TimeDeltaLayerSchema,

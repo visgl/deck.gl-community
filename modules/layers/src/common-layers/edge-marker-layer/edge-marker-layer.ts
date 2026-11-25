@@ -4,6 +4,7 @@
 
 import {
   CompositeLayer,
+  _deepEqual as deepEqual,
   createIterable,
   type Accessor,
   type AccessorContext,
@@ -89,10 +90,20 @@ type _EdgeMarkerLayerProps<DataT> = {
 
 export type EdgeMarkerLayerProps<DataT = unknown> = _EdgeMarkerLayerProps<DataT> & LayerProps;
 
+// Callback results are invalidated through updateTriggers. Constant accessor values are compared.
+function equalAccessorValues(a: unknown, b: unknown): boolean {
+  return (typeof a === 'function' && typeof b === 'function') || deepEqual(a, b, 1);
+}
+
 const defaultProps: DefaultProps<EdgeMarkerLayerProps> = {
-  getPosition: {type: 'accessor', value: (d: {position: Position}) => d.position},
-  getColor: {type: 'accessor', value: [255, 255, 255, 255]},
-  getLabel: {type: 'accessor', value: null},
+  getPosition: {
+    type: 'accessor',
+    value: (d: {position: Position}) => d.position,
+    constantTypes: ['array'],
+    equal: equalAccessorValues
+  },
+  getColor: {type: 'accessor', value: [255, 255, 255, 255], equal: equalAccessorValues},
+  getLabel: {type: 'accessor', value: null, equal: (a, b) => Boolean(a) === Boolean(b)},
   margins: 24,
   minDistance: 0,
   maxDistance: Infinity,
@@ -213,6 +224,8 @@ export class EdgeMarkerLayer<DataT = unknown, ExtraPropsT extends {} = {}> exten
     const triggers = changeFlags.updateTriggersChanged;
     if (
       changeFlags.dataChanged ||
+      (changeFlags.propsChanged &&
+        (props.getPosition !== oldProps.getPosition || props.getLabel !== oldProps.getLabel)) ||
       (triggers && (triggers.all || triggers.getPosition || triggers.getLabel))
     ) {
       this._extractPositions();
@@ -258,6 +271,7 @@ export class EdgeMarkerLayer<DataT = unknown, ExtraPropsT extends {} = {}> exten
   renderLayers() {
     const {
       data,
+      getColor,
       getLabel,
       iconAtlas,
       iconMapping,
@@ -268,9 +282,12 @@ export class EdgeMarkerLayer<DataT = unknown, ExtraPropsT extends {} = {}> exten
       showOnScreen,
       fontSize,
       fontFamily,
-      labelColor
+      labelColor,
+      updateTriggers
     } = this.props;
-    const getColor = this.props.getColor;
+    // The frame cache tracks docking options and extracted target positions separately.
+    const frameTriggers = [this.state.optionsKey, this.state.positions];
+    const iconSizeTriggers = [edgeIconSize, onScreenIconSize];
     const target: [number, number] = [0, 0];
     const color: [number, number, number, number] = [0, 0, 0, 0];
 
@@ -283,7 +300,17 @@ export class EdgeMarkerLayer<DataT = unknown, ExtraPropsT extends {} = {}> exten
       target[1] = (frame.positions[index * 2 + 1] - frame.principalPoint[1]) * frame.pixelScale;
       return target;
     };
-    const icons = new EdgeIconLayer(this.getSubLayerProps({id: 'icons'}), {
+    const iconProps = this.getSubLayerProps({
+      id: 'icons',
+      updateTriggers: {
+        getPixelOffset: frameTriggers,
+        getAngle: frameTriggers,
+        getIcon: [...frameTriggers, edgeIcon, onScreenIcon],
+        getSize: [...frameTriggers, ...iconSizeTriggers, showOnScreen],
+        getColor: [getColor, updateTriggers.getColor]
+      }
+    });
+    const icons = new EdgeIconLayer(iconProps, {
       data,
       iconAtlas,
       iconMapping,
@@ -330,7 +357,17 @@ export class EdgeMarkerLayer<DataT = unknown, ExtraPropsT extends {} = {}> exten
       return labelOffset;
     };
 
-    const labels = new TextLayer(this.getSubLayerProps({id: 'labels'}), {
+    const textTriggers = [getLabel, updateTriggers.getLabel, updateTriggers.all];
+    const labelProps = this.getSubLayerProps({
+      id: 'labels',
+      updateTriggers: {
+        getText: textTriggers,
+        getPixelOffset: [...frameTriggers, ...iconSizeTriggers, ...textTriggers, fontSize],
+        getSize: [fontSize],
+        getColor: [...frameTriggers, showOnScreen, labelColor]
+      }
+    });
+    const labels = new TextLayer(labelProps, {
       data,
       billboard: true,
       sizeUnits: 'pixels',
