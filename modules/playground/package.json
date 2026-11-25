@@ -28,7 +28,12 @@
       "import": "./dist/index.js"
     },
     "./geojson-schema.json": "./dist/geojson-schema.json",
-    "./deckgl-schema.json": "./dist/deckgl-schema.json"
+    "./deckgl-schema.json": "./dist/deckgl-schema.json",
+    "./sql": {
+      "types": "./dist/sql.d.ts",
+      "import": "./dist/sql.js",
+      "require": "./dist/sql.cjs"
+    }
   },
   "files": [
     "dist",
@@ -36,7 +41,7 @@
   ],
   "scripts": {
     "prepack": "yarn --cwd ../.. build",
-    "build": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs && node ./scripts/build-arrow-worker.mjs",
+    "build": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs && node ./scripts/build-arrow-worker.mjs && esbuild src/sql.ts --bundle --packages=external --platform=neutral --format=cjs --outfile=dist/sql.cjs",
     "build:schema": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs",
     "test": "vitest run",
     "test-watch": "vitest"
@@ -45,16 +50,17 @@
     "@deck.gl-community/panels": "10.0.0-alpha.3",
     "@deck.gl/core": "10.0.0-alpha.2",
     "@deck.gl/json": "10.0.0-alpha.2",
-    "@loaders.gl/core": "5.0.0-rc.2"
+    "@loaders.gl/core": "5.0.0"
   },
   "dependencies": {
+    "@math.gl/sql": "5.0.3",
     "apache-arrow": "^21.2.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@deck.gl/core": "10.0.0-alpha.2",
     "@deck.gl/json": "10.0.0-alpha.2",
-    "@loaders.gl/core": "5.0.0-rc.2",
+    "@loaders.gl/core": "5.0.0",
     "esbuild": "^0.28.1"
   }
 }
