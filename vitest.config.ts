@@ -76,6 +76,7 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@loaders.gl/tables',
     '@loaders.gl/core/query',
     '@math.gl/sql/parser',
+    '@math.gl/sql/query',
     'apache-arrow',
     'react',
     'react-dom',

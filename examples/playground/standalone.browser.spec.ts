@@ -261,10 +261,21 @@ test('SQL POC template renders filtered Arrow results', async () => {
   await vi.waitFor(
     () =>
       expect(layer().props.data).toEqual([
-        {position: [0, 20], value: 2},
-        {position: [40, -20], value: 3}
+        {position: [40, -20], value: 3},
+        {position: [0, 20], value: 2}
       ]),
     {timeout: 10000}
   );
-  expect(host.querySelector('canvas')).not.toBeNull();
+  const canvas = host.querySelector('canvas');
+  Array.from(host.querySelectorAll('button'))
+    .find(button => button.textContent === 'Data Sources')!
+    .click();
+  await vi.waitFor(() => expect(host.querySelector('input[type=file]')).not.toBeNull());
+  const transfer = new DataTransfer();
+  transfer.items.add(new File(['[{"position":[10,20],"value":5}]'], 'demo_points.json'));
+  const input = host.querySelector<HTMLInputElement>('input[type=file]')!;
+  input.files = transfer.files;
+  input.dispatchEvent(new Event('change', {bubbles: true}));
+  await vi.waitFor(() => expect(layer().props.data).toEqual([{position: [10, 20], value: 5}]));
+  expect(host.querySelector('canvas')).toBe(canvas);
 });

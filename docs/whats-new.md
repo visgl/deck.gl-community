@@ -329,6 +329,8 @@ Released: November 20, 2024
 ### Experimental playground SQL adapter
 
 The optional `@deck.gl-community/playground/sql` entry point connects math.gl's SQL parser to
-loaders.gl's Arrow query engine through the existing query-provider contract. The standalone
-**SQL filtered points (POC)** example demonstrates projection, filtering and limits over named
-Arrow tables. See the playground example README for the POC's boundaries.
+loaders.gl's Arrow query engine through the existing query-provider contract. Named parameters,
+relational queries, catalog discovery, JSON-backed upload field access, input invalidation and
+optional stable picking IDs are supported. The standalone **SQL filtered points (POC)** example
+demonstrates parameterized filtering and ordering over named Arrow tables. See the SQL provider
+API for supported upstream operations and host responsibilities.

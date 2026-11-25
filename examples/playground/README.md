@@ -102,27 +102,31 @@ registry, uploaded sources, or WebMCP tools. The renderer remains private and un
 This work builds on [Microsoft Research SandDance](https://github.com/microsoft/SandDance),
 including Dan Marshall's renderer engineering. See the Vega module's attribution and provenance.
 
-## SQL query provider POC
+## SQL queries
 
-Choose **SQL filtered points (POC)** in the standalone playground. The optional playground SQL
-adapter uses `@math.gl/sql/parser` and loaders.gl's Arrow query engine:
+Choose **SQL filtered points (POC)** for a parameterized, ordered query over the demo Arrow table.
+Uploaded tables are available under their assigned names. Changing catalog inputs automatically
+refreshes query results without editing SQL. The live browser points source is also available as
+`points`.
+
+Use `"data": "SELECT id, position FROM points WHERE value >= 2 ORDER BY value DESC LIMIT 10"`
+in a layer, or declare a reusable parameterized source:
 
 ```json
 {
-  "sources": {"filtered": {"@@sql": "SELECT * FROM points WHERE value >= 2 LIMIT 2"}},
+  "sources": {"filtered": {"@@sql": "SELECT * FROM demo_points WHERE value >= :minimum ORDER BY value DESC LIMIT 2", "parameters": {"minimum": 2}}},
   "layers": [{"@@type": "ScatterplotLayer", "id": "points", "data": "datasource://filtered",
     "getPosition": "@@=position"}]
 }
 ```
 
-Uploaded table names can replace `points`. This POC supports single-table SELECT, projection,
-filtering and limits over the canonical Arrow representation. Sparse JSON/GeoJSON uploads expose
-their stored JSON columns rather than reconstructed feature properties. Parameters, joins, remote
-SQL and automatic query refresh after changing an input table are outside this POC. Change the SQL
-(or reload the page) to request a new result. The existing manager owns cancellation, async errors,
-and persistent preview recovery.
+The optional adapter supports upstream inner/left joins, grouping, sorting, UNION ALL, projection,
+filtering, pagination and named parameters. SHOW TABLES, SHOW SOURCES and DESCRIBE inspect only
+the allowed catalog. Unique projected ID columns can preserve picking identities. Sparse JSON
+and GeoJSON columns can be queried through JSON_NUMBER/JSON_VALUE paths; single-table SELECT *
+restores original uploaded row/feature objects after filtering. Explicit projections return SQL rows.
 
-Import `createPlaygroundSQLProvider` from `@deck.gl-community/playground/sql` and pass its result
-as the manager's `queryProvider`. Supply `getTable(name)` to allowlist host-owned Arrow tables.
-The POC upgrades the workspace core resolution to loaders.gl 5.0.0 for its public scan query API.
-Other loaders remain at their existing versions; compatibility needs validation before adoption.
+See the [SQL provider API](../../docs/modules/playground/api-reference/sql-provider.md) for
+configuration, lifecycle and remaining upstream constraints. Remote execution remains host-provided
+through the existing query-provider contract. All core peers use loaders.gl 5.0.0; other loaders
+are unchanged.
