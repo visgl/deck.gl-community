@@ -492,6 +492,25 @@ describe('SourceLayer lifecycle and dispatch', () => {
     expect(secondSource.finalize).not.toHaveBeenCalled();
   });
 
+  test('keeps the replacement when cleanup of the previous owned source rejects', async () => {
+    const cleanupError = new Error('cleanup failed');
+    const first = createTileSource({finalize: vi.fn().mockRejectedValue(cleanupError)});
+    const next = createTileSource({finalize: vi.fn()});
+    const data = 'https://example.com/tiles';
+    const layer = createTestLayer({
+      data,
+      loaders: [createSourceLoader('first', () => first as any)]
+    });
+    await layer.resolveSource(layer.props);
+    await layer.resolveSource({
+      ...layer.props,
+      loaders: [createSourceLoader('next', () => next as any)]
+    });
+    expect(layer.state.resolvedSource?.source).toBe(next);
+    expect(next.finalize).not.toHaveBeenCalled();
+    expect(layer.raiseError).toHaveBeenCalledWith(cleanupError, 'finalizing loaders.gl source');
+  });
+
   test('finalizes the previous owned source when replacement resolution fails', async () => {
     const firstSource = createTileSource({finalize: vi.fn()});
     const firstLoader = createSourceLoader('first', () => firstSource as any);

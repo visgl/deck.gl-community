@@ -160,7 +160,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
     this.state.resolutionId = (this.state.resolutionId ?? 0) + 1;
     const resolvedSource = this.state?.resolvedSource;
     if (resolvedSource?.owned) {
-      void finalizeOwnedSource(resolvedSource.source);
+      void this.releaseSource(resolvedSource.source);
     }
     super.finalizeState(context);
   }
@@ -285,7 +285,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
       activeResolvedSource = resolvedSource;
       if (resolutionId !== this.state.resolutionId) {
         if (resolvedSource.owned) {
-          await finalizeOwnedSource(resolvedSource.source);
+          await this.releaseSource(resolvedSource.source);
         }
         return;
       }
@@ -296,7 +296,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
       const metadata = props.metadata || (await loadVisualSourceMetadata(resolvedSource));
       if (resolutionId !== this.state.resolutionId) {
         if (resolvedSource.owned) {
-          await finalizeOwnedSource(resolvedSource.source);
+          await this.releaseSource(resolvedSource.source);
         }
         return;
       }
@@ -314,7 +314,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
 
       if (resolutionId !== this.state.resolutionId) {
         if (resolvedSource.owned) {
-          await finalizeOwnedSource(resolvedSource.source);
+          await this.releaseSource(resolvedSource.source);
         }
         return;
       }
@@ -327,7 +327,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
         isResolving: false
       });
       if (previousSource?.owned && previousSource.source !== resolvedSource.source) {
-        await finalizeOwnedSource(previousSource.source);
+        await this.releaseSource(previousSource.source);
       }
     } catch (error) {
       if (resolutionId !== this.state.resolutionId) {
@@ -335,23 +335,32 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
           activeResolvedSource?.owned &&
           activeResolvedSource.source !== this.state.resolvedSource?.source
         ) {
-          await finalizeOwnedSource(activeResolvedSource.source);
+          await this.releaseSource(activeResolvedSource.source);
         }
         return;
       }
       const normalizedError = error instanceof Error ? error : new Error(String(error));
       this.setState({resolvedSource: null, metadata: null, isResolving: false});
       if (activeResolvedSource?.owned) {
-        await finalizeOwnedSource(activeResolvedSource.source);
+        await this.releaseSource(activeResolvedSource.source);
       }
       if (previousSource?.owned && previousSource.source !== activeResolvedSource?.source) {
-        await finalizeOwnedSource(previousSource.source);
+        await this.releaseSource(previousSource.source);
       }
       if (resolutionId !== this.state.resolutionId) {
         return;
       }
       this.props.onSourceError?.(normalizedError, activeInfo);
       this.raiseError(normalizedError, 'resolving loaders.gl source');
+    }
+  }
+
+  private async releaseSource(source: unknown): Promise<void> {
+    try {
+      await finalizeOwnedSource(source);
+    } catch (error) {
+      const normalizedError = error instanceof Error ? error : new Error(String(error));
+      this.raiseError(normalizedError, 'finalizing loaders.gl source');
     }
   }
 
