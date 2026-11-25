@@ -8,7 +8,7 @@ const exampleSupport = {
   id: 'deck/soft-shadows',
   mobileMode: 'full',
   mobileProfile: 'standard',
-  requirements: {backends: ['webgpu']}
+  requirements: {backends: ['webgpu', 'webgl2']}
 } satisfies ExampleSupportDefinition;
 
 export default exampleSupport;
