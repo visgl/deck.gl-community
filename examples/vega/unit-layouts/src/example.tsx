@@ -6,7 +6,7 @@ export function App() {
   useEffect(() => {
     let disposed = false;
     let finalize: (() => void) | undefined;
-    import('../../../../modules/vega/demo/example')
+    import('../example')
       .then(({createExample}) => {
         if (!disposed) finalize = createExample(host.current).finalize;
       })

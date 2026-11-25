@@ -16,6 +16,7 @@ const TERRAIN_ALIASES = DECK_GL_SOURCE
 
 const ALIASES = [
   ...TERRAIN_ALIASES,
+  {find: '@deck.gl-community/playground/vega-layers', replacement: fileURLToPath(new URL('./modules/playground/src/vega-layers/index.ts', import.meta.url))},
   {find: 'crypto', replacement: 'node:crypto'}, // ensure Vite/Vitest get Node's crypto
   {
     find: /^@deck\.gl-community\/playground$/,
@@ -94,7 +95,7 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@luma.gl/engine',
     '@luma.gl/core/webgl',
     '@luma.gl/core/webgpu',
-    '@deck.gl-community/vega > tsx-create-element',
+    '@deck.gl-community/playground > tsx-create-element',
     'deepmerge',
     'd3-color',
     'd3-ease',

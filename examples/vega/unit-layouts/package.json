@@ -3,10 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "start": "yarn --cwd ../../.. vite modules/vega/demo"
+    "start": "vite"
   },
   "dependencies": {
     "@deck.gl-community/panels": "workspace:*",
-    "react": "^18.3.1"
+    "@deck.gl-community/playground": "workspace:*",
+    "react": "^18.3.1",
+    "vega": "^6.2.0"
   }
 }

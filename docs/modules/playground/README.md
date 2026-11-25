@@ -209,3 +209,7 @@ The [API reference](./api-reference/playground.md) covers registration, picking,
 and standalone schemas. The
 [host bindings example](https://github.com/visgl/deck.gl-community/blob/master/examples/playground/host-bindings.ts)
 shows shared sources, row updates, picking, and cleanup.
+
+## Vega layers
+
+Use the [experimental Vega renderer](./vega-layers.md) to draw Vega specifications with deck.gl. The Playground gallery includes [unit layouts](/examples/vega/unit-layouts), [mark transitions](/examples/vega/mark-transitions), [geospatial marks](/examples/vega/geospatial), and [map-to-stacks transitions](/examples/vega/map-to-stacks).

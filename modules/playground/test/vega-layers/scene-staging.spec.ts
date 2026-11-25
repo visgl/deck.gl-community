@@ -1,11 +1,11 @@
 import {describe, expect, it} from 'vitest';
 import {parse, View, type Spec} from 'vega';
-import {sceneToStage} from '../src/stagers';
-import {createStage} from '../src/defaults';
-import {GroupType, type MarkStagerOptions} from '../src/marks/interfaces';
-import stageRect from '../src/marks/rect';
-import stageLine from '../src/marks/line';
-import stageArea from '../src/marks/area';
+import {sceneToStage} from '../../src/vega-layers/stagers';
+import {createStage} from '../../src/vega-layers/defaults';
+import {GroupType, type MarkStagerOptions} from '../../src/vega-layers/marks/interfaces';
+import stageRect from '../../src/vega-layers/marks/rect';
+import stageLine from '../../src/vega-layers/marks/line';
+import stageArea from '../../src/vega-layers/marks/area';
 
 export const CHART_SPEC: Spec = {
   width: 200,

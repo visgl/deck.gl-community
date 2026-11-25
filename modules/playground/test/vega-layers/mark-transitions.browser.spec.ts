@@ -1,7 +1,7 @@
 import {expect, it} from 'vitest';
 import {parse, changeset, type Spec} from 'vega';
-import {ViewGl} from '../src';
-import {createStage} from '../src/defaults';
+import {ViewGl} from '../../src/vega-layers';
+import {createStage} from '../../src/vega-layers/defaults';
 
 it('renders and picks symbols, and animates exits without losing ordinal identity', async () => {
   const host = document.createElement('div');

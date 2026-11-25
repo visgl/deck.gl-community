@@ -1,5 +1,5 @@
 import {expect, it} from 'vitest';
-import {getVegaTooltip} from '../src/vega-tooltip';
+import {getVegaTooltip} from '../../src/vega-layers/vega-tooltip';
 
 it('formats declarative tooltips as safe text and suppresses absent or exited marks', () => {
   expect(getVegaTooltip({object: {tooltip: {Location: 0, Longitude: -35}}})).toEqual({

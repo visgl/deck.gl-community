@@ -4,6 +4,8 @@
   "exclude": ["node_modules"],
   "compilerOptions": {
     "composite": true,
+    "jsx": "react",
+    "jsxFactory": "createElement",
     "rootDir": "src",
     "outDir": "dist",
     "noEmit": false

@@ -3,9 +3,28 @@ import GeospatialExample from '@site/src/examples/vega/geospatial';
 import MarkTransitionsExample from '@site/src/examples/vega/mark-transitions';
 import {App as VegaExample} from '../../../examples/vega/unit-layouts/src/example';
 
-# Vega renderer (private experiment)
+# Vega renderer (experimental)
 
-This private module ports Microsoft's MIT-licensed SandDance Vega renderer to deck.gl 9.4. Vega JSON creates a scene graph that the renderer turns into deck.gl layers, including animated cuboids.
+The `@deck.gl-community/playground/vega-layers` entry point ports Microsoft's MIT-licensed SandDance Vega renderer to deck.gl. Vega JSON creates a scene graph that the renderer turns into deck.gl layers, including animated cuboids.
+
+Install Vega alongside the playground package to use the experimental ESM renderer:
+
+```sh
+npm install @deck.gl-community/playground vega
+```
+
+```ts
+import {parse} from 'vega';
+import {ViewGl} from '@deck.gl-community/playground/vega-layers';
+
+const view = new ViewGl(parse(spec)).renderer('deck.gl').initialize(container);
+await view.runAsync();
+// When the host is removed:
+view.finalize();
+```
+
+The subpath also exports `Presenter` for applications that drive the deck.gl presentation directly.
+The playground root entry can be used without installing Vega.
 
 <div className="card vega-feature-card" style={{margin: '1.5rem 0', border: '1px solid var(--ifm-color-emphasis-300)'}}>
 <div className="card__header"><h2 id="supported-vega-features" style={{margin: 0, fontSize: '1.25rem', scrollMarginTop: 'calc(var(--ifm-navbar-height) + 1rem)'}}>Supported Vega features</h2></div>
@@ -25,7 +44,7 @@ Vega evaluates data, transforms, scales, expressions and encodings on the CPU. T
 | Animated records | GPU attribute transitions animate cuboid and symbol position, size and color, plus symbol shape, rotation and outlines. Stable slots support filtering, reordering, interrupted exits and reentry. Historical record slots remain until finalization. Projected polygon/path vertices also interpolate on the GPU. |
 | Picking and hover tooltips | deck.gl GPU picking identifies marks. Evaluated `tooltip` encodings on rects, symbols and projected shapes display as plain-text HTML overlays. |
 
-**Rendering limits:** This is a private, unpublished Vega renderer subset. Arbitrary SVG paths, image/arc marks, exact mixed-mark paint order and WebGPU rendering are not implemented. Geographic shape batches preserve their own paint order.
+**Rendering limits:** This is a Vega renderer subset. Arbitrary SVG paths, image/arc marks, exact mixed-mark paint order and WebGPU rendering are not implemented. Geographic shape batches preserve their own paint order.
 
 </div>
 </div>
@@ -60,7 +79,7 @@ Each cube below represents one of 180 records. Switch between **Grid**, **Scatte
 
 The shared `examples/vega/specs/unit-layouts.json` document declares its records, layouts, depth, and controls. Native Vega signal bindings change `layout` and `is3d` on the existing `ViewGl`; the host adapter maps Vega tuple identities to stable dense cube ordinals per mark. Keeping the view alive lets deck.gl interpolate attributes between layouts. Configure animation with `presenterConfig.transitionDurations` (`position`, `size`, `color`, and `view`, in milliseconds).
 
-This demonstrates the renderer's transitions rather than the full SandDance application: chart recommendation, filtering, selection UI, and the SandDance specification builder are outside this initial port. The module requires WebGL2 and is private and unpublished.
+This demonstrates the renderer's transitions rather than the full SandDance application: chart recommendation, filtering, selection UI, and the SandDance specification builder are outside this initial port. The renderer uses WebGL2.
 
 ## US map to stacked bars
 
@@ -86,7 +105,7 @@ specification edit creates a fresh View; signal controls animate on the existing
 away from the Vega tab releases its GPU preview and retains the edited document for returning.
 The Vega preview is separate from deck JSON and uploaded data sources.
 
-The same example runs locally with `yarn vite modules/vega/demo --host 127.0.0.1 --port 5199`. See `modules/vega/README.md` for the API and `modules/vega/UPSTREAM.md` for source attribution.
+The same example runs locally with `yarn vite examples/vega/unit-layouts --host 127.0.0.1 --port 5199`. See `modules/playground/src/vega-layers/README.md` for the API and `modules/playground/VEGA-UPSTREAM.md` for source attribution.
 
 ## Symbols and record transitions
 
