@@ -83,7 +83,10 @@ describe('PointCloudSourceLayer', () => {
       onPointCloudTilesetUpdate
     };
 
+    layer.state.lastUpdatedViewports = {main: {id: 'main'}};
+    const updateTileset = vi.spyOn(layer, 'updateTileset');
     await layer.resolveSource(layer.props);
+    expect(updateTileset).toHaveBeenCalledWith(layer.state.lastUpdatedViewports);
     await layer.state.tileset3d.tilesetInitializationPromise;
 
     expect(source.isReady).toBe(true);

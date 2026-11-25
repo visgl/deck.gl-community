@@ -21,7 +21,7 @@ const SUITE_SECONDS: Record<string, number> = {
   'modules/layers/test/vegetation-layers/tree-layer/tree-photoreal.browser.spec.ts': 275,
   'modules/layers/test/vegetation-layers/tree-layer/tree-shadows.browser.spec.ts': 95,
   'modules/layers/test/vegetation-layers/tree-layer/webgpu-layers.browser.spec.ts': 23,
-  'modules/vega/test/map-to-stacks.browser.spec.ts': 14
+  'modules/playground/test/vega-layers/map-to-stacks.browser.spec.ts': 14
 };
 
 export default class BrowserTestSequencer extends BaseSequencer {

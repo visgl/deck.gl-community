@@ -138,16 +138,18 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/playground',
-      items: ['playground']
-    },
-    {
-      type: 'category',
-      label: '@deck.gl-community/vega (private)',
       items: [
-        'vega/geospatial',
-        'vega/map-to-stacks',
-        'vega/mark-transitions',
-        'vega/unit-layouts'
+        'playground',
+        {
+          type: 'category',
+          label: 'Vega layers',
+          items: [
+            'vega/geospatial',
+            'vega/map-to-stacks',
+            'vega/mark-transitions',
+            'vega/unit-layouts'
+          ]
+        }
       ]
     }
   ]

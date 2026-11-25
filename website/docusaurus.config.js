@@ -221,7 +221,7 @@ const config = {
             // Vega and its d3 dependencies need native package exports and versions.
             {
               include: [
-                resolve('../modules/vega'),
+                resolve('../modules/playground/src/vega-layers'),
                 /[\\/]node_modules[\\/](?:vega(?:-[^\\/]*)?|d3-[^\\/]*)[\\/]/
               ],
               resolve: {alias: [], modules: ['node_modules']}

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 import {expect, it} from 'vitest';
 import type {Spec} from 'vega';
-import {createVegaView} from '../../../examples/vega/create-vega-view';
-import spec from '../../../examples/vega/map-to-stacks/spec.json';
+import {createVegaView} from '../../../../examples/vega/create-vega-view';
+import spec from '../../../../examples/vega/map-to-stacks/spec.json';
 
 it('moves stable SandDance places into education stacks with GPU interpolation and interrupted return', async () => {
   const host = document.createElement('div');

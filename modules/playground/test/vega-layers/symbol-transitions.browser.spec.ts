@@ -1,7 +1,7 @@
 import {expect, it} from 'vitest';
 import {parse, type Spec} from 'vega';
-import {ViewGl} from '../src';
-import spec from '../../../examples/vega/geospatial/spec.json';
+import {ViewGl} from '../../src/vega-layers';
+import spec from '../../../../examples/vega/geospatial/spec.json';
 
 it('morphs one GPU glyph per record, keeps exits stationary and preserves geographic paint order', async () => {
   const host = document.createElement('div');

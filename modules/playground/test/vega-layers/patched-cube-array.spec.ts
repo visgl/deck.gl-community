@@ -1,6 +1,6 @@
 import {expect, it} from 'vitest';
-import {patchCubeArray} from '../src/patched-cube-array';
-import type {Cube} from '../src/interfaces';
+import {patchCubeArray} from '../../src/vega-layers/patched-cube-array';
+import type {Cube} from '../../src/vega-layers/interfaces';
 
 const cube: Cube = {
   ordinal: 0,

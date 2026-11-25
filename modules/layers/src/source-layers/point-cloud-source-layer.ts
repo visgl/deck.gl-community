@@ -238,7 +238,11 @@ export class PointCloudSourceLayer extends Tile3DLayer<any, PointCloudSourceLaye
     });
 
     this.setState({tileset3d: tileset, layerMap: {}});
-    this.updateTileset(this.state.activeViewports);
+    const liveLayer = (this.getCurrentLayer() || this) as this;
+    const {activeViewports, lastUpdatedViewports} = liveLayer.state;
+    liveLayer.updateTileset(
+      Object.keys(activeViewports).length ? activeViewports : lastUpdatedViewports
+    );
     this.props.onPointCloudTilesetLoad?.(tileset);
     this.props.onPointCloudTilesetUpdate?.(tileset);
   }

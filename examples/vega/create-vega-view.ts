@@ -6,7 +6,7 @@ import './vega-controls.css';
 import {parse, type Spec} from 'vega';
 import {PanelManager, HeaderPanelContainer, CustomPanel} from '@deck.gl-community/panels';
 import {EXAMPLE_PANEL_STYLE} from '../utils/panel-theme';
-import {ViewGl} from '../../modules/vega/src';
+import {ViewGl} from '@deck.gl-community/playground/vega-layers';
 
 /** Runs a declarative Vega document. Controls are native Vega signal bindings. */
 export function createVegaView(host: HTMLElement, spec: Spec) {

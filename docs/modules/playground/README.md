@@ -212,3 +212,7 @@ shows shared sources, row updates, picking, and cleanup.
 
 The experimental [SQL provider](./api-reference/sql-provider.md) connects math.gl parsing to
 loaders.gl Arrow queries through the existing source manager.
+
+## Vega layers
+
+Use the [experimental Vega renderer](./vega-layers.md) to draw Vega specifications with deck.gl. The Playground gallery includes [unit layouts](/examples/vega/unit-layouts), [mark transitions](/examples/vega/mark-transitions), [geospatial marks](/examples/vega/geospatial), and [map-to-stacks transitions](/examples/vega/map-to-stacks).

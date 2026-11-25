@@ -1,9 +1,9 @@
 import {expect, it} from 'vitest';
 import {View, parse, type Spec} from 'vega';
-import {createStage} from '../src/defaults';
-import {sceneToStage} from '../src/stagers';
-import {GroupType} from '../src/marks/interfaces';
-import stageSymbol from '../src/marks/symbol';
+import {createStage} from '../../src/vega-layers/defaults';
+import {sceneToStage} from '../../src/vega-layers/stagers';
+import {GroupType} from '../../src/vega-layers/marks/interfaces';
+import stageSymbol from '../../src/vega-layers/marks/symbol';
 
 const options = {
   maxOrdinal: 0,
