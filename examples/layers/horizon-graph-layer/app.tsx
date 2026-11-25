@@ -312,7 +312,7 @@ export function mountHorizonGraphLayerExample(
     id: 'horizon-graph-sidebar',
     placement: 'top-right',
     side: 'right',
-    widthPx: 360,
+    widthPx: 260,
     title: resolvedConfig.sidebarTitle,
     triggerLabel: 'Toggle controls',
     button: true,
