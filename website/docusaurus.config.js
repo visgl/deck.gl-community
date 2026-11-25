@@ -200,6 +200,10 @@ const config = {
           // These modules break server side bundling
           new rspack.IgnorePlugin({
             resourceRegExp: /asciify-image/
+          }),
+          // The satellite.js WASM threads build imports these only when it runs in Node.
+          new rspack.IgnorePlugin({
+            resourceRegExp: /^node:(module|worker_threads)$/
           })
         ],
         module: {

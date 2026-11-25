@@ -3,6 +3,7 @@
   "layers/grass-layer": "/images/examples/layers/grass-layer.jpg",
   "playground": "/images/examples/playground.jpg",
   "geo-layers/global-grid-layer": "/images/examples/geo-layers/global-grid-layer.jpg",
+  "geo-layers/satellite-orbits": null,
   "geo-layers/shared-tile-2d-layer": "/images/examples/geo-layers/shared-tile-2d-layer.jpg",
   "geo-layers/wind": "/images/examples/geo-layers/wind.png",
   "experimental/ambient-occlusion": "/images/examples/experimental/ambient-occlusion.jpg",
