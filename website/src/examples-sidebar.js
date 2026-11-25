@@ -1,80 +1,6 @@
-/**
- * Creating a sidebar enables you to:
- - create an ordered group of docs
- - render a sidebar for each doc of that group
- - provide next/previous navigation
-
- The sidebars can be generated from the filesystem, or explicitly defined here.
-
- Create as many sidebars as you want.
- */
-
 const sidebars = {
   examplesSidebar: [
-    {
-      type: 'doc',
-      label: 'Overview',
-      id: 'index'
-    },
-    {
-      type: 'category',
-      label: '@deck.gl-community/playground',
-      items: ['playground']
-    },
-    {
-      type: 'category',
-      label: '@deck.gl-community/layers/geo-layers',
-      items: [
-        'geo-layers/global-grid-layer',
-        'geo-layers/satellite-orbits',
-        'geo-layers/shared-tile-2d-layer',
-        'geo-layers/wind'
-      ]
-    },
-    {
-      type: 'category',
-      label: '@deck.gl-community/experimental',
-      items: ['experimental/ambient-occlusion']
-    },
-    {
-      type: 'category',
-      label: '@deck.gl-community/graph-layers',
-      items: [
-        'graph-layers/simple-graph',
-        'graph-layers/multi-graph',
-        'graph-layers/radial',
-        'graph-layers/hive-plot',
-        'graph-layers/dag',
-        'graph-layers/marker-layer'
-      ]
-    },
-    {
-      type: 'category',
-      label: '@deck.gl-community/layers',
-      items: [
-        'layers/path-outline-and-markers',
-        'layers/flame-trail',
-        'layers/edge-markers',
-        'layers/seasonal-farm',
-        'layers/grass-layer',
-        'layers/wind-garden',
-        'layers/sky',
-        'layers/skybox-map-view',
-        'layers/skybox-globe',
-        'layers/skybox-first-person',
-        'layers/volumetric-video'
-      ]
-    },
-    {
-      type: 'category',
-      label: '@deck.gl-community/layers/infovis-layers',
-      items: ['infovis-layers/layer-primitives']
-    },
-    {
-      type: 'category',
-      label: '@deck.gl-community/layers/timeline-layers',
-      items: ['timeline-layers/horizon-graph-layer', 'timeline-layers/multi-horizon-graph-layer']
-    },
+    {type: 'doc', label: 'Overview', id: 'index'},
     {
       type: 'category',
       label: '@deck.gl-community/editable-layers',
@@ -91,6 +17,101 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: '@deck.gl-community/graph-layers',
+      items: [
+        'graph-layers/simple-graph',
+        'graph-layers/multi-graph',
+        'graph-layers/radial',
+        'graph-layers/hive-plot',
+        'graph-layers/dag',
+        'graph-layers/marker-layer'
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers/common-layers',
+      items: [
+        'layers/path-outline-and-markers',
+        'layers/flame-trail',
+        'layers/edge-markers',
+        'layers/skybox-map-view',
+        'layers/skybox-globe',
+        'layers/skybox-first-person',
+        'layers/volumetric-video'
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers/effect-layers',
+      items: ['layers/sketch-edges']
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers/sky-layers',
+      items: ['layers/globe-clouds', 'layers/sky-layers']
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers/geo-layers',
+      items: [
+        'geo-layers/satellite-orbits',
+        'geo-layers/shared-tile-2d-layer'
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers/global-grid-layers',
+      items: ['geo-layers/global-grid-layer']
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers/infovis-layers',
+      items: ['infovis-layers/layer-primitives']
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers/timeline-layers',
+      items: [
+        'timeline-layers/timeline-layer',
+        'timeline-layers/horizon-graph-layer',
+        'timeline-layers/multi-horizon-graph-layer'
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers/tree-layers',
+      items: ['layers/seasonal-farm']
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/layers/wind-layers',
+      items: [
+        'geo-layers/wind',
+        'layers/wind-garden',
+        'layers/grass-layer',
+        'layers/sky'
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/experimental',
+      items: ['experimental/ambient-occlusion']
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/leaflet',
+      items: [
+        'leaflet/get-started',
+        'leaflet/scripting'
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/panels',
+      items: ['widgets/widget-panels']
+    },
+    {
+      type: 'category',
       label: '@deck.gl-community/widgets',
       items: [
         'widgets/canvas-chrome',
@@ -98,22 +119,28 @@ const sidebars = {
         'widgets/html-overlays',
         'widgets/overlays',
         'widgets/pan-and-zoom-controls',
-        'widgets/standalone-widgets',
-        'widgets/widget-panels'
+        'widgets/standalone-widgets'
       ]
-    },
-    {type: 'category', label: 'Vega (private)', items: ['vega/geospatial', 'vega/map-to-stacks', 'vega/mark-transitions', 'vega/unit-layouts']},
-
-    // TODO - unclear why not rendering
-    {
-      type: 'category',
-      label: '@deck.gl-community/leaflet',
-      items: ['leaflet/get-started', 'leaflet/scripting']
     },
     {
       type: 'category',
       label: '@deck.gl-community/react',
       items: ['react/multi-canvas']
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/playground',
+      items: ['playground']
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/vega (private)',
+      items: [
+        'vega/geospatial',
+        'vega/map-to-stacks',
+        'vega/mark-transitions',
+        'vega/unit-layouts'
+      ]
     }
   ]
 };

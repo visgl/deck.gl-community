@@ -66,7 +66,17 @@ const config = {
     ]
   ],
 
+  staticDirectories: ['static', '.standalone-static'],
   plugins: [
+    function standaloneExamples() {
+      return {
+        name: 'standalone-examples',
+        async loadContent() {
+          const {buildStandaloneExamples} = await import('./scripts/build-standalone-examples.mjs');
+          await buildStandaloneExamples();
+        }
+      };
+    },
     [
       '@signalwire/docusaurus-plugin-llms-txt',
       {
@@ -98,6 +108,7 @@ const config = {
       '@docusaurus/plugin-client-redirects',
       {
         redirects: [
+          {from: '/examples/editable-layers/widget', to: '/examples/editable-layers/editor'},
           {from: '/docs/category/components', to: '/docs/category/packages'},
           {
             from: [
