@@ -442,6 +442,13 @@ describe('SourceLayer lifecycle and dispatch', () => {
       onSourceLoad
     });
 
+    const originalSource = createTileSource({finalize: vi.fn()});
+    layer.state.resolvedSource = {
+      source: originalSource,
+      sourceType: 'tile-2d',
+      owned: true,
+      parserLoaders: []
+    };
     const staleResolution = layer.resolveSource(layer.props);
     const currentProps = {
       ...layer.props,
@@ -457,6 +464,7 @@ describe('SourceLayer lifecycle and dispatch', () => {
 
     expect(layer.state.resolvedSource.source).toBe(currentSource);
     expect(staleSource.finalize).toHaveBeenCalledOnce();
+    expect(originalSource.finalize).toHaveBeenCalledOnce();
     expect(onSourceLoad).toHaveBeenCalledOnce();
   });
 

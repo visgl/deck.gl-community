@@ -31,4 +31,5 @@ test('preserves sibling properties across native GeoArrow point batches', () => 
   expect(points?.properties.map(properties => properties.name)).toEqual(['first', 'second']);
   expect(Array.from(points!.positions.value)).toEqual([1, 0, 2, 0]);
   expect(Array.from(points!.featureIds.value)).toEqual([0, 1]);
+  expect(Array.from(points!.globalFeatureIds.value)).toEqual([0, 1]);
 });

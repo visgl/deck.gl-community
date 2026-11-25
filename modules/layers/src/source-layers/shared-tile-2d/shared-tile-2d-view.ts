@@ -269,13 +269,12 @@ function getPlaceholderInAncestors(
   stateMap: Map<Tile2DHeader, TileViewState>
 ): boolean {
   let tile: Tile2DHeader | null = startTile;
-  while (tile?.parent) {
-    tile = tile.parent;
-    const state = getTileState(stateMap, tile);
-    state.state |= TILE_STATE_VISIBLE | TILE_STATE_VISITED;
+  while (tile) {
     if (tile.isLoaded || tile.content) {
+      getTileState(stateMap, tile).state |= TILE_STATE_VISIBLE | TILE_STATE_VISITED;
       return true;
     }
+    tile = tile.parent;
   }
   return false;
 }

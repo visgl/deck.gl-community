@@ -98,6 +98,11 @@ test.each([
   expect(view.isTileVisible(grandchild)).toBe(!ancestorVisible || strategy === STRATEGY_NEVER);
   expect(view._getVisibleTiles()).toEqual(tiles.filter(tile => view._state.get(tile)?.isVisible));
   expect(view._updateTileStates()).toBe(false);
+  expect(view.isTileVisible(child)).toBe(false);
+  grandchild.isLoaded = true;
+  view._updateTileStates();
+  expect(view.isTileVisible(root)).toBe(false);
+  expect(view.isTileVisible(grandchild)).toBe(true);
   view.finalize();
 });
 

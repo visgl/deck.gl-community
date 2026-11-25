@@ -185,7 +185,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
   /** Renders the adapter matching the resolved runtime contract. */
   renderLayers(): LayersList | null {
     const {resolvedSource, metadata, resolvedCoordinateReferenceSystem} = this.state;
-    if (!resolvedSource) {
+    if (!resolvedSource || this.state.isResolving) {
       return null;
     }
 
@@ -278,13 +278,7 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
     const previousSource = this.state.resolvedSource;
     let activeResolvedSource: ResolvedVisualSource | null = null;
     let activeInfo: SourceLayerLoadInfo | undefined;
-    this.setState({
-      resolvedSource: null,
-      metadata: null,
-      resolvedLayers: undefined,
-      resolvedCoordinateReferenceSystem: undefined,
-      isResolving: true
-    });
+    this.setState({isResolving: true});
 
     try {
       const resolvedSource = await resolveVisualSource(props);
@@ -318,10 +312,6 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
         this.props.onViewStateLoad?.(viewState, info);
       }
 
-      if (previousSource?.owned && previousSource.source !== resolvedSource.source) {
-        await finalizeOwnedSource(previousSource.source);
-      }
-
       if (resolutionId !== this.state.resolutionId) {
         if (resolvedSource.owned) {
           await finalizeOwnedSource(resolvedSource.source);
@@ -336,18 +326,30 @@ export class SourceLayer<DataT = any> extends CompositeLayer<SourceLayerProps<Da
         resolvedCoordinateReferenceSystem: getSourceCoordinateReferenceSystem(metadata),
         isResolving: false
       });
+      if (previousSource?.owned && previousSource.source !== resolvedSource.source) {
+        await finalizeOwnedSource(previousSource.source);
+      }
     } catch (error) {
       if (resolutionId !== this.state.resolutionId) {
+        if (
+          activeResolvedSource?.owned &&
+          activeResolvedSource.source !== this.state.resolvedSource?.source
+        ) {
+          await finalizeOwnedSource(activeResolvedSource.source);
+        }
         return;
       }
       const normalizedError = error instanceof Error ? error : new Error(String(error));
+      this.setState({resolvedSource: null, metadata: null, isResolving: false});
       if (activeResolvedSource?.owned) {
         await finalizeOwnedSource(activeResolvedSource.source);
       }
       if (previousSource?.owned && previousSource.source !== activeResolvedSource?.source) {
         await finalizeOwnedSource(previousSource.source);
       }
-      this.setState({isResolving: false});
+      if (resolutionId !== this.state.resolutionId) {
+        return;
+      }
       this.props.onSourceError?.(normalizedError, activeInfo);
       this.raiseError(normalizedError, 'resolving loaders.gl source');
     }
