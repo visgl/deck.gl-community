@@ -23,6 +23,8 @@ export type PlaygroundQueryResult = {
 /** Adapter contract for DuckDB, Mosaic, server-side SQL, or another host engine. */
 export type PlaygroundQueryProvider = {
   execute(query: PlaygroundQuery, options?: {signal?: AbortSignal}): Promise<PlaygroundQueryResult>;
+  /** Optional input invalidation. Must return a cleanup function; do not emit on subscription. */
+  subscribe?(query: PlaygroundQuery, onChange: () => void): () => void;
 };
 
 /** One source request, identified independently within its consumer. */
@@ -54,6 +56,7 @@ type Registration = {
   error?: Error;
   queryKey?: string;
   queryController?: AbortController;
+  queryUnsubscribe?: () => void;
 };
 type Entry = {registration?: Registration; subscribers: Set<Subscription>};
 type Subscription = {entry: Entry; onChange: (source: unknown) => void};
@@ -106,6 +109,19 @@ export class PlaygroundDataSourceManager implements PlaygroundDataSourceManagerL
       queryKey: key,
       queryController
     });
+    const registration = this.sources.get(id)!.registration!;
+    if (this.queryProvider.subscribe) {
+      const unsubscribe = this.queryProvider.subscribe(query, () => {
+        queueMicrotask(() => {
+          if (this.sources.get(id)?.registration === registration) {
+            this.addQuery({dataSourceId: id, query, forceUpdate: true});
+          }
+        });
+      });
+      if (this.sources.get(id)?.registration === registration)
+        registration.queryUnsubscribe = unsubscribe;
+      else unsubscribe();
+    }
   }
 
   /** Whether an id is registered or denotes a deferred source. */
@@ -159,6 +175,7 @@ export class PlaygroundDataSourceManager implements PlaygroundDataSourceManagerL
     if (previous?.status === 'ready' && previous.value !== dataSource) {
       void closeSource(previous.value!).catch(console.error);
     }
+    previous?.queryUnsubscribe?.();
     previous?.queryController?.abort();
     this.notify(entry);
   }
@@ -214,6 +231,7 @@ export class PlaygroundDataSourceManager implements PlaygroundDataSourceManagerL
     entry.subscribers.clear();
     const registration = entry.registration;
     entry.registration = undefined;
+    registration?.queryUnsubscribe?.();
     registration?.queryController?.abort();
     if (registration?.status === 'ready') await closeSource(registration.value!);
   }

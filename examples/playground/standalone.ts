@@ -3,11 +3,17 @@
 // Copyright (c) vis.gl contributors
 
 import {DeckPlayground, PlaygroundDataSourceManager} from '@deck.gl-community/playground';
+import {
+  createPlaygroundSQLProvider,
+  PlaygroundSQLTableCatalog
+} from '@deck.gl-community/playground/sql';
+import {tableFromJSON} from 'apache-arrow';
 import {createPlaygroundRegistry} from './registry';
 import {TEMPLATES as GALLERY_TEMPLATES} from './templates';
 import {createVegaPanel} from './vega-panel';
 import {createEditablePlaygroundControls} from './editable-controls';
 import {createDataSourcesPanel, UploadedSources} from './data-sources-panel';
+import {createUploadedRows} from './uploaded-data';
 import {createWebMcpButton} from './webmcp-button';
 
 const TOOL_TEMPLATES = ['imported-points', 'scatterplot', 'arcs', 'geojson', 'heatmap'];
@@ -28,6 +34,29 @@ const TEMPLATES = {
         radiusUnits: 'pixels',
         getFillColor: [40, 120, 220],
         pickable: true
+      }
+    ]
+  },
+  'sql-points': {
+    name: 'SQL filtered points (POC)',
+    description: 'math.gl parses SQL; loaders.gl queries Arrow; deck.gl renders rows.',
+    sources: {
+      filtered: {
+        '@@sql': 'SELECT * FROM demo_points WHERE value >= :minimum ORDER BY value DESC LIMIT 2',
+        parameters: {minimum: 2}
+      }
+    },
+    views: {'@@type': 'OrthographicView', id: 'plot'},
+    initialViewState: {target: [0, 0, 0], zoom: 1},
+    layers: [
+      {
+        '@@type': 'ScatterplotLayer',
+        id: 'filtered-points',
+        data: 'datasource://filtered',
+        getPosition: '@@=position',
+        getRadius: 8,
+        radiusUnits: 'pixels',
+        getFillColor: [220, 100, 40]
       }
     ]
   },
@@ -57,7 +86,17 @@ export function mountStandalonePlayground(
     setState: setToolState,
     destroy: destroyToolButton
   } = createWebMcpButton(root.querySelector<HTMLElement>('[data-webmcp]')!);
-  const sources = new PlaygroundDataSourceManager();
+  let active = true;
+  const pointsTable = tableFromJSON([
+    {position: [-40, -20], value: 1},
+    {position: [0, 20], value: 2},
+    {position: [40, -20], value: 3}
+  ]);
+  const catalog = new PlaygroundSQLTableCatalog();
+  catalog.setTable('demo_points', pointsTable);
+  const sources = new PlaygroundDataSourceManager({
+    queryProvider: createPlaygroundSQLProvider({...catalog, rowIdColumn: 'value'})
+  });
   sources.add({
     dataSourceId: 'points',
     dataSource: {
@@ -69,6 +108,47 @@ export function mountStandalonePlayground(
     }
   });
   const uploads = new UploadedSources(sources);
+  const stopUploads = uploads.subscribe(() => {
+    for (const entry of uploads.entries) {
+      if (entry.value && catalog.getTable(entry.tableName) !== entry.value.table) {
+        catalog.setTable(entry.tableName, entry.value.table, entry.value.decodeRow);
+      }
+    }
+  });
+  let pointsVersion = 0;
+  const updatePointsTable = (value: unknown) => {
+    if (!active) return;
+    const version = ++pointsVersion;
+    if (value instanceof Promise) {
+      void value.then(
+        source => {
+          if (active && version === pointsVersion) updatePointsTable(source);
+        },
+        () => {
+          if (active && version === pointsVersion) catalog.removeTable('points');
+        }
+      );
+    } else if (value && Array.isArray((value as {data?: unknown}).data)) {
+      try {
+        const uploaded = createUploadedRows(
+          (value as {data: Record<string, unknown>[]}).data,
+          'JSON'
+        );
+        catalog.setTable('points', uploaded.table, uploaded.decodeRow);
+      } catch {
+        catalog.removeTable('points');
+      }
+    } else {
+      catalog.removeTable('points');
+    }
+  };
+  updatePointsTable(
+    sources.subscribe({
+      dataSourceId: 'points',
+      consumerId: 'sql-catalog',
+      onChange: updatePointsTable
+    })
+  );
   const vega = createVegaPanel();
   const editing = createEditablePlaygroundControls();
   const playground = new DeckPlayground({
@@ -89,7 +169,6 @@ export function mountStandalonePlayground(
     }
   });
   editing.connect(playground);
-  let active = true;
   let unregister: (() => void) | null = null;
   toggle.onclick = async () => {
     if (toggle.getAttribute('aria-disabled') === 'true') return;
@@ -120,6 +199,9 @@ export function mountStandalonePlayground(
   return () => {
     active = false;
     destroyToolButton();
+    stopUploads();
+    sources.unsubscribe({consumerId: 'sql-catalog'});
+    catalog.finalize();
     uploads.finalize();
     playground.finalize();
     void sources.finalize();
