@@ -95,40 +95,6 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   update() {
     this._engageWorker();
   }
-
-  _engageWorker() {
-    this.stop();
-    if (!this._graph) {
-      return;
-    }
-    const worker = new Worker(new URL('./worker.js', import.meta.url).href);
-    this._worker = worker;
-    worker.onmessage = event => {
-      if (this._worker !== worker) {
-        return;
-      }
-      if (event.data.type === 'end') {
-        this.ended(event.data);
-      }
-    };
-    this._onLayoutStart();
-    if (this._worker !== worker) {
-      return;
-    }
-    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
-      this.props;
-    worker.postMessage({
-      nodes: this._d3Graph.nodes,
-      edges: this._d3Graph.edges,
-      options: {
-        alpha,
-        nBodyStrength,
-        nBodyDistanceMin,
-        nBodyDistanceMax,
-        getCollisionRadius
-      }
-    });
-  }
   ticked(data) {}
   ended(data) {
     const {nodes, edges} = data;
@@ -273,6 +239,40 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     d3Node.fx = null;
     d3Node.fy = null;
   };
+
+  _engageWorker() {
+    this.stop();
+    if (!this._graph) {
+      return;
+    }
+    const worker = new Worker(new URL('./worker.js', import.meta.url).href);
+    this._worker = worker;
+    worker.onmessage = event => {
+      if (this._worker !== worker) {
+        return;
+      }
+      if (event.data.type === 'end') {
+        this.ended(event.data);
+      }
+    };
+    this._onLayoutStart();
+    if (this._worker !== worker) {
+      return;
+    }
+    const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
+      this.props;
+    worker.postMessage({
+      nodes: this._d3Graph.nodes,
+      edges: this._d3Graph.edges,
+      options: {
+        alpha,
+        nBodyStrength,
+        nBodyDistanceMin,
+        nBodyDistanceMax,
+        getCollisionRadius
+      }
+    });
+  }
 
   protected override _updateBounds(): void {
     const positions = Array.from(this._nodeMap.values(), node => this._normalizePosition(node));
