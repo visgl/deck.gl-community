@@ -111,6 +111,11 @@
       "types": "./dist/wind-layers/sky-layer/index.d.ts",
       "require": "./dist/wind-layers/sky-layer/index.cjs",
       "import": "./dist/wind-layers/sky-layer/index.js"
+    },
+    "./effects": {
+      "types": "./dist/effects/index.d.ts",
+      "require": "./dist/effects/index.cjs",
+      "import": "./dist/effects/index.js"
     }
   },
   "files": [
@@ -140,6 +145,7 @@
     "@deck.gl/layers": "10.0.0-alpha.2",
     "@deck.gl/mesh-layers": "10.0.0-alpha.2",
     "@loaders.gl/core": "5.0.0-rc.2",
+    "@luma.gl/anari": "10.0.0-beta.3",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
     "@luma.gl/graph": "10.0.0-beta.3",
@@ -157,6 +163,7 @@
     "@deck.gl/mesh-layers": "10.0.0-alpha.2",
     "@deck.gl/test-utils": "10.0.0-alpha.2",
     "@loaders.gl/core": "5.0.0-rc.2",
+    "@luma.gl/anari": "10.0.0-beta.3",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
     "@luma.gl/graph": "10.0.0-beta.3",
@@ -168,6 +175,9 @@
     "probe.gl": "^5.0.0"
   },
   "peerDependenciesMeta": {
+    "@luma.gl/anari": {
+      "optional": true
+    },
     "@luma.gl/graph": {
       "optional": true
     },
