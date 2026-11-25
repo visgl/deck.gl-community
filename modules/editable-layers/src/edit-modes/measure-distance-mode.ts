@@ -8,6 +8,7 @@ import type {EditModeCoordinateSystem} from './coordinate-system';
 import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   ClickEvent,
+  DoubleClickEvent,
   PointerMoveEvent,
   ModeProps,
   GuideFeatureCollection,
@@ -121,8 +122,9 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
       Array.isArray(clickedEditHandle.properties.positionIndexes) &&
       clickedEditHandle.properties.positionIndexes[0] === clickSequence.length - 1
     ) {
-      // They clicked the last point (or double-clicked), so add the LineString
+      // Clicking the last point completes the measurement.
       this._isMeasuringSessionFinished = true;
+      props.onUpdateCursor('cell');
     } else if (positionAdded) {
       if (clickSequence.length > 1) {
         this._currentDistance += this._calculateDistanceForTooltip({
@@ -155,6 +157,16 @@ export class MeasureDistanceMode extends GeoJsonEditMode implements SnappableEdi
         }
       });
     }
+  }
+
+  /** Finishes a path with at least two committed positions and refreshes its guides. */
+  handleDoubleClick(_event: DoubleClickEvent, props: ModeProps<SimpleFeatureCollection>) {
+    if (this._isMeasuringSessionFinished || this.getClickSequence().length < 2) {
+      return;
+    }
+
+    this._isMeasuringSessionFinished = true;
+    props.onUpdateCursor('cell');
   }
 
   handleKeyUp(event: KeyboardEvent, props: ModeProps<SimpleFeatureCollection>) {
