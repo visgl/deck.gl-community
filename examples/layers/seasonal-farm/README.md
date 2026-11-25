@@ -5,7 +5,7 @@ TreeLayer docs page. Hover a tree or plot to inspect it.
 
 The **TreeLayer** panel maps directly onto layer props:
 
-- **Trees**: season (`getSeason`), fruit and flowers (`getCrop`), wind (`windStrength`) and size
+- **Trees**: season (`getSeason`), fruit and flowers (`getCrop`), scene wind (`WindEffect`) and size
   (`sizeScale`).
 - **Crown**: every shared `characteristics` field, from seed and spread to leaf density.
 - **Rendering** adjusts `lodBias`, which controls how soon crowns use simpler detail. Camera

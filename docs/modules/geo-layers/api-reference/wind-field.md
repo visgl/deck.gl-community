@@ -10,7 +10,7 @@ change. The particle simulation runs on the graphics device; the field-building 
 sampling utilities described here are deliberately backend-independent.
 :::
 
-A `WindField` is the shared, indexed weather forecast used by `WindLayer`, `ParticleLayer`,
+A `WindField` is the shared, indexed weather forecast used by `WindFieldLayer`, `ParticleLayer`,
 `ElevationLayer` examples, `DelaunayCoverLayer`, and `DelaunayInterpolation`. Build the field
 once and reuse the same object throughout an animation.
 

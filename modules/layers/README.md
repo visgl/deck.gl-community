@@ -26,7 +26,7 @@ Run the [local-file example](../../examples/layers/volumetric-video/README.md) t
 **Status: work in progress.** The package includes reusable layers and interpolation utilities
 from Nicolas Belmonte's historical deck.gl wind showcase:
 
-- `WindLayer` renders interpolated, speed-colored wind-direction arrows.
+- `WindFieldLayer` renders interpolated, speed-colored wind-direction arrows.
 - `ParticleLayer` animates GPU-resident particles through the wind field using WebGL2 transform
   feedback or WebGPU compute, without per-frame particle readbacks.
 - `ElevationLayer` renders the original elevation image as illuminated 3D mountain terrain.
@@ -40,13 +40,13 @@ import {
   createWindField,
   parseWindData,
   ParticleLayer,
-  WindLayer
+  WindFieldLayer
 } from '@deck.gl-community/layers/wind-layers';
 
 const windField = createWindField(stations, parseWindData(weather, stations.length));
 
 const layers = [
-  new WindLayer({id: 'wind-arrows', windField, time}),
+  new WindFieldLayer({id: 'wind-arrows', windField, time}),
   new ParticleLayer({id: 'wind-particles', windField, time, numParticles: 100_000})
 ];
 ```

@@ -155,8 +155,6 @@ const config = {
             '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
             '@deck.gl-community/leaflet': resolve('../modules/leaflet/src'),
             '@deck.gl-community/graph-layers': resolve('../modules/graph-layers/src'),
-            '@deck.gl-community/infovis-layers': resolve('../modules/infovis-layers/src'),
-            '@deck.gl-community/timeline-layers': resolve('../modules/timeline-layers/src'),
             '@deck.gl-community/react': resolve('../modules/react/src'),
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
@@ -202,6 +200,10 @@ const config = {
           // These modules break server side bundling
           new rspack.IgnorePlugin({
             resourceRegExp: /asciify-image/
+          }),
+          // The satellite.js WASM threads build imports these only when it runs in Node.
+          new rspack.IgnorePlugin({
+            resourceRegExp: /^node:(module|worker_threads)$/
           })
         ],
         module: {

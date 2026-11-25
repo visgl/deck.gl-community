@@ -12,7 +12,7 @@ import {
   type TreeSpec,
   type TreeType
 } from '../../../src';
-import {mountTreeScene} from './tree-layer-test-utils';
+import {mountTreeScene, type TreeTestWind} from './tree-layer-test-utils';
 import {
   TREE_STATE_TEXEL,
   TREE_STATE_TEXELS_PER_ROW
@@ -31,9 +31,15 @@ const SPECIES: TreeType[] = [
 const OAK: TreeSpec = {species: 'oak', position: [0, 0, 0], height: 10, crownRadius: 2};
 const CITRUS: TreeSpec = {species: 'citrus', position: [1e-5, 0, 0]};
 const CROP: CropConfig = {count: 3, radius: 0.25, color: [240, 128, 32]};
-const baseProps: Partial<TreeLayerProps<TreeSpec>> = {getTree: row => row, windTime: 0};
+const baseProps: Partial<TreeLayerProps<TreeSpec>> & TreeTestWind = {
+  getTree: row => row,
+  windTime: 0
+};
 
-function load(data: TreeSpec[] = [OAK], props: Partial<TreeLayerProps<TreeSpec>> = {}) {
+function load(
+  data: TreeSpec[] = [OAK],
+  props: Partial<TreeLayerProps<TreeSpec>> & TreeTestWind = {}
+) {
   const scene = mountTreeScene<TreeSpec>();
   scene.render({...baseProps, ...props, data});
   return scene;

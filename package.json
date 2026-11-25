@@ -14,7 +14,6 @@
   "workspaces": [
     "modules/*",
     "dev/*",
-    "modules/timeline-layers/examples/*",
     "examples/**"
   ],
   "scripts": {

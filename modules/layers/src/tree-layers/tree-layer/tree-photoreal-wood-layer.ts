@@ -13,8 +13,8 @@ import {
   type TreePhotorealLayerProps,
   type TreeTemplateResources
 } from './tree-photoreal-primitive-layer';
-import {createSplatFrustum} from '../../common-layers/splat-layer/splat-culling';
-import {offsetSplatCommonPosition} from '../../common-layers/splat-layer/splat-globe';
+import {createSplatFrustum} from '../../splat-layers/splat-layer/splat-culling';
+import {offsetSplatCommonPosition} from '../../splat-layers/splat-layer/splat-globe';
 import {
   TREE_STATE_TEXELS_PER_ROW,
   TREE_STATE_TEXEL,

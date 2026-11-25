@@ -24,7 +24,17 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/layers/geo-layers',
-      items: ['geo-layers/global-grid-layer', 'geo-layers/shared-tile-2d-layer', 'geo-layers/wind']
+      items: [
+        'geo-layers/global-grid-layer',
+        'geo-layers/satellite-orbits',
+        'geo-layers/shared-tile-2d-layer',
+        'geo-layers/wind'
+      ]
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/experimental',
+      items: ['experimental/ambient-occlusion']
     },
     {
       type: 'category',
@@ -46,6 +56,9 @@ const sidebars = {
         'layers/flame-trail',
         'layers/edge-markers',
         'layers/seasonal-farm',
+        'layers/grass-layer',
+        'layers/wind-garden',
+        'layers/sky',
         'layers/skybox-map-view',
         'layers/skybox-globe',
         'layers/skybox-first-person',
@@ -54,12 +67,12 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '@deck.gl-community/infovis-layers',
+      label: '@deck.gl-community/layers/infovis-layers',
       items: ['infovis-layers/layer-primitives']
     },
     {
       type: 'category',
-      label: '@deck.gl-community/timeline-layers',
+      label: '@deck.gl-community/layers/timeline-layers',
       items: ['timeline-layers/horizon-graph-layer', 'timeline-layers/multi-horizon-graph-layer']
     },
     {

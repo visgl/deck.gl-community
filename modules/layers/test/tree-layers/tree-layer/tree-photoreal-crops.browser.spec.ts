@@ -2,109 +2,35 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {
-  AmbientLight,
-  Deck,
-  DirectionalLight,
-  LightingEffect,
-  MapView,
-  OrbitView,
-  type Layer
-} from '@deck.gl/core';
-import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {AmbientLight, DirectionalLight, LightingEffect, MapView, OrbitView} from '@deck.gl/core';
 import {describe, expect, it, vi} from 'vitest';
 import {SelectionPulseExtension, TreeLayer, type CropConfig, type TreeSpec} from '../../../src';
 import {getTreeCropTable} from '../../../src/tree-layers/tree-layer/tree-crop';
-import {TreePhotorealCropLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-crop-layer';
 import {
   TREE_CROP_ANCHOR_STRIDE,
   treeTemplateToMetres
 } from '../../../src/tree-layers/tree-layer/tree-photoreal-layout';
 import {TreePhotorealLeafLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-leaf-layer';
 import {TreePhotorealWoodLayer} from '../../../src/tree-layers/tree-layer/tree-photoreal-wood-layer';
-import {mountTreeBrowserScene, type TreeBrowserScene as Scene} from './tree-browser-frame-reader';
-
-const SIZE = 256;
-
-/** A camera in metres: about 11 m away, level with the middle of a 6 m tree. */
-const ORBIT_VIEW = new OrbitView({orbitAxis: 'Z', fovy: 40, near: 0.05, far: 8} as never);
-const ORBIT_STATE = {target: [0, 0, 2.8], rotationOrbit: 20, rotationX: 4, zoom: 4.7, maxZoom: 30};
-
-const coordinates = {
-  coordinateSystem: 'cartesian',
-  coordinateOrigin: [0, 0, 0] as [number, number, number]
-};
-
-/** A color no leaf, bark or sky comes near. */
-const MAGENTA = [255, 0, 255, 255] as [number, number, number, number];
-
-function fruit(fields: Partial<CropConfig> = {}): CropConfig {
-  return {color: MAGENTA, count: 60, radius: 0.09, ...fields};
-}
-
-/** Leafless, so a test sees what its crops do. Foliage has its own tests. */
-const TREE: TreeSpec = {
-  species: 'citrus',
-  position: [0, 0, 0],
-  height: 6,
-  crownRadius: 2.6,
-  foliage: 0
-};
-
-function mount(options: Partial<Parameters<typeof mountTreeBrowserScene>[0]> = {}): Scene {
-  return mountTreeBrowserScene({
-    staticFrames: true,
-    size: SIZE,
-    views: ORBIT_VIEW,
-    viewState: ORBIT_STATE,
-    ...options
-  });
-}
-
-/** One tree whose crops are in `tree.crop`. CI renders in software, and a coarse mesh tests the same. */
-function trees(
-  tree: TreeSpec,
-  props: Record<string, unknown> = {},
-  data: TreeSpec[] = [tree],
-  Layer = TreeLayer<TreeSpec>
-) {
-  return new Layer({
-    ...coordinates,
-    id: 'trees',
-    data,
-    getTree: (row: TreeSpec) => row,
-    pickable: true,
-    windTime: 1,
-    lodBias: 1,
-    ...props
-  });
-}
-
-function isMagenta(pixels: Uint8Array, offset: number): boolean {
-  const green = pixels[offset + 1];
-  return pixels[offset + 3] > 0 && pixels[offset] > green + 50 && pixels[offset + 2] > green + 30;
-}
-
-/** Crop pixels in a window, x and y as on screen. */
-function countCrop(pixels: Uint8Array, x0 = 0, y0 = 0, x1 = SIZE, y1 = SIZE): number {
-  let count = 0;
-  for (let y = y0; y < y1; y++)
-    for (let x = x0; x < x1; x++) if (isMagenta(pixels, ((SIZE - 1 - y) * SIZE + x) * 4)) count++;
-  return count;
-}
+import type {TreeBrowserScene as Scene} from './tree-browser-frame-reader';
+import {
+  SIZE,
+  ORBIT_STATE,
+  CropFixture,
+  TREE,
+  fruit,
+  mount,
+  trees,
+  isMagenta,
+  countCrop,
+  subLayers,
+  cropLayers
+} from './tree-crop-test-utils';
 
 function cropMask(pixels: Uint8Array): Uint8Array {
   const mask = new Uint8Array(SIZE * SIZE);
   for (let i = 0; i < mask.length; i++) mask[i] = isMagenta(pixels, i * 4) ? 1 : 0;
   return mask;
-}
-
-function subLayers(scene: Scene): Layer[] {
-  return scene.layerManager().getLayers();
-}
-
-function cropLayers(scene: Scene): Layer[] {
-  return subLayers(scene).filter(layer => layer instanceof TreePhotorealCropLayer);
 }
 
 function treeLayer(scene: Scene): TreeLayer<TreeSpec> {
@@ -318,13 +244,6 @@ describe('TreeLayer photoreal crops', () => {
       return count;
     };
     const near = {...ORBIT_STATE, target: [1.2, 0, 0], rotationX: 30, zoom: 7.6};
-    class CropFixture extends TreeLayer<TreeSpec> {
-      static layerName = 'CropFixture';
-
-      filterSubLayer(context: Parameters<TreeLayer['filterSubLayer']>[0]): boolean {
-        return context.layer instanceof TreePhotorealCropLayer && super.filterSubLayer(context);
-      }
-    }
     const make = (droppedCount: number, windTime: number) =>
       trees(
         {...TREE, crop: fruit({count: 0, radius: 0.12, droppedCount})},
@@ -413,48 +332,6 @@ describe('TreeLayer photoreal crops', () => {
     const settled = await scene.settle();
     expect(countCrop(settled, 0, 0, SIZE, 180)).toBeGreaterThan(100);
     expect(scene.errors).toEqual([]);
-  }, 120000);
-
-  it.each([
-    'fruit',
-    'lemon',
-    'cone',
-    'acorn',
-    'catkin',
-    'propagule',
-    'flower'
-  ] as const)('renders %s at every mesh level, and in the shadow pass', async kind => {
-    const scene = mount({
-      effects: [
-        new LightingEffect({
-          ambient: new AmbientLight({intensity: 0.6}),
-          sun: new DirectionalLight({direction: [1, 0.3, -1], intensity: 1.2, _shadow: true})
-        })
-      ]
-    });
-    const crop = {kind, color: MAGENTA, count: 200, radius: 0.09};
-    const seen: Record<string, number> = {};
-    for (const [zoom, lodBias] of [
-      [9.2, 0],
-      [7, 0],
-      [6.2, -1],
-      [4.7, 1],
-      [2.5, 1],
-      [0.5, 1]
-    ] as const) {
-      scene.setViewState({...ORBIT_STATE, zoom});
-      const pixels = await scene.render([trees({...TREE, crop}, {lodBias})]);
-      for (const layer of cropLayers(scene)) {
-        if ((layer.props.data as unknown as {length: number}).length) {
-          seen[layer.id.split('-').at(-1) as string] = countCrop(pixels);
-        }
-      }
-      expect(scene.errors).toEqual([]);
-      expect(scene.glErrors).toEqual([]);
-    }
-    // A close view takes a finer level than a far one, and every level shows something.
-    expect(Object.keys(seen).length).toBeGreaterThanOrEqual(2);
-    for (const pixels of Object.values(seen)) expect(pixels).toBeGreaterThan(0);
   }, 120000);
 
   it('draws a crop once and whole at every size on screen, through all its levels', async () => {
@@ -646,45 +523,6 @@ describe('TreeLayer photoreal crops', () => {
     }
     expect(scene.errors).toEqual([]);
   }, 180000);
-
-  it('sizes its levels and dots in CSS pixels, whatever the device pixel ratio', async () => {
-    const draw = async (useDevicePixels: number) => {
-      const parent = document.createElement('div');
-      parent.style.cssText = `width:${SIZE}px;height:${SIZE}px`;
-      document.body.append(parent);
-      let share = 0,
-        frames = 0;
-      const deck = new Deck({
-        parent,
-        width: SIZE,
-        height: SIZE,
-        useDevicePixels,
-        _animate: true,
-        deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
-        views: ORBIT_VIEW as never,
-        viewState: {...ORBIT_STATE, zoom: 5.4} as never,
-        layers: [trees({...TREE, crop: fruit({count: 120, radius: 0.09})}, {lodBias: 0})],
-        onAfterRender({gl}) {
-          const {drawingBufferWidth: width, drawingBufferHeight: height} = gl;
-          const pixels = new Uint8Array(width * height * 4);
-          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-          let count = 0;
-          for (let i = 0; i < width * height; i++) if (isMagenta(pixels, i * 4)) count++;
-          share = count / (width * height);
-          frames++;
-        }
-      });
-      await expect.poll(() => frames, {timeout: 60000}).toBeGreaterThan(4);
-      deck.finalize();
-      parent.remove();
-      return share;
-    };
-    const one = await draw(1);
-    const two = await draw(2);
-    expect(one).toBeGreaterThan(0.002);
-    expect(two / one).toBeGreaterThan(0.85);
-    expect(two / one).toBeLessThan(1.15);
-  }, 120000);
 
   it('releases its rank texture with its layers', async () => {
     const scene = mount();

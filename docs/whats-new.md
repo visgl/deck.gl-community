@@ -4,13 +4,21 @@ This page lists module additions and major changes in each release. For detailed
 
 ## v10.0.0-alpha.4
 
+- **layers:** [WindEffect](./modules/layers/api-reference/wind-effect.md) supplies scene wind for
+  photoreal trees and `WindExtension`. Migrate tree-level `windStrength`, `windDirection`
+  and `windTime` to the effect’s `strength`, `direction` and `time`. Use `windEnabled: false`
+  to shelter a tree layer. Standalone Gaussian splats are wind-independent.
+- **layers:** [WindFieldLayer](./modules/geo-layers/api-reference/wind-layer.md) replaces the
+  former `WindLayer` export for station-based wind visualization.
+- **layers:** [SplatLayer](./modules/layers/api-reference/splat-layer.md) is available from
+  `@deck.gl-community/layers/splat-layers`. Existing imports remain available.
 - **layers:** experimental [EdgeMarkerLayer](./modules/layers/api-reference/edge-marker-layer.md)
   shows targets as rings inside the viewport margins and docks arrows for targets outside the
   margins, behind the camera, or beyond the globe horizon. Import it from
   `@deck.gl-community/layers/common-layers`.
-
 - **layers:** [ZoomOpacityExtension](./modules/layers/api-reference/zoom-opacity-extension.md)
   fades layers by viewport zoom on WebGL2 and WebGPU.
+- **layers:** [Infovis and timeline layers](./upgrade-guide.md#infovis-and-timeline-packages) now ship as subpaths of the Layers package.
 
 - **layers:** Import [SelectionPulseExtension](./modules/layers/api-reference/selection-pulse-extension.md)
   from `@deck.gl-community/layers/extensions`. The existing imports remain available.
@@ -131,6 +139,12 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
 - v9.4.7 also publishes the v9.4.6 changes below, whose npm release was interrupted after only
   `@deck.gl-community/react` published.
 
+- Breaking change for v10: editable-layers removes nine standard
+  GeoJSON type re-exports, unused `AnyGeoJson` and `Style` aliases, and the generic
+  `toDeckColor`, `utils`, and `_memoize` exports. Import GeoJSON types from `geojson`;
+  use the package's `Simple*` types for editable data. See the
+  [public export migration](./upgrade-guide.md#public-export-cleanup).
+
 - `EditableGeoJsonLayer` tooltips are no longer pickable. Before, hovering a measurement tooltip
   (such as the one left under the cursor after finishing a `DrawLineStringMode` line) made
   `ModifyMode` throw and passed the tooltip to modes as if it were a feature.
@@ -248,6 +262,8 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
 - The BasemapLayers overview includes a synchronized comparison with MapLibre, with map, globe, and first-person views.
 
 - The standalone playground adds local JSON, GeoJSON, CSV, and Arrow IPC uploads with Arrow inspection and `datasource://source-id` layer references.
+- Graph layouts support validated prop-update hooks; `SimpleLayout` refreshes positions when its accessor changes.
+
 - `GraphLayer.layoutTransitionDuration` enables opt-in position interpolation independently of layout redraw throttling.
 
 - The graph viewer includes a live mini-map with click-to-recenter navigation. The playground

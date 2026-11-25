@@ -36,9 +36,12 @@ export class CollapsableD3DagLayout extends D3DagLayout<CollapsableD3DagLayoutPr
     super(props, CollapsableD3DagLayout.defaultProps);
   }
 
-  override setProps(props: Partial<CollapsableD3DagLayoutProps>): void {
-    super.setProps(props);
-    if (props.collapseLinearChains !== undefined && this._graph) {
+  protected override _onPropsUpdated(
+    previousProps: Readonly<Required<CollapsableD3DagLayoutProps>>,
+    nextProps: Readonly<Required<CollapsableD3DagLayoutProps>>
+  ): void {
+    super._onPropsUpdated(previousProps, nextProps);
+    if (previousProps.collapseLinearChains !== nextProps.collapseLinearChains && this._graph) {
       this._runLayout();
     }
   }

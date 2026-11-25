@@ -547,6 +547,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/example-ambient-occlusion@workspace:examples/experimental/ambient-occlusion":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-ambient-occlusion@workspace:examples/experimental/ambient-occlusion"
+  dependencies:
+    "@deck.gl-community/experimental": "workspace:*"
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@deck.gl/extensions": "npm:10.0.0-alpha.2"
+    "@deck.gl/geo-layers": "npm:10.0.0-alpha.2"
+    "@deck.gl/layers": "npm:10.0.0-alpha.2"
+    "@deck.gl/mesh-layers": "npm:10.0.0-alpha.2"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/example-edge-markers@workspace:examples/layers/edge-markers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/example-edge-markers@workspace:examples/layers/edge-markers"
@@ -577,6 +595,21 @@ __metadata:
     "@deck.gl/layers": "npm:10.0.0-alpha.2"
     "@deck.gl/mesh-layers": "npm:10.0.0-alpha.2"
     "@deck.gl/widgets": "npm:10.0.0-alpha.2"
+    "@loaders.gl/core": "npm:5.0.0-rc.2"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/example-grass-layer@workspace:examples/layers/grass-layer":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-grass-layer@workspace:examples/layers/grass-layer"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@deck.gl/layers": "npm:10.0.0-alpha.2"
     "@loaders.gl/core": "npm:5.0.0-rc.2"
     "@luma.gl/core": "npm:10.0.0-beta.3"
     "@luma.gl/engine": "npm:10.0.0-beta.3"
@@ -656,28 +689,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/infovis-layers@workspace:*, @deck.gl-community/infovis-layers@workspace:modules/infovis-layers":
-  version: 0.0.0-use.local
-  resolution: "@deck.gl-community/infovis-layers@workspace:modules/infovis-layers"
-  dependencies:
-    "@deck.gl/core": "npm:10.0.0-alpha.2"
-    "@deck.gl/test-utils": "npm:10.0.0-alpha.2"
-    "@luma.gl/core": "npm:10.0.0-beta.3"
-    "@luma.gl/engine": "npm:10.0.0-beta.3"
-    "@luma.gl/shaders": "npm:10.0.0-beta.3"
-    probe.gl: "npm:^5.0.0"
-  peerDependencies:
-    "@deck.gl/core": 10.0.0-alpha.2
-    "@deck.gl/layers": 10.0.0-alpha.2
-    "@luma.gl/core": 10.0.0-beta.3
-    "@luma.gl/engine": 10.0.0-beta.3
-    apache-arrow: ">=17"
-  peerDependenciesMeta:
-    apache-arrow:
-      optional: true
-  languageName: unknown
-  linkType: soft
-
 "@deck.gl-community/layers@workspace:*, @deck.gl-community/layers@workspace:modules/layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
@@ -694,12 +705,14 @@ __metadata:
     "@loaders.gl/tiles": "npm:5.0.0-rc.2"
     "@luma.gl/core": "npm:10.0.0-beta.3"
     "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/graph": "npm:10.0.0-beta.3"
     "@luma.gl/shaders": "npm:10.0.0-beta.3"
     "@math.gl/core": "npm:5.0.2"
     "@math.gl/earth": "npm:5.0.2"
     "@math.gl/geometry": "npm:5.0.2"
     "@math.gl/geospatial": "npm:5.0.2"
     a5-js: "npm:^0.5.0"
+    apache-arrow: "npm:^21.2.0"
     delaunator: "npm:^5.1.0"
     h3-js: "npm:^4.2.1"
     mediabunny: "npm:^1.61.3"
@@ -713,14 +726,20 @@ __metadata:
     "@loaders.gl/core": 5.0.0-rc.2
     "@luma.gl/core": 10.0.0-beta.3
     "@luma.gl/engine": 10.0.0-beta.3
+    "@luma.gl/graph": 10.0.0-beta.3
     "@math.gl/earth": 5.0.2
     a5-js: ^0.5.0
+    apache-arrow: ">=17"
     delaunator: ^5.1.0
     h3-js: ^4.2.1
   peerDependenciesMeta:
+    "@luma.gl/graph":
+      optional: true
     "@math.gl/earth":
       optional: true
     a5-js:
+      optional: true
+    apache-arrow:
       optional: true
     delaunator:
       optional: true
@@ -791,27 +810,6 @@ __metadata:
 "@deck.gl-community/template@workspace:modules/template":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/template@workspace:modules/template"
-  languageName: unknown
-  linkType: soft
-
-"@deck.gl-community/timeline-layers@workspace:*, @deck.gl-community/timeline-layers@workspace:modules/timeline-layers":
-  version: 0.0.0-use.local
-  resolution: "@deck.gl-community/timeline-layers@workspace:modules/timeline-layers"
-  dependencies:
-    "@deck.gl/core": "npm:10.0.0-alpha.2"
-    "@deck.gl/layers": "npm:10.0.0-alpha.2"
-    "@deck.gl/test-utils": "npm:10.0.0-alpha.2"
-    "@loaders.gl/core": "npm:5.0.0-rc.2"
-    "@luma.gl/core": "npm:10.0.0-beta.3"
-    "@luma.gl/engine": "npm:10.0.0-beta.3"
-    "@luma.gl/shaders": "npm:10.0.0-beta.3"
-    probe.gl: "npm:^5.0.0"
-  peerDependencies:
-    "@deck.gl/core": 10.0.0-alpha.2
-    "@deck.gl/layers": 10.0.0-alpha.2
-    "@loaders.gl/core": 5.0.0-rc.2
-    "@luma.gl/core": 10.0.0-beta.3
-    "@luma.gl/engine": 10.0.0-beta.3
   languageName: unknown
   linkType: soft
 
@@ -6949,6 +6947,41 @@ __metadata:
   languageName: node
   linkType: hard
 
+"example-globe-clouds@workspace:examples/layers/globe-clouds":
+  version: 0.0.0-use.local
+  resolution: "example-globe-clouds@workspace:examples/layers/globe-clouds"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    "@math.gl/core": "npm:5.0.2"
+    "@math.gl/earth": "npm:5.0.2"
+    playwright: "npm:^1.58.0"
+    pngjs: "npm:^7.0.0"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"example-horizon-graph-layer@workspace:examples/layers/horizon-graph-layer":
+  version: 0.0.0-use.local
+  resolution: "example-horizon-graph-layer@workspace:examples/layers/horizon-graph-layer"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl-community/panels": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@deck.gl/layers": "npm:10.0.0-alpha.2"
+    "@deck.gl/widgets": "npm:10.0.0-alpha.2"
+    "@loaders.gl/core": "npm:5.0.0-rc.2"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "example-react-multi-canvas@workspace:examples/react/multi-canvas":
   version: 0.0.0-use.local
   resolution: "example-react-multi-canvas@workspace:examples/react/multi-canvas"
@@ -6973,6 +7006,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"example-sketch-edges@workspace:examples/layers/sketch-edges":
+  version: 0.0.0-use.local
+  resolution: "example-sketch-edges@workspace:examples/layers/sketch-edges"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    playwright: "npm:^1.58.0"
+    pngjs: "npm:^7.0.0"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "example-sky-layers@workspace:examples/layers/sky-layers":
   version: 0.0.0-use.local
   resolution: "example-sky-layers@workspace:examples/layers/sky-layers"
@@ -6989,6 +7037,21 @@ __metadata:
     "@luma.gl/engine": "npm:10.0.0-beta.3"
     "@math.gl/earth": "npm:5.0.2"
     vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"example-timeline-layer@workspace:examples/layers/timeline-layer":
+  version: 0.0.0-use.local
+  resolution: "example-timeline-layer@workspace:examples/layers/timeline-layer"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@deck.gl/react": "npm:10.0.0-alpha.2"
+    "@deck.gl/widgets": "npm:10.0.0-alpha.2"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    react: "npm:^19.2.5"
+    react-dom: "npm:^19.2.5"
+    vite: "npm:7.3.7"
   languageName: unknown
   linkType: soft
 
@@ -7663,25 +7726,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"horizon-graph-layer-032ab1@workspace:modules/timeline-layers/examples/horizon-graph-layer":
-  version: 0.0.0-use.local
-  resolution: "horizon-graph-layer-032ab1@workspace:modules/timeline-layers/examples/horizon-graph-layer"
-  dependencies:
-    "@deck.gl-community/infovis-layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/timeline-layers": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
-    "@deck.gl/core": "npm:10.0.0-alpha.2"
-    "@deck.gl/layers": "npm:10.0.0-alpha.2"
-    "@deck.gl/widgets": "npm:10.0.0-alpha.2"
-    "@loaders.gl/core": "npm:5.0.0-rc.2"
-    "@luma.gl/core": "npm:10.0.0-beta.3"
-    "@luma.gl/engine": "npm:10.0.0-beta.3"
-    "@luma.gl/shaders": "npm:10.0.0-beta.3"
-    vite: "npm:^7.3.1"
-  languageName: unknown
-  linkType: soft
-
 "hosted-git-info@npm:^8.0.0":
   version: 8.1.0
   resolution: "hosted-git-info@npm:8.1.0"
@@ -7847,11 +7891,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"infovis-layer-primitives-example@workspace:examples/infovis-layers/layer-primitives":
+"infovis-layer-primitives-example@workspace:examples/layers/layer-primitives":
   version: 0.0.0-use.local
-  resolution: "infovis-layer-primitives-example@workspace:examples/infovis-layers/layer-primitives"
+  resolution: "infovis-layer-primitives-example@workspace:examples/layers/layer-primitives"
   dependencies:
-    "@deck.gl-community/infovis-layers": "workspace:*"
+    "@deck.gl-community/layers": "workspace:*"
     "@deck.gl-community/panels": "workspace:*"
     "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:10.0.0-alpha.2"
@@ -10048,11 +10092,9 @@ __metadata:
     "@deck.gl-community/editable-layers": "workspace:*"
     "@deck.gl-community/experimental": "workspace:*"
     "@deck.gl-community/graph-layers": "workspace:*"
-    "@deck.gl-community/infovis-layers": "workspace:*"
     "@deck.gl-community/layers": "workspace:*"
     "@deck.gl-community/panels": "workspace:*"
     "@deck.gl-community/playground": "workspace:*"
-    "@deck.gl-community/timeline-layers": "workspace:*"
     "@deck.gl/aggregation-layers": "npm:10.0.0-alpha.2"
     "@deck.gl/core": "npm:10.0.0-alpha.2"
     "@deck.gl/extensions": "npm:10.0.0-alpha.2"
@@ -10959,6 +11001,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"satellite-orbits-example@workspace:examples/geo-layers/satellite-orbits":
+  version: 0.0.0-use.local
+  resolution: "satellite-orbits-example@workspace:examples/geo-layers/satellite-orbits"
+  dependencies:
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@deck.gl/layers": "npm:10.0.0-alpha.2"
+    satellite.js: "npm:^7.2.0"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"satellite.js@npm:^7.2.0":
+  version: 7.2.0
+  resolution: "satellite.js@npm:7.2.0"
+  checksum: 10c0/959e79c3525e8e2ce1c7a940973de8944a9cb6172caa61d97f291de99be1b0771536fa449a35f0bca64d9ca6e57641c1824b7991a8f01de9033c727525f750df
+  languageName: node
+  linkType: hard
+
 "scheduler@npm:^0.19.1":
   version: 0.19.1
   resolution: "scheduler@npm:0.19.1"
@@ -11206,6 +11266,17 @@ __metadata:
   checksum: 10c0/230ac975cca485b7f6fe2b96a711aa62a6a26ead3e6fb8ba17c5a00d61b8bed0d7adc21f5626b70d7c33c62ff4e63933017a6462942c719d1980bb0b1207ad46
   languageName: node
   linkType: hard
+
+"sky-f853f6@workspace:examples/layers/sky":
+  version: 0.0.0-use.local
+  resolution: "sky-f853f6@workspace:examples/layers/sky"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@deck.gl/layers": "npm:10.0.0-alpha.2"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
 
 "skybox-first-person-a4390b@workspace:examples/layers/skybox-first-person":
   version: 0.0.0-use.local
@@ -11630,21 +11701,6 @@ __metadata:
   checksum: 10c0/a7d8b801139b52f93a7e34830db0de54c5aa45487c7cb551f6f3d44a112c67f1cb8ffdae856b05fd4f17b1749911f1c26f1e3a23bbe0279e17fd96077f13f467
   languageName: node
   linkType: hard
-
-"timeline-layer-3957bd@workspace:modules/timeline-layers/examples/timeline-layer":
-  version: 0.0.0-use.local
-  resolution: "timeline-layer-3957bd@workspace:modules/timeline-layers/examples/timeline-layer"
-  dependencies:
-    "@deck.gl-community/timeline-layers": "workspace:*"
-    "@deck.gl/core": "npm:10.0.0-alpha.2"
-    "@deck.gl/react": "npm:10.0.0-alpha.2"
-    "@deck.gl/widgets": "npm:10.0.0-alpha.2"
-    "@luma.gl/core": "npm:10.0.0-beta.3"
-    react: "npm:^19.2.5"
-    react-dom: "npm:^19.2.5"
-    vite: "npm:7.3.7"
-  languageName: unknown
-  linkType: soft
 
 "tiny-invariant@npm:^1.0.2":
   version: 1.3.3
@@ -12890,6 +12946,28 @@ __metadata:
     "@luma.gl/core": "npm:10.0.0-beta.3"
     "@luma.gl/engine": "npm:10.0.0-beta.3"
     "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
+"wind-garden-603a51@workspace:examples/layers/wind-garden":
+  version: 0.0.0-use.local
+  resolution: "wind-garden-603a51@workspace:examples/layers/wind-garden"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl-community/panels": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl/core": "npm:10.0.0-alpha.2"
+    "@deck.gl/extensions": "npm:10.0.0-alpha.2"
+    "@deck.gl/geo-layers": "npm:10.0.0-alpha.2"
+    "@deck.gl/layers": "npm:10.0.0-alpha.2"
+    "@deck.gl/mesh-layers": "npm:10.0.0-alpha.2"
+    "@deck.gl/widgets": "npm:10.0.0-alpha.2"
+    "@loaders.gl/core": "npm:5.0.0-rc.2"
+    "@luma.gl/core": "npm:10.0.0-beta.3"
+    "@luma.gl/engine": "npm:10.0.0-beta.3"
+    "@luma.gl/shaders": "npm:10.0.0-beta.3"
+    delaunator: "npm:^5.1.0"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft

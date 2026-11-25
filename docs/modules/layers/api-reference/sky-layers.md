@@ -46,3 +46,5 @@ Run `yarn --cwd examples/layers/sky-layers start` after building the workspace. 
 to see changes in the sky and lighting.
 
 The implementation originated in the [deck.gl proposals workspace](https://github.com/visgl/deck.gl/tree/66542993e7/modules/proposals/src/layers).
+
+The [Globe Clouds example](https://github.com/visgl/deck.gl-community/tree/master/examples/layers/globe-clouds) explores cloud motion, observer time, and celestial lighting on a globe.

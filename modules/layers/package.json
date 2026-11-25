@@ -47,6 +47,11 @@
       "require": "./dist/wind-layers/index.cjs",
       "import": "./dist/wind-layers/index.js"
     },
+    "./wind-layers/grass-layer": {
+      "types": "./dist/wind-layers/grass-layer/index.d.ts",
+      "require": "./dist/wind-layers/grass-layer/index.cjs",
+      "import": "./dist/wind-layers/grass-layer/index.js"
+    },
     "./geo-layers/tileset": {
       "types": "./dist/geo-layers/tileset/index.d.ts",
       "require": "./dist/geo-layers/tileset/index.cjs",
@@ -76,6 +81,41 @@
       "types": "./dist/extensions/index.d.ts",
       "require": "./dist/extensions/index.cjs",
       "import": "./dist/extensions/index.js"
+    },
+    "./infovis-layers": {
+      "types": "./dist/infovis-layers/index.d.ts",
+      "require": "./dist/infovis-layers/index.cjs",
+      "import": "./dist/infovis-layers/index.js"
+    },
+    "./timeline-layers": {
+      "types": "./dist/timeline-layers/index.d.ts",
+      "require": "./dist/timeline-layers/index.cjs",
+      "import": "./dist/timeline-layers/index.js"
+    },
+    "./effect-layers": {
+      "types": "./dist/effect-layers/index.d.ts",
+      "require": "./dist/effect-layers/index.cjs",
+      "import": "./dist/effect-layers/index.js"
+    },
+    "./splat-layers": {
+      "types": "./dist/splat-layers/index.d.ts",
+      "require": "./dist/splat-layers/index.cjs",
+      "import": "./dist/splat-layers/index.js"
+    },
+    "./wind-layers/wind-effect": {
+      "types": "./dist/wind-layers/wind-effect/index.d.ts",
+      "require": "./dist/wind-layers/wind-effect/index.cjs",
+      "import": "./dist/wind-layers/wind-effect/index.js"
+    },
+    "./wind-layers/rain-layer": {
+      "types": "./dist/wind-layers/rain-layer/index.d.ts",
+      "require": "./dist/wind-layers/rain-layer/index.cjs",
+      "import": "./dist/wind-layers/rain-layer/index.js"
+    },
+    "./wind-layers/sky-layer": {
+      "types": "./dist/wind-layers/sky-layer/index.d.ts",
+      "require": "./dist/wind-layers/sky-layer/index.cjs",
+      "import": "./dist/wind-layers/sky-layer/index.js"
     }
   },
   "files": [
@@ -107,8 +147,10 @@
     "@loaders.gl/core": "5.0.0-rc.2",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
+    "@luma.gl/graph": "10.0.0-beta.3",
     "@math.gl/earth": "5.0.2",
     "a5-js": "^0.5.0",
+    "apache-arrow": ">=17",
     "delaunator": "^5.1.0",
     "h3-js": "^4.2.1"
   },
@@ -122,17 +164,25 @@
     "@loaders.gl/core": "5.0.0-rc.2",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
+    "@luma.gl/graph": "10.0.0-beta.3",
     "@math.gl/earth": "5.0.2",
     "a5-js": "^0.5.0",
+    "apache-arrow": "^21.2.0",
     "delaunator": "^5.1.0",
     "h3-js": "^4.2.1",
     "probe.gl": "^5.0.0"
   },
   "peerDependenciesMeta": {
+    "@luma.gl/graph": {
+      "optional": true
+    },
     "@math.gl/earth": {
       "optional": true
     },
     "a5-js": {
+      "optional": true
+    },
+    "apache-arrow": {
       "optional": true
     },
     "delaunator": {

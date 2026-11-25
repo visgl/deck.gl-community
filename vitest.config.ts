@@ -34,16 +34,8 @@ const ALIASES = [
     replacement: fileURLToPath(new URL('./modules/widgets/src/index.ts', import.meta.url))
   },
   {
-    find: /^@deck\.gl-community\/infovis-layers$/,
-    replacement: fileURLToPath(new URL('./modules/infovis-layers/src/index.ts', import.meta.url))
-  },
-  {
     find: '@deck.gl-community/layers',
     replacement: fileURLToPath(new URL('./modules/layers/src', import.meta.url))
-  },
-  {
-    find: /^@deck\.gl-community\/timeline-layers$/,
-    replacement: fileURLToPath(new URL('./modules/timeline-layers/src/index.ts', import.meta.url))
   },
   {
     find: /^monaco-editor$/,
@@ -75,6 +67,11 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
   exclude: ['maplibre-gl'],
   include: [
     '@deck.gl/mesh-layers',
+    '@deck.gl/widgets',
+    '@loaders.gl/raster',
+    '@turf/helpers',
+    'delaunator',
+    'supercluster',
     '@deck.gl/react/legacy',
     '@loaders.gl/tables',
     'apache-arrow',

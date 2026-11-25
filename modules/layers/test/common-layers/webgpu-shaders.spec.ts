@@ -6,13 +6,13 @@ import {color, getShaderAssembler, picking, project32} from '@deck.gl/core';
 import type {ShaderModule} from '@luma.gl/shaders';
 import {describe, expect, it} from 'vitest';
 
-import blockSource from '../../../infovis-layers/src/layers/block-layer/block-layer.wgsl';
-import {blockUniforms} from '../../../infovis-layers/src/layers/block-layer/block-layer-uniforms';
-import fastTextSource from '../../../infovis-layers/src/layers/fast-text-layer/fast-text-layer.wgsl';
-import {fastTextUniforms} from '../../../infovis-layers/src/layers/fast-text-layer/fast-text-layer';
+import blockSource from '../../src/infovis-layers/layers/block-layer/block-layer.wgsl';
+import {blockUniforms} from '../../src/infovis-layers/layers/block-layer/block-layer-uniforms';
+import fastTextSource from '../../src/infovis-layers/layers/fast-text-layer/fast-text-layer.wgsl';
+import {fastTextUniforms} from '../../src/infovis-layers/layers/fast-text-layer/fast-text-layer';
 import windTriangleSource from '../../src/wind-layers/wind-layer/wind-triangle-layer.wgsl';
-import horizonSource from '../../../timeline-layers/src/layers/horizon-graph-layer/horizon-graph-layer.wgsl';
-import {horizonLayerUniforms} from '../../../timeline-layers/src/layers/horizon-graph-layer/horizon-graph-layer-uniforms';
+import horizonSource from '../../src/timeline-layers/layers/horizon-graph-layer/horizon-graph-layer.wgsl';
+import {horizonLayerUniforms} from '../../src/timeline-layers/layers/horizon-graph-layer/horizon-graph-layer-uniforms';
 import geometrySource from '../../src/common-layers/dependency-arrow-layer/geometry-layer.wgsl';
 
 const WEBGPU_PLATFORM = {

@@ -1,0 +1,147 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import type {Deck, Layer, MapView} from '@deck.gl/core';
+import {
+  WindEffect,
+  WindExtension,
+  getWindStrength
+} from '@deck.gl-community/layers/wind-layers/wind-effect';
+import {luma, type Device} from '@luma.gl/core';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {expect, it, vi} from 'vitest';
+import {mountWindGardenExample} from './app';
+
+it('drives every garden layer from one panel-controlled WindEffect', {
+  timeout: 120_000
+}, async () => {
+  const parent = document.createElement('div');
+  Object.assign(parent.style, {width: '800px', height: '500px'});
+  document.body.append(parent);
+  let device: Device | undefined;
+  let deck: Deck<MapView>;
+  let cleanup: (() => void) | undefined;
+  let pixels = new Uint8Array();
+  const errors: Error[] = [];
+  const frames = vi.fn(({gl}: {gl: WebGL2RenderingContext}) => {
+    pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+    gl.readPixels(
+      0,
+      0,
+      gl.drawingBufferWidth,
+      gl.drawingBufferHeight,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      pixels
+    );
+  });
+  const wind = () =>
+    (deck!.props.effects as WindEffect[]).find(effect => effect instanceof WindEffect)!;
+  const layer = (id: string) => (deck!.props.layers as Layer[]).find(item => item?.id === id);
+  const setNumber = (label: string, value: number) => {
+    const input = parent.querySelector<HTMLInputElement>(
+      `input[aria-label="${label} numeric value"]`
+    )!;
+    input.value = String(value);
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+  };
+  const selectOption = async (name: string, label: string) => {
+    parent.querySelector<HTMLButtonElement>(`#settings-panel-input-${name}`)!.click();
+    const option = await vi.waitFor(() => {
+      const match = Array.from(document.body.querySelectorAll<HTMLElement>('[role="option"]')).find(
+        element => element.textContent?.toLowerCase().includes(label.toLowerCase())
+      );
+      expect(match).toBeDefined();
+      return match!;
+    });
+    option.click();
+  };
+  const flexes = (id: string) => {
+    const reeds = layer(id)!;
+    const getWind = reeds.props.getWind as (d: unknown) => [number, number, number];
+    return (reeds.props.data as unknown[]).map(d => getWind(d)[2]);
+  };
+  const settle = async () => {
+    await expect.poll(() => deck?.isInitialized, {timeout: 30_000}).toBe(true);
+    const loop = deck['animationLoop']!;
+    loop.stop();
+    const before = frames.mock.calls.length;
+    for (let frame = 0; frame < 3; frame++) loop.redraw();
+    expect(errors.map(error => error.cause ?? error.message)).toEqual([]);
+    expect(frames.mock.calls.length).toBeGreaterThan(before);
+  };
+  const changed = (a: Uint8Array, b: Uint8Array) => {
+    let count = 0;
+    for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) > 24) count++;
+    return count;
+  };
+  try {
+    device = await luma.createDevice({
+      type: 'webgl',
+      adapters: [webgl2Adapter],
+      createCanvasContext: {container: parent}
+    });
+    cleanup = mountWindGardenExample(parent, {
+      device,
+      onDeckInitialized(instance) {
+        deck = instance;
+        deck.setProps({
+          useDevicePixels: 0.5,
+          _animate: true,
+          onError: error => errors.push(error),
+          onAfterRender: frames
+        });
+      }
+    });
+    await settle();
+    for (const id of ['SimpleMeshLayer', 'ColumnLayer', 'GridCellLayer', 'PointCloudLayer'])
+      expect(
+        layer(id)?.props.extensions.some(item => item instanceof WindExtension),
+        id
+      ).toBe(true);
+    expect(layer('TreeLayer')).toBeDefined();
+    // The Wind control is a speed in m/s; the bend follows the response curve.
+    expect(wind().props).toMatchObject({speed: 6, direction: 90, gust: 0.3, time: null});
+    expect(wind().props.strength).toBeNull();
+    expect(wind().strength).toBeCloseTo(getWindStrength(6), 12);
+
+    // Freeze the clock, then turn the wind around: the frozen garden changes pose.
+    parent.querySelector<HTMLInputElement>('#settings-panel-input-frozen')!.click();
+    await expect.poll(() => wind().props.time).toBe(2);
+    setNumber('Wind (m/s)', 15);
+    await expect.poll(() => wind().props.speed).toBe(15);
+    expect(wind().strength).toBeCloseTo(getWindStrength(15), 12);
+    expect(new Set(flexes('SimpleMeshLayer'))).toEqual(new Set([3]));
+    await settle();
+    const east = pixels.slice();
+    setNumber('Wind direction', 270);
+    await expect.poll(() => wind().props.direction).toBe(270);
+    await settle();
+    expect(changed(east, pixels)).toBeGreaterThan(500);
+    setNumber('Turbulence', 0);
+    await expect.poll(() => wind().props.turbulence).toBe(0);
+    await settle();
+    const uniform = pixels.slice();
+
+    // Station wind: the one scene wind becomes what the stations report at the garden's centre.
+    await selectOption('source', 'Stations');
+    await expect.poll(() => wind().props.speed).toBeCloseTo(6, 6);
+    expect(wind().props.direction).toBeCloseTo(45, 6);
+    // Every object follows the same effect: no per-object wind.
+    expect(new Set(flexes('SimpleMeshLayer'))).toEqual(new Set([3]));
+    await settle();
+    expect(changed(uniform, pixels)).toBeGreaterThan(500);
+    await selectOption('source', 'Uniform');
+    await expect.poll(() => wind().props.speed).toBe(15);
+    // A layer toggle removes only that layer; the rest keep the effect.
+    parent.querySelector<HTMLInputElement>('#settings-panel-input-layers-columns')!.click();
+    await expect.poll(() => layer('ColumnLayer')).toBeUndefined();
+    await settle();
+    expect(errors).toEqual([]);
+  } finally {
+    cleanup?.();
+    device?.destroy();
+    parent.remove();
+  }
+});
