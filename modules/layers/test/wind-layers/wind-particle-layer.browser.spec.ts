@@ -52,10 +52,10 @@ it('WebGPU wind effect advances once per render, pauses, and the layer borrows l
   effect.simulation.previous.write(new Float32Array([0.5, 0.5, 1, 1]));
   let frames = 0;
   const errors: string[] = [];
-  const layer = () =>
+  const layer = (simulation = effect.simulation, id = 'wind-test') =>
     new WindParticleLayer({
-      id: 'wind-test',
-      simulation: effect.simulation,
+      id,
+      simulation,
       coordinateSystem: 'cartesian',
       widthPixels: 8,
       altitude: 0,
@@ -132,8 +132,10 @@ it('WebGPU wind effect advances once per render, pauses, and the layer borrows l
     });
     deck.setProps({
       effects: [replacement],
-      layers: [layer().clone({simulation: replacement.simulation})]
+      layers: [layer(replacement.simulation, 'wind-test-rk2')]
     });
+    // Let Deck's animation frame reconcile the layers before forcing another draw.
+    await new Promise(resolve => requestAnimationFrame(resolve));
     await renderFrames();
     expect(replacementEncodings).toBe(1);
     expect(current.destroyed).toBe(true);

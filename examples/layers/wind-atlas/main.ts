@@ -44,7 +44,7 @@ function updateWind() {
         tintColor: [75, 100, 120, 255]
       }),
       new WindParticleLayer({
-        id: 'winds',
+        id: `winds-${method}`,
         simulation: effect.simulation,
         coordinateSystem: 'cartesian',
         widthPixels: 1.2,
