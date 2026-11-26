@@ -238,7 +238,7 @@ export function mountAmbientOcclusionExample(
   const attribution = document.createElement('div');
   attribution.style.cssText =
     'position:absolute;right:0;bottom:0;z-index:1;padding:2px 6px;max-width:60%;' +
-    'background:rgba(255,255,255,0.8);font:11px sans-serif';
+    'background:rgba(255,255,255,0.8);color:#1f2328;font:11px sans-serif';
   attribution.textContent = scene.attribution;
   container.style.position = 'relative';
   container.append(attribution);
@@ -341,7 +341,9 @@ function createControls(
   const root = document.createElement('div');
   root.style.cssText =
     'position:absolute;top:12px;left:12px;z-index:2;padding:8px 12px;border-radius:6px;' +
-    'background:rgba(255,255,255,0.9);font:13px sans-serif;line-height:1.8;max-width:300px';
+    'background:rgba(255,255,255,0.9);font:13px sans-serif;line-height:1.8;max-width:300px;' +
+    // Set the text color, because a page with a dark theme would otherwise give light text.
+    'color:#1f2328;color-scheme:light';
   const sceneOptions = SCENES.map(scene => `<option value="${scene.id}">${scene.label}</option>`);
   const methodOptions = METHODS.map(
     item =>
