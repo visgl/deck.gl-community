@@ -431,55 +431,87 @@ export async function mountSwitchableAmbientOcclusionExample(
   options: Omit<AmbientOcclusionExampleOptions, 'device' | 'method' | 'onMethodChange'> = {}
 ): Promise<() => void> {
   let scene = options.scene;
+  /** The camera of the mounted example, so a method switch keeps it. A scene change resets it. */
+  let viewState = options.initialViewState;
   const effectProps: ExampleEffectProps = {...options.effectProps};
   let example: AmbientOcclusionExample | null = null;
   let device: Device | null = null;
+  let deviceCanvases: Element[] = [];
+  /** The method and backend of the mounted example. */
+  let mounted: {method?: MethodId; deviceType: 'webgl' | 'webgpu'} = {deviceType: 'webgl'};
   let isFinalized = false;
   /** Increments on each mount, so that a slow device request of an old mount does nothing. */
   let generation = 0;
 
-  /** Canvases in the container before the first mount. Only the canvases of this helper are removed. */
-  const existingCanvases = new Set(container.querySelectorAll('canvas'));
+  /** Creates a device and returns it with the canvases that it added to the container. */
+  const createDevice = async (type: 'webgl' | 'webgpu') => {
+    const before = new Set(container.querySelectorAll('canvas'));
+    const nextDevice = await createExampleDevice(container, type);
+    const canvases = [...container.querySelectorAll('canvas')].filter(
+      canvas => !before.has(canvas)
+    );
+    return {nextDevice, canvases};
+  };
+  const destroyDevice = (target: Device | null, canvases: Element[]) => {
+    target?.destroy();
+    for (const canvas of canvases) {
+      canvas.remove();
+    }
+  };
   const unmount = () => {
     example?.finalize();
     example = null;
-    device?.destroy();
+    destroyDevice(device, deviceCanvases);
     device = null;
-    for (const canvas of container.querySelectorAll('canvas')) {
-      if (!existingCanvases.has(canvas)) {
-        canvas.remove();
-      }
-    }
+    deviceCanvases = [];
   };
 
   const mount = async (method?: MethodId, deviceType: 'webgl' | 'webgpu' = 'webgl') => {
     const current = ++generation;
-    unmount();
-    const nextDevice = await createExampleDevice(
-      container,
+    // Creates the new device first. If it fails, for example without WebGPU, the current
+    // example keeps running.
+    const {nextDevice, canvases} = await createDevice(
       getMethod(method, deviceType).device ?? deviceType
     );
     if (isFinalized || current !== generation) {
-      nextDevice.destroy();
+      destroyDevice(nextDevice, canvases);
       return;
     }
+    unmount();
     device = nextDevice;
+    deviceCanvases = canvases;
+    mounted = {method, deviceType};
     example = mountAmbientOcclusionExample(container, {
       ...options,
       scene,
+      initialViewState: viewState,
       effectProps,
       device,
       method,
       onSceneChange: nextScene => {
         scene = nextScene;
+        viewState = undefined;
         options.onSceneChange?.(nextScene);
+      },
+      onViewStateChange: nextViewState => {
+        viewState = nextViewState;
+        options.onViewStateChange?.(nextViewState);
       },
       onEffectPropsChange: props => {
         Object.assign(effectProps, props);
         options.onEffectPropsChange?.(props);
       },
       onMethodChange: (nextMethod, nextDeviceType) => {
-        mount(nextMethod, nextDeviceType).catch(error => console.error(error));
+        const previous = mounted;
+        mount(nextMethod, nextDeviceType).catch(error => {
+          console.error(error);
+          // Mounts the running method again, so that the panel shows it.
+          if (!isFinalized) {
+            mount(previous.method, previous.deviceType).catch(retryError =>
+              console.error(retryError)
+            );
+          }
+        });
       }
     });
   };
