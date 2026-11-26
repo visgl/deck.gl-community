@@ -436,12 +436,18 @@ export async function mountSwitchableAmbientOcclusionExample(
   /** Increments on each mount, so that a slow device request of an old mount does nothing. */
   let generation = 0;
 
+  /** Canvases in the container before the first mount. Only the canvases of this helper are removed. */
+  const existingCanvases = new Set(container.querySelectorAll('canvas'));
   const unmount = () => {
     example?.finalize();
     example = null;
     device?.destroy();
     device = null;
-    container.querySelectorAll('canvas').forEach(canvas => canvas.remove());
+    for (const canvas of container.querySelectorAll('canvas')) {
+      if (!existingCanvases.has(canvas)) {
+        canvas.remove();
+      }
+    }
   };
 
   const mount = async (method?: MethodId, deviceType: 'webgl' | 'webgpu' = 'webgl') => {
