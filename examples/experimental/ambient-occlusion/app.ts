@@ -100,6 +100,8 @@ export type AmbientOcclusionExample = {
   setEffectProps: (props: ExampleEffectProps) => void;
   /** Moves the camera. */
   setViewState: (viewState: MapViewState) => void;
+  /** Sets the method and backend selectors of the panel back to the running method. */
+  resetControls: () => void;
   /** Removes the example. */
   finalize: () => void;
   /** True when the data of the current scene is loaded and drawn. */
@@ -309,6 +311,12 @@ export function mountAmbientOcclusionExample(
     setAmbientOcclusion,
     setEffectProps,
     setViewState: viewState => deck.setProps({initialViewState: {...viewState}}),
+    resetControls: () => {
+      if (panel) {
+        panel.method.value = method.id;
+        panel.device.value = deviceType;
+      }
+    },
     finalize: () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
@@ -437,20 +445,15 @@ export async function mountSwitchableAmbientOcclusionExample(
   let example: AmbientOcclusionExample | null = null;
   let device: Device | null = null;
   let deviceCanvases: Element[] = [];
-  /** The method and backend of the mounted example. */
-  let mounted: {method?: MethodId; deviceType: 'webgl' | 'webgpu'} = {deviceType: 'webgl'};
   let isFinalized = false;
   /** Increments on each mount, so that a slow device request of an old mount does nothing. */
   let generation = 0;
 
-  /** Creates a device and returns it with the canvases that it added to the container. */
+  /** Creates a device and returns it with the canvas that luma.gl added for it. */
   const createDevice = async (type: 'webgl' | 'webgpu') => {
-    const before = new Set(container.querySelectorAll('canvas'));
     const nextDevice = await createExampleDevice(container, type);
-    const canvases = [...container.querySelectorAll('canvas')].filter(
-      canvas => !before.has(canvas)
-    );
-    return {nextDevice, canvases};
+    const canvas = nextDevice.getDefaultCanvasContext().htmlCanvas;
+    return {nextDevice, canvases: canvas ? [canvas] : []};
   };
   const destroyDevice = (target: Device | null, canvases: Element[]) => {
     target?.destroy();
@@ -480,7 +483,6 @@ export async function mountSwitchableAmbientOcclusionExample(
     unmount();
     device = nextDevice;
     deviceCanvases = canvases;
-    mounted = {method, deviceType};
     example = mountAmbientOcclusionExample(container, {
       ...options,
       scene,
@@ -502,14 +504,12 @@ export async function mountSwitchableAmbientOcclusionExample(
         options.onEffectPropsChange?.(props);
       },
       onMethodChange: (nextMethod, nextDeviceType) => {
-        const previous = mounted;
+        const request = generation + 1;
         mount(nextMethod, nextDeviceType).catch(error => {
           console.error(error);
-          // Mounts the running method again, so that the panel shows it.
-          if (!isFinalized) {
-            mount(previous.method, previous.deviceType).catch(retryError =>
-              console.error(retryError)
-            );
+          // The running example stays. Its panel shows it again, unless a newer switch started.
+          if (generation === request) {
+            example?.resetControls();
           }
         });
       }
