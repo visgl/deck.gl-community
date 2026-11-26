@@ -6,7 +6,7 @@ import {luma, Texture, Buffer} from '@luma.gl/core';
 import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {getTestDevice} from '@luma.gl/core/test-utils';
 import {expect, it} from 'vitest';
-import {WindParticleLayer, WindSimulationEffect} from '../../src/wind-layers';
+import {WindParticleLayer, WindSimulationEffect} from '../../src/wind-layers/wind-simulation';
 
 it('WebGPU wind effect advances once per render, pauses, and the layer borrows live GPU buffers', async context => {
   if (!(await getTestDevice('webgpu'))) return context.skip();

@@ -3,7 +3,10 @@
 
 import {Deck, OrthographicView} from '@deck.gl/core';
 import {BitmapLayer} from '@deck.gl/layers';
-import {WindParticleLayer, WindSimulationEffect} from '@deck.gl-community/layers/wind-layers';
+import {
+  WindParticleLayer,
+  WindSimulationEffect
+} from '@deck.gl-community/layers/wind-layers/wind-simulation';
 import type {Device} from '@luma.gl/core';
 import {getDeckExampleProps} from '../riverfront-shared/deck-example-device';
 import earth from '../globe-clouds/earth.jpg?url';

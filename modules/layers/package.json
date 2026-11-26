@@ -97,6 +97,11 @@
       "require": "./dist/splat-layers/index.cjs",
       "import": "./dist/splat-layers/index.js"
     },
+    "./wind-layers/wind-simulation": {
+      "types": "./dist/wind-layers/wind-simulation/index.d.ts",
+      "require": "./dist/wind-layers/wind-simulation/index.cjs",
+      "import": "./dist/wind-layers/wind-simulation/index.js"
+    },
     "./wind-layers/wind-effect": {
       "types": "./dist/wind-layers/wind-effect/index.d.ts",
       "require": "./dist/wind-layers/wind-effect/index.cjs",
