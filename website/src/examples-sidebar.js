@@ -97,7 +97,8 @@ const sidebars = {
       label: '@deck.gl-community/layers/wind-layers',
       items: [
         'geo-layers/wind',
-        'layers/wind-garden'
+        'layers/wind-garden',
+        'layers/wind-atlas'
       ]
     },
     {

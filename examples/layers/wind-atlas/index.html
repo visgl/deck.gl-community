@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wind Atlas</title>
+  <style>
+    body, #scene { margin: 0; width: 100vw; height: 100vh; background: #101923; color: white; }
+    aside { position: absolute; top: 1rem; left: 1rem; padding: .75rem; background: #182432; font: 14px system-ui; }
+  </style>
+</head>
+<body>
+  <div id="scene"></div>
+  <aside><strong>Wind Atlas</strong> · Synthetic wind field
+    <label><input type="checkbox" id="paused"> Pause</label>
+    <label>Integrator <select id="integrator"><option>RK4</option><option>RK2</option></select></label>
+    <output id="status" aria-live="polite"></output>
+  </aside>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
