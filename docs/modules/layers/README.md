@@ -30,6 +30,7 @@ npm install @deck.gl-community/layers
 | `@deck.gl-community/layers/vegetation-layers` | [Procedural trees and crops](./api-reference/tree-layer.md) |
 | `@deck.gl-community/layers/timeline-layers` | [Horizon graphs, timelines, and time axes](../timeline-layers/README.md) |
 | `@deck.gl-community/layers/wind-layers/wind-effect` | [Scene wind and WindExtension](./api-reference/wind-effect.md) |
+| `@deck.gl-community/layers/source-layers` | [SourceLayer](./api-reference/source-layer.md) and specialized layers for loaders.gl image, vector, raster, point cloud, and tiled data sources |
 | `@deck.gl-community/layers/splat-layers` | [Gaussian splat layers and source utilities](./api-reference/splat-layer.md) |
 
 The package root also exports the common layers and tree renderer. The geo overview lists

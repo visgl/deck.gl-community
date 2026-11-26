@@ -1,0 +1,19 @@
+{
+  "name": "@deck.gl-community/example-source-layers",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../../vite.config.local.mjs",
+    "build": "vite build --config ../../vite.config.local.mjs"
+  },
+  "dependencies": {
+    "@deck.gl-community/layers": "workspace:*",
+    "@deck.gl/core": "10.0.0-alpha.2",
+    "@loaders.gl/tiles": "5.0.0-rc.2"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}

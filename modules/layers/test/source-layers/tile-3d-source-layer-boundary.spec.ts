@@ -1,0 +1,163 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {beforeEach, expect, test, vi} from 'vitest';
+import {createBearerTokenCredential} from '@loaders.gl/core/loader-utils';
+
+const existingCredential = createBearerTokenCredential({
+  id: 'existing',
+  origins: ['https://example.com'],
+  token: 'existing'
+});
+const resolvedCredential = createBearerTokenCredential({
+  id: 'resolved',
+  origins: ['https://example.com'],
+  token: 'resolved'
+});
+
+const tileLayerMocks = vi.hoisted(() => ({
+  initializationError: null as Error | null,
+  selectLoader: vi.fn(),
+  preload: vi.fn(),
+  tilesetOptions: null as Record<string, unknown> | null
+}));
+
+vi.mock('@loaders.gl/core', async importOriginal => {
+  const original = await importOriginal<typeof import('@loaders.gl/core')>();
+  return {...original, selectLoader: tileLayerMocks.selectLoader, preload: tileLayerMocks.preload};
+});
+
+vi.mock('@loaders.gl/tiles-3d', async importOriginal => {
+  const original = await importOriginal<typeof import('@loaders.gl/tiles-3d')>();
+  return {
+    ...original,
+    Tileset3D: class {
+      tilesetInitializationPromise = tileLayerMocks.initializationError
+        ? Promise.reject(tileLayerMocks.initializationError)
+        : Promise.resolve();
+      constructor(_source: unknown, options: Record<string, unknown>) {
+        tileLayerMocks.tilesetOptions = options;
+      }
+    }
+  };
+});
+
+import {Tile3DSourceLayer} from '../../src/source-layers/tile-3d-source-layer';
+
+beforeEach(() => {
+  tileLayerMocks.initializationError = null;
+  tileLayerMocks.selectLoader.mockReset();
+  tileLayerMocks.preload.mockReset().mockImplementation(async loader => loader);
+  tileLayerMocks.tilesetOptions = null;
+});
+
+function createLayer(data: unknown, props: Record<string, unknown> = {}) {
+  const onTilesetLoad = vi.fn();
+  const layer = new Tile3DSourceLayer({
+    id: 'tile-source',
+    data,
+    loadOptions: {},
+    onTilesetLoad,
+    ...props
+  } as any) as any;
+  layer.state = {activeViewports: {main: {id: 'main'}}, tileset3d: null, layerMap: {old: {}}};
+  layer.setState = (update: Record<string, unknown>) => Object.assign(layer.state, update);
+  layer._onTileLoad = vi.fn();
+  layer._onTileUnload = vi.fn();
+  layer._updateTileset = vi.fn();
+  return {layer, onTilesetLoad};
+}
+
+test('Tile3DSourceLayer initializes preconstructed sources directly', async () => {
+  const source = {
+    coreApi: undefined,
+    async initialize() {},
+    async getRootTileset() {},
+    async initializeTileHeaders() {},
+    async loadTileContent() {}
+  };
+  const {layer, onTilesetLoad} = createLayer(source);
+
+  await layer.loadSourceTileset(source);
+
+  expect(source.coreApi).toBeTruthy();
+  expect(layer.state.layerMap).toEqual({});
+  expect(layer._updateTileset).toHaveBeenCalledWith({main: {id: 'main'}});
+  expect(onTilesetLoad).toHaveBeenCalledWith(layer.state.tileset3d);
+});
+
+test('Tile3DSourceLayer selects, preloads, and merges URL loader credentials', async () => {
+  const loader = {
+    id: 'tiles',
+    preload: vi.fn(async () => ({
+      url: 'resolved.json',
+      credentials: [resolvedCredential],
+      maximumMemoryUsage: 64
+    }))
+  };
+  tileLayerMocks.selectLoader.mockResolvedValue(loader);
+  const {layer} = createLayer('tileset.json', {
+    loaders: [loader],
+    loadOptions: {core: {credentials: [existingCredential]}}
+  });
+
+  await layer.loadSourceTileset('tileset.json');
+
+  expect(tileLayerMocks.selectLoader).toHaveBeenCalledWith(
+    'tileset.json',
+    [loader],
+    expect.objectContaining({core: expect.objectContaining({ignoreRegisteredLoaders: true})})
+  );
+  expect(tileLayerMocks.preload).toHaveBeenCalledWith(
+    loader,
+    layer.props.loadOptions,
+    'tileset.json'
+  );
+  expect(tileLayerMocks.tilesetOptions).toMatchObject({
+    maximumMemoryUsage: 64,
+    loadOptions: {core: {credentials: [existingCredential, resolvedCredential]}}
+  });
+});
+
+test('Tile3DSourceLayer validates Blob fallbacks, preload headers, and missing loaders', async () => {
+  const loader = {
+    id: 'tiles',
+    preload: vi.fn(async () => ({headers: {authorization: 'token'}}))
+  };
+  tileLayerMocks.selectLoader.mockResolvedValue(undefined);
+  const blob = new Blob(['tiles']);
+  const {layer} = createLayer(blob, {loader});
+  layer.props = {...layer.props, loaders: undefined, loader};
+
+  await expect(layer.loadSourceTileset(blob)).rejects.toThrow(
+    'Blob inputs require a 3TZ or SLPK archive loader'
+  );
+  expect(tileLayerMocks.preload).toHaveBeenCalledWith(loader, {}, undefined);
+
+  const stringLayer = createLayer('tileset.json', {loader}).layer;
+  stringLayer.props = {...stringLayer.props, loaders: undefined, loader};
+  await stringLayer.loadSourceTileset('tileset.json');
+  expect(tileLayerMocks.tilesetOptions).toMatchObject({
+    loadOptions: {core: {fetch: {headers: {authorization: 'token'}}}}
+  });
+
+  const missing = createLayer('tileset.json', {loader: undefined, loaders: []}).layer;
+  await expect(missing.loadSourceTileset('tileset.json')).rejects.toThrow('requires a loader');
+});
+
+test('Tile3DSourceLayer reports rejected source initialization through the deck error callback', async () => {
+  const error = new Error('Invalid archive');
+  tileLayerMocks.initializationError = error;
+  const source = {
+    async initialize() {},
+    async getRootTileset() {},
+    async initializeTileHeaders() {},
+    async loadTileContent() {}
+  };
+  const {layer, onTilesetLoad} = createLayer(source);
+  layer.raiseError = vi.fn();
+  await expect(layer._loadTileset(source)).resolves.toBeUndefined();
+  expect(layer.raiseError).toHaveBeenCalledWith(error, 'loading source tileset');
+  expect(onTilesetLoad).not.toHaveBeenCalled();
+});

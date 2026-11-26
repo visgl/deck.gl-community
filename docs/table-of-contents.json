@@ -157,6 +157,11 @@
           },
           {
             "type": "doc",
+            "label": "SourceLayer",
+            "id": "modules/layers/api-reference/source-layer"
+          },
+          {
+            "type": "doc",
             "label": "Splats",
             "id": "modules/layers/api-reference/splat-layer"
           },

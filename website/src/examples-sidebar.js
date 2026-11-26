@@ -35,6 +35,7 @@ const sidebars = {
         'layers/path-outline-and-markers',
         'layers/flame-trail',
         'layers/edge-markers',
+        'layers/source-layers',
         'layers/volumetric-video'
       ]
     },
