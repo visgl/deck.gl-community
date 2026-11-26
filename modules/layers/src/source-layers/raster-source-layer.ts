@@ -358,7 +358,8 @@ export class RasterSourceLayer extends CompositeLayer<RasterSourceLayerProps> {
       this.state.metadata
     ) {
       const rasterWithNoData = applyMetadataNoData(raster, this.state.metadata);
-      info.value = sampleRaster(rasterWithNoData, info.bitmap.pixel).values[0] ?? null;
+      const sample = sampleRaster(rasterWithNoData, info.bitmap.pixel);
+      info.value = sample.valid[0] ? (sample.values[0] ?? null) : null;
     }
     return info;
   }

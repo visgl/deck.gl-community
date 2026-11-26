@@ -208,6 +208,21 @@ describe('raster viewport and placement', () => {
 });
 
 describe('RasterSourceLayer lifecycle', () => {
+  test('CPU picking returns null for masked samples', () => {
+    const layer = createRasterLayer({data: {}});
+    layer.state = {
+      metadata: {...GEOGRAPHIC_METADATA, noData: -9999},
+      rasterRequest: {raster: createRaster(new Float32Array([2, -9999, NaN, 10]))}
+    };
+    const pick = (pixel: [number, number]) =>
+      layer.getPickingInfo({info: {bitmap: {pixel, size: {width: 2, height: 2}}}, mode: 'hover'})
+        .value;
+
+    expect(pick([0, 0])).toBe(2);
+    expect(pick([1, 0])).toBeNull();
+    expect(pick([0, 1])).toBeNull();
+  });
+
   test('stretches each single-band response and applies explicit styling without reloading', async () => {
     const firstRaster = createRaster([new Float32Array([2, -9999, NaN, 10])]);
     const secondRaster = createRaster(new Float32Array([100, 150, 200, 300]));
