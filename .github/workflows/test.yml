@@ -339,11 +339,16 @@ jobs:
         env:
           YARN_ENABLE_HARDENED_MODE: 0
       - name: Cache Playwright browser
+        if: matrix.browser == 'webkit'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-ubuntu24-panels-${{ matrix.browser }}-${{ hashFiles('node_modules/playwright-core/browsers.json') }}
-      - name: Install browser and dependencies
+      - name: Verify runner Chrome
+        if: matrix.browser == 'chromium'
+        run: /opt/google/chrome/chrome --version
+      - name: Install WebKit and dependencies
+        if: matrix.browser == 'webkit'
         uses: ./.github/actions/setup-browser
         with:
           browser: ${{ matrix.browser }}
@@ -351,6 +356,7 @@ jobs:
         run: yarn test:panels-fullscreen
         env:
           PANEL_FULLSCREEN_BROWSER: ${{ matrix.browser }}
+          PANEL_FULLSCREEN_CHROMIUM_CHANNEL: ${{ matrix.browser == 'chromium' && 'chrome' || '' }}
 
   # Preserve the required check name and fail if any browser job fails or is skipped.
   test-headless:
