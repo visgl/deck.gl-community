@@ -123,9 +123,23 @@ it('WebGPU wind effect advances once per render, pauses, and the layer borrows l
     } finally {
       output.destroy();
     }
-    deck.finalize();
+    let replacementEncodings = 0;
+    const replacement = new WindSimulationEffect(device, {
+      ...effect.props,
+      id: 'wind-rk2',
+      integrator: 'rk2',
+      onEncode: () => replacementEncodings++
+    });
+    deck.setProps({
+      effects: [replacement],
+      layers: [layer().clone({simulation: replacement.simulation})]
+    });
+    await renderFrames();
+    expect(replacementEncodings).toBe(1);
     expect(current.destroyed).toBe(true);
     expect(previous.destroyed).toBe(true);
+    deck.finalize();
+    expect(replacement.simulation.output.destroyed).toBe(true);
   } finally {
     deck.finalize();
     framebuffer.destroy();

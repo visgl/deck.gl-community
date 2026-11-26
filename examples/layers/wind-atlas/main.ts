@@ -21,12 +21,15 @@ const input = makeWindField();
 
 function updateWind() {
   if (!device) return;
+  const method = integrator.value === 'RK2' ? 'rk2' : 'rk4';
+  if (effect?.props.integrator === method) return;
   effect = new WindSimulationEffect(device, {
+    id: `wind-simulation-${method}`,
     input,
     bounds: WIND_BOUNDS,
     wrapLongitude: true,
     particleCount: innerWidth < 600 ? 16384 : 65536,
-    integrator: integrator.value === 'RK2' ? 'rk2' : 'rk4',
+    integrator: method,
     lifetime: 45,
     seed: 17,
     paused: paused.checked
