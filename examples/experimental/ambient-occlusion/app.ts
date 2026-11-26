@@ -4,7 +4,9 @@
 
 import {Deck, MapView, type Effect, type MapViewState} from '@deck.gl/core';
 import {CORTAOEffect, type CORTAOEffectProps} from '@deck.gl-community/experimental';
-import type {Device} from '@luma.gl/core';
+import {luma, type Device} from '@luma.gl/core';
+import {webgl2Adapter} from '@luma.gl/core/webgl';
+import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {LumaAmbientOcclusionEffect} from './luma-ambient-occlusion-effect';
 import {getScene, SCENES, type Scene, type SceneId} from './scenes';
 
@@ -395,5 +397,88 @@ function createControls(
     screenRadiusValue: get<HTMLSpanElement>('screenRadiusValue'),
     intensity: get<HTMLInputElement>('intensity'),
     intensityValue: get<HTMLSpanElement>('intensityValue')
+  };
+}
+
+/** Creates a device with its own canvas in a container. */
+export function createExampleDevice(container: HTMLElement, type: 'webgl' | 'webgpu') {
+  return luma.createDevice({
+    type,
+    adapters: [webgl2Adapter, webgpuAdapter],
+    // Deck.gl creates its post-process buffers as rgba8unorm. On WebGPU, the layer pipelines use
+    // the canvas format, so the canvas uses the same format.
+    // The premultiplied alpha mode shows the page behind empty pixels, as WebGL 2 does.
+    createCanvasContext: {
+      container,
+      useDevicePixels: false,
+      colorFormat: 'rgba8unorm',
+      alphaMode: 'premultiplied'
+    },
+    // Lets the frame timer read GPU timestamps on WebGPU. Ignored where it is not supported.
+    optionalFeatures: ['timestamp-query']
+  });
+}
+
+/**
+ * Mounts the example with its own device, and mounts it again in place when the user selects
+ * another method or backend. The scene and the effect settings stay the same. The website uses
+ * this. The standalone page reloads with URL parameters instead.
+ */
+export async function mountSwitchableAmbientOcclusionExample(
+  container: HTMLElement,
+  options: Omit<AmbientOcclusionExampleOptions, 'device' | 'method' | 'onMethodChange'> = {}
+): Promise<() => void> {
+  let scene = options.scene;
+  const effectProps: ExampleEffectProps = {...options.effectProps};
+  let example: AmbientOcclusionExample | null = null;
+  let device: Device | null = null;
+  let isFinalized = false;
+  /** Increments on each mount, so that a slow device request of an old mount does nothing. */
+  let generation = 0;
+
+  const unmount = () => {
+    example?.finalize();
+    example = null;
+    device?.destroy();
+    device = null;
+    container.querySelectorAll('canvas').forEach(canvas => canvas.remove());
+  };
+
+  const mount = async (method?: MethodId, deviceType: 'webgl' | 'webgpu' = 'webgl') => {
+    const current = ++generation;
+    unmount();
+    const nextDevice = await createExampleDevice(
+      container,
+      getMethod(method, deviceType).device ?? deviceType
+    );
+    if (isFinalized || current !== generation) {
+      nextDevice.destroy();
+      return;
+    }
+    device = nextDevice;
+    example = mountAmbientOcclusionExample(container, {
+      ...options,
+      scene,
+      effectProps,
+      device,
+      method,
+      onSceneChange: nextScene => {
+        scene = nextScene;
+        options.onSceneChange?.(nextScene);
+      },
+      onEffectPropsChange: props => {
+        Object.assign(effectProps, props);
+        options.onEffectPropsChange?.(props);
+      },
+      onMethodChange: (nextMethod, nextDeviceType) => {
+        mount(nextMethod, nextDeviceType).catch(error => console.error(error));
+      }
+    });
+  };
+
+  await mount();
+  return () => {
+    isFinalized = true;
+    unmount();
   };
 }

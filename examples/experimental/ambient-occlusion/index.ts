@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {luma} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/core/webgl';
-import {webgpuAdapter} from '@luma.gl/core/webgpu';
 import {getStandaloneExampleContainer} from '../../mount-example';
 import {
+  createExampleDevice,
   getMethod,
   mountAmbientOcclusionExample,
   type AmbientOcclusionExample,
@@ -44,25 +42,6 @@ function getDeviceType(methodId: string | null): 'webgl' | 'webgpu' {
   return getMethod(methodId, requested).device ?? requested;
 }
 
-/** Creates a device with its own canvas in a container. */
-function createDevice(container: HTMLElement, type: 'webgl' | 'webgpu') {
-  return luma.createDevice({
-    type,
-    adapters: [webgl2Adapter, webgpuAdapter],
-    // Deck.gl creates its post-process buffers as rgba8unorm. On WebGPU, the layer pipelines use
-    // the canvas format, so the canvas uses the same format.
-    // The premultiplied alpha mode shows the page behind empty pixels, as WebGL 2 does.
-    createCanvasContext: {
-      container,
-      useDevicePixels: false,
-      colorFormat: 'rgba8unorm',
-      alphaMode: 'premultiplied'
-    },
-    // Lets the frame timer read GPU timestamps on WebGPU. Ignored where it is not supported.
-    optionalFeatures: ['timestamp-query']
-  });
-}
-
 /** Reloads the page with other URL parameters. */
 function reload(changes: Record<string, string | null>) {
   const url = new URL(location.href);
@@ -90,7 +69,7 @@ let compare: AmbientOcclusionExample | null = null;
 
 const example = mountAmbientOcclusionExample(container, {
   ...baseOptions,
-  device: await createDevice(container, getDeviceType(methodId)),
+  device: await createExampleDevice(container, getDeviceType(methodId)),
   method: (methodId ?? undefined) as MethodId | undefined,
   controls: parameters.get('controls') !== '0',
   onMethodChange: (method, device) => reload({method, device}),
@@ -120,7 +99,7 @@ if (compareId) {
   container.append(overlay);
   compare = mountAmbientOcclusionExample(overlay, {
     ...baseOptions,
-    device: await createDevice(overlay, getDeviceType(compareId)),
+    device: await createExampleDevice(overlay, getDeviceType(compareId)),
     method: compareId as MethodId,
     controls: false,
     onViewStateChange: viewState => example.setViewState(viewState)
