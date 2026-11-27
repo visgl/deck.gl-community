@@ -107,6 +107,16 @@ describe('satellite orbits: orbit math', () => {
     );
     expect(Array.from(target)).toEqual([179.5, 10.5, 1250]);
   });
+
+  it('interpolateLngLatAlt keeps the longitude in [-180, 180) across the antimeridian', () => {
+    const target = new Float64Array(3);
+    interpolateLngLatAlt(Float64Array.of(179, 0, 0), Float64Array.of(-179, 0, 0), 0.75, target);
+    expect(target[0]).toBeCloseTo(-179.5, 9);
+    interpolateLngLatAlt(Float64Array.of(-179, 0, 0), Float64Array.of(179, 0, 0), 0.75, target);
+    expect(target[0]).toBeCloseTo(179.5, 9);
+    interpolateLngLatAlt(Float64Array.of(179, 0, 0), Float64Array.of(-179, 0, 0), 0.5, target);
+    expect(target[0]).toBe(-180);
+  });
 });
 
 describe('space layers: toGpRecords', () => {
