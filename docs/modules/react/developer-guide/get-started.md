@@ -54,6 +54,23 @@ application owns an imperative, multi-canvas `Deck` instance. Each component
 contributes its own canvas, views, layers, and widgets. See the
 [DeckCanvas example](../api-reference/deck-canvas.md#example) for setup and cleanup.
 
+## Graphics backend dropdown
+
+Use `DeviceTabs` in a React DOM toolbar or overlay. Pass the same device manager
+that drives the example's renderer. The dropdown shows the active backend and
+disables unavailable options.
+
+```tsx
+import {DeviceTabs} from '@deck.gl-community/react';
+
+<DeviceTabs manager={deviceManager} devices={['webgpu', 'webgl2']} />;
+```
+
+Initialize and reset the controller in the example host. The host can subscribe
+to the controller to recreate its renderer when the active device changes. Pass
+`onDeviceTypeChange` when backend selection needs to coordinate with other
+example state.
+
 ## HTML overlays
 
 HTML overlays from this package have moved to the **@deck.gl-community/widgets** module so they can

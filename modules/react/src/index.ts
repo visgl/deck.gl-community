@@ -8,6 +8,7 @@ import {PanelWidget} from '@deck.gl-community/widgets';
 import type {ReactElement} from 'react';
 
 export {DeckCanvas, type DeckCanvasProps} from './components/deck-canvas';
+export {DeviceTabs, type DeviceTabsProps} from './components/device-tabs';
 
 const FiberPanelWidget = createWidgetComponent(PanelWidget);
 

@@ -5,7 +5,7 @@
 import {readFileSync} from 'fs';
 import {BoxPanelContainer, SidebarPanelContainer} from '@deck.gl-community/panels';
 import {describe, expect, it, vi} from 'vitest';
-import {DeckCanvas, Panel} from './index';
+import {DeckCanvas, DeviceTabs, Panel} from './index';
 import * as legacy from './legacy';
 
 // Legacy icons register a browser custom element as a side effect.
@@ -17,6 +17,10 @@ describe('@deck.gl-community/react entry points', () => {
   it('exports DeckCanvas from the package root', () => {
     expect(DeckCanvas).toBeTypeOf('function');
     expect(packageJson.exports['./deck-canvas']).toBeUndefined();
+  });
+
+  it('exports DeviceTabs from the package root', () => {
+    expect(DeviceTabs).toBeTypeOf('function');
   });
 
   it('provides the supported React DOM exports from the legacy subpath', () => {
