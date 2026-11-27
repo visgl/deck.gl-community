@@ -108,8 +108,8 @@ deck.gl's [migration guide](https://github.com/visgl/deck.gl/blob/master/docs/de
 The root of `@deck.gl-community/react` now exports a JSX `Panel` component for the
 upstream Fiber renderer. Update existing imports for `Panel`, `ReactPanel`, `useReactPanel`,
 `Modal`, `Button`, `Icon`, and `LongPressButton` to
-`@deck.gl-community/react/legacy`. Continue importing `DeckCanvas` from
-`@deck.gl-community/react/deck-canvas`.
+`@deck.gl-community/react/legacy`. Import `DeckCanvas` from `@deck.gl-community/react`.
+Apps using the classic `DeckGL` wrapper can import it from `@deck.gl/react/legacy`.
 
 ### Consolidated sidebars
 

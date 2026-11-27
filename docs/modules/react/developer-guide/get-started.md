@@ -2,7 +2,7 @@
 
 ## Panels inside React Fiber
 
-Install `@deck.gl-community/react`, deck.gl v10's `@deck.gl/react` and its
+Install `@deck.gl-community/react`, `@deck.gl/react` and its
 React 19.2+ peers, and matching versions of `@deck.gl-community/panels` and
 `@deck.gl-community/widgets`.
 
@@ -32,7 +32,7 @@ such as `SidebarPanelContainer`, to change how the panel is mounted.
 
 Import the legacy `Panel` to render a panel definition in a React layout or
 MDX page. This entry point also provides `ReactPanel` and `useReactPanel` for
-React-owned content. In a deck.gl v10 app using the classic wrapper, import
+React-owned content. For the classic wrapper, import
 `DeckGL` from `@deck.gl/react/legacy` and the DOM panel components from
 `@deck.gl-community/react/legacy`.
 
@@ -49,9 +49,8 @@ export function HelpPanel() {
 
 ## Shared Deck canvases
 
-Import `DeckCanvas` from `@deck.gl-community/react/deck-canvas` when your
-application owns an imperative, multi-canvas `Deck` instance from
-`@deck.gl/core` v10. Each component
+Import `DeckCanvas` from `@deck.gl-community/react` when your
+application owns an imperative, multi-canvas `Deck` instance. Each component
 contributes its own canvas, views, layers, and widgets. See the
 [DeckCanvas example](../api-reference/deck-canvas.md#example) for setup and cleanup.
 

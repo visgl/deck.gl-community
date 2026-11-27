@@ -2,7 +2,7 @@ import {Deck, MapView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {ZoomWidget} from '@deck.gl/widgets';
 import {createRasterBasemap} from '../../../utils/raster-basemap';
-import {DeckCanvas} from '@deck.gl-community/react/deck-canvas';
+import {DeckCanvas} from '@deck.gl-community/react';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {CITY_PANELS} from './cities';
 import type {CityPanel, Landmark} from './cities';
@@ -91,7 +91,7 @@ export function App() {
   return (
     <main>
       <header>
-        <p className="eyebrow">deck.gl-community / React Fiber</p>
+        <p className="eyebrow">deck.gl-community / React</p>
         <h1>Four cities. One Deck.</h1>
         <p>
           Independent canvases share one device and rendering loop. Drag to pan, scroll to zoom, and

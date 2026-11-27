@@ -4,12 +4,11 @@
 panels share a device and rendering loop, while each panel contributes its own views,
 layers and widgets.
 
-Import it from `@deck.gl-community/react/deck-canvas` with `@deck.gl/core` v10. Use this subpath when the React application owns the shared Deck
-instance and manages its lifecycle.
+Import `DeckCanvas` from `@deck.gl-community/react`.
 
 ```tsx
 import {Deck, MapView} from '@deck.gl/core';
-import {DeckCanvas} from '@deck.gl-community/react/deck-canvas';
+import {DeckCanvas} from '@deck.gl-community/react';
 import {useEffect, useRef, useState} from 'react';
 
 function Panels({londonLayers, tokyoLayers}) {

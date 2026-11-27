@@ -5,9 +5,8 @@
 
 | Import | Exports |
 | --- | --- |
-| `@deck.gl-community/react` | `Panel` for deck.gl v10's upstream React Fiber `DeckGL` root. Pass a panel component class such as `BoxPanelContainer` as `type`. |
+| `@deck.gl-community/react` | `Panel` for the upstream React Fiber `DeckGL` root. Pass a panel component class such as `BoxPanelContainer` as `type`. Also exports `DeckCanvas` for an application-owned multi-canvas `Deck`. |
 | `@deck.gl-community/react/legacy` | DOM `Panel`, `ReactPanel`, `useReactPanel`, `Modal`, `Button`, `Icon`, and `LongPressButton`. |
-| `@deck.gl-community/react/deck-canvas` | `DeckCanvas` for an application-owned multi-canvas `Deck`. |
 
 See the [React module guide](../../docs/modules/react/developer-guide/get-started.md)
 for setup and examples.

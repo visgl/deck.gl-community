@@ -7,6 +7,8 @@ import type {PanelComponent, PanelComponentProps} from '@deck.gl-community/panel
 import {PanelWidget} from '@deck.gl-community/widgets';
 import type {ReactElement} from 'react';
 
+export {DeckCanvas, type DeckCanvasProps} from './components/deck-canvas';
+
 const FiberPanelWidget = createWidgetComponent(PanelWidget);
 
 export type PanelProps<PropsT extends PanelComponentProps> = {

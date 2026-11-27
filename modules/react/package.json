@@ -31,11 +31,6 @@
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
     },
-    "./deck-canvas": {
-      "types": "./dist/deck-canvas.d.ts",
-      "require": "./dist/deck-canvas.cjs",
-      "import": "./dist/deck-canvas.js"
-    },
     "./legacy": {
       "types": "./dist/legacy.d.ts",
       "require": "./dist/legacy.cjs",

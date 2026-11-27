@@ -7,12 +7,11 @@ introduced: "9.0"
 
 | Import | Exports | Use |
 | --- | --- | --- |
-| `@deck.gl-community/react` | [`Panel`](./api-reference/panel.md#fiber-panel) | Mount a community panel as a deck.gl widget inside the upstream React Fiber `DeckGL` root. |
+| `@deck.gl-community/react` | [`Panel`](./api-reference/panel.md#fiber-panel), [`DeckCanvas`](./api-reference/deck-canvas.md) | Mount a panel widget in React Fiber or attach a canvas to an application-owned `Deck`. |
 | `@deck.gl-community/react/legacy` | [`Panel`, `ReactPanel`, `useReactPanel`](./api-reference/panel.md#legacy-panel), `Modal`, `Button`, `Icon`, `LongPressButton` | Render panel content and UI controls in a React DOM tree, including MDX. |
-| `@deck.gl-community/react/deck-canvas` | [`DeckCanvas`](./api-reference/deck-canvas.md) | Attach a canvas to an application-owned multi-canvas `Deck` instance. |
 
-Community v10 targets deck.gl v10. The Fiber root uses `@deck.gl/react` and
-its React 19.2+ peers. Apps using the classic DeckGL wrapper on deck.gl v10
+The package root uses `@deck.gl/react` and its React 19.2+ peers. Apps using
+the classic DeckGL wrapper
 can combine `@deck.gl/react/legacy` with the DOM panel components from
 `@deck.gl-community/react/legacy`. The community DOM entry point supports
 React 18.3.1 and later React 18 releases, as well as React 19.

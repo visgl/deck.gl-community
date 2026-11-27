@@ -5,8 +5,7 @@
 import {readFileSync} from 'fs';
 import {BoxPanelContainer, SidebarPanelContainer} from '@deck.gl-community/panels';
 import {describe, expect, it, vi} from 'vitest';
-import * as deckCanvas from './deck-canvas';
-import * as fiber from './index';
+import {DeckCanvas, Panel} from './index';
 import * as legacy from './legacy';
 
 // Legacy icons register a browser custom element as a side effect.
@@ -15,13 +14,9 @@ vi.mock('boxicons', () => ({}));
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 describe('@deck.gl-community/react entry points', () => {
-  it('exports DeckCanvas only from the deck-canvas subpath', () => {
-    expect(Object.keys(deckCanvas)).toEqual(['DeckCanvas']);
-    expect(packageJson.exports['./deck-canvas']).toEqual({
-      types: './dist/deck-canvas.d.ts',
-      require: './dist/deck-canvas.cjs',
-      import: './dist/deck-canvas.js'
-    });
+  it('exports DeckCanvas from the package root', () => {
+    expect(DeckCanvas).toBeTypeOf('function');
+    expect(packageJson.exports['./deck-canvas']).toBeUndefined();
   });
 
   it('provides the previous React components from the legacy subpath', () => {
@@ -42,8 +37,7 @@ describe('@deck.gl-community/react entry points', () => {
   });
 
   it('wraps a chosen panel component as a native Fiber widget', () => {
-    expect(Object.keys(fiber)).toEqual(['Panel']);
-    const box = fiber.Panel({
+    const box = Panel({
       type: BoxPanelContainer,
       id: 'box',
       title: 'Tools',
@@ -60,7 +54,7 @@ describe('@deck.gl-community/react entry points', () => {
       }
     });
 
-    const sidebar = fiber.Panel({type: SidebarPanelContainer, id: 'sidebar', side: 'right'});
+    const sidebar = Panel({type: SidebarPanelContainer, id: 'sidebar', side: 'right'});
     expect(sidebar).toMatchObject({
       type: 'deckWidget',
       props: {widget: {id: 'sidebar', component: expect.any(SidebarPanelContainer)}}

@@ -7,7 +7,7 @@ import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 
 ## Fiber Panel
 
-Import the package root to add a panel widget to deck.gl v10's upstream React
+Import the package root to add a panel widget to the upstream React
 Fiber renderer.
 
 ```tsx
