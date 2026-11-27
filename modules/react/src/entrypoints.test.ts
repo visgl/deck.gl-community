@@ -4,12 +4,9 @@
 
 import {readFileSync} from 'fs';
 import {BoxPanelContainer, SidebarPanelContainer} from '@deck.gl-community/panels';
-import {describe, expect, it, vi} from 'vitest';
+import {describe, expect, it} from 'vitest';
 import {DeckCanvas, Panel} from './index';
 import * as legacy from './legacy';
-
-// Legacy icons register a browser custom element as a side effect.
-vi.mock('boxicons', () => ({}));
 
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
@@ -20,7 +17,7 @@ describe('@deck.gl-community/react entry points', () => {
   });
 
   it('provides the supported React DOM exports from the legacy subpath', () => {
-    expect(Object.keys(legacy).sort()).toEqual(['Button', 'Icon', 'Panel', 'useReactPanel']);
+    expect(Object.keys(legacy).sort()).toEqual(['Panel', 'useReactPanel']);
     expect(packageJson.exports['./legacy']).toEqual({
       types: './dist/legacy.d.ts',
       require: './dist/legacy.cjs',
