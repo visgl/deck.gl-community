@@ -183,8 +183,6 @@ const config = {
             '@deck.gl/layers': resolve('../node_modules/@deck.gl/layers'),
             '@deck.gl/mapbox': resolve('../node_modules/@deck.gl/mapbox'),
             '@deck.gl/mesh-layers': resolve('../node_modules/@deck.gl/mesh-layers'),
-            '@deck.gl/react$': resolve('node_modules/@deck.gl/react'),
-            '@deck.gl/react/legacy$': resolve('node_modules/@deck.gl/react/dist/legacy/index.js'),
             // Force the hoisted ESM entry. Webpack otherwise resolves to the
             // package's UMD main, which breaks default imports in vis.gl S2 code.
             long: resolve('../node_modules/long/index.js'),

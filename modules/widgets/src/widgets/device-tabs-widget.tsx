@@ -16,12 +16,16 @@ export type DeviceTabsWidgetDevice = 'webgl2' | 'webgpu';
 
 /** Props for {@link DeviceTabsWidget}. */
 export type DeviceTabsWidgetProps = WidgetProps & {
-  /** Ordered list of backends exposed as tabs. */
+  /** Ordered list of backends shown in the dropdown. */
   devices?: DeviceTabsWidgetDevice[];
   /** Widget placement anchor. */
   placement?: WidgetPlacement;
   /** Shared device manager instance that drives the widget state. */
   manager?: DeviceManagerController;
+  /** Whether the widget should ensure an allowed device is selected. Defaults to true. */
+  autoInitialize?: boolean;
+  /** Handle a selection in the host when it coordinates other example state with the backend. */
+  onDeviceTypeChange?: (type: DeviceType) => void;
 };
 
 const DEFAULT_DEVICES: DeviceTabsWidgetDevice[] = ['webgl2', 'webgpu'];
@@ -34,38 +38,40 @@ const ROOT_STYLE: JSX.CSSProperties = {
   userSelect: 'none'
 };
 
-const TAB_LIST_STYLE: JSX.CSSProperties = {
+const SELECT_WRAPPER_STYLE: JSX.CSSProperties = {
+  position: 'relative',
   display: 'inline-flex',
-  alignItems: 'stretch',
-  overflow: 'hidden',
-  borderRadius: '8px',
-  border: '1px solid rgba(148, 163, 184, 0.4)',
-  background: 'rgba(255, 255, 255, 0.94)',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.14)'
+  alignSelf: 'flex-end',
+  alignItems: 'center',
+  color: 'var(--deck-device-accent, #7dd3fc)'
 };
 
-const TAB_BUTTON_STYLE: JSX.CSSProperties = {
-  minWidth: '92px',
-  minHeight: '36px',
-  padding: '8px 14px',
-  border: '0',
-  borderRadius: '0',
-  background: 'transparent',
-  color: '#0f172a',
+const SELECT_STYLE: JSX.CSSProperties = {
+  appearance: 'none',
+  minHeight: '46px',
+  padding: '6px 31px 6px 13px',
+  border: '1px solid var(--deck-device-border, rgba(148, 163, 184, 0.24))',
+  borderRadius: '9px',
+  background: 'var(--deck-device-surface, #080f1b)',
+  color: 'inherit',
+  colorScheme: 'dark',
+  boxShadow: '0 8px 22px rgba(0, 0, 0, 0.2)',
   cursor: 'pointer',
-  fontSize: '12px',
-  fontWeight: 700,
-  whiteSpace: 'nowrap'
+  fontFamily: 'var(--deck-device-font-family, system-ui, sans-serif)',
+  fontSize: '15px',
+  fontWeight: 600,
+  lineHeight: 1.25
 };
 
-const TAB_BUTTON_SELECTED_STYLE: JSX.CSSProperties = {
-  background: '#2563eb',
-  color: '#ffffff'
-};
-
-const TAB_BUTTON_DISABLED_STYLE: JSX.CSSProperties = {
-  color: 'rgba(15, 23, 42, 0.45)',
-  cursor: 'not-allowed'
+const CARET_STYLE: JSX.CSSProperties = {
+  position: 'absolute',
+  right: '12px',
+  width: '6px',
+  height: '6px',
+  borderRight: '1.5px solid currentColor',
+  borderBottom: '1.5px solid currentColor',
+  transform: 'translateY(-2px) rotate(45deg)',
+  pointerEvents: 'none'
 };
 
 const MESSAGE_STYLE: JSX.CSSProperties = {
@@ -100,6 +106,7 @@ function DeviceTabsWidgetView({
   onSelectDeviceType: (deviceType: DeviceType) => void;
 }) {
   const hasAvailableDevice = deviceEntries.some(entry => availability[entry.id] !== false);
+  const selectedDevice = deviceEntries.find(entry => entry.id === state.deviceType)?.id ?? '';
 
   return (
     <div
@@ -117,33 +124,33 @@ function DeviceTabsWidgetView({
       onContextMenu={stopDeviceTabsEventPropagation}
       onWheel={stopDeviceTabsEventPropagation}
     >
-      <div style={TAB_LIST_STYLE} role="tablist" aria-label="Graphics backend">
-        {deviceEntries.map(entry => {
-          const isSelected = state.deviceType === entry.id;
-          const isDisabled = availability[entry.id] === false;
-          const label =
-            availability[entry.id] === false ? `${entry.title} (unavailable)` : entry.title;
-
-          return (
-            <button
-              key={entry.id}
-              type="button"
-              role="tab"
-              data-device-tab-id={entry.id}
-              aria-selected={isSelected ? 'true' : 'false'}
-              aria-label={label}
-              disabled={isDisabled}
-              style={{
-                ...TAB_BUTTON_STYLE,
-                ...(isSelected ? TAB_BUTTON_SELECTED_STYLE : {}),
-                ...(isDisabled ? TAB_BUTTON_DISABLED_STYLE : {})
-              }}
-              onClick={() => onSelectDeviceType(entry.id)}
-            >
+      <div style={SELECT_WRAPPER_STYLE}>
+        <select
+          style={SELECT_STYLE}
+          aria-label="Graphics backend"
+          aria-busy={state.isLoading}
+          value={selectedDevice}
+          onChange={event => {
+            const select = event.currentTarget;
+            const requestedDevice = deviceEntries.find(entry => entry.id === select.value);
+            // Keep showing the running device until the manager confirms the switch.
+            select.value = selectedDevice;
+            if (requestedDevice) {
+              onSelectDeviceType(requestedDevice.id);
+            }
+          }}
+        >
+          <option value="" disabled hidden>
+            {state.isLoading ? 'Selecting backend…' : 'Graphics backend'}
+          </option>
+          {deviceEntries.map(entry => (
+            <option key={entry.id} value={entry.id} disabled={availability[entry.id] === false}>
               {entry.title}
-            </button>
-          );
-        })}
+              {availability[entry.id] === false ? ' (N/A)' : ''}
+            </option>
+          ))}
+        </select>
+        <span style={CARET_STYLE} aria-hidden="true" />
       </div>
       {!hasAvailableDevice ? (
         <div style={MESSAGE_STYLE} data-device-tabs-message="unavailable">
@@ -151,7 +158,7 @@ function DeviceTabsWidgetView({
         </div>
       ) : null}
       {state.deviceError ? (
-        <div style={MESSAGE_STYLE} data-device-tabs-message="error">
+        <div style={MESSAGE_STYLE} role="alert" data-device-tabs-message="error">
           {state.deviceError}
         </div>
       ) : null}
@@ -160,18 +167,19 @@ function DeviceTabsWidgetView({
 }
 
 /**
- * Widget that exposes a compact WebGPU/WebGL tab switcher backed by {@link DeviceManager}.
+ * Widget that exposes a compact WebGPU/WebGL dropdown backed by {@link DeviceManager}.
  *
  * The widget mirrors the behavior of luma.gl's `DeviceTabs` UI while keeping device state in a
  * reusable manager that can also be consumed independently.
  */
 export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
-  static defaultProps: Required<DeviceTabsWidgetProps> = {
+  static defaultProps: Required<Omit<DeviceTabsWidgetProps, 'onDeviceTypeChange'>> = {
     ...Widget.defaultProps,
     id: 'device-tabs-widget',
     devices: DEFAULT_DEVICES,
     placement: 'top-right',
-    manager: DeviceManager
+    manager: DeviceManager,
+    autoInitialize: true
   };
 
   className = 'deck-widget-device-tabs';
@@ -206,10 +214,10 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
       this.#manager = props.manager;
     }
 
+    super.setProps(props);
     this.#subscribeToManager();
     this.#refreshAvailability().catch(() => {});
     this.#render();
-    super.setProps(props);
   }
 
   /** Starts listening to the shared manager when the widget is mounted. */
@@ -220,10 +228,12 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
 
   /** Removes manager subscriptions and unmounts the internal Preact view. */
   onRemove(): void {
+    this.#availabilityRequest++;
     this.#unsubscribe?.();
     this.#unsubscribe = null;
     if (this.#rootElement) {
       render(null, this.#rootElement);
+      this.#rootElement = null;
     }
   }
 
@@ -262,7 +272,9 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
 
     this.#availability = Object.fromEntries(availabilityEntries);
     this.#render();
-    await this.#manager.ensureDeviceType(allowedDeviceTypes);
+    if (this.props.autoInitialize) {
+      await this.#manager.ensureDeviceType(allowedDeviceTypes);
+    }
   }
 
   #handleSelectDeviceType = (deviceType: DeviceType) => {
@@ -270,7 +282,11 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
       return;
     }
 
-    this.#manager.setDeviceType(deviceType).catch(() => {});
+    if (this.props.onDeviceTypeChange) {
+      this.props.onDeviceTypeChange(deviceType);
+    } else {
+      this.#manager.setDeviceType(deviceType).catch(() => {});
+    }
   };
 
   #render(): void {

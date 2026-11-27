@@ -17,10 +17,12 @@ export async function mountDeviceManagedExample(container, mount, mountProps = {
   let mountGeneration = 0;
   let mountQueue = Promise.resolve();
   const widgetOptions = typeof deviceTabs === 'object' ? deviceTabs : {};
+  const devices = widgetOptions.devices?.length ? widgetOptions.devices : ['webgpu', 'webgl2'];
   const deviceTabsHost = container.ownerDocument?.createElement?.('div');
   const deviceTabsWidget = new DeviceTabsWidget({
     id: `${mountLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-device-tabs`,
-    devices: widgetOptions.devices ?? ['webgpu', 'webgl2'],
+    devices,
+    autoInitialize: false,
     placement: widgetOptions.placement ?? 'top-right',
     manager
   });
@@ -80,7 +82,9 @@ export async function mountDeviceManagedExample(container, mount, mountProps = {
   });
 
   try {
-    await manager.initialize();
+    await manager.initialize(
+      devices.map(device => (device === 'webgl2' ? 'webgl' : 'webgpu'))
+    );
     await mountQueue;
 
     return () => {
