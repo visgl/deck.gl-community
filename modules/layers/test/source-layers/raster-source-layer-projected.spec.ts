@@ -54,6 +54,7 @@ function createProjectedLayer(
   const onRasterLoad = vi.fn();
   const onSourceError = vi.fn();
   const layer = new RasterSourceLayer({
+    id: 'projected-raster',
     data: {getMetadata: async () => metadata, getRaster},
     debounceTime: 0,
     onRasterLoad,
@@ -441,7 +442,9 @@ test.for([
   expect(maximumY).toBeLessThan(4_600_000);
 
   const bitmap = layer.renderLayers() as BitmapLayer;
+  expect(bitmap.constructor).toBe(rendering === 'gpu' ? RasterBitmapLayer : BitmapLayer);
   expect(bitmap.props.coordinateSystem).toBe(NAD83_UTM19_DEFINITION);
+  expect(bitmap.props._imageCoordinateSystem).toBe('default');
 });
 
 /** Geographic NAD83 definition supplied by the app. */
@@ -494,7 +497,7 @@ test.for([
   expect(getRaster).toHaveBeenCalledOnce();
   const request = getRaster.mock.calls[0][0].viewport;
   expect(request.crs).toBe('EPSG:4269');
-  const {from} = (await projectionEngine.getCRS(NAD83_GEOGRAPHIC_DEFINITION)).converter.WGS84;
+  const {from, to} = (await projectionEngine.getCRS(NAD83_GEOGRAPHIC_DEFINITION)).converter.WGS84;
   const [west, south] = from(viewport.unproject([0, viewport.height]));
   const [east, north] = from(viewport.unproject([viewport.width, 0]));
   expect(request.getBounds!()).toEqual([
@@ -506,8 +509,11 @@ test.for([
 
   const bitmap = layer.renderLayers() as BitmapLayer;
   expect(bitmap.constructor).toBe(rendering === 'gpu' ? RasterBitmapLayer : BitmapLayer);
-  expect(bitmap.props.coordinateSystem).toBe(NAD83_GEOGRAPHIC_DEFINITION);
-  expect(bitmap.props.bounds).toEqual([-69.02, 40.99, -68.98, 41.01]);
+  expect(bitmap.props._imageCoordinateSystem).toBe('lnglat');
+  expect(bitmap.props.coordinateSystem).toBe('lnglat');
+  const [bitmapWest, bitmapSouth] = to(NAD83_RASTER_BOUNDS[0]);
+  const [bitmapEast, bitmapNorth] = to(NAD83_RASTER_BOUNDS[1]);
+  expect(bitmap.props.bounds).toEqual([bitmapWest, bitmapSouth, bitmapEast, bitmapNorth]);
 });
 
 test('reports the unsupported source CRS placement error for EPSG:4269 without a hook', async ({

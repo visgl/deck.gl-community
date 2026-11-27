@@ -8,10 +8,13 @@ import type {RasterBoundingBox, RasterData, RasterSource} from '@loaders.gl/core
 import {expect, test} from 'vitest';
 import {projectWGS84ToPseudoMercator} from '../../src/source-layers/image-source-layer/utils';
 import {RasterBitmapLayer} from '../../src/source-layers/raster-bitmap-layer';
-import {RasterSourceLayer} from '../../src/source-layers/raster-source-layer';
+import {
+  RasterSourceLayer,
+  type RasterSourceLayerProps
+} from '../../src/source-layers/raster-source-layer';
 
 /** Row encodings that share the same geographic placement. */
-type RasterCRS = 'EPSG:4326' | 'EPSG:3857';
+type RasterCRS = 'EPSG:4326' | 'EPSG:3857' | 'EPSG:4269';
 
 /** Returns a one-row stripe with bounds in the requested CRS and optional shear. */
 function createStripeSource(crs: RasterCRS, sheared = false): RasterSource {
@@ -58,7 +61,18 @@ test.each<[rendering: 'cpu' | 'gpu', crs: RasterCRS, expectedLatitude: number]>(
 });
 
 test('cpu honors an explicit lnglat override for the EPSG:3857 stripe', async () => {
-  await expectStripeDrawn('cpu', createStripeSource('EPSG:3857'), 45, 'lnglat');
+  await expectStripeDrawn('cpu', createStripeSource('EPSG:3857'), 45, {
+    bitmapLayerProps: {_imageCoordinateSystem: 'lnglat'}
+  });
+});
+
+test.each([
+  'cpu',
+  'gpu'
+] as const)('%s renders the resolved NAD83 stripe at 45°N', async rendering => {
+  await expectStripeDrawn(rendering, createStripeSource('EPSG:4269'), 45, {
+    resolveCRSDefinition: () => '+proj=longlat +datum=NAD83 +no_defs'
+  });
 });
 
 test.each(['cpu', 'gpu'] as const)('%s draws the sheared EPSG:4326 stripe', async rendering => {
@@ -70,7 +84,7 @@ async function expectStripeDrawn(
   rendering: 'cpu' | 'gpu',
   source: RasterSource,
   expectedLatitude?: number,
-  imageCoordinateSystem?: 'lnglat'
+  props?: Pick<RasterSourceLayerProps, 'bitmapLayerProps' | 'resolveCRSDefinition'>
 ): Promise<void> {
   const width = 64;
   const height = 256;
@@ -88,7 +102,7 @@ async function expectStripeDrawn(
     id: 'raster-stripe',
     data: source,
     rendering,
-    bitmapLayerProps: imageCoordinateSystem ? {_imageCoordinateSystem: imageCoordinateSystem} : {},
+    ...props,
     onRasterLoad: () => {
       rasterLoaded = true;
     },

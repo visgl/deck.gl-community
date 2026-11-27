@@ -163,8 +163,10 @@ type RasterBitmapPlacement = Pick<RasterRenderResult, 'bounds' | 'coordinateSyst
 type ProjectedRasterCRS = {
   /** CRS identifier passed to the source. */
   identifier: string;
-  /** CRS definition passed to the bitmap layers. */
+  /** CRS definition used when the bitmap is placed in source coordinates. */
   definition: RasterCRSDefinition;
+  /** Coordinate frame used by the source raster. */
+  coordinateFrame: 'projected' | 'geographic';
   /** Synchronous conversions for viewport sampling and raster coordinates. */
   converter: CRSConverter;
 };
@@ -903,14 +905,16 @@ function getRasterBitmapPlacement(
   const rasterCoordinateReferenceSystem = getCoordinateReferenceSystemIdentifier(
     raster.crs || metadata.crs
   );
+  const resolvedCRS =
+    rasterCoordinateReferenceSystem === projectedCRS?.identifier ? projectedCRS : null;
   let coordinateSystem: CoordinateSystem = rasterCoordinateReferenceSystem ? 'lnglat' : 'cartesian';
   if (rasterCoordinateReferenceSystem && !isBuiltInRasterCRS(rasterCoordinateReferenceSystem)) {
-    if (rasterCoordinateReferenceSystem !== projectedCRS?.identifier) {
+    if (!resolvedCRS) {
       throw new Error(
         `RasterSourceLayer requires explicit bounds and coordinateSystem for an unsupported source CRS (${rasterCoordinateReferenceSystem}).`
       );
     }
-    coordinateSystem = projectedCRS.definition;
+    coordinateSystem = resolvedCRS.definition;
   }
   const mercator = rasterCoordinateReferenceSystem === 'EPSG:3857';
   const bounds = raster.transform
@@ -918,6 +922,12 @@ function getRasterBitmapPlacement(
     : mercator
       ? unprojectPseudoMercatorBounds(rasterBounds!)
       : flattenBounds(rasterBounds!);
+  if (resolvedCRS?.coordinateFrame === 'geographic' && isRectangularBitmapBounds(bounds)) {
+    // BitmapLayer disables fragment coordinate conversion for preprojected meshes.
+    const [west, south] = resolvedCRS.converter.to([bounds[0], bounds[1]]);
+    const [east, north] = resolvedCRS.converter.to([bounds[2], bounds[3]]);
+    return {bounds: [west, south, east, north], coordinateSystem: 'lnglat'};
+  }
   return {bounds, coordinateSystem};
 }
 
@@ -960,10 +970,16 @@ function getImageCoordinateSystem(
 ): BitmapLayerProps['_imageCoordinateSystem'] {
   return coordinateSystem === 'lnglat' &&
     rasterCRS !== 'EPSG:3857' &&
-    bounds?.length === 4 &&
-    bounds.every(Number.isFinite)
+    isRectangularBitmapBounds(bounds)
     ? 'lnglat'
     : 'default';
+}
+
+/** Identifies rectangular bitmap bounds with four finite coordinates. */
+function isRectangularBitmapBounds(
+  bounds: BitmapBoundingBox | undefined
+): bounds is [number, number, number, number] {
+  return bounds?.length === 4 && bounds.every(Number.isFinite);
 }
 
 /** Converts a deck.gl viewport into the normalized viewport accepted by RasterSource. */
@@ -1016,7 +1032,12 @@ async function resolveRasterCRS(
     (descriptor.coordinateFrame === 'projected' ||
       (suppliedDefinition != null && descriptor.coordinateFrame === 'geographic'))
   ) {
-    return {identifier, definition, converter: descriptor.converter.WGS84};
+    return {
+      identifier,
+      definition,
+      coordinateFrame: descriptor.coordinateFrame,
+      converter: descriptor.converter.WGS84
+    };
   }
   return null;
 }
