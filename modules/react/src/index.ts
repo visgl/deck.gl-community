@@ -16,13 +16,16 @@ export type PanelProps<PropsT extends PanelComponentProps> = {
   type: new (
     props: PropsT
   ) => PanelComponent;
+  /** Restrict the widget to this Deck view. */
+  viewId?: string | null;
 } & NoInfer<PropsT>;
 
 /** Mounts a panel component inside the upstream deck.gl React Fiber renderer. */
 export function Panel<PropsT extends PanelComponentProps>({
   type: PanelType,
+  viewId,
   ...props
 }: PanelProps<PropsT>): ReactElement {
   // The remaining props are the chosen constructor’s props, after removing the JSX type selector.
-  return FiberPanelWidget({component: new PanelType(props as unknown as PropsT)});
+  return FiberPanelWidget({component: new PanelType(props as unknown as PropsT), viewId});
 }

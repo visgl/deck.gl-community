@@ -26,6 +26,7 @@ import {Panel} from '@deck.gl-community/react';
 | --- | --- |
 | `type` | Panel component class such as `BoxPanelContainer` or `SidebarPanelContainer`. |
 | `id` | Stable panel identity. Use distinct IDs for multiple panels. |
+| `viewId` | Scope the widget to a Deck view. |
 | Other props | The selected class's constructor props, including `panel` for containers that accept one. |
 
 The component mounts through deck.gl's widget lifecycle. A stable ID lets
