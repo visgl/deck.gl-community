@@ -32,6 +32,7 @@ describe('@deck.gl-community/react entry points', () => {
     const box = Panel({
       type: BoxPanelContainer,
       id: 'box',
+      viewId: 'main-map',
       title: 'Tools',
       widthPx: 320
     });
@@ -40,6 +41,7 @@ describe('@deck.gl-community/react entry points', () => {
       props: {
         widget: {
           id: 'box',
+          viewId: 'main-map',
           component: expect.any(BoxPanelContainer),
           props: {title: 'Tools', widthPx: 320}
         }
