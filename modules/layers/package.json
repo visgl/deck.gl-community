@@ -77,6 +77,11 @@
       "require": "./dist/sky-layers/index.cjs",
       "import": "./dist/sky-layers/index.js"
     },
+    "./space-layers": {
+      "types": "./dist/space-layers/index.d.ts",
+      "require": "./dist/space-layers/index.cjs",
+      "import": "./dist/space-layers/index.js"
+    },
     "./extensions": {
       "types": "./dist/extensions/index.d.ts",
       "require": "./dist/extensions/index.cjs",
@@ -158,6 +163,7 @@
     "@deck.gl/layers": "10.0.0-alpha.2",
     "@deck.gl/mesh-layers": "10.0.0-alpha.2",
     "@loaders.gl/core": "5.0.0",
+    "@loaders.gl/scientific": "5.0.1",
     "@luma.gl/anari": "10.0.0-beta.3",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
@@ -166,7 +172,8 @@
     "a5-js": "^0.5.0",
     "apache-arrow": ">=17",
     "delaunator": "^5.1.0",
-    "h3-js": "^4.2.1"
+    "h3-js": "^4.2.1",
+    "satellite.js": "^7.2.0"
   },
   "devDependencies": {
     "@deck.gl/core": "10.0.0-alpha.2",
@@ -176,6 +183,7 @@
     "@deck.gl/mesh-layers": "10.0.0-alpha.2",
     "@deck.gl/test-utils": "10.0.0-alpha.2",
     "@loaders.gl/core": "5.0.0",
+    "@loaders.gl/scientific": "5.0.1",
     "@luma.gl/anari": "10.0.0-beta.3",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
@@ -185,9 +193,13 @@
     "apache-arrow": "^21.2.0",
     "delaunator": "^5.1.0",
     "h3-js": "^4.2.1",
-    "probe.gl": "^5.0.0"
+    "probe.gl": "^5.0.0",
+    "satellite.js": "^7.2.0"
   },
   "peerDependenciesMeta": {
+    "@loaders.gl/scientific": {
+      "optional": true
+    },
     "@luma.gl/anari": {
       "optional": true
     },
@@ -207,6 +219,9 @@
       "optional": true
     },
     "h3-js": {
+      "optional": true
+    },
+    "satellite.js": {
       "optional": true
     }
   }
