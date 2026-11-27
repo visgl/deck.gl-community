@@ -3,10 +3,11 @@
 [![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/react.svg)](https://www.npmjs.com/package/@deck.gl-community/react)
 [![NPM Downloads](https://img.shields.io/npm/dw/@deck.gl-community/react.svg)](https://www.npmjs.com/package/@deck.gl-community/react)
 
-The package root provides a JSX `Panel` component for the React Fiber `DeckGL` root
-from `@deck.gl/react`. Set its `type` to a panel component class such as
-`BoxPanelContainer`.
+| Import | Exports |
+| --- | --- |
+| `@deck.gl-community/react` | `Panel` for deck.gl v10's upstream React Fiber `DeckGL` root. Pass a panel component class such as `BoxPanelContainer` as `type`. |
+| `@deck.gl-community/react/legacy` | DOM `Panel`, `ReactPanel`, `useReactPanel`, `Modal`, `Button`, `Icon`, and `LongPressButton`. |
+| `@deck.gl-community/react/deck-canvas` | `DeckCanvas` for an application-owned multi-canvas `Deck`. |
 
-The previous DOM components and hooks, including `Panel` and `useReactPanel`, are
-available from `@deck.gl-community/react/legacy`. The standalone `DeckCanvas`
-component is available from `@deck.gl-community/react/deck-canvas`.
+See the [React module guide](../../docs/modules/react/developer-guide/get-started.md)
+for setup and examples.

@@ -1,5 +1,7 @@
 # Get Started
 
+## Panels inside React Fiber
+
 Install `@deck.gl-community/react`, deck.gl v10's `@deck.gl/react` and its
 React 19.2+ peers, and matching versions of `@deck.gl-community/panels` and
 `@deck.gl-community/widgets`.
@@ -25,6 +27,32 @@ export function MapExample() {
 
 Set distinct IDs when rendering multiple panels. Use another panel component,
 such as `SidebarPanelContainer`, to change how the panel is mounted.
+
+## Panels in a React DOM tree
+
+Import the legacy `Panel` to render a panel definition in a React layout or
+MDX page. This entry point also provides `ReactPanel` and `useReactPanel` for
+React-owned content.
+
+```tsx
+import {Panel} from '@deck.gl-community/react/legacy';
+import {MarkdownPanel} from '@deck.gl-community/panels';
+
+const help = new MarkdownPanel({title: 'Help', markdown: 'Select a point to inspect it.'});
+
+export function HelpPanel() {
+  return <Panel panel={help} themeMode="inherit" />;
+}
+```
+
+## Shared Deck canvases
+
+Import `DeckCanvas` from `@deck.gl-community/react/deck-canvas` when your
+application owns an imperative, multi-canvas `Deck` instance. Each component
+contributes its own canvas, views, layers, and widgets. See the
+[DeckCanvas example](../api-reference/deck-canvas.md#example) for setup and cleanup.
+
+## HTML overlays
 
 HTML overlays from this package have moved to the **@deck.gl-community/widgets** module so they can
 run inside deck.gl's widget system. Use the widget equivalents with Preact-rendered items:
