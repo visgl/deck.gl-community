@@ -23,7 +23,8 @@ import {
 } from '@deck.gl-community/editable-layers';
 import type {
   BooleanOperation,
-  EditModeTrayWidgetSelectEvent
+  EditModeTrayWidgetSelectEvent,
+  SimpleFeatureCollection
 } from '@deck.gl-community/editable-layers';
 import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
