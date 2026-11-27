@@ -101,4 +101,12 @@ describe('createOrbitPropagator (main thread)', () => {
     await expect(propagator.propagate(1, DATE.getTime())).rejects.toThrow(/destroyed/);
     await expect(propagator.init(2, records)).rejects.toThrow(/destroyed/);
   });
+
+  it('rejects propagate before init', async () => {
+    const propagator = createOrbitPropagator('main-thread');
+    await expect(propagator.propagate(1, DATE.getTime())).rejects.toThrow(/not initialized/);
+    await propagator.init(1, records);
+    await expect(propagator.propagate(1, DATE.getTime())).resolves.toBeTruthy();
+    propagator.destroy();
+  });
 });

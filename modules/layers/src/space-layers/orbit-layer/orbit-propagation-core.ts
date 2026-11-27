@@ -39,10 +39,12 @@ export type OrbitSample = {
 export type PropagationState = {
   generation: number;
   satrecs: SatRec[];
+  /** False until the first `initPropagation`. */
+  initialized: boolean;
 };
 
 export function createPropagationState(): PropagationState {
-  return {generation: 0, satrecs: []};
+  return {generation: 0, satrecs: [], initialized: false};
 }
 
 /** Replaces the satellites in `state` with the records that SGP4 accepts. */
@@ -54,6 +56,7 @@ export function initPropagation(
   const recordIndices: number[] = [];
   state.generation = generation;
   state.satrecs = [];
+  state.initialized = true;
   records.forEach((record, index) => {
     const satrec = createSatRec(record);
     if (satrec) {
@@ -71,12 +74,18 @@ export function initPropagation(
   };
 }
 
-/** Propagates every satellite in `state` to `timeMs`. */
+/**
+ * Propagates every satellite in `state` to `timeMs`. Throws when no init was processed, for
+ * example in a new worker after a worker error, so the caller knows that it must init again.
+ */
 export function propagateAll(
   state: PropagationState,
   generation: number,
   timeMs: number
 ): OrbitSample {
+  if (!state.initialized) {
+    throw new Error('OrbitPropagator is not initialized');
+  }
   const {satrecs} = state;
   const date = new Date(timeMs);
   const gmst = gstime(date);
