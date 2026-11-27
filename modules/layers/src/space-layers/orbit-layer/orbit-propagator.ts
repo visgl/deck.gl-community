@@ -21,7 +21,14 @@ export type {OrbitInitResult, OrbitSample};
 export interface OrbitPropagator {
   /** Replaces the satellites. Resolves with the records that SGP4 accepted. */
   init(generation: number, records: GpRecord[]): Promise<OrbitInitResult>;
-  /** Propagates the satellites of the latest `init` to `timeMs`. */
+  /**
+   * Propagates the satellites of the latest `init` to `timeMs`.
+   *
+   * The generation tag of the reply differs by mode. Worker mode tags it with the generation of
+   * the latest `init` that the worker processed. Main-thread mode tags it with the `generation`
+   * argument. Both are safe when the caller drops replies whose generation differs from the
+   * latest generation it requested (see `isCurrentGeneration`).
+   */
   propagate(generation: number, timeMs: number): Promise<OrbitSample>;
   destroy(): void;
 }
@@ -104,7 +111,15 @@ class WorkerOrbitPropagator implements OrbitPropagator {
         type: 'module'
       });
       worker.onmessage = (event: MessageEvent<WorkerResponse>) => this.handleMessage(event.data);
-      worker.onerror = event => this.rejectAll(new Error(event.message || 'Orbit worker failed'));
+      worker.onerror = event => {
+        // A worker error is fatal, for example a failed module load. Drop the worker, so the
+        // next request creates a new one instead of waiting on a dead one.
+        worker.terminate();
+        if (this.worker === worker) {
+          this.worker = null;
+        }
+        this.rejectAll(new Error(event.message || 'Orbit worker failed'));
+      };
       worker.onmessageerror = () => this.rejectAll(new Error('Orbit worker message failed'));
       this.worker = worker;
     }
