@@ -690,17 +690,30 @@ describe('RasterSourceLayer lifecycle', () => {
     expect(bitmapLayer.props.coordinateSystem).toBe('lnglat');
   });
 
-  test.each([
-    ['EPSG:4326', 'lnglat'],
-    ['EPSG:3857', 'default']
-  ])('uses %s raster sampling for inferred placement (%s)', (crs, imageCoordinateSystem) => {
+  test.each<
+    [
+      rendering: 'cpu' | 'gpu',
+      crs: string,
+      placement: 'rectangular' | 'sheared',
+      imageCoordinateSystem: BitmapLayerProps['_imageCoordinateSystem']
+    ]
+  >([
+    ['cpu', 'EPSG:4326', 'rectangular', 'lnglat'],
+    ['gpu', 'EPSG:4326', 'rectangular', 'lnglat'],
+    ['cpu', 'EPSG:4326', 'sheared', 'default'],
+    ['gpu', 'EPSG:4326', 'sheared', 'default'],
+    ['cpu', 'EPSG:3857', 'rectangular', 'default']
+  ])('%s uses %s with %s placement (%s sampling)', (rendering, crs, placement, imageCoordinateSystem) => {
     const metadata = {...GEOGRAPHIC_METADATA, crs};
-    const layer = createRasterLayer();
+    const layer = createRasterLayer({rendering});
     layer.initializeState();
     layer.state.metadata = metadata;
     layer.handleRasterLoad({
       requestId: 0,
-      raster: createRaster(new Float32Array([0, 1, 2, 3]), {crs}),
+      raster: createRaster(new Float32Array([0, 1, 2, 3]), {
+        crs,
+        transform: placement === 'sheared' ? [1, 0.5, 10, 0, -1, 20] : undefined
+      }),
       parameters: {viewport: createRasterViewport(createViewport([-10, -5, 20, 15]), metadata)}
     });
 
@@ -782,9 +795,10 @@ describe('RasterSourceLayer lifecycle', () => {
   });
 
   test.each([
-    'cpu',
-    'gpu'
-  ])('uses CPU colorization for tagged gray and alpha with %s rendering', async rendering => {
+    ['cpu', 'no'],
+    ['gpu', 'no'],
+    ['cpu', 'untagged']
+  ])('uses CPU colorization for gray and alpha with %s rendering and %s payload bands', async (rendering, payloadBands) => {
     const metadata = {
       ...GEOGRAPHIC_METADATA,
       bandCount: 3,
@@ -794,7 +808,14 @@ describe('RasterSourceLayer lifecycle', () => {
       [new Uint8Array([10, 20, 30, 40]), new Uint8Array([64, 128, 192, 255])],
       {
         bandCount: 2,
-        dtype: 'uint8'
+        dtype: 'uint8',
+        bands:
+          payloadBands === 'untagged'
+            ? [
+                {index: 1, dtype: 'uint8', noData: 0},
+                {index: 0, dtype: 'uint8', noData: 0}
+              ]
+            : undefined
       }
     );
     const getRaster = vi.fn().mockResolvedValue(raster);

@@ -370,7 +370,11 @@ export class RasterSourceLayer extends CompositeLayer<RasterSourceLayerProps> {
       const props: RasterBitmapLayerProps = {
         ...this.getSubLayerProps({id: 'raster-bitmap'}),
         ...placement,
-        _imageCoordinateSystem: getImageCoordinateSystem(placement.coordinateSystem, rasterCRS),
+        _imageCoordinateSystem: getImageCoordinateSystem(
+          placement.coordinateSystem,
+          rasterCRS,
+          placement.bounds
+        ),
         ...bitmapLayerProps,
         raster: !valueRange && percentileRange === null ? null : raster,
         valueRange: valueRange ?? percentileRange ?? [0, 1],
@@ -390,7 +394,11 @@ export class RasterSourceLayer extends CompositeLayer<RasterSourceLayerProps> {
       image: renderResult.image as any,
       bounds: renderResult.bounds,
       ...(usesDefaultPlacement && {
-        _imageCoordinateSystem: getImageCoordinateSystem(renderResult.coordinateSystem, rasterCRS)
+        _imageCoordinateSystem: getImageCoordinateSystem(
+          renderResult.coordinateSystem,
+          rasterCRS,
+          renderResult.bounds
+        )
       }),
       ...bitmapLayerProps
     };
@@ -828,17 +836,24 @@ export function createDefaultRasterRenderResult(
   projectedCRS?: ProjectedRasterCRS | null
 ): RasterRenderResult {
   const rasterWithMetadataNoData = applyMetadataNoData(raster, metadata);
-  const bands: RasterDisplayBandMetadata[] | undefined = metadata.bands;
-  const rasterWithBandMetadata =
-    !raster.bands && bands?.some(band => band.colorInterpretation !== undefined)
-      ? {
-          ...rasterWithMetadataNoData,
-          bands: Array.from({length: raster.bandCount}, (_, index) => {
-            const sourceBand = parameters.bands?.[index] ?? index;
-            return bands[sourceBand] ?? {index: sourceBand, dtype: raster.dtype};
-          })
-        }
-      : rasterWithMetadataNoData;
+  const sourceBands: RasterDisplayBandMetadata[] | undefined = metadata.bands;
+  const payloadBands: RasterDisplayBandMetadata[] | undefined = raster.bands;
+  const rasterWithBandMetadata = sourceBands?.some(band => band.colorInterpretation !== undefined)
+    ? {
+        ...rasterWithMetadataNoData,
+        bands: payloadBands
+          ? payloadBands.map((band, index) => ({
+              ...band,
+              colorInterpretation:
+                band.colorInterpretation ??
+                sourceBands[parameters.bands?.[index] ?? index]?.colorInterpretation
+            }))
+          : Array.from({length: raster.bandCount}, (_, index) => {
+              const sourceBand = parameters.bands?.[index] ?? index;
+              return sourceBands[sourceBand] ?? {index: sourceBand, dtype: raster.dtype};
+            })
+      }
+    : rasterWithMetadataNoData;
   const placement = getRasterBitmapPlacement(raster, parameters, metadata, projectedCRS);
   const image = colorizeRasterData(rasterWithBandMetadata);
   return {
@@ -935,13 +950,20 @@ export function createRasterRenderResult(
  * Samples longitude/latitude rasters per fragment. Without this, deck.gl stretches the image
  * linearly between its corners in Web Mercator, so rows land at the wrong latitude and move
  * when the requested window changes. EPSG:3857 rasters also get `lnglat` bounds, but their rows
- * are linear in Web Mercator, so they keep the default.
+ * are linear in Web Mercator, so they keep the default. deck.gl samples longitude/latitude only
+ * for rectangular bounds, so a rotated or sheared raster with four corners keeps the default.
  */
 function getImageCoordinateSystem(
   coordinateSystem: CoordinateSystem | undefined,
-  rasterCRS: string | undefined
+  rasterCRS: string | undefined,
+  bounds: BitmapBoundingBox | undefined
 ): BitmapLayerProps['_imageCoordinateSystem'] {
-  return coordinateSystem === 'lnglat' && rasterCRS !== 'EPSG:3857' ? 'lnglat' : 'default';
+  return coordinateSystem === 'lnglat' &&
+    rasterCRS !== 'EPSG:3857' &&
+    bounds?.length === 4 &&
+    bounds.every(Number.isFinite)
+    ? 'lnglat'
+    : 'default';
 }
 
 /** Converts a deck.gl viewport into the normalized viewport accepted by RasterSource. */
