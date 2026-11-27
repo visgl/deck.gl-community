@@ -21,7 +21,12 @@ export async function parseGpRecords(text: string, format: GpFormat): Promise<Gp
   if (!('shape' in table) || table.shape !== 'object-row-table') {
     throw new Error('Expected an object-row table of element sets');
   }
-  return (table.data as OMMRow[]).map(row => {
+  return toGpRecords(table.data as OMMRow[]);
+}
+
+/** Converts loader rows to GP records: name, catalog number, epoch and the OMM JSON object. */
+export function toGpRecords(rows: OMMRow[]): GpRecord[] {
+  return rows.map(row => {
     const noradId = row.NORAD_CAT_ID ?? 0;
     return {
       name: row.OBJECT_NAME || String(noradId),

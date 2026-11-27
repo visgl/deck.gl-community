@@ -127,7 +127,7 @@ function writeLngLatAlt(
 
 /**
  * Linear interpolation of `[lng, lat, alt]` triplets that takes the short way across the
- * antimeridian. Writes to `target`.
+ * antimeridian. Writes to `target`, with the longitude in [-180, 180).
  */
 export function interpolateLngLatAlt(
   from: Float64Array,
@@ -139,7 +139,10 @@ export function interpolateLngLatAlt(
     let deltaLng = to[i] - from[i];
     if (deltaLng > 180) deltaLng -= 360;
     else if (deltaLng < -180) deltaLng += 360;
-    target[i] = from[i] + deltaLng * t;
+    let lng = from[i] + deltaLng * t;
+    if (lng >= 180) lng -= 360;
+    else if (lng < -180) lng += 360;
+    target[i] = lng;
     target[i + 1] = from[i + 1] + (to[i + 1] - from[i + 1]) * t;
     target[i + 2] = from[i + 2] + (to[i + 2] - from[i + 2]) * t;
   }
