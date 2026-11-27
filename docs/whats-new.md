@@ -22,6 +22,9 @@ This page lists module additions and major changes in each release. For detailed
 
 - **layers:** Import [SelectionPulseExtension](./modules/layers/api-reference/selection-pulse-extension.md)
   from `@deck.gl-community/layers/extensions`. The existing imports remain available.
+- **layers:** [RasterSourceLayer](./modules/layers/api-reference/source-layer.md#projected-rasters)
+  accepts `resolveCRSDefinition` for source identifiers that need a projected or geographic CRS
+  definition. Both CPU and GPU bitmap placement use the resolved definition.
 
 - **react-fiber:** removed. The renderer moved to deck.gl, where it is `@deck.gl/react` from v10.
   See the [upgrade guide](./upgrade-guide.md#react-fiber).
