@@ -49,7 +49,7 @@ const SELECT_WRAPPER_STYLE: JSX.CSSProperties = {
 const SELECT_STYLE: JSX.CSSProperties = {
   appearance: 'none',
   minHeight: '46px',
-  padding: '6px 30px 6px 26px',
+  padding: '6px 31px 6px 13px',
   border: '1px solid var(--deck-device-border, rgba(148, 163, 184, 0.24))',
   borderRadius: '9px',
   background: 'var(--deck-device-surface, #080f1b)',
@@ -61,16 +61,6 @@ const SELECT_STYLE: JSX.CSSProperties = {
   fontSize: '15px',
   fontWeight: 600,
   lineHeight: 1.25
-};
-
-const INDICATOR_STYLE: JSX.CSSProperties = {
-  position: 'absolute',
-  left: '11px',
-  width: '7px',
-  height: '7px',
-  borderRadius: '50%',
-  background: 'currentColor',
-  pointerEvents: 'none'
 };
 
 const CARET_STYLE: JSX.CSSProperties = {
@@ -135,7 +125,6 @@ function DeviceTabsWidgetView({
       onWheel={stopDeviceTabsEventPropagation}
     >
       <div style={SELECT_WRAPPER_STYLE}>
-        <span style={INDICATOR_STYLE} aria-hidden="true" />
         <select
           style={SELECT_STYLE}
           aria-label="Graphics backend"
