@@ -4,8 +4,7 @@
 panels share a device and rendering loop, while each panel contributes its own views,
 layers and widgets.
 
-Import it from `@deck.gl-community/react/deck-canvas` with `@deck.gl/core` 9.4
-or later. Use this subpath when the React application owns the shared Deck
+Import it from `@deck.gl-community/react/deck-canvas` with `@deck.gl/core` v10. Use this subpath when the React application owns the shared Deck
 instance and manages its lifecycle.
 
 ```tsx
@@ -42,10 +41,9 @@ function Panels({londonLayers, tokyoLayers}) {
 }
 ```
 
-The `deck` must be initialized in multi-canvas mode (`_canvases: []`), which needs
-`@deck.gl/core` 9.4 or later. `DeckCanvas`
-never creates or finalizes it. Do not attach a Deck owned
-by `DeckGL` or a Mapbox overlay.
+Initialize the application-owned `Deck` in multi-canvas mode (`_canvases: []`).
+The application is responsible for creating and finalizing it. Pass the instance
+created by your application directly to `DeckCanvas`.
 
 ## Props
 
