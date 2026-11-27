@@ -5,9 +5,6 @@
 /** Weight of the newest rate measurement in the smoothed rate. */
 const SMOOTHING = 0.75;
 
-/** Largest playback speed (simulated ms per wall ms) that a single frame step may imply. */
-const MAX_PLAUSIBLE_RATE = 100000;
-
 /** Below this rate, a clock whose time did not change counts as stopped. */
 const STOPPED_RATE = 1e-6;
 
@@ -21,6 +18,8 @@ export class OrbitSampleClock {
   private lastTimeMs: number | null = null;
   private lastWallMs = 0;
   private rate = 0;
+  /** True when the last update seeded the rate from a jump. */
+  private seeded = false;
 
   constructor(sampleIntervalMs: number) {
     this.sampleIntervalMs = sampleIntervalMs;
@@ -43,10 +42,18 @@ export class OrbitSampleClock {
     }
 
     const delta = currentTimeMs - previousTimeMs;
-    // A step backward is a jump. A step forward is a jump when it implies a speed that no
-    // playback speed reaches; a smaller step is a change of speed that the rate follows.
-    // The rate stays as it was on a jump, so the next frames are judged against the old speed.
-    if (delta < 0 || delta > MAX_PLAUSIBLE_RATE * wallDelta) {
+    // A jump is a step backward, or a step that differs from the expected step by more than
+    // one sample interval of simulated time. A change of speed can report one jump too.
+    // On a jump the rate is seeded from the observed step with no smoothing, so it cannot
+    // latch to a stale value. A backward step seeds the rate as 0 (paused).
+    const expected = this.rate * wallDelta;
+    // The frame after a jump checks the seeded rate with a tight tolerance: a seed from a
+    // one-off step is wrong by a large factor, and a scaled tolerance would hide that.
+    const tolerance = this.sampleIntervalMs * (this.seeded ? 1 : Math.max(this.rate, 1));
+    const jumped = delta < 0 || Math.abs(delta - expected) > tolerance;
+    this.seeded = jumped;
+    if (jumped) {
+      this.rate = delta < 0 ? 0 : delta / wallDelta;
       return {rate: this.rate, jumped: true};
     }
 
