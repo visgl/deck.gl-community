@@ -1,0 +1,81 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {describe, expect, it} from 'vitest';
+
+import {OrbitSampleClock} from '../../../src/space-layers/orbit-layer/orbit-sample-clock';
+
+const FRAME_MS = 1000 / 60;
+const T0 = Date.UTC(2026, 10, 24);
+
+/** Runs `frames` frames at `speed` simulated ms per wall ms. Returns the last result. */
+function runFrames(
+  clock: OrbitSampleClock,
+  state: {time: number; wall: number},
+  speed: number,
+  frames: number
+) {
+  let result = {rate: 0, jumped: false};
+  for (let i = 0; i < frames; i++) {
+    state.time += speed * FRAME_MS;
+    state.wall += FRAME_MS;
+    result = clock.update(state.time, state.wall);
+  }
+  return result;
+}
+
+describe('OrbitSampleClock', () => {
+  it('estimates the clock rate from currentTime updates', () => {
+    const clock = new OrbitSampleClock(1000);
+    const state = {time: T0, wall: 0};
+    clock.update(state.time, state.wall);
+    const result = runFrames(clock, state, 60, 5);
+    expect(result.jumped).toBe(false);
+    expect(Math.abs(result.rate - 60) / 60).toBeLessThan(0.01);
+    expect(clock.getNextSampleTime(state.time)).toBeCloseTo(state.time + result.rate * 1000, 6);
+  });
+
+  it('a paused clock requests no samples', () => {
+    const clock = new OrbitSampleClock(1000);
+    let result = {rate: 1, jumped: false};
+    for (let i = 0; i < 10; i++) {
+      result = clock.update(T0, i * FRAME_MS);
+    }
+    expect(result.rate).toBe(0);
+    expect(clock.getNextSampleTime(T0)).toBe(T0);
+  });
+
+  it('a time jump resets the samples', () => {
+    const clock = new OrbitSampleClock(1000);
+    const state = {time: T0, wall: 0};
+    clock.update(state.time, state.wall);
+    runFrames(clock, state, 1, 20);
+    state.time -= 10 * 60 * 1000;
+    state.wall += FRAME_MS;
+    expect(clock.update(state.time, state.wall).jumped).toBe(true);
+    runFrames(clock, state, 1, 5);
+    state.time += 24 * 3600 * 1000;
+    state.wall += FRAME_MS;
+    expect(clock.update(state.time, state.wall).jumped).toBe(true);
+  });
+
+  it('a change of speed is not a jump', () => {
+    const clock = new OrbitSampleClock(1000);
+    const state = {time: T0, wall: 0};
+    clock.update(state.time, state.wall);
+    runFrames(clock, state, 1, 30);
+    state.time += 60 * FRAME_MS;
+    state.wall += FRAME_MS;
+    const first = clock.update(state.time, state.wall);
+    expect(first.jumped).toBe(false);
+    let last = first;
+    for (let i = 0; i < 9; i++) {
+      state.time += 60 * FRAME_MS;
+      state.wall += FRAME_MS;
+      last = clock.update(state.time, state.wall);
+      expect(last.jumped).toBe(false);
+    }
+    expect(Math.abs(last.rate - 60) / 60).toBeLessThan(0.05);
+  });
+});

@@ -14,3 +14,11 @@ export {
 } from './orbit-layer/orbit-math';
 export {createSatRec, type GpFormat, type GpRecord} from './orbit-layer/gp-records';
 export {parseGpRecords, toGpRecords} from './orbit-layer/load-gp-records';
+export {OrbitSampleClock} from './orbit-layer/orbit-sample-clock';
+export {
+  createOrbitPropagator,
+  isCurrentGeneration,
+  type OrbitInitResult,
+  type OrbitPropagator,
+  type OrbitSample
+} from './orbit-layer/orbit-propagator';
