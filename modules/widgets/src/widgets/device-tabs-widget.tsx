@@ -16,7 +16,7 @@ export type DeviceTabsWidgetDevice = 'webgl2' | 'webgpu';
 
 /** Props for {@link DeviceTabsWidget}. */
 export type DeviceTabsWidgetProps = WidgetProps & {
-  /** Ordered list of backends exposed as tabs. */
+  /** Ordered list of backends shown in the dropdown. */
   devices?: DeviceTabsWidgetDevice[];
   /** Widget placement anchor. */
   placement?: WidgetPlacement;
@@ -38,38 +38,49 @@ const ROOT_STYLE: JSX.CSSProperties = {
   userSelect: 'none'
 };
 
-const TAB_LIST_STYLE: JSX.CSSProperties = {
+const SELECT_WRAPPER_STYLE: JSX.CSSProperties = {
+  position: 'relative',
   display: 'inline-flex',
-  alignItems: 'stretch',
-  overflow: 'hidden',
-  borderRadius: '8px',
-  border: '1px solid rgba(148, 163, 184, 0.4)',
-  background: 'rgba(255, 255, 255, 0.94)',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.14)'
+  alignSelf: 'flex-end',
+  alignItems: 'center',
+  color: 'var(--deck-device-accent, #7dd3fc)'
 };
 
-const TAB_BUTTON_STYLE: JSX.CSSProperties = {
-  minWidth: '92px',
-  minHeight: '36px',
-  padding: '8px 14px',
-  border: '0',
-  borderRadius: '0',
-  background: 'transparent',
-  color: '#0f172a',
+const SELECT_STYLE: JSX.CSSProperties = {
+  appearance: 'none',
+  minHeight: '44px',
+  padding: '6px 30px 6px 26px',
+  border: '1px solid var(--deck-device-border, rgba(148, 163, 184, 0.24))',
+  borderRadius: '9px',
+  background: 'var(--deck-device-surface, #080f1b)',
+  color: 'inherit',
+  colorScheme: 'dark',
+  boxShadow: '0 8px 22px rgba(0, 0, 0, 0.2)',
   cursor: 'pointer',
-  fontSize: '12px',
-  fontWeight: 700,
-  whiteSpace: 'nowrap'
+  font: 'inherit',
+  fontSize: '13px',
+  fontWeight: 650
 };
 
-const TAB_BUTTON_SELECTED_STYLE: JSX.CSSProperties = {
-  background: '#2563eb',
-  color: '#ffffff'
+const INDICATOR_STYLE: JSX.CSSProperties = {
+  position: 'absolute',
+  left: '11px',
+  width: '7px',
+  height: '7px',
+  borderRadius: '50%',
+  background: 'currentColor',
+  pointerEvents: 'none'
 };
 
-const TAB_BUTTON_DISABLED_STYLE: JSX.CSSProperties = {
-  color: 'rgba(15, 23, 42, 0.45)',
-  cursor: 'not-allowed'
+const CARET_STYLE: JSX.CSSProperties = {
+  position: 'absolute',
+  right: '12px',
+  width: '6px',
+  height: '6px',
+  borderRight: '1.5px solid currentColor',
+  borderBottom: '1.5px solid currentColor',
+  transform: 'translateY(-2px) rotate(45deg)',
+  pointerEvents: 'none'
 };
 
 const MESSAGE_STYLE: JSX.CSSProperties = {
@@ -104,6 +115,7 @@ function DeviceTabsWidgetView({
   onSelectDeviceType: (deviceType: DeviceType) => void;
 }) {
   const hasAvailableDevice = deviceEntries.some(entry => availability[entry.id] !== false);
+  const selectedDevice = deviceEntries.find(entry => entry.id === state.deviceType)?.id ?? '';
 
   return (
     <div
@@ -121,33 +133,34 @@ function DeviceTabsWidgetView({
       onContextMenu={stopDeviceTabsEventPropagation}
       onWheel={stopDeviceTabsEventPropagation}
     >
-      <div style={TAB_LIST_STYLE} role="tablist" aria-label="Graphics backend">
-        {deviceEntries.map(entry => {
-          const isSelected = state.deviceType === entry.id;
-          const isDisabled = availability[entry.id] === false;
-          const label =
-            availability[entry.id] === false ? `${entry.title} (unavailable)` : entry.title;
-
-          return (
-            <button
-              key={entry.id}
-              type="button"
-              role="tab"
-              data-device-tab-id={entry.id}
-              aria-selected={isSelected ? 'true' : 'false'}
-              aria-label={label}
-              disabled={isDisabled}
-              style={{
-                ...TAB_BUTTON_STYLE,
-                ...(isSelected ? TAB_BUTTON_SELECTED_STYLE : {}),
-                ...(isDisabled ? TAB_BUTTON_DISABLED_STYLE : {})
-              }}
-              onClick={() => onSelectDeviceType(entry.id)}
-            >
+      <div style={SELECT_WRAPPER_STYLE}>
+        <span style={INDICATOR_STYLE} aria-hidden="true" />
+        <select
+          style={SELECT_STYLE}
+          aria-label="Graphics backend"
+          aria-busy={state.isLoading}
+          value={selectedDevice}
+          onChange={event => {
+            const select = event.currentTarget;
+            const requestedDevice = deviceEntries.find(entry => entry.id === select.value);
+            // Keep showing the running device until the manager confirms the switch.
+            select.value = selectedDevice;
+            if (requestedDevice) {
+              onSelectDeviceType(requestedDevice.id);
+            }
+          }}
+        >
+          <option value="" disabled hidden>
+            {state.isLoading ? 'Selecting backend…' : 'Graphics backend'}
+          </option>
+          {deviceEntries.map(entry => (
+            <option key={entry.id} value={entry.id} disabled={availability[entry.id] === false}>
               {entry.title}
-            </button>
-          );
-        })}
+              {availability[entry.id] === false ? ' (N/A)' : ''}
+            </option>
+          ))}
+        </select>
+        <span style={CARET_STYLE} aria-hidden="true" />
       </div>
       {!hasAvailableDevice ? (
         <div style={MESSAGE_STYLE} data-device-tabs-message="unavailable">
@@ -155,7 +168,7 @@ function DeviceTabsWidgetView({
         </div>
       ) : null}
       {state.deviceError ? (
-        <div style={MESSAGE_STYLE} data-device-tabs-message="error">
+        <div style={MESSAGE_STYLE} role="alert" data-device-tabs-message="error">
           {state.deviceError}
         </div>
       ) : null}
@@ -164,7 +177,7 @@ function DeviceTabsWidgetView({
 }
 
 /**
- * Widget that exposes a compact WebGPU/WebGL tab switcher backed by {@link DeviceManager}.
+ * Widget that exposes a compact WebGPU/WebGL dropdown backed by {@link DeviceManager}.
  *
  * The widget mirrors the behavior of luma.gl's `DeviceTabs` UI while keeping device state in a
  * reusable manager that can also be consumed independently.
