@@ -32,6 +32,7 @@ npm install @deck.gl-community/layers
 | `@deck.gl-community/layers/wind-layers/wind-effect` | [Scene wind and WindExtension](./api-reference/wind-effect.md) |
 | `@deck.gl-community/layers/source-layers` | [SourceLayer](./api-reference/source-layer.md) and specialized layers for loaders.gl image, vector, raster, point cloud, and tiled data sources |
 | `@deck.gl-community/layers/splat-layers` | [Gaussian splat layers and source utilities](./api-reference/splat-layer.md) |
+| `@deck.gl-community/layers/space-layers` | [OrbitLayer](./api-reference/orbit-layer.md) (experimental): satellites from GP element sets, with SGP4 propagation |
 
 The package root also exports the common layers and tree renderer. The geo overview lists
 the application-installed dependencies for the H3 and A5 adapters and the wind layers.
