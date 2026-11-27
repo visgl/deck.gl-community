@@ -31,6 +31,7 @@ export {RasterBitmapLayer} from './raster-bitmap-layer';
 export type {
   RasterBitmapImage,
   RasterColorizerContext,
+  RasterCRSDefinition,
   RasterRenderResult,
   RasterSourceLayerProps,
   RasterSourceSubLayerProps
