@@ -73,7 +73,6 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@turf/helpers',
     'delaunator',
     'supercluster',
-    '@deck.gl/react/legacy',
     '@loaders.gl/tables',
     '@loaders.gl/core/query',
     '@math.gl/sql/parser',

@@ -1,12 +1,10 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 
-import React, {useMemo} from 'react';
-import {createRoot} from 'react-dom/client';
+import {Deck} from '@deck.gl/core';
+import {Map} from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import DeckGL from '@deck.gl/react/legacy';
 import {MarkerLayer, type Marker} from '@deck.gl-community/graph-layers';
-import StaticMap from 'react-map-gl/maplibre';
 
 const INITIAL_VIEW_STATE = {
   longitude: -98,
@@ -50,9 +48,26 @@ const CITY_MARKERS: CityMarker[] = [
   }
 ];
 
-export default function App(): React.ReactElement {
-  const layers = useMemo(
-    () => [
+export function mountMarkerLayerExample(container: HTMLElement): () => void {
+  const host = container.ownerDocument.createElement('div');
+  Object.assign(host.style, {position: 'relative', width: '100%', height: '100%'});
+  const basemap = container.ownerDocument.createElement('div');
+  Object.assign(basemap.style, {position: 'absolute', inset: '0'});
+  host.append(basemap);
+  container.append(host);
+
+  const map = new Map({
+    container: basemap,
+    style: MAP_STYLE,
+    center: [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
+    zoom: INITIAL_VIEW_STATE.zoom,
+    interactive: false
+  });
+  const deck = new Deck({
+    parent: host,
+    initialViewState: INITIAL_VIEW_STATE,
+    controller: true,
+    layers: [
       new MarkerLayer({
         id: 'marker-layer',
         data: CITY_MARKERS,
@@ -63,27 +78,18 @@ export default function App(): React.ReactElement {
         getSize: d => d.size
       })
     ],
-    []
-  );
+    onResize: () => {
+      map.resize();
+    },
+    onViewStateChange: ({viewState: {longitude, latitude, zoom, bearing, pitch}}) => {
+      map.jumpTo({center: [longitude, latitude], zoom, bearing, pitch});
+    },
+    getTooltip: ({object}) => object?.label ?? null
+  });
 
-  return (
-    <DeckGL
-      initialViewState={INITIAL_VIEW_STATE}
-      controller={{dragPan: true, scrollZoom: true}}
-      layers={layers}
-      style={{width: '100%', height: '100%'}}
-      getTooltip={info => {
-        const {object} = info;
-        return object ? object.label : null;
-      }}
-    >
-      <StaticMap mapStyle={MAP_STYLE} />
-    </DeckGL>
-  );
-}
-
-export function mountMarkerLayerExample(container: HTMLElement): () => void {
-  const root = createRoot(container);
-  root.render(<App />);
-  return () => root.unmount();
+  return () => {
+    deck.finalize();
+    map.remove();
+    host.remove();
+  };
 }
