@@ -78,4 +78,57 @@ describe('OrbitSampleClock', () => {
     }
     expect(Math.abs(last.rate - 60) / 60).toBeLessThan(0.05);
   });
+
+  describe('at 5 Hz sampling', () => {
+    function countJumps(
+      clock: OrbitSampleClock,
+      state: {time: number; wall: number},
+      speed: number,
+      frames: number
+    ) {
+      let jumps = 0;
+      let rate = 0;
+      for (let i = 0; i < frames; i++) {
+        state.time += speed * FRAME_MS;
+        state.wall += FRAME_MS;
+        const result = clock.update(state.time, state.wall);
+        if (result.jumped) jumps++;
+        rate = result.rate;
+      }
+      return {jumps, rate};
+    }
+
+    it('a change of speed from 1x to 60x is not a jump', () => {
+      const clock = new OrbitSampleClock(200);
+      const state = {time: T0, wall: 0};
+      clock.update(state.time, state.wall);
+      countJumps(clock, state, 1, 30);
+      const {jumps, rate} = countJumps(clock, state, 60, 10);
+      expect(jumps).toBe(0);
+      expect(Math.abs(rate - 60) / 60).toBeLessThan(0.05);
+    });
+
+    it.each([60, 3600])('%dx from the start gives at most one jump', speed => {
+      const clock = new OrbitSampleClock(200);
+      const state = {time: T0, wall: 0};
+      clock.update(state.time, state.wall);
+      const {jumps, rate} = countJumps(clock, state, speed, 20);
+      expect(jumps).toBeLessThanOrEqual(1);
+      expect(Math.abs(rate - speed) / speed).toBeLessThan(0.05);
+    });
+
+    it('still detects real jumps at 1x', () => {
+      const clock = new OrbitSampleClock(200);
+      const state = {time: T0, wall: 0};
+      clock.update(state.time, state.wall);
+      countJumps(clock, state, 1, 20);
+      state.time -= 600000;
+      state.wall += FRAME_MS;
+      expect(clock.update(state.time, state.wall).jumped).toBe(true);
+      state.time += 86400000;
+      state.wall += FRAME_MS;
+      expect(clock.update(state.time, state.wall).jumped).toBe(true);
+      expect(countJumps(clock, state, 1, 10).jumps).toBe(0);
+    });
+  });
 });
