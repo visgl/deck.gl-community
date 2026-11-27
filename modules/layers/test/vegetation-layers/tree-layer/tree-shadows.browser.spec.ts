@@ -15,7 +15,7 @@ import {SolidPolygonLayer} from '@deck.gl/layers';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {CubeGeometry} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
-import 'maplibre-gl';
+import maplibre from 'maplibre-gl';
 import {describe, expect, it} from 'vitest';
 import {SelectionPulseExtension, SplatLayer, TreeLayer, type TreeSpec} from '../../../src';
 
@@ -451,7 +451,6 @@ it.each([
     const container = document.createElement('div');
     container.style.cssText = `width:${SIZE}px;height:${SIZE}px;position:relative`;
     document.body.append(container);
-    const maplibre = (globalThis as any).maplibregl;
     const map = new maplibre.Map({
       container,
       style: {

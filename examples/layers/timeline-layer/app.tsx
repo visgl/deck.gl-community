@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {ReactElement, useMemo, useEffect} from 'react';
-import DeckGL from '@deck.gl/react/legacy';
-import {OrthographicView, type OrthographicViewState} from '@deck.gl/core';
+import {ReactElement, useMemo, useEffect, useLayoutEffect, useRef} from 'react';
+import {Deck, OrthographicView, type OrthographicViewState} from '@deck.gl/core';
 import {TimelineLayer} from '@deck.gl-community/layers/timeline-layers';
 import {useTimelineControls, TimelineControls} from './demo-controls';
 import {
@@ -140,6 +139,32 @@ export default function App(): ReactElement {
     timelineLayerRef.current = timelineLayer;
   }, [timelineLayer, timelineLayerRef]);
 
+  const deckRef = useRef<Deck<OrthographicView>>(null);
+  useLayoutEffect(() => {
+    const deck = new Deck({
+      parent: containerRef.current!,
+      views: ORTHOGRAPHIC_VIEW,
+      initialViewState,
+      controller: CONTROLLER_CONFIG,
+      pickingRadius: 10,
+      useDevicePixels: false
+    });
+    deckRef.current = deck;
+    return () => {
+      deckRef.current = null;
+      deck.finalize();
+    };
+  }, [containerRef, initialViewState]);
+
+  useLayoutEffect(() => {
+    deckRef.current?.setProps({
+      layers: [timelineLayer],
+      onHover: deckGLHandlers.handleDeckGLHover,
+      onClick: deckGLHandlers.handleDeckGLClick,
+      getCursor
+    });
+  }, [timelineLayer, deckGLHandlers, getCursor]);
+
   return (
     <div style={{display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden'}}>
       <TimelineControls
@@ -156,19 +181,7 @@ export default function App(): ReactElement {
         onMouseDown={containerHandlers.handleContainerMouseDown}
         onMouseMove={containerHandlers.handleContainerMouseMove}
         onMouseUp={containerHandlers.handleContainerMouseUp}
-      >
-        <DeckGL
-          views={ORTHOGRAPHIC_VIEW}
-          initialViewState={initialViewState}
-          controller={CONTROLLER_CONFIG}
-          layers={[timelineLayer]}
-          pickingRadius={10}
-          useDevicePixels={false}
-          onHover={deckGLHandlers.handleDeckGLHover}
-          onClick={deckGLHandlers.handleDeckGLClick}
-          getCursor={getCursor}
-        />
-      </div>
+      />
     </div>
   );
 }
