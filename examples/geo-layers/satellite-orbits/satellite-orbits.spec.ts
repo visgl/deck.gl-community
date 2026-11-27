@@ -8,7 +8,8 @@ import {describe, expect, it, vi} from 'vitest';
 
 import {mountSatelliteOrbitsExample, type SatelliteOrbitsHandle} from './app';
 import fixture from './data/gp-fixture.omm.json';
-import {createSatRec, parseOmmJson, parseTleText} from './gp-records';
+import {createSatRec} from './gp-records';
+import {parseGpRecords} from './load-gp-records';
 import {
   classifyOrbit,
   getGroundTrack,
@@ -26,9 +27,10 @@ vi.mock('@deck.gl/core', () => ({
   GlobeView: class {}
 }));
 
-const records = parseOmmJson(fixture as unknown[]);
-const tleRecords = parseTleText(
-  readFileSync(new URL('./data/stations.tle', import.meta.url), 'utf8')
+const records = await parseGpRecords(JSON.stringify(fixture), 'json');
+const tleRecords = await parseGpRecords(
+  readFileSync(new URL('./data/stations.tle', import.meta.url), 'utf8'),
+  'tle'
 );
 const getRecord = (noradId: number) => records.find(record => record.noradId === noradId)!;
 const ISS = 25544;
