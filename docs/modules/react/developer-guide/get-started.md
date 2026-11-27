@@ -71,6 +71,11 @@ to the controller to recreate its renderer when the active device changes. Pass
 `onDeviceTypeChange` when backend selection needs to coordinate with other
 example state.
 
+Selectors using the same controller share the active selection. Separate
+controllers on the same site restore the saved backend on initialization when
+it is allowed and available. Set `persistPreference: false` on the controller
+for a selection that should stay local to one example.
+
 ## HTML overlays
 
 HTML overlays from this package have moved to the **@deck.gl-community/widgets** module so they can

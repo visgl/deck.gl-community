@@ -92,7 +92,6 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     'preact/test-utils',
     'probe.gl/stats',
     'preact/jsx-dev-runtime',
-    'boxicons',
     'zod',
     'vega',
     '@deck.gl/core',
