@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {readFileSync} from 'node:fs';
+import {readFileSync, rmSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 
@@ -28,6 +28,9 @@ await build({
   external: ['node:*'],
   minify: true
 });
+
+// The bundle has no source map, so the map that tsc emitted for the old file is stale.
+rmSync(`${outfile}.map`, {force: true});
 
 // A browser cannot load node:* modules, so the worker must not reference any.
 if (readFileSync(outfile, 'utf8').includes('node:')) {
