@@ -162,6 +162,8 @@ type OrbitLayerState = {
   nextRequestId: number;
   /** The sample request in flight; 0 when none. Replies to other requests drop. */
   pendingRequestId: number;
+  /** The latest time jump that came while a request was in flight; `null` when none. */
+  queuedJumpMs: number | null;
   lastRequestWallMs: number;
   selectedNoradId: number | null;
   selection: Selection | null;
@@ -209,6 +211,7 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
       radiusAttribute: {value: new Float32Array(0), size: 1},
       nextRequestId: 1,
       pendingRequestId: 0,
+      queuedJumpMs: null,
       lastRequestWallMs: -Infinity,
       selectedNoradId: null,
       selection: null,
@@ -243,6 +246,7 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
       state.sampleA = state.sampleB = null;
       state.selection = null;
       state.pendingRequestId = 0;
+      state.queuedJumpMs = null;
       this.loadData(props.data, state.generation);
     } else if (reinit && state.records) {
       this.reinit();
@@ -344,7 +348,9 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
       layers.push(
         new PathLayer(this.getSubLayerProps({id: 'ground-track'}), pathProps, {
           data: selection.groundTrack,
-          getColor: groundTrackColor
+          getColor: groundTrackColor,
+          // Cuts the track at ±180° on MapView.
+          wrapLongitude: true
         })
       );
     }
@@ -353,6 +359,7 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
         new PathLayer(this.getSubLayerProps({id: 'orbit'}), pathProps, {
           data: selection.orbit,
           getColor: orbitColor,
+          wrapLongitude: true,
           // GlobeView culls back faces by default. That drops the far half of a path in space.
           parameters: {cullMode: 'none'}
         })
@@ -432,6 +439,7 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
     const {state} = this;
     state.generation++;
     state.pendingRequestId = 0;
+    state.queuedJumpMs = null;
     this.requestInit(state.records!, state.generation);
   }
 
@@ -485,6 +493,7 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
       state.radiusAttribute = {value: new Float32Array(satellites.length), size: 1};
     }
     this.updateSelection();
+    state.queuedJumpMs = null;
     this.requestSample(this.getCurrentTime(), true);
     this.setNeedsUpdate();
     if (state.reportedRecords !== records) {
@@ -504,7 +513,12 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
     const {jumped} = state.clock.update(currentTimeMs, wallMs);
     if (state.dataset?.generation === state.generation) {
       if (jumped) {
-        this.requestSample(currentTimeMs, true);
+        // One request at a time: a scrubbed slider must not queue full SGP4 passes.
+        if (state.pendingRequestId) {
+          state.queuedJumpMs = currentTimeMs;
+        } else {
+          this.requestSample(currentTimeMs, true);
+        }
       } else if (
         !state.pendingRequestId &&
         wallMs - state.lastRequestWallMs >= state.sampleIntervalMs
@@ -545,11 +559,19 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
     state.pendingRequestId = 0;
     state.recovering = false;
     state.errorReported = false;
-    state.sampleA = reset || !state.sampleB ? sample : state.sampleB;
-    state.sampleB = sample;
-    this.updateVisibleRadii();
-    this.interpolate();
-    this.setNeedsUpdate();
+    const {queuedJumpMs} = state;
+    state.queuedJumpMs = null;
+    // A sample from before a queued jump is out of date; a jump sample is still closer.
+    if (reset || queuedJumpMs === null) {
+      state.sampleA = reset || !state.sampleB ? sample : state.sampleB;
+      state.sampleB = sample;
+      this.updateVisibleRadii();
+      this.interpolate();
+      this.setNeedsUpdate();
+    }
+    if (queuedJumpMs !== null) {
+      this.requestSample(queuedJumpMs, true);
+    }
   }
 
   /** Radius 0 hides satellites that SGP4 failed for, and keeps their index for picking. */
@@ -627,6 +649,9 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
   /** Reports a propagator error once, and sends the current records again. */
   private onPropagatorError(error: Error): void {
     const {state} = this;
+    // The next time change asks again; a re-init below also asks for a sample.
+    state.pendingRequestId = 0;
+    state.queuedJumpMs = null;
     if (!state.errorReported) {
       state.errorReported = true;
       this.raiseError(error, 'OrbitLayer propagation failed');

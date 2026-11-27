@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, GlobeView, type Layer} from '@deck.gl/core';
+import {Deck, GlobeView, MapView, type Layer} from '@deck.gl/core';
 import {parse} from '@loaders.gl/core';
 import {OMMLoader, type OMMRow} from '@loaders.gl/scientific/omm';
 import {luma, Buffer, Texture, type Device, type Framebuffer} from '@luma.gl/core';
@@ -57,7 +57,7 @@ const ROWS_APART_FROM_ISS = ROWS.filter(row => {
 });
 
 type TestContext = {
-  deck: Deck<GlobeView>;
+  deck: Deck<GlobeView | MapView>;
   device: Device;
   errors: Error[];
   setLayer: (props: Partial<OrbitLayerProps>) => void;
@@ -76,7 +76,8 @@ afterEach(() => {
 
 async function createTestContext(
   backend: 'webgl' | 'webgpu',
-  skip: (message: string) => void
+  skip: (message: string) => void,
+  view: GlobeView | MapView = new GlobeView()
 ): Promise<TestContext | null> {
   if (backend === 'webgpu') {
     await requireWebGPUAdapter(skip);
@@ -118,7 +119,7 @@ async function createTestContext(
     height: SIZE,
     useDevicePixels: false,
     _framebuffer: framebuffer,
-    views: new GlobeView(),
+    views: view,
     initialViewState: {longitude: ISS_START[0], latitude: ISS_START[1], zoom: 0},
     layers: [],
     onError: error => {
@@ -423,6 +424,92 @@ describe.for(['webgl', 'webgpu'] as const)('OrbitLayer on %s', backend => {
       }
       expect(Math.abs(position[2] - reference[2])).toBeLessThan(1e-3);
     }
+    expect(context.errors).toEqual([]);
+  });
+
+  it(`the ground track is cut at the antimeridian on MapView (${backend})`, async ({skip}) => {
+    const context = (await createTestContext(backend, skip, new MapView()))!;
+    context.setLayer({data: ROWS, selectedNoradId: ISS});
+    await context.waitFor(() => Boolean(context.getSubLayer('ground-track')), 'ground track');
+    await context.readPixels();
+    const track = (context.getSubLayer('ground-track')!.props.data as number[][][])[0];
+    // Precondition: two periods of the ISS cross the antimeridian.
+    expect(track.some((point, i) => i > 0 && Math.abs(point[0] - track[i - 1][0]) > 180)).toBe(
+      true
+    );
+    const {pathTesselator} = context.getSubLayer('ground-track')!.state as any;
+    const positions = pathTesselator.attributes.positions as Float64Array;
+    const segmentTypes = pathTesselator.attributes.segmentTypes as Uint8Array;
+    let parts = 0;
+    for (let i = 0; i < pathTesselator.instanceCount - 1; i++) {
+      // Bit 4 marks a vertex that starts no segment; bit 1 marks the start of a part.
+      parts += segmentTypes[i] & 1;
+      if ((segmentTypes[i] & 4) === 0) {
+        expect(Math.abs(positions[(i + 1) * 3] - positions[i * 3])).toBeLessThanOrEqual(180);
+      }
+    }
+    expect(parts).toBeGreaterThan(1);
+    expect(context.errors).toEqual([]);
+  });
+
+  it(`a propagator error re-inits with the current data (${backend})`, async ({skip}) => {
+    const context = (await createTestContext(backend, skip))!;
+    const onError = vi.fn(() => true);
+    context.setLayer({data: ROWS, onError});
+    await context.waitFor(() => hasSample(context), 'a sample');
+    const state = context.getLayer().state;
+    const {propagator, generation} = state;
+    const propagate = propagator.propagate.bind(propagator);
+    const init = vi.spyOn(propagator, 'init');
+    // The first request after the error and the request after the re-init both fail.
+    let failures = 2;
+    propagator.propagate = (gen: number, timeMs: number) =>
+      failures-- > 0 ? Promise.reject(new Error('test failure')) : propagate(gen, timeMs);
+
+    context.setLayer({currentTime: TIME_MS + 3600e3});
+    await context.waitFor(() => failures <= 0, 'two failures');
+    await context.readPixels();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(init).toHaveBeenCalledTimes(1);
+    expect(context.getLayer().state.generation).toBe(generation + 1);
+
+    // The next time change asks again, and the layer recovers.
+    context.setLayer({currentTime: TIME_MS + 7200e3});
+    await context.waitFor(() => hasSample(context), 'a sample of the new generation');
+    expect(context.getLayer().state.sampleB!.generation).toBe(generation + 1);
+    expect(getNumInstances(context)).toBe(224);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(context.errors).toEqual([]);
+  });
+
+  it(`time jumps keep one sample request in flight (${backend})`, async ({skip}) => {
+    const context = (await createTestContext(backend, skip))!;
+    context.setLayer({data: ROWS});
+    await context.waitFor(() => hasSample(context), 'a sample');
+    const {propagator} = context.getLayer().state;
+    const propagate = propagator.propagate.bind(propagator);
+    const releases: (() => void)[] = [];
+    const calls: number[] = [];
+    propagator.propagate = (gen: number, timeMs: number) => {
+      calls.push(timeMs);
+      return new Promise(resolve => releases.push(() => resolve(propagate(gen, timeMs))));
+    };
+    // Back and forth by an hour: every frame is a jump.
+    const getJumpTime = (i: number) => TIME_MS + (i % 2 ? 0 : 3600e3) + i * 1000;
+    for (let i = 0; i < 20; i++) {
+      context.setLayer({currentTime: getJumpTime(i)});
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+    expect(calls.length).toBe(1);
+    releases.shift()!();
+    await context.waitFor(() => calls.length === 2, 'the queued jump');
+    expect(calls[1]).toBe(getJumpTime(19));
+    releases.shift()!();
+    await context.waitFor(
+      () => context.getLayer().state.sampleB?.timeMs === getJumpTime(19),
+      'the latest jump sample'
+    );
+    expect(calls.length).toBe(2);
     expect(context.errors).toEqual([]);
   });
 });

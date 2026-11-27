@@ -59,7 +59,10 @@ export function getStaticAttributes(
   return {colors: {value: colors, size: 4, normalized: true}, radii};
 }
 
-/** Radius 0 hides satellites that SGP4 failed for, and keeps their index for picking. */
+/**
+ * Radius 0 hides satellites that SGP4 failed for, and keeps their index for picking. With
+ * `radiusMinPixels > 0` the radius is clamped up, and the NaN position hides the point.
+ */
 export function getVisibleRadii(
   radii: Float32Array,
   sampleA: OrbitSample,
