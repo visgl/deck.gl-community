@@ -463,22 +463,9 @@ export async function mountSwitchableAmbientOcclusionExample(
 
   const tabsHost = document.createElement('div');
   tabsHost.style.cssText = 'position:absolute;top:12px;right:12px;z-index:4';
-  const tabs = new DeviceTabsWidget({
-    manager,
-    autoInitialize: false,
-    onDeviceTypeChange: type => {
-      const currentMethod = example?.method;
-      const nextMethod = currentMethod?.id.startsWith('cortao')
-        ? getMethod(undefined, type)
-        : getMethod(
-            currentMethod?.device && currentMethod.device !== type ? 'none' : currentMethod?.id,
-            type
-          );
-      void select(nextMethod, type);
-    }
-  });
+  let tabs: DeviceTabsWidget | undefined;
   const finalize = () => {
-    tabs.onRemove();
+    tabs?.onRemove();
     tabsHost.remove();
     example?.finalize();
     example = undefined;
@@ -495,6 +482,20 @@ export async function mountSwitchableAmbientOcclusionExample(
     }
     mount(device, method);
     if (options.controls !== false) {
+      tabs = new DeviceTabsWidget({
+        manager,
+        autoInitialize: false,
+        onDeviceTypeChange: type => {
+          const currentMethod = example?.method;
+          const nextMethod = currentMethod?.id.startsWith('cortao')
+            ? getMethod(undefined, type)
+            : getMethod(
+                currentMethod?.device && currentMethod.device !== type ? 'none' : currentMethod?.id,
+                type
+              );
+          void select(nextMethod, type);
+        }
+      });
       container.append(tabsHost);
       tabs.onRenderHTML(tabsHost);
     }
