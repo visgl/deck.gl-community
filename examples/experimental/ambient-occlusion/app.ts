@@ -147,6 +147,9 @@ export function mountAmbientOcclusionExample(
   container: HTMLElement,
   options: AmbientOcclusionExampleOptions = {}
 ): AmbientOcclusionExample {
+  if (getComputedStyle(container).position === 'static') {
+    container.style.position = 'relative';
+  }
   const deviceType = options.device?.type === 'webgpu' ? 'webgpu' : 'webgl';
   const method = getMethod(options.method, deviceType);
   let scene: Scene = getScene(options.scene);
@@ -250,7 +253,6 @@ export function mountAmbientOcclusionExample(
     'position:absolute;right:0;bottom:0;z-index:1;padding:2px 6px;max-width:60%;' +
     'background:rgba(255,255,255,0.8);color:#1f2328;font:11px sans-serif';
   attribution.textContent = scene.attribution;
-  container.style.position = 'relative';
   container.append(attribution);
 
   const panel =
@@ -375,7 +377,6 @@ function createControls(container: HTMLElement, method: Method, props: ExampleEf
     <label>Intensity <input type="range" name="intensity" min="0.25" max="4" step="0.05"
       value="${intensity}"${cortaoOnly}> <span name="intensityValue">${intensity}</span></label><br>
     <div style="color:#555">Hold <kbd>Space</kbd> to see the scene without the effect.</div>`;
-  container.style.position = 'relative';
   container.append(root);
   const get = <T extends Element>(name: string) => root.querySelector(`[name="${name}"]`) as T;
   return {
