@@ -3,8 +3,14 @@
 // Copyright (c) vis.gl contributors
 
 import {readFileSync} from 'fs';
-import {describe, expect, it} from 'vitest';
+import {BoxPanelContainer, SidebarPanelContainer} from '@deck.gl-community/panels';
+import {describe, expect, it, vi} from 'vitest';
 import * as deckCanvas from './deck-canvas';
+import * as fiber from './index';
+import * as legacy from './legacy';
+
+// Legacy icons register a browser custom element as a side effect.
+vi.mock('boxicons', () => ({}));
 
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
@@ -18,9 +24,46 @@ describe('@deck.gl-community/react entry points', () => {
     });
   });
 
-  it('keeps @deck.gl/core out of the root entry point', () => {
-    const rootSource = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
-    expect(rootSource).not.toMatch(/deck-canvas/);
-    expect(packageJson.peerDependencies).not.toHaveProperty('@deck.gl/core');
+  it('provides the previous React components from the legacy subpath', () => {
+    expect(Object.keys(legacy).sort()).toEqual([
+      'Button',
+      'Icon',
+      'LongPressButton',
+      'Modal',
+      'Panel',
+      'ReactPanel',
+      'useReactPanel'
+    ]);
+    expect(packageJson.exports['./legacy']).toEqual({
+      types: './dist/legacy.d.ts',
+      require: './dist/legacy.cjs',
+      import: './dist/legacy.js'
+    });
+  });
+
+  it('wraps a chosen panel component as a native Fiber widget', () => {
+    expect(Object.keys(fiber)).toEqual(['Panel']);
+    const box = fiber.Panel({
+      type: BoxPanelContainer,
+      id: 'box',
+      title: 'Tools',
+      widthPx: 320
+    });
+    expect(box).toMatchObject({
+      type: 'deckWidget',
+      props: {
+        widget: {
+          id: 'box',
+          component: expect.any(BoxPanelContainer),
+          props: {title: 'Tools', widthPx: 320}
+        }
+      }
+    });
+
+    const sidebar = fiber.Panel({type: SidebarPanelContainer, id: 'sidebar', side: 'right'});
+    expect(sidebar).toMatchObject({
+      type: 'deckWidget',
+      props: {widget: {id: 'sidebar', component: expect.any(SidebarPanelContainer)}}
+    });
   });
 });

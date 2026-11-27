@@ -23,8 +23,12 @@ const ALIASES = [
     replacement: fileURLToPath(new URL('./modules/playground/src/index.ts', import.meta.url))
   },
   {
-    find: '@deck.gl-community/react',
+    find: /^@deck\.gl-community\/react$/,
     replacement: fileURLToPath(new URL('./modules/react/src/index.ts', import.meta.url))
+  },
+  {
+    find: '@deck.gl-community/react/legacy',
+    replacement: fileURLToPath(new URL('./modules/react/src/legacy.ts', import.meta.url))
   },
   {
     find: '@deck.gl-community/panels',

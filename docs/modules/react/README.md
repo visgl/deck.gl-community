@@ -5,13 +5,13 @@ introduced: "9.0"
 
 # Overview
 
-A collection of generic react components to use with deck.gl
+The package root provides a JSX `Panel` component for the upstream [deck.gl React Fiber renderer](https://deck.gl/docs/get-started/using-with-react).
 
-> After the introduction of widgets in deck.gl 9.1, the general direction is to develop components as widgets (these work in all deck.gl environments, not just React) and phase out older React components.
-
-This package also includes `Panel`, a small React wrapper for rendering
-`@deck.gl-community/panels` content directly inside React and MDX trees. `ReactPanel` and `useReactPanel` also
-embed React-owned controls in panel surfaces and compositions while preserving context.
+The previous React components and hooks are available from
+`@deck.gl-community/react/legacy`. `Panel` renders
+`@deck.gl-community/panels` content inside React and MDX trees. `ReactPanel`
+and `useReactPanel` embed React-owned controls in panel compositions while
+preserving context.
 
 :::caution
 The deck.gl-community repository is semi-maintained. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.

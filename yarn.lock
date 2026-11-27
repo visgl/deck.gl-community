@@ -1051,6 +1051,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/react@workspace:modules/react"
   dependencies:
+    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl/react": "npm:10.0.0-alpha.2"
     boxicons: "npm:^2.1.4"
     preact: "npm:^10.17.0"
     prop-types: "npm:^15.8.1"
@@ -1058,6 +1060,13 @@ __metadata:
     react-dom: "npm:^18.3.1 || ^19.0.0"
   peerDependencies:
     "@deck.gl-community/panels": 10.0.0-alpha.3
+    "@deck.gl-community/widgets": 10.0.0-alpha.3
+    "@deck.gl/react": 10.0.0-alpha.2
+  peerDependenciesMeta:
+    "@deck.gl-community/widgets":
+      optional: true
+    "@deck.gl/react":
+      optional: true
   languageName: unknown
   linkType: soft
 

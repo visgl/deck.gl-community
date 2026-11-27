@@ -1,6 +1,6 @@
 import PanelContentBridgeDemo from '@site/src/components/docs/panel-content-bridge-demo';
 import * as React from 'react';
-import {Panel as PanelHost} from '@deck.gl-community/react';
+import {Panel as PanelHost} from '@deck.gl-community/react/legacy';
 import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 
 # Panel
@@ -12,7 +12,7 @@ import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 ## Import
 
 ```tsx
-import {Panel, type PanelProps} from '@deck.gl-community/react';
+import {Panel, type PanelProps} from '@deck.gl-community/react/legacy';
 ```
 
 ## Props
@@ -43,7 +43,7 @@ panel={
         id: 'intro',
         title: 'React host',
         markdown:
-          'This panel is rendered in MDX through `@deck.gl-community/react`.'
+          'This panel is rendered in MDX through `@deck.gl-community/react/legacy`.'
       }),
       new MarkdownPanel({
         id: 'notes',
@@ -60,7 +60,7 @@ style={{maxWidth: 720, marginBottom: 24}}
 ## Usage
 
 ```tsx
-import {Panel} from '@deck.gl-community/react';
+import {Panel} from '@deck.gl-community/react/legacy';
 import {MarkdownPanel} from '@deck.gl-community/panels';
 
 const summaryPanel = new MarkdownPanel({
@@ -80,7 +80,7 @@ Create Arrow inspection panels from `@deck.gl-community/panels` and render them
 with `Panel` in MDX.
 
 ```tsx
-import {Panel} from '@deck.gl-community/react';
+import {Panel} from '@deck.gl-community/react/legacy';
 import {ArrowTablePanel} from '@deck.gl-community/panels';
 
 const tablePanel = new ArrowTablePanel({
@@ -124,7 +124,7 @@ and state belong to the caller's React tree; the bridge does not create another 
 `title` is required, `id` is optional, and the host accepts the same theme/frame props as `Panel`.
 
 ```tsx
-import {ReactPanel} from '@deck.gl-community/react';
+import {ReactPanel} from '@deck.gl-community/react/legacy';
 
 <ReactPanel title="Controls" theme="sleek-light">
   <ApplicationControls />
