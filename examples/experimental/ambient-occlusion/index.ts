@@ -69,6 +69,10 @@ async function startAmbientOcclusionExample() {
       compare?.example.setScene(scene);
     },
     onEffectPropsChange: props => compare?.example.setEffectProps(props),
+    onAmbientOcclusionChange: enabled => {
+      baseOptions.ambientOcclusion = enabled;
+      compare?.example.setAmbientOcclusion(enabled);
+    },
     onViewStateChange: viewState => compare?.example.setViewState(viewState)
   });
 
@@ -95,13 +99,14 @@ async function startAmbientOcclusionExample() {
       controls: false,
       onViewStateChange: viewState => primary.example.setViewState(viewState)
     });
+    compare.example.setAmbientOcclusion(baseOptions.ambientOcclusion ?? true);
     const divider = document.createElement('div');
     divider.style.cssText =
       'position:absolute;top:0;bottom:0;z-index:3;width:4px;margin-left:-2px;cursor:ew-resize;' +
       'background:#fff;box-shadow:0 0 4px rgba(0,0,0,0.6)';
     const labels = document.createElement('div');
     labels.style.cssText =
-      'position:absolute;top:52px;right:12px;z-index:3;padding:4px 8px;border-radius:4px;' +
+      'position:absolute;top:66px;right:12px;z-index:3;padding:4px 8px;border-radius:4px;' +
       'background:rgba(255,255,255,0.9);font:13px sans-serif';
     comparisonLabels = labels;
     updateComparisonLabels();
