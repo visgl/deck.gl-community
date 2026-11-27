@@ -57,7 +57,7 @@ const SELECT_STYLE: JSX.CSSProperties = {
   colorScheme: 'dark',
   boxShadow: '0 8px 22px rgba(0, 0, 0, 0.2)',
   cursor: 'pointer',
-  font: 'inherit',
+  fontFamily: 'var(--deck-device-font-family, system-ui, sans-serif)',
   fontSize: '13px',
   fontWeight: 650
 };
