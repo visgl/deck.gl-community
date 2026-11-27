@@ -10,6 +10,7 @@ import {
   type OrbitInitResult,
   type OrbitSample
 } from './orbit-propagation-core';
+import type {WorkerRequest, WorkerResponse} from './orbit-propagation-worker';
 
 export type {OrbitInitResult, OrbitSample};
 
@@ -30,26 +31,104 @@ export function isCurrentGeneration(result: {generation: number}, generation: nu
   return result.generation === generation;
 }
 
+const DESTROYED_MESSAGE = 'OrbitPropagator was destroyed';
+
 /** Creates a propagator that runs in a Web Worker or on the main thread. */
 export function createOrbitPropagator(mode: 'worker' | 'main-thread'): OrbitPropagator {
-  if (mode === 'worker') {
-    throw new Error('Worker propagation is added in a later task');
-  }
-  return new MainThreadOrbitPropagator();
+  return mode === 'worker' ? new WorkerOrbitPropagator() : new MainThreadOrbitPropagator();
 }
 
 class MainThreadOrbitPropagator implements OrbitPropagator {
   private readonly state = createPropagationState();
+  private destroyed = false;
 
   async init(generation: number, records: GpRecord[]): Promise<OrbitInitResult> {
+    if (this.destroyed) {
+      throw new Error(DESTROYED_MESSAGE);
+    }
     return initPropagation(this.state, generation, records);
   }
 
   async propagate(generation: number, timeMs: number): Promise<OrbitSample> {
+    if (this.destroyed) {
+      throw new Error(DESTROYED_MESSAGE);
+    }
     return propagateAll(this.state, generation, timeMs);
   }
 
   destroy(): void {
+    this.destroyed = true;
     this.state.satrecs = [];
+  }
+}
+
+type PendingRequest = {resolve: (value: any) => void; reject: (error: Error) => void};
+
+class WorkerOrbitPropagator implements OrbitPropagator {
+  private worker: Worker | null = null;
+  private destroyed = false;
+  private nextRequestId = 1;
+  private readonly pending = new Map<number, PendingRequest>();
+
+  init(generation: number, records: GpRecord[]): Promise<OrbitInitResult> {
+    return this.request(requestId => ({type: 'init', requestId, generation, records}));
+  }
+
+  propagate(generation: number, timeMs: number): Promise<OrbitSample> {
+    // The worker replies with the generation of its latest init, so `generation` is not sent.
+    return this.request(requestId => ({type: 'propagate', requestId, timeMs}));
+  }
+
+  destroy(): void {
+    this.destroyed = true;
+    this.worker?.terminate();
+    this.worker = null;
+    this.rejectAll(new Error(DESTROYED_MESSAGE));
+  }
+
+  private request<T>(createMessage: (requestId: number) => WorkerRequest): Promise<T> {
+    if (this.destroyed) {
+      return Promise.reject(new Error(DESTROYED_MESSAGE));
+    }
+    const worker = this.getWorker();
+    const requestId = this.nextRequestId++;
+    return new Promise<T>((resolve, reject) => {
+      this.pending.set(requestId, {resolve, reject});
+      worker.postMessage(createMessage(requestId));
+    });
+  }
+
+  private getWorker(): Worker {
+    if (!this.worker) {
+      const worker = new Worker(new URL('./orbit-propagation-worker.js', import.meta.url), {
+        type: 'module'
+      });
+      worker.onmessage = (event: MessageEvent<WorkerResponse>) => this.handleMessage(event.data);
+      worker.onerror = event => this.rejectAll(new Error(event.message || 'Orbit worker failed'));
+      worker.onmessageerror = () => this.rejectAll(new Error('Orbit worker message failed'));
+      this.worker = worker;
+    }
+    return this.worker;
+  }
+
+  private handleMessage(response: WorkerResponse): void {
+    const request = this.pending.get(response.requestId);
+    if (!request) {
+      return;
+    }
+    this.pending.delete(response.requestId);
+    if (response.type === 'error') {
+      request.reject(new Error(response.message));
+    } else {
+      request.resolve(response);
+    }
+  }
+
+  private rejectAll(error: Error): void {
+    const requests = [...this.pending.values()];
+    this.pending.clear();
+    for (const request of requests) {
+      request.reject(error);
+    }
   }
 }

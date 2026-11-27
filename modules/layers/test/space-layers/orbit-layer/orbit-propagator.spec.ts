@@ -93,4 +93,12 @@ describe('createOrbitPropagator (main thread)', () => {
     expect(Number.isNaN(sample.speedsKmS[1])).toBe(true);
     propagator.destroy();
   });
+
+  it('rejects init and propagate after destroy', async () => {
+    const propagator = createOrbitPropagator('main-thread');
+    await propagator.init(1, records);
+    propagator.destroy();
+    await expect(propagator.propagate(1, DATE.getTime())).rejects.toThrow(/destroyed/);
+    await expect(propagator.init(2, records)).rejects.toThrow(/destroyed/);
+  });
 });
