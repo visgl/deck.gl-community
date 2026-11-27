@@ -1,21 +1,20 @@
-# Satellite orbits on GlobeView (prototype)
+# Satellite orbits on GlobeView
 
 This example shows satellites from CelesTrak general perturbations (GP) data on a deck.gl
-`GlobeView`, at their altitude. It is a prototype for a possible `OrbitLayer` in
-deck.gl-community.
+`GlobeView`, at their altitude. It uses `OrbitLayer` from
+`@deck.gl-community/layers/space-layers`. See the
+[OrbitLayer documentation](../../../docs/modules/layers/api-reference/orbit-layer.md).
 
-- The `OMMLoader` and `TLELoader` of `@loaders.gl/scientific` parse the GP data. Both loaders
-  return the same OMM rows, so OMM JSON and TLE text reach SGP4 through one path
-  (`load-gp-records.ts`). The propagation worker imports only `satellite.js` (`gp-records.ts`).
-
-- A Web Worker propagates all satellites with SGP4 (`satellite.js`) at 5 Hz.
-  The main thread interpolates the positions between two samples in each frame.
-- A `ScatterplotLayer` draws the satellites at their altitude (z in meters). Colors show the
-  orbit class: LEO (apogee below 2,000 km), MEO, GEO (period within 2 % of one sidereal day)
-  and HEO (eccentricity above 0.25).
-- Click a satellite to select it. A `PathLayer` draws its orbit for one period at altitude,
-  and a second `PathLayer` draws its ground track (z = 0) from one period before to one period
-  after the current time.
+- The app gives the layer the loaded text (OMM JSON or TLE) or the fixture rows as `data`, and
+  the simulated time as `currentTime` on each frame.
+- The layer parses the data, runs SGP4 in a Web Worker at 5 Hz and interpolates the positions
+  in each frame. Colors show the orbit class: LEO (apogee below 2,000 km), MEO, GEO (period
+  within 2 % of one sidereal day) and HEO (eccentricity above 0.25).
+- Click a satellite to select it (`selectedNoradId`). The layer draws its orbit for one period
+  at altitude, and its ground track (z = 0) from one period before to one period after the
+  current time. "Follow" uses `onSelectedPositionChange`.
+- The app keeps the panel, the CelesTrak cache, the Earth and land backdrop, the clock and the
+  camera. The GEO button selects TDRS 3 (NORAD 19548), which is in the fixture.
 
 ## Run
 
@@ -38,14 +37,14 @@ URL parameters:
 | `cullPaths` | Keep the `GlobeView` back-face culling on the orbit path. |
 | `tracks=0` | Do not draw the orbit and the ground track. |
 | `cameraRelative` | Pass `_cameraRelative: true` to `GlobeView` (needs deck.gl PR #11283). |
-| `measure` | Put a measurement handle on `window.satelliteOrbits`. |
+| `measure` | Put a measurement handle on `window.satelliteOrbits`: `deck`, `stats` (`count`, `rejected`) and `setPlaying`. |
 
 ## Data and licenses
 
 - `data/gp-fixture.omm.json` (93 KB) has 224 element sets from CelesTrak, downloaded on
   2026-11-24: the `stations`, `gps-ops` and `galileo` groups, 48 GEO, 16 HEO and 80 LEO
   satellites from the `geo` and `active` groups. `data/stations.tle` is the `stations` group as
-  TLE text, for the parser test. The fixture runs at its median epoch, so it stays accurate
+  TLE text. The fixture runs at its median epoch, so it stays accurate
   offline.
 - CelesTrak: the data is free to use. CelesTrak does not state a license, a redistribution rule
   or an attribution rule. The [usage policy](https://celestrak.org/usage-policy.php) asks
@@ -55,13 +54,13 @@ URL parameters:
   JSON) is too large for `localStorage`. CelesTrak sends `Access-Control-Allow-Origin: *`.
 - CelesTrak TLE text does not include objects with a catalog number above 99999. OMM JSON
   includes them (`stations` has 16 objects in OMM JSON and 13 in TLE).
-- [`satellite.js`](https://github.com/shashwatak/satellite-js) 7.2.0 is MIT. The example
-  uses `json2satrec`, `propagate`, `gstime` and `eciToGeodetic`.
-  The package entry also exports WASM builds that use top-level await. Thus
-  `vite.config.ts` sets the ES2022 target and an ES module worker. The worker bundle is 22 KB
-  because the bundler removes the unused WASM code.
+- [`satellite.js`](https://github.com/shashwatak/satellite-js) 7.2.0 is MIT. `OrbitLayer`
+  uses it. The package entry also exports WASM builds that use top-level await. Thus
+  `vite.config.ts` sets the ES2022 target and an ES module worker.
 
 ## Measurements
+
+These numbers come from the prototype of this example, before the code moved into `OrbitLayer`. The handle no longer has `getPosition`, and `stats` no longer has the worker timings.
 
 Method: headless Chromium (Playwright 1.62, `--use-angle=metal`), Apple M1 Max, 1400 x 900
 viewport, device pixel ratio 1. The `active` group was downloaded once (16,905 element sets)
