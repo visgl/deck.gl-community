@@ -15,7 +15,8 @@ type LayerProps = {
 
 const deckProps: {layers?: {props: LayerProps}[]} = {};
 
-vi.mock('@deck.gl/core', () => ({
+vi.mock('@deck.gl/core', async importOriginal => ({
+  ...(await importOriginal<object>()),
   Deck: class {
     finalize = vi.fn();
     setProps(props: typeof deckProps) {
@@ -25,7 +26,8 @@ vi.mock('@deck.gl/core', () => ({
   GlobeView: class {}
 }));
 
-vi.mock('@deck.gl-community/layers/space-layers', () => ({
+vi.mock('@deck.gl-community/layers/space-layers', async importOriginal => ({
+  ...(await importOriginal<object>()),
   OrbitLayer: class {
     constructor(public props: LayerProps) {}
   }
@@ -45,7 +47,7 @@ describe('satellite orbits: dataset switching', () => {
 
     const controls = new Map<
       string,
-      {value?: string; onchange?: () => void; textContent?: string}
+      {value?: string; onchange?: () => void; textContent?: string; disabled?: boolean}
     >();
     const panel = {
       style: {},
@@ -87,12 +89,16 @@ describe('satellite orbits: dataset switching', () => {
       const staleLayer = getOrbitLayer();
       expect(staleLayer.props.data).toBe(liveBody);
 
+      // While a load runs, each frame passes the same `data`: a new array would reload the layer.
       const group = getControl('group');
       group.value = 'stations';
       group.onchange!();
       expect(fetchGroup).toHaveBeenLastCalledWith(expect.stringContaining('GROUP=stations'));
+      const loadingData = getOrbitLayer().props.data;
+      expect(getOrbitLayer().props.data).toBe(loadingData);
       group.value = 'fixture';
       group.onchange!();
+      expect(getOrbitLayer().props.data).toBe(loadingData);
       await vi.advanceTimersByTimeAsync(0);
 
       // The old data load of the layer reports after the switch: the app drops it.
@@ -104,6 +110,8 @@ describe('satellite orbits: dataset switching', () => {
       expect(fixtureLayer.props.data).toBe(fixture);
       fixtureLayer.props.onDataLoad({satellites: fixture.length, rejected: 0});
       expect(getControl('status').textContent).toBe(`${fixture.length} satellites`);
+      // The fixture has GEO satellites, so the GEO button is on.
+      expect(getControl('geo').disabled).toBe(false);
 
       resolveLive!(new Response(liveBody));
       await vi.advanceTimersByTimeAsync(0);

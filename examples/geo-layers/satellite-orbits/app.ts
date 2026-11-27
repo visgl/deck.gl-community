@@ -5,7 +5,11 @@
 import {Deck, GlobeView, type GlobeViewState, type PickingInfo} from '@deck.gl/core';
 import {GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {
+  classifyOrbit,
+  createSatRec,
   OrbitLayer,
+  parseGpRecords,
+  toGpRecords,
   type OrbitLayerData,
   type OrbitSatellite
 } from '@deck.gl-community/layers/space-layers';
@@ -59,8 +63,6 @@ const CACHE_TTL_MS = 2 * 3600 * 1000;
 const LAND_URL =
   'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_admin_0_scale_rank.geojson';
 
-/** NORAD id of TDRS 3, a GEO satellite of the fixture, for the GEO button. */
-const GEO_NORAD_ID = 19548;
 const ISS_NORAD_ID = 25544;
 
 const CLASS_COLORS: Record<string, [number, number, number]> = {
@@ -98,7 +100,12 @@ type Dataset = {
   generation: number;
   /** A URL, OMM JSON text, TLE text or OMM rows. The same value on each frame. */
   data: OrbitLayerData;
+  /** NORAD id of the first GEO satellite; `null` when the data has none. */
+  geoNoradId: number | null;
 };
+
+/** The `data` of the layer before a load ends. The same array on each frame: no reload. */
+const NO_DATA: OrbitLayerData = [];
 
 /** Mounts the satellite orbits example. Returns a cleanup function. */
 export function mountSatelliteOrbitsExample(
@@ -149,6 +156,7 @@ export function mountSatelliteOrbitsExample(
       const satellite = info.layer?.id === 'orbits' ? (info.object as OrbitSatellite) : null;
       selectedNoradId = satellite?.noradId ?? null;
       selectedPosition = null;
+      flyToZoom = null;
     },
     layers: []
   });
@@ -161,6 +169,7 @@ export function mountSatelliteOrbitsExample(
     const loadGeneration = ++generation;
     const isCurrent = () => !disposed && loadGeneration === generation;
     dataset = null;
+    flyToZoom = null;
     stats.count = stats.rejected = 0;
     selectedNoradId = props.selectNoradId ?? null;
     selectedPosition = null;
@@ -168,8 +177,11 @@ export function mountSatelliteOrbitsExample(
     try {
       const data = await loadData(group, format, isCurrent);
       if (!isCurrent() || !data) return;
+      const geoNoradId = await findGeoNoradId(data);
+      if (!isCurrent()) return;
       clock.setOrigin(group === 'fixture' ? getMedianEpochMs(fixture) : Date.now());
-      dataset = {generation: loadGeneration, data};
+      dataset = {generation: loadGeneration, data, geoNoradId};
+      panel.setGeoAvailable(geoNoradId !== null);
     } catch (error) {
       if (isCurrent()) {
         panel.setStatus(`Could not load ${group}: ${(error as Error).message}`);
@@ -212,7 +224,7 @@ export function mountSatelliteOrbitsExample(
       }),
       new OrbitLayer({
         id: 'orbits',
-        data: current?.data ?? [],
+        data: current?.data ?? NO_DATA,
         currentTime: timeMs,
         selectedNoradId,
         showOrbit: props.showTracks !== false,
@@ -258,7 +270,9 @@ export function mountSatelliteOrbitsExample(
       return;
     }
     // The layer reports the position of the selected satellite on its next update.
-    selectedNoradId = target === 'iss' ? ISS_NORAD_ID : GEO_NORAD_ID;
+    const noradId = target === 'iss' ? ISS_NORAD_ID : dataset?.geoNoradId;
+    if (noradId == null) return;
+    selectedNoradId = noradId;
     selectedPosition = null;
     flyToZoom = target === 'iss' ? 4 : 0;
   }
@@ -269,6 +283,19 @@ export function mountSatelliteOrbitsExample(
     deck.finalize();
     panel.element.remove();
   };
+}
+
+/** Finds the first GEO satellite, once per data load, for the GEO button. */
+async function findGeoNoradId(data: OrbitLayerData): Promise<number | null> {
+  const records =
+    typeof data === 'string'
+      ? await parseGpRecords(data, /^\s*[[{]/.test(data) ? 'json' : 'tle')
+      : toGpRecords(data);
+  const geo = records.find(record => {
+    const satrec = createSatRec(record);
+    return satrec !== null && classifyOrbit(satrec) === 'GEO';
+  });
+  return geo?.noradId ?? null;
 }
 
 /** The median element set epoch of the fixture, so that it stays accurate offline. */
@@ -410,12 +437,17 @@ function createPanel(
     get<HTMLButtonElement>(target).onclick = () => callbacks.onFlyTo(target);
   }
 
+  const geoButton = get<HTMLButtonElement>('geo');
   const status = get<HTMLSpanElement>('status');
   const time = get<HTMLDivElement>('time');
   return {
     element,
     setStatus: (text: string) => {
       status.textContent = text;
+    },
+    setGeoAvailable: (available: boolean) => {
+      geoButton.disabled = !available;
+      geoButton.title = available ? '' : 'No GEO satellite in this data';
     },
     setFollow: (value: boolean) => {
       follow.checked = value;

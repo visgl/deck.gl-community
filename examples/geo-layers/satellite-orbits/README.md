@@ -14,7 +14,7 @@ This example shows satellites from CelesTrak general perturbations (GP) data on 
   at altitude, and its ground track (z = 0) from one period before to one period after the
   current time. "Follow" uses `onSelectedPositionChange`.
 - The app keeps the panel, the CelesTrak cache, the Earth and land backdrop, the clock and the
-  camera. The GEO button selects TDRS 3 (NORAD 19548), which is in the fixture.
+  camera. The GEO button selects the first GEO satellite of the loaded data, and it is disabled when there is none.
 
 ## Run
 
