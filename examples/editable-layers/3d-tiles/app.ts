@@ -39,6 +39,7 @@ const INITIAL_VIEW_STATE = {
   zoom: 14,
   minZoom: 13,
   maxZoom: 18,
+  maxPitch: 90,
   bearing: 30,
   pitch: 55
 };
@@ -163,11 +164,10 @@ export function mountEditableLayers3DTilesExample(container: HTMLElement): () =>
 
   const deck = new Deck({
     parent: host,
-    views: new MapView({maxPitch: 90}),
+    views: new MapView(),
     initialViewState: INITIAL_VIEW_STATE,
     controller: {
       type: TerrainController,
-      maxPitch: 90,
       touchRotate: true,
       inertia: false,
       doubleClickZoom: false

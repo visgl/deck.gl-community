@@ -4,7 +4,7 @@
 
 import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck} from '@deck.gl/core';
-import {Map} from 'maplibre-gl';
+import maplibregl from 'maplibre-gl';
 import {
   ViewMode,
   ModifyMode,
@@ -151,7 +151,7 @@ export function mountEditableLayersEditorExample(container: HTMLElement): () => 
   host.append(basemap);
   container.append(host);
 
-  const map = new Map({
+  const map = new maplibregl.Map({
     container: basemap,
     style: 'https://tiles.openfreemap.org/styles/positron',
     center: [initialViewState.longitude, initialViewState.latitude],
@@ -159,7 +159,7 @@ export function mountEditableLayersEditorExample(container: HTMLElement): () => 
     interactive: false
   });
 
-  let geoJson = getDefaultGeoJSON();
+  let geoJson: SimpleFeatureCollection = getDefaultGeoJSON();
   let selectedFeatureIndexes = [0];
   let mode: EditModeTrayWidgetSelectEvent['mode'] = ViewMode;
   let booleanOperation: BooleanOperation | null = null;

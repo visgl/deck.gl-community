@@ -64,9 +64,9 @@ const BROWSER_RESOLVE_CONFIG = {
 };
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
-  // Preserve each importer's MapLibre worker version.
-  exclude: ['maplibre-gl'],
   include: [
+    // The workspace uses MapLibre 4, whose UMD entry needs browser interop.
+    'maplibre-gl',
     '@deck.gl/mesh-layers',
     '@deck.gl/widgets',
     '@loaders.gl/raster',

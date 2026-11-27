@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import {Deck} from '@deck.gl/core';
-import {Map} from 'maplibre-gl';
+import type {IconLayerProps} from '@deck.gl/layers';
+import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {MarkerLayer, type Marker} from '@deck.gl-community/graph-layers';
 
@@ -56,28 +57,27 @@ export function mountMarkerLayerExample(container: HTMLElement): () => void {
   host.append(basemap);
   container.append(host);
 
-  const map = new Map({
+  const map = new maplibregl.Map({
     container: basemap,
     style: MAP_STYLE,
     center: [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
     zoom: INITIAL_VIEW_STATE.zoom,
     interactive: false
   });
+  const markerProps: IconLayerProps<CityMarker> & {getMarker: (marker: CityMarker) => Marker} = {
+    id: 'marker-layer',
+    data: CITY_MARKERS,
+    getPosition: marker => marker.position,
+    getMarker: marker => marker.marker,
+    getColor: marker => marker.color,
+    pickable: true,
+    getSize: marker => marker.size
+  };
   const deck = new Deck({
     parent: host,
     initialViewState: INITIAL_VIEW_STATE,
     controller: true,
-    layers: [
-      new MarkerLayer({
-        id: 'marker-layer',
-        data: CITY_MARKERS,
-        getPosition: d => d.position,
-        getMarker: d => d.marker,
-        getColor: d => d.color,
-        pickable: true,
-        getSize: d => d.size
-      })
-    ],
+    layers: [new MarkerLayer(markerProps)],
     onResize: () => {
       map.resize();
     },

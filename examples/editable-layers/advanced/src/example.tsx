@@ -7,7 +7,7 @@ import {EXAMPLE_PANEL_STYLE} from '../../../utils/panel-theme';
 import * as React from 'react';
 import {useState, useCallback, useRef, useLayoutEffect} from 'react';
 import {Deck, MapView, MapController} from '@deck.gl/core';
-import {Map} from 'maplibre-gl';
+import maplibregl from 'maplibre-gl';
 import circle from '@turf/circle';
 
 // Keep these WebGL constants local so the example also runs with the website's
@@ -1264,7 +1264,7 @@ export function Example() {
   const deckRef = useRef<Deck<MapView>>(null);
 
   useLayoutEffect(() => {
-    const map = new Map({
+    const map = new maplibregl.Map({
       container: mapHost.current!,
       style: mapStyle,
       center: [initialViewport.longitude, initialViewport.latitude],
