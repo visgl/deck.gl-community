@@ -152,16 +152,22 @@ still apply within a composition. Frame padding and corner radius follow the pre
 
 ### React-owned content
 
-Use `ReactPanel` for a direct surface containing React children. Context, hooks, events,
-and state belong to the caller's React tree; the bridge does not create another React root.
-`title` is required, `id` is optional, and the host accepts the same theme/frame props as `Panel`.
+Use `useReactPanel` with `Panel` to host React children. Render the returned
+portal in your React tree to preserve context and state.
 
 ```tsx
-import {ReactPanel} from '@deck.gl-community/react/legacy';
+import {Panel, useReactPanel} from '@deck.gl-community/react/legacy';
 
-<ReactPanel title="Controls" theme="sleek-light">
-  <ApplicationControls />
-</ReactPanel>
+function ControlsPanel() {
+  const {panel, portal} = useReactPanel({
+    title: 'Controls',
+    children: <ApplicationControls />
+  });
+  return <>
+    <Panel panel={panel} theme="sleek-light" />
+    {portal}
+  </>;
+}
 ```
 
 For tabs, columns, accordions, or manager-owned containers, `useReactPanel` returns a

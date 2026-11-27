@@ -31,7 +31,7 @@ such as `SidebarPanelContainer`, to change how the panel is mounted.
 ## Panels in a React DOM tree
 
 Import the legacy `Panel` to render a panel definition in a React layout or
-MDX page. This entry point also provides `ReactPanel` and `useReactPanel` for
+MDX page. This entry point also provides `useReactPanel` for
 React-owned content. For the classic wrapper, import
 `DeckGL` from `@deck.gl/react/legacy` and the DOM panel components from
 `@deck.gl-community/react/legacy`.

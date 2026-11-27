@@ -19,16 +19,8 @@ describe('@deck.gl-community/react entry points', () => {
     expect(packageJson.exports['./deck-canvas']).toBeUndefined();
   });
 
-  it('provides the previous React components from the legacy subpath', () => {
-    expect(Object.keys(legacy).sort()).toEqual([
-      'Button',
-      'Icon',
-      'LongPressButton',
-      'Modal',
-      'Panel',
-      'ReactPanel',
-      'useReactPanel'
-    ]);
+  it('provides the supported React DOM exports from the legacy subpath', () => {
+    expect(Object.keys(legacy).sort()).toEqual(['Button', 'Icon', 'Panel', 'useReactPanel']);
     expect(packageJson.exports['./legacy']).toEqual({
       types: './dist/legacy.d.ts',
       require: './dist/legacy.cjs',

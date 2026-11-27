@@ -2,14 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-// Components (originally from @deck.gl-community/graph-layers)
-
-export {LongPressButton} from './components/long-press-button';
-
-// Components (originally from @nebula.gl/editor)
-
-export {EditorModal as Modal} from './components/modal';
-export {Button} from './components/modal';
+export {Button} from './components/button';
 export {Icon} from './components/icon';
 export {
   Panel,
@@ -20,8 +13,6 @@ export {
 // Overlays migrated to @deck.gl-community/widgets
 
 export {
-  ReactPanel,
   useReactPanel,
-  type ReactPanelProps,
   type ReactPanelContentProps
 } from './components/react-panel';

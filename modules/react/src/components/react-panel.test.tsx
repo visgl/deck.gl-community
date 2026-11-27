@@ -5,7 +5,7 @@ import {afterEach, expect, it} from 'vitest';
 import {userEvent} from 'vitest/browser';
 import {MarkdownPanel, TabbedPanel} from '@deck.gl-community/panels';
 import {Panel} from './panel';
-import {ReactPanel, useReactPanel} from './react-panel';
+import {useReactPanel} from './react-panel';
 
 afterEach(cleanup);
 const LabelContext = React.createContext('Missing context');
@@ -21,24 +21,32 @@ function Counter() {
 
 it('preserves React context, state, and updates through a direct panel under StrictMode', async () => {
   function App({label}: {label: string}) {
+    const {panel, portal} = useReactPanel({title: 'Controls', children: <Counter />});
     return (
-      <React.StrictMode>
+      <>
         <LabelContext.Provider value={label}>
-          <ReactPanel
-            title="Controls"
+          <Panel
+            panel={panel}
             theme={{base: 'sleek-dark', variables: {'--button-text': 'rgb(1, 200, 120)'}}}
-          >
-            <Counter />
-          </ReactPanel>
+          />
+          {portal}
         </LabelContext.Provider>
-      </React.StrictMode>
+      </>
     );
   }
-  const view = render(<App label="First" />);
+  const view = render(
+    <React.StrictMode>
+      <App label="First" />
+    </React.StrictMode>
+  );
   const button = await screen.findByRole('button', {name: 'First: 0'});
   fireEvent.click(button);
   expect(screen.getByRole('button', {name: 'First: 1'})).toBe(button);
-  view.rerender(<App label="Updated" />);
+  view.rerender(
+    <React.StrictMode>
+      <App label="Updated" />
+    </React.StrictMode>
+  );
   await waitFor(() => expect(screen.getByRole('button', {name: 'Updated: 1'})).toBe(button));
   expect(getComputedStyle(button).getPropertyValue('--button-text')).toBe('rgb(1, 200, 120)');
   view.unmount();
