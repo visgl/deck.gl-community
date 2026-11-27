@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-export {Button} from './components/button';
-export {Icon} from './components/icon';
 export {
   Panel,
   type PanelHostThemeMode,

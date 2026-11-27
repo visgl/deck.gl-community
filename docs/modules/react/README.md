@@ -8,7 +8,7 @@ introduced: "9.0"
 | Import | Exports | Use |
 | --- | --- | --- |
 | `@deck.gl-community/react` | [`Panel`](./api-reference/panel.md#fiber-panel), [`DeckCanvas`](./api-reference/deck-canvas.md) | Mount a panel widget in React Fiber or attach a canvas to an application-owned `Deck`. |
-| `@deck.gl-community/react/legacy` | [`Panel`, `useReactPanel`](./api-reference/panel.md#legacy-panel), `Button`, `Icon` | Render panel content and UI controls in a React DOM tree, including MDX. |
+| `@deck.gl-community/react/legacy` | [`Panel`, `useReactPanel`](./api-reference/panel.md#legacy-panel) | Render panel content in a React DOM tree, including MDX. |
 
 The package root uses `@deck.gl/react` and its React 19.2+ peers. Apps using
 the classic DeckGL wrapper
