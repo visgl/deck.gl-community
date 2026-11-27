@@ -9,6 +9,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {OrbitLayer, type OrbitLayerProps} from '@deck.gl-community/layers/space-layers';
 import fixture from './data/gp-fixture.omm.json';
 
+const ISS = 25544;
 const TIME_MS = Date.UTC(2026, 10, 24);
 const SATELLITES = 224;
 const viewport = new WebMercatorViewport({width: 100, height: 100, zoom: 0});
@@ -25,19 +26,21 @@ function mount(props: Partial<OrbitLayerProps>) {
   const layerManager = new LayerManager(device, {viewport});
   managers.push(layerManager);
   const errors: Error[] = [];
-  layerManager.setLayers([
-    new OrbitLayer({
-      id: 'orbits',
-      currentTime: TIME_MS,
-      propagation: 'main-thread',
-      onError: error => {
-        errors.push(error);
-      },
-      ...props
-    })
-  ]);
+  let layerProps: Partial<OrbitLayerProps> = {
+    id: 'orbits',
+    currentTime: TIME_MS,
+    propagation: 'main-thread',
+    onError: error => {
+      errors.push(error);
+    }
+  };
+  const setLayer = (nextProps: Partial<OrbitLayerProps>) => {
+    layerProps = {...layerProps, ...nextProps};
+    layerManager.setLayers([new OrbitLayer(layerProps)]);
+  };
+  setLayer(props);
   const getLayer = () => layerManager.getLayers()[0] as OrbitLayer;
-  return {errors, getLayer};
+  return {errors, getLayer, setLayer, layerManager};
 }
 
 async function waitFor(predicate: () => boolean, message: string, timeoutMs = 5000) {
@@ -103,6 +106,45 @@ describe('OrbitLayer (node)', () => {
     await waitFor(() => hasSatellites(getLayer()), 'satellites from JSON text');
     expect(fetch).not.toHaveBeenCalled();
     expect(errors).toEqual([]);
+  });
+
+  it('reports a new selection while time is paused', async () => {
+    const onSelectedPositionChange = vi.fn();
+    const {getLayer, setLayer} = mount({data: JSON.stringify(fixture), onSelectedPositionChange});
+    await waitFor(() => hasSatellites(getLayer()), 'a sample at the paused time');
+
+    const layer = getLayer();
+    const index = layer.state.dataset!.satellites.findIndex(satellite => satellite.noradId === ISS);
+    const satellite = layer.getSatellite(index)!;
+    expect(satellite.position).not.toBeNull();
+
+    setLayer({selectedNoradId: ISS});
+    expect(onSelectedPositionChange).toHaveBeenCalledExactlyOnceWith(satellite.position, satellite);
+
+    setLayer({selectedNoradId: -1});
+    expect(onSelectedPositionChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not report a pending worker init rejected on unmount', async () => {
+    vi.stubGlobal(
+      'Worker',
+      class {
+        postMessage() {}
+        terminate() {}
+      }
+    );
+    const onError = vi.fn();
+    const {getLayer, layerManager} = mount({
+      data: JSON.stringify(fixture),
+      propagation: 'worker',
+      onError
+    });
+    const init = vi.spyOn(getLayer().state.propagator, 'init');
+    await waitFor(() => init.mock.calls.length > 0, 'the worker init request');
+
+    layerManager.setLayers([]);
+    await expect(init.mock.results[0].value).rejects.toThrow(/destroyed/);
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it('reports an error that a user callback throws', async () => {

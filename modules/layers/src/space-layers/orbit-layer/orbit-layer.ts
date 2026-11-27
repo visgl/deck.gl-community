@@ -76,7 +76,7 @@ type _OrbitLayerProps = {
   orbitWidthMinPixels?: number;
   /** Called after parsing and SGP4 initialization. */
   onDataLoad?: ((stats: {satellites: number; rejected: number}) => void) | null;
-  /** Called after each interpolation while the selected satellite has a position. */
+  /** Called after selection changes and interpolation when the selected satellite has a position. */
   onSelectedPositionChange?:
     | ((position: [number, number, number], satellite: OrbitSatellite) => void)
     | null;
@@ -280,7 +280,8 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
       this.updateVisibleRadii();
     }
 
-    if ((props.selectedNoradId ?? null) !== state.selectedNoradId) {
+    const selectionChanged = (props.selectedNoradId ?? null) !== state.selectedNoradId;
+    if (selectionChanged) {
       this.updateSelection();
     }
 
@@ -288,6 +289,8 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
     if (currentTimeMs !== state.currentTimeMs) {
       state.currentTimeMs = currentTimeMs;
       this.onTimeChange(currentTimeMs);
+    } else if (selectionChanged) {
+      this.notifySelectedPosition();
     }
   }
 
@@ -599,7 +602,7 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
 
   private interpolate(): void {
     const {state} = this;
-    const {sampleA, sampleB, positions, selection} = state;
+    const {sampleA, sampleB, positions} = state;
     if (!sampleA || !sampleB) {
       return;
     }
@@ -609,7 +612,11 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
     interpolateLngLatAlt(sampleA.positions, sampleB.positions, state.weight, positions);
     // A new descriptor makes the ScatterplotLayer upload the positions again.
     state.positionAttribute = {value: positions, size: 3};
+    this.notifySelectedPosition();
+  }
 
+  private notifySelectedPosition(): void {
+    const {selection} = this.state;
     const {onSelectedPositionChange} = this.props;
     if (selection && onSelectedPositionChange) {
       const satellite = this.getSatellite(selection.index);
