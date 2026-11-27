@@ -105,6 +105,16 @@ set `loadOptions: {dot: {shape: 'plain-graph-data'}}`.
 `@deck.gl/react`, with the same subpaths, such as `ScatterplotLayer` from `@deck.gl/react/layers`.
 deck.gl's [migration guide](https://github.com/visgl/deck.gl/blob/master/docs/developer-guide/react/migrate-from-deckgl-react.md) lists the changes from the previous `@deck.gl/react`.
 
+The root of `@deck.gl-community/react` now exports a JSX `Panel` component for the
+upstream Fiber renderer. Update existing imports for the DOM `Panel` and `useReactPanel` to
+`@deck.gl-community/react/legacy`. Import `DeckCanvas` from `@deck.gl-community/react`.
+Apps using the classic `DeckGL` wrapper can import it from `@deck.gl/react/legacy`.
+
+The React `Button`, `Icon`, `LongPressButton`, `Modal`, and `ReactPanel` exports are removed.
+Use `useReactPanel` with the DOM `Panel` for React content and `ModalPanelContainer`
+from `@deck.gl-community/panels` for modal panels. Replace the former controls
+with a native `<button>` and your application’s icon component.
+
 ### Consolidated sidebars
 
 `SidePanelContainer` and `SidePanelContainerProps` are removed without compatibility aliases.

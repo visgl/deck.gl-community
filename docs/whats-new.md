@@ -30,7 +30,7 @@ This page lists module additions and major changes in each release. For detailed
   See the [upgrade guide](./upgrade-guide.md#react-fiber).
 - **react:** [`DeckCanvas`](./modules/react/api-reference/deck-canvas.md) attaches several
   React presentation canvases to one application-owned Deck, each with its own views, layers
-  and widgets. Import it from `@deck.gl-community/react/deck-canvas`.
+  and widgets. Import it from `@deck.gl-community/react`.
 
 ## v10.0.0-alpha.3
 

@@ -6,7 +6,7 @@ import {expect, test} from 'vitest';
 import {page, userEvent} from 'vitest/browser';
 import {mountEditableLayersEditorExample} from './app';
 
-test('draws a polygon with real clicks on the React DeckGL base map', async () => {
+test('draws a polygon with real clicks on the imperative DeckGL base map', async () => {
   await page.viewport(1000, 700);
   const container = document.createElement('div');
   Object.assign(container.style, {position: 'relative', width: '900px', height: '600px'});
@@ -32,13 +32,9 @@ test('draws a polygon with real clicks on the React DeckGL base map', async () =
       [540, 300],
       [470, 400]
     ];
-    // <DeckGL> renders its <Map> child in a view element above deck's canvas; input must reach
-    // the layer through it. The hit target may be the map's own canvas once MapLibre loads.
-    const deckCanvas = container.querySelector('.deck-events-root > canvas');
-    const first = targetAt(...points[0]);
+    const deckCanvas = container.querySelector('canvas#deckgl-overlay');
     expect(deckCanvas).toBeTruthy();
-    expect(first.element).not.toBe(deckCanvas);
-    expect(first.element.closest('[id^="view-"]')).toBeTruthy();
+    expect(targetAt(...points[0]).element).toBe(deckCanvas);
 
     for (const [x, y] of points.slice(0, -1)) {
       const {element, position} = targetAt(x, y);
