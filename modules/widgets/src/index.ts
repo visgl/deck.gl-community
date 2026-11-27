@@ -21,6 +21,7 @@ export {
   DeviceManager,
   DeviceManagerController,
   type DeviceManagerState,
+  type DeviceManagerOptions,
   type DeviceType
 } from './lib/device-manager/device-manager';
 export {
