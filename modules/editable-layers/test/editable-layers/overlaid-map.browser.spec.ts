@@ -4,7 +4,7 @@
 
 import {expect, test, vi} from 'vitest';
 import {userEvent} from 'vitest/browser';
-import 'maplibre-gl';
+import maplibre from 'maplibre-gl';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
 import {SelectionLayer} from '../../src/editable-layers/selection-layer';
@@ -12,8 +12,6 @@ import {DrawPolygonMode} from '../../src/edit-modes/draw-polygon-mode';
 import {DrawPolygonByDraggingMode} from '../../src/edit-modes/draw-polygon-by-dragging-mode';
 import {ModifyMode} from '../../src/edit-modes/modify-mode';
 import {ViewMode} from '../../src/edit-modes/view-mode';
-
-const maplibre = (globalThis as any).maplibregl;
 
 async function drag(canvas: HTMLCanvasElement, from: number[], to: number[], release = true) {
   const rect = canvas.getBoundingClientRect();

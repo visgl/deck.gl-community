@@ -5,10 +5,9 @@
 /* eslint-env browser */
 import {EXAMPLE_PANEL_STYLE} from '../../../utils/panel-theme';
 import * as React from 'react';
-import {useState, useCallback} from 'react';
-import DeckGL from '@deck.gl/react/legacy';
-import {MapView, MapController} from '@deck.gl/core';
-import {Map as StaticMap} from 'react-map-gl/maplibre';
+import {useState, useCallback, useRef, useLayoutEffect} from 'react';
+import {Deck, MapView, MapController} from '@deck.gl/core';
+import maplibregl from 'maplibre-gl';
 import circle from '@turf/circle';
 
 // Keep these WebGL constants local so the example also runs with the website's
@@ -111,8 +110,7 @@ const SnappableSplitPolygonMode = createSnappableMode(SplitPolygonMode);
 
 const styles = {
   mapContainer: {
-    alignItems: 'stretch',
-    display: 'flex',
+    position: 'relative' as const,
     height: '100vh'
   },
   checkbox: {
@@ -1261,27 +1259,57 @@ export function Example() {
     );
   }
 
+  const deckHost = useRef<HTMLDivElement>(null);
+  const mapHost = useRef<HTMLDivElement>(null);
+  const deckRef = useRef<Deck<MapView>>(null);
+
+  useLayoutEffect(() => {
+    const map = new maplibregl.Map({
+      container: mapHost.current!,
+      style: mapStyle,
+      center: [initialViewport.longitude, initialViewport.latitude],
+      zoom: initialViewport.zoom,
+      pitch: initialViewport.pitch,
+      bearing: initialViewport.bearing,
+      interactive: false
+    });
+    const deck = new Deck({
+      parent: deckHost.current!,
+      initialViewState: initialViewport,
+      views: new MapView({
+        id: 'basemap',
+        controller: {type: MapController, doubleClickZoom: false}
+      }),
+      onResize: () => {
+        map.resize();
+      },
+      onViewStateChange: ({viewState}) => {
+        const {longitude, latitude, zoom, bearing, pitch} = viewState;
+        map.jumpTo({center: [longitude, latitude], zoom, bearing, pitch});
+        setViewport(viewState);
+      }
+    });
+    deckRef.current = deck;
+    return () => {
+      deckRef.current = null;
+      deck.finalize();
+      map.remove();
+    };
+  }, [mapStyle]);
+
+  useLayoutEffect(() => {
+    deckRef.current?.setProps({
+      layers,
+      widgets: [infoWidget],
+      getCursor: editableGeoJsonLayer.getCursor.bind(editableGeoJsonLayer),
+      onClick: onLayerClick
+    });
+  });
+
   return (
     <div style={styles.mapContainer}>
-      <StaticMap {...currentViewport} mapStyle={mapStyle} style={{width: '100%', height: '100%'}}>
-        <DeckGL
-          viewState={currentViewport}
-          getCursor={editableGeoJsonLayer.getCursor.bind(editableGeoJsonLayer)}
-          layers={layers}
-          widgets={[infoWidget]}
-          views={[
-            new MapView({
-              id: 'basemap',
-              controller: {
-                type: MapController,
-                doubleClickZoom: false
-              }
-            })
-          ]}
-          onClick={onLayerClick}
-          onViewStateChange={({viewState}) => setViewport(viewState)}
-        />
-      </StaticMap>
+      <div ref={mapHost} style={{position: 'absolute', inset: 0}} />
+      <div ref={deckHost} style={{position: 'absolute', inset: 0}} />
       {renderToolBox()}
       {featureMenu && renderFeatureMenu(featureMenu)}
     </div>

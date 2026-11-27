@@ -3,9 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
-import {useState, useEffect, useCallback, useMemo} from 'react';
-import {Map} from 'react-map-gl/maplibre';
-import DeckGL from '@deck.gl/react/legacy';
+import {Deck} from '@deck.gl/core';
+import maplibregl from 'maplibre-gl';
 import {
   ViewMode,
   ModifyMode,
@@ -22,7 +21,11 @@ import {
   EditModeTrayWidget,
   EditorToolbarWidget
 } from '@deck.gl-community/editable-layers';
-import type {BooleanOperation} from '@deck.gl-community/editable-layers';
+import type {
+  BooleanOperation,
+  EditModeTrayWidgetSelectEvent,
+  SimpleFeatureCollection
+} from '@deck.gl-community/editable-layers';
 import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
@@ -140,144 +143,114 @@ function buildInfoPanel({
   });
 }
 
-// --- Component ---
+export function mountEditableLayersEditorExample(container: HTMLElement): () => void {
+  const doc = container.ownerDocument;
+  const host = doc.createElement('div');
+  Object.assign(host.style, {position: 'relative', width: '100%', height: '100%'});
+  const basemap = doc.createElement('div');
+  Object.assign(basemap.style, {position: 'absolute', inset: '0'});
+  host.append(basemap);
+  container.append(host);
 
-export function Example() {
-  const [geoJson, setGeoJson] = useState(getDefaultGeoJSON);
-  const [selectedFeatureIndexes, setSelectedFeatureIndexes] = useState<number[]>([0]);
-  const [mode, setMode] = useState(() => ViewMode);
-  const [modeConfig, setModeConfig] = useState<Record<string, any>>({});
+  const map = new maplibregl.Map({
+    container: basemap,
+    style: 'https://tiles.openfreemap.org/styles/positron',
+    center: [initialViewState.longitude, initialViewState.latitude],
+    zoom: initialViewState.zoom,
+    interactive: false
+  });
 
-  const trayWidget = useMemo(
-    () =>
-      new EditModeTrayWidget({
-        placement: 'top-left',
-        layout: 'vertical',
-        style: {margin: '12px 0 0 12px'}
-      }),
-    []
-  );
+  let geoJson: SimpleFeatureCollection = getDefaultGeoJSON();
+  let selectedFeatureIndexes = [0];
+  let mode: EditModeTrayWidgetSelectEvent['mode'] = ViewMode;
+  let booleanOperation: BooleanOperation | null = null;
 
-  const toolbarWidget = useMemo(
-    () =>
-      new EditorToolbarWidget({
-        placement: 'bottom-left',
-        style: {margin: '0 0 20px 12px'}
-      }),
-    []
-  );
-
-  const infoWidget = useMemo(
-    () =>
-      new BoxPanelWidget({
-        style: EXAMPLE_PANEL_STYLE,
-        id: 'editor-info',
-        placement: 'top-right',
-        widthPx: 320,
-        title: 'Editor (React)',
-        collapsible: false
-      }),
-    []
-  );
-
-  const handleSetMode = useCallback((newMode: any) => {
-    setMode(() => newMode);
-    setModeConfig({});
-  }, []);
-
-  const handleExport = useCallback(() => {
-    downloadGeoJson(geoJson);
-  }, [geoJson]);
-
-  const handleClear = useCallback(() => {
-    setGeoJson({type: 'FeatureCollection', features: []});
-    setSelectedFeatureIndexes([]);
-  }, []);
-
-  const handleSetBooleanOp = useCallback((op: BooleanOperation) => {
-    setModeConfig(op ? {booleanOperation: op} : {});
-  }, []);
-
-  // Sync mode tray widget
-  useEffect(() => {
-    const selected = MODE_OPTIONS.find(option => option.mode === mode)?.id ?? null;
-    trayWidget.setProps({
-      modes: MODE_OPTIONS,
-      activeMode: mode,
-      selectedModeId: selected,
-      onSelectMode: ({mode: selectedMode}) => {
-        if (mode !== selectedMode) {
-          handleSetMode(selectedMode);
-        }
+  const trayWidget = new EditModeTrayWidget({
+    placement: 'top-left',
+    layout: 'vertical',
+    style: {margin: '12px 0 0 12px'},
+    modes: MODE_OPTIONS,
+    onSelectMode: ({mode: selectedMode}) => {
+      if (mode !== selectedMode) {
+        mode = selectedMode;
+        booleanOperation = null;
+        updateDeck();
       }
-    });
-  }, [mode, handleSetMode, trayWidget]);
+    }
+  });
+  const toolbarWidget = new EditorToolbarWidget({
+    placement: 'bottom-left',
+    style: {margin: '0 0 20px 12px'},
+    onSetBooleanOperation: operation => {
+      booleanOperation = operation;
+      updateDeck();
+    },
+    onClear: () => {
+      geoJson = {type: 'FeatureCollection', features: []};
+      selectedFeatureIndexes = [];
+      updateDeck();
+    },
+    onExport: () => downloadGeoJson(geoJson)
+  });
+  const infoWidget = new BoxPanelWidget({
+    style: EXAMPLE_PANEL_STYLE,
+    id: 'editor-info',
+    placement: 'top-right',
+    widthPx: 320,
+    title: 'Editor',
+    collapsible: false
+  });
 
-  // Sync toolbar widget
-  useEffect(() => {
-    toolbarWidget.setProps({
-      booleanOperation: (modeConfig?.booleanOperation as BooleanOperation) ?? null,
-      featureCount: geoJson.features.length,
-      onSetBooleanOperation: handleSetBooleanOp,
-      onClear: handleClear,
-      onExport: handleExport
-    });
-  }, [
-    modeConfig,
-    geoJson.features.length,
-    handleSetBooleanOp,
-    handleClear,
-    handleExport,
-    toolbarWidget
-  ]);
+  const deck = new Deck({
+    parent: host,
+    initialViewState,
+    controller: {doubleClickZoom: false},
+    onResize: () => {
+      map.resize();
+    },
+    widgets: [trayWidget, toolbarWidget, infoWidget],
+    onViewStateChange: ({viewState: {longitude, latitude, zoom, bearing, pitch}}) => {
+      map.jumpTo({center: [longitude, latitude], zoom, bearing, pitch});
+    },
+    onClick: ({index}) => {
+      if (mode === ViewMode) {
+        selectedFeatureIndexes = index >= 0 ? [index] : [];
+        updateDeck();
+      }
+    }
+  });
+  updateDeck();
 
-  useEffect(() => {
-    const modeLabel = MODE_OPTIONS.find(option => option.mode === mode)?.label ?? 'View';
+  return () => {
+    deck.finalize();
+    map.remove();
+    host.remove();
+  };
+
+  function updateDeck() {
+    const option = MODE_OPTIONS.find(candidate => candidate.mode === mode);
+    const featureCount = geoJson.features.length;
+    trayWidget.setProps({activeMode: mode, selectedModeId: option?.id ?? null});
+    toolbarWidget.setProps({booleanOperation, featureCount});
     infoWidget.setProps({
       panel: buildInfoPanel({
-        modeLabel,
-        booleanOperation: (modeConfig?.booleanOperation as BooleanOperation) ?? null,
-        featureCount: geoJson.features.length,
+        modeLabel: option?.label ?? 'View',
+        booleanOperation,
+        featureCount,
         selectedFeatureIndexes
       })
     });
-  }, [geoJson.features.length, infoWidget, mode, modeConfig, selectedFeatureIndexes]);
 
-  const widgets = useMemo(
-    () => [trayWidget, toolbarWidget, infoWidget],
-    [infoWidget, trayWidget, toolbarWidget]
-  );
-
-  const layer = new EditableGeoJsonLayer({
-    data: geoJson,
-    mode,
-    modeConfig,
-    selectedFeatureIndexes,
-    onEdit: ({updatedData}) => {
-      setGeoJson(updatedData);
-    }
-  });
-
-  return (
-    <DeckGL
-      initialViewState={initialViewState}
-      style={{width: '100%', height: '100%'}}
-      controller={{doubleClickZoom: false}}
-      layers={[layer]}
-      getCursor={layer.getCursor.bind(layer)}
-      onClick={info => {
-        if (mode === ViewMode) {
-          const index = typeof info?.index === 'number' && info.index >= 0 ? info.index : null;
-          if (index !== null) {
-            setSelectedFeatureIndexes([index]);
-          } else {
-            setSelectedFeatureIndexes([]);
-          }
-        }
-      }}
-      widgets={widgets}
-    >
-      <Map mapStyle="https://tiles.openfreemap.org/styles/positron" />
-    </DeckGL>
-  );
+    const layer = new EditableGeoJsonLayer({
+      data: geoJson,
+      mode,
+      modeConfig: booleanOperation ? {booleanOperation} : {},
+      selectedFeatureIndexes,
+      onEdit: ({updatedData}) => {
+        geoJson = updatedData;
+        updateDeck();
+      }
+    });
+    deck.setProps({layers: [layer], getCursor: layer.getCursor.bind(layer)});
+  }
 }

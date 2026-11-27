@@ -34,7 +34,7 @@ import {Buffer, Texture, luma, type Device, type Framebuffer} from '@luma.gl/cor
 import {CubeGeometry} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {webgpuAdapter} from '@luma.gl/core/webgpu';
-import 'maplibre-gl';
+import maplibre from 'maplibre-gl';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {
   SelectionPulseExtension,
@@ -43,8 +43,6 @@ import {
   type TreeSpec
 } from '../../../src';
 import {requireWebGPUAdapter} from '../../common-layers/webgpu-test-utils';
-
-const maplibre = (globalThis as any).maplibregl;
 
 const SIZE = 128;
 // A new mesh resets SimpleMeshLayer's attributes; applications keep one instance.
@@ -566,7 +564,7 @@ describe('SelectionPulseExtension in an interleaved MapboxOverlay', () => {
       pixelRatio: 1
     });
     const overlay = new MapboxOverlay({interleaved: true});
-    const points = [
+    const points: {position: [number, number]; selected: boolean}[] = [
       {position: [-0.00008, 0], selected: true},
       {position: [0.00008, 0], selected: false}
     ];
