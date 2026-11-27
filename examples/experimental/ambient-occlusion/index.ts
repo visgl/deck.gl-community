@@ -4,10 +4,7 @@
 
 import {getStandaloneExampleContainer} from '../../mount-example';
 import {
-  createExampleDevice,
-  getMethod,
-  mountAmbientOcclusionExample,
-  type AmbientOcclusionExample,
+  mountSwitchableAmbientOcclusionExample,
   type AmbientOcclusionExampleOptions,
   type ExampleEffectProps,
   type MethodId,
@@ -36,25 +33,6 @@ if (parameters.get('filter') === '0') {
   effectProps.filter = false;
 }
 
-/** The device type of a method. The `device` parameter applies to "None" only. */
-function getDeviceType(methodId: string | null): 'webgl' | 'webgpu' {
-  const requested = parameters.get('device') === 'webgpu' ? 'webgpu' : 'webgl';
-  return getMethod(methodId, requested).device ?? requested;
-}
-
-/** Reloads the page with other URL parameters. */
-function reload(changes: Record<string, string | null>) {
-  const url = new URL(location.href);
-  for (const [name, value] of Object.entries(changes)) {
-    if (value === null) {
-      url.searchParams.delete(name);
-    } else {
-      url.searchParams.set(name, value);
-    }
-  }
-  location.href = url.toString();
-}
-
 const container = getStandaloneExampleContainer();
 const methodId = parameters.get('method');
 const compareId = parameters.get('compare');
@@ -65,20 +43,32 @@ const baseOptions: AmbientOcclusionExampleOptions = {
 };
 
 /** The second deck of the swipe comparison, or `null`. See below. */
-let compare: AmbientOcclusionExample | null = null;
+let compare: Awaited<ReturnType<typeof mountSwitchableAmbientOcclusionExample>> | null = null;
+let comparisonLabels: HTMLDivElement | undefined;
+const updateComparisonLabels = () => {
+  if (comparisonLabels && compare) {
+    comparisonLabels.textContent = `Left: ${primary.example.method.label} | Right: ${compare.example.method.label}`;
+  }
+};
 
-const example = mountAmbientOcclusionExample(container, {
+const primary = await mountSwitchableAmbientOcclusionExample(container, {
   ...baseOptions,
-  device: await createExampleDevice(container, getDeviceType(methodId)),
+  deviceType: parameters.get('device') === 'webgpu' ? 'webgpu' : 'webgl',
   method: (methodId ?? undefined) as MethodId | undefined,
   controls: parameters.get('controls') !== '0',
-  onMethodChange: (method, device) => reload({method, device}),
+  onSelectionChange: (method, device) => {
+    const url = new URL(location.href);
+    url.searchParams.set('method', method);
+    url.searchParams.set('device', device);
+    history.replaceState(null, '', url);
+    updateComparisonLabels();
+  },
   onSceneChange: scene => {
     reloadParameter('scene', scene);
-    compare?.setScene(scene);
+    compare?.example.setScene(scene);
   },
-  onEffectPropsChange: props => compare?.setEffectProps(props),
-  onViewStateChange: viewState => compare?.setViewState(viewState)
+  onEffectPropsChange: props => compare?.example.setEffectProps(props),
+  onViewStateChange: viewState => compare?.example.setViewState(viewState)
 });
 
 /** Keeps the URL in step with the panel, without a reload. */
@@ -97,12 +87,12 @@ if (compareId) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:1';
   container.append(overlay);
-  compare = mountAmbientOcclusionExample(overlay, {
+  compare = await mountSwitchableAmbientOcclusionExample(overlay, {
     ...baseOptions,
-    device: await createExampleDevice(overlay, getDeviceType(compareId)),
+    deviceType: parameters.get('device') === 'webgpu' ? 'webgpu' : 'webgl',
     method: compareId as MethodId,
     controls: false,
-    onViewStateChange: viewState => example.setViewState(viewState)
+    onViewStateChange: viewState => primary.example.setViewState(viewState)
   });
   const divider = document.createElement('div');
   divider.style.cssText =
@@ -110,9 +100,10 @@ if (compareId) {
     'background:#fff;box-shadow:0 0 4px rgba(0,0,0,0.6)';
   const labels = document.createElement('div');
   labels.style.cssText =
-    'position:absolute;top:12px;right:12px;z-index:3;padding:4px 8px;border-radius:4px;' +
+    'position:absolute;top:52px;right:12px;z-index:3;padding:4px 8px;border-radius:4px;' +
     'background:rgba(255,255,255,0.9);font:13px sans-serif';
-  labels.textContent = `Left: ${example.method.label} | Right: ${compare.method.label}`;
+  comparisonLabels = labels;
+  updateComparisonLabels();
   container.append(divider, labels);
   const setSplit = (fraction: number) => {
     const percent = Math.min(100, Math.max(0, fraction * 100));
@@ -131,16 +122,22 @@ if (compareId) {
 
 // Lets scripts toggle the effect and read the frame state.
 const globals = globalThis as Record<string, unknown>;
-globals.ambientOcclusionExample = compare
-  ? {
-      ...example,
-      get ready() {
-        return example.ready && compare!.ready;
-      }
-    }
-  : example;
-globals.ambientOcclusionCompare = compare;
+Object.defineProperty(globals, 'ambientOcclusionExample', {
+  configurable: true,
+  get: () => {
+    const example = primary.example;
+    return compare
+      ? {
+          ...example,
+          get ready() {
+            return example.ready && compare?.example.ready;
+          }
+        }
+      : example;
+  }
+});
+globals.ambientOcclusionCompare = compare?.example ?? null;
 import.meta.hot?.dispose(() => {
-  example.finalize();
+  primary.finalize();
   compare?.finalize();
 });

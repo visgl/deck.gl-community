@@ -4,9 +4,12 @@
 
 import {Deck, MapView, type Effect, type MapViewState} from '@deck.gl/core';
 import {CORTAOEffect, type CORTAOEffectProps} from '@deck.gl-community/experimental';
-import {luma, type Device} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/core/webgl';
-import {webgpuAdapter} from '@luma.gl/core/webgpu';
+import {
+  DeviceManagerController,
+  DeviceTabsWidget,
+  type DeviceType
+} from '@deck.gl-community/widgets';
+import type {Device} from '@luma.gl/core';
 import {LumaAmbientOcclusionEffect} from './luma-ambient-occlusion-effect';
 import {getScene, SCENES, type Scene, type SceneId} from './scenes';
 
@@ -78,7 +81,8 @@ export type AmbientOcclusionExampleOptions = {
   onSceneChange?: (scene: SceneId) => void;
   /** Called when the user changes an effect prop in the panel. */
   onEffectPropsChange?: (props: ExampleEffectProps) => void;
-  /** Called when the user selects another method or device. The page reloads with these values. */
+  /** Called when the user selects another method. */
+  onAmbientOcclusionChange?: (enabled: boolean) => void;
   onMethodChange?: (method: MethodId, device: 'webgl' | 'webgpu') => void;
 };
 
@@ -100,7 +104,7 @@ export type AmbientOcclusionExample = {
   setEffectProps: (props: ExampleEffectProps) => void;
   /** Moves the camera. */
   setViewState: (viewState: MapViewState) => void;
-  /** Sets the method and backend selectors of the panel back to the running method. */
+  /** Sets the method selector back to the running method. */
   resetControls: () => void;
   /** Removes the example. */
   finalize: () => void;
@@ -192,7 +196,11 @@ export function mountAmbientOcclusionExample(
   const updateEffects = () => deck.setProps({effects: getEffects()});
   const setAmbientOcclusion = (enabled: boolean) => {
     ambientOcclusion = enabled;
+    if (panel) {
+      panel.ambientOcclusion.checked = enabled;
+    }
     updateEffects();
+    options.onAmbientOcclusionChange?.(enabled);
   };
   const setEffectProps = (props: ExampleEffectProps) => {
     Object.assign(effectProps, props);
@@ -248,7 +256,7 @@ export function mountAmbientOcclusionExample(
   const panel =
     options.controls === false
       ? null
-      : createControls(container, method, deviceType, {
+      : createControls(container, method, {
           ...(effect instanceof CORTAOEffect ? effect.props : {}),
           ...effectProps
         });
@@ -266,18 +274,6 @@ export function mountAmbientOcclusionExample(
     panel.method.onchange = () => {
       const next = getMethod(panel.method.value, deviceType);
       options.onMethodChange?.(next.id, next.device ?? deviceType);
-    };
-    panel.device.onchange = () => {
-      const nextDevice = panel.device.value as 'webgl' | 'webgpu';
-      // CORTAO follows the device. The luma.gl methods need WebGPU.
-      const nextMethod: MethodId = method.id.startsWith('cortao')
-        ? nextDevice === 'webgpu'
-          ? 'cortao-webgpu'
-          : 'cortao-webgl2'
-        : method.device && method.device !== nextDevice
-          ? 'none'
-          : method.id;
-      options.onMethodChange?.(nextMethod, nextDevice);
     };
     panel.ambientOcclusion.checked = ambientOcclusion;
     panel.ambientOcclusion.onchange = () => setAmbientOcclusion(panel.ambientOcclusion.checked);
@@ -314,7 +310,6 @@ export function mountAmbientOcclusionExample(
     resetControls: () => {
       if (panel) {
         panel.method.value = method.id;
-        panel.device.value = deviceType;
       }
     },
     finalize: () => {
@@ -340,12 +335,7 @@ function isFormControl(target: EventTarget | null): boolean {
 const RADIUS_CHOICES = [Number.POSITIVE_INFINITY, 1000, 500, 300, 200, 100, 30, 10, 4, 3];
 
 /** Creates the settings panel. */
-function createControls(
-  container: HTMLElement,
-  method: Method,
-  deviceType: 'webgl' | 'webgpu',
-  props: ExampleEffectProps
-) {
+function createControls(container: HTMLElement, method: Method, props: ExampleEffectProps) {
   const root = document.createElement('div');
   root.style.cssText =
     'position:absolute;top:12px;left:12px;z-index:2;padding:8px 12px;border-radius:6px;' +
@@ -371,10 +361,6 @@ function createControls(
   const intensity = props.intensity ?? 1;
   root.innerHTML = `
     <label>Method <select name="method">${methodOptions.join('')}</select></label><br>
-    <label>Backend <select name="device">
-      <option value="webgl"${deviceType === 'webgl' ? ' selected' : ''}>WebGL2</option>
-      <option value="webgpu"${deviceType === 'webgpu' ? ' selected' : ''}>WebGPU</option>
-    </select></label><br>
     <label>Scene <select name="scene">${sceneOptions.join('')}</select></label><br>
     <div name="description" style="color:#555;line-height:1.3;margin-bottom:4px"></div>
     <label><input type="checkbox" name="ambientOcclusion"> Ambient occlusion</label><br>
@@ -395,7 +381,6 @@ function createControls(
   return {
     root,
     method: get<HTMLSelectElement>('method'),
-    device: get<HTMLSelectElement>('device'),
     scene: get<HTMLSelectElement>('scene'),
     description: get<HTMLDivElement>('description'),
     ambientOcclusion: get<HTMLInputElement>('ambientOcclusion'),
@@ -410,86 +395,39 @@ function createControls(
   };
 }
 
-/** Creates a device with its own canvas in a container. */
-export function createExampleDevice(container: HTMLElement, type: 'webgl' | 'webgpu') {
-  return luma.createDevice({
-    type,
-    adapters: [webgl2Adapter, webgpuAdapter],
-    // Deck.gl creates its post-process buffers as rgba8unorm. On WebGPU, the layer pipelines use
-    // the canvas format, so the canvas uses the same format.
-    // The premultiplied alpha mode shows the page behind empty pixels, as WebGL 2 does.
-    createCanvasContext: {
-      container,
-      useDevicePixels: false,
-      colorFormat: 'rgba8unorm',
-      alphaMode: 'premultiplied'
-    },
-    // Lets the frame timer read GPU timestamps on WebGPU. Ignored where it is not supported.
-    optionalFeatures: ['timestamp-query']
-  });
-}
-
-/**
- * Mounts the example with its own device, and mounts it again in place when the user selects
- * another method or backend. The scene and the effect settings stay the same. The website uses
- * this. The standalone page reloads with URL parameters instead.
- */
+/** Mounts AO with the community device controller and backend tabs. */
 export async function mountSwitchableAmbientOcclusionExample(
   container: HTMLElement,
-  options: Omit<AmbientOcclusionExampleOptions, 'device' | 'method' | 'onMethodChange'> = {}
-): Promise<() => void> {
+  options: Omit<AmbientOcclusionExampleOptions, 'device' | 'onMethodChange'> & {
+    deviceType?: DeviceType;
+    onSelectionChange?: (method: MethodId, type: DeviceType) => void;
+  } = {}
+) {
+  const manager = new DeviceManagerController({
+    persistPreference: false,
+    // Deck's postprocessing buffers use rgba8unorm. Match them on WebGPU.
+    canvasContext: {useDevicePixels: false, colorFormat: 'rgba8unorm'},
+    optionalFeatures: ['timestamp-query']
+  });
   let scene = options.scene;
-  /** The camera of the mounted example, so a method switch keeps it. A scene change resets it. */
   let viewState = options.initialViewState;
-  const effectProps: ExampleEffectProps = {...options.effectProps};
-  let example: AmbientOcclusionExample | null = null;
-  let device: Device | null = null;
-  let deviceCanvases: Element[] = [];
-  let isFinalized = false;
-  /** Increments on each mount, so that a slow device request of an old mount does nothing. */
-  let generation = 0;
+  let ambientOcclusion = options.ambientOcclusion;
+  const effectProps = {...options.effectProps};
+  let example: AmbientOcclusionExample | undefined;
+  let mountedDevice: Device | undefined;
 
-  /** Creates a device and returns it with the canvas that luma.gl added for it. */
-  const createDevice = async (type: 'webgl' | 'webgpu') => {
-    const nextDevice = await createExampleDevice(container, type);
-    const canvas = nextDevice.getDefaultCanvasContext().htmlCanvas;
-    return {nextDevice, canvases: canvas ? [canvas] : []};
-  };
-  const destroyDevice = (target: Device | null, canvases: Element[]) => {
-    target?.destroy();
-    for (const canvas of canvases) {
-      canvas.remove();
-    }
-  };
-  const unmount = () => {
+  const mount = (device: Device, method: Method) => {
     example?.finalize();
-    example = null;
-    destroyDevice(device, deviceCanvases);
-    device = null;
-    deviceCanvases = [];
-  };
-
-  const mount = async (method?: MethodId, deviceType: 'webgl' | 'webgpu' = 'webgl') => {
-    const current = ++generation;
-    // Creates the new device first. If it fails, for example without WebGPU, the current
-    // example keeps running.
-    const {nextDevice, canvases} = await createDevice(
-      getMethod(method, deviceType).device ?? deviceType
-    );
-    if (isFinalized || current !== generation) {
-      destroyDevice(nextDevice, canvases);
-      return;
-    }
-    unmount();
-    device = nextDevice;
-    deviceCanvases = canvases;
+    manager.reparentCanvas(container, device);
+    mountedDevice = device;
     example = mountAmbientOcclusionExample(container, {
       ...options,
       scene,
       initialViewState: viewState,
+      ambientOcclusion,
       effectProps,
       device,
-      method,
+      method: method.id,
       onSceneChange: nextScene => {
         scene = nextScene;
         viewState = undefined;
@@ -503,22 +441,72 @@ export async function mountSwitchableAmbientOcclusionExample(
         Object.assign(effectProps, props);
         options.onEffectPropsChange?.(props);
       },
-      onMethodChange: (nextMethod, nextDeviceType) => {
-        const request = generation + 1;
-        mount(nextMethod, nextDeviceType).catch(error => {
-          console.error(error);
-          // The running example stays. Its panel shows it again, unless a newer switch started.
-          if (generation === request) {
-            example?.resetControls();
-          }
-        });
-      }
+      onAmbientOcclusionChange: enabled => {
+        ambientOcclusion = enabled;
+        options.onAmbientOcclusionChange?.(enabled);
+      },
+      onMethodChange: (nextMethod, type) => void select(getMethod(nextMethod, type), type)
     });
   };
 
-  await mount();
-  return () => {
-    isFinalized = true;
-    unmount();
+  const select = async (method: Method, type: DeviceType) => {
+    example?.resetControls();
+    // Even a same-backend selection supersedes an in-flight switch to another backend.
+    const device = await manager.setDeviceType(type);
+    if (device && example && (example.method.id !== method.id || mountedDevice !== device)) {
+      mount(device, method);
+    }
+    if (device) {
+      options.onSelectionChange?.(method.id, type);
+    }
+  };
+
+  const tabsHost = document.createElement('div');
+  tabsHost.style.cssText = 'position:absolute;top:12px;right:12px;z-index:4';
+  const tabs = new DeviceTabsWidget({
+    manager,
+    autoInitialize: false,
+    onDeviceTypeChange: type => {
+      const currentMethod = example?.method;
+      const nextMethod = currentMethod?.id.startsWith('cortao')
+        ? getMethod(undefined, type)
+        : getMethod(
+            currentMethod?.device && currentMethod.device !== type ? 'none' : currentMethod?.id,
+            type
+          );
+      void select(nextMethod, type);
+    }
+  });
+  const finalize = () => {
+    tabs.onRemove();
+    tabsHost.remove();
+    example?.finalize();
+    example = undefined;
+    manager.reset();
+  };
+
+  try {
+    const requestedType = options.deviceType ?? 'webgl';
+    const method = getMethod(options.method, requestedType);
+    const type = method.device ?? requestedType;
+    const device = await manager.setDeviceType(type);
+    if (!device) {
+      throw new Error(manager.getState().deviceError ?? 'No graphics device available');
+    }
+    mount(device, method);
+    if (options.controls !== false) {
+      container.append(tabsHost);
+      tabs.onRenderHTML(tabsHost);
+    }
+  } catch (error) {
+    finalize();
+    throw error;
+  }
+
+  return {
+    get example() {
+      return example!;
+    },
+    finalize
   };
 }
