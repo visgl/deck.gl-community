@@ -26,6 +26,7 @@ import {getGroundTrack, getOrbitPath, interpolateLngLatAlt, type OrbitClass} fro
 import {
   createOrbitPropagator,
   isCurrentGeneration,
+  isWorkerLoadError,
   type OrbitInitResult,
   type OrbitPropagator,
   type OrbitSample
@@ -47,13 +48,16 @@ export type OrbitLayerData = string | OMMRow[];
 
 type _OrbitLayerProps = {
   /**
-   * A string that starts with `http`, `/` or `.` is a URL, loaded with the `loaders` prop.
-   * Other strings are OMM JSON (when they start with `[` or `{`) or TLE text.
+   * A string that starts with `[` or `{` is OMM JSON text, and a string with a line break is TLE
+   * text. Other strings are URLs, loaded with the `loaders` prop.
    */
   data: OrbitLayerData;
   /** Simulated time, in milliseconds since the Unix epoch. The app sets it on each frame. */
   currentTime?: number | null;
-  /** Where SGP4 runs. */
+  /**
+   * Where SGP4 runs. When the worker cannot load, the layer calls `onError` once and runs SGP4
+   * on the main thread.
+   */
   propagation?: 'worker' | 'main-thread';
   /** Samples per second of wall time. The layer interpolates between samples. */
   propagationRate?: number;
@@ -142,7 +146,10 @@ type Selection = {
 
 type OrbitLayerState = {
   propagator: OrbitPropagator;
+  /** The `propagation` prop that the propagator was made for. */
   propagatorMode: 'worker' | 'main-thread';
+  /** True after the worker failed to load and the layer moved SGP4 to the main thread. */
+  workerFallback: boolean;
   clock: OrbitSampleClock;
   sampleIntervalMs: number;
   /** Incremented on every data or propagator change. Replies of other generations drop. */
@@ -197,6 +204,7 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
     this.state = {
       propagator: createOrbitPropagator(propagation),
       propagatorMode: propagation,
+      workerFallback: false,
       clock: new OrbitSampleClock(sampleIntervalMs),
       sampleIntervalMs,
       generation: 0,
@@ -229,6 +237,7 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
       state.propagator.destroy();
       state.propagator = createOrbitPropagator(props.propagation);
       state.propagatorMode = props.propagation;
+      state.workerFallback = false;
       state.recovering = false;
       state.errorReported = false;
       reinit = true;
@@ -414,7 +423,10 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
     if (typeof data !== 'string') {
       return toGpRecords(getRows(data));
     }
-    if (/^(http|\/|\.)/.test(data)) {
+    const text = data.trimStart();
+    const isJson = text.startsWith('[') || text.startsWith('{');
+    // TLE text has two or more lines, so a string without a line break is a URL.
+    if (!isJson && !/[\r\n]/.test(text)) {
       const {fetch, loaders} = this.props;
       const loadOptions = this.getLoadOptions() ?? {};
       const result = await fetch(data, {
@@ -430,8 +442,7 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
       });
       return toGpRecords(getRows(result));
     }
-    const text = data.trimStart();
-    return parseGpRecords(data, text.startsWith('[') || text.startsWith('{') ? 'json' : 'tle');
+    return parseGpRecords(data, isJson ? 'json' : 'tle');
   }
 
   /** Sends the current records to the propagator again, as a new generation. */
@@ -460,15 +471,18 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
       const layer = internalState.layer as OrbitLayer | null;
       return layer?.state.propagator === propagator ? layer : null;
     };
-    promise.then(
-      reply => {
-        const layer = getLayer();
-        if (layer) {
-          onReply(layer, reply);
-        }
-      },
-      error => getLayer()?.onPropagatorError(error)
-    );
+    promise
+      .then(
+        reply => {
+          const layer = getLayer();
+          if (layer) {
+            onReply(layer, reply);
+          }
+        },
+        error => getLayer()?.onPropagatorError(error)
+      )
+      // A user callback (`onDataLoad`, an accessor, `onSelectedPositionChange`) threw.
+      .catch(error => getLayer()?.raiseError(error as Error, 'OrbitLayer callback failed'));
   }
 
   private onInit(result: OrbitInitResult, records: GpRecord[]): void {
@@ -652,12 +666,34 @@ export class OrbitLayer<ExtraPropsT extends {} = {}> extends CompositeLayer<
     // The next time change asks again; a re-init below also asks for a sample.
     state.pendingRequestId = 0;
     state.queuedJumpMs = null;
+    if (isWorkerLoadError(error) && state.propagatorMode === 'worker' && !state.workerFallback) {
+      this.fallBackToMainThread(error);
+      return;
+    }
     if (!state.errorReported) {
       state.errorReported = true;
       this.raiseError(error, 'OrbitLayer propagation failed');
     }
     if (!state.recovering && state.records) {
       state.recovering = true;
+      this.reinit();
+    }
+  }
+
+  /** Moves SGP4 to the main thread for this layer, after the worker failed to load. */
+  private fallBackToMainThread(error: Error): void {
+    const {state} = this;
+    state.propagator.destroy();
+    state.propagator = createOrbitPropagator('main-thread');
+    // `propagatorMode` keeps 'worker', so `updateState` does not make a worker again.
+    state.workerFallback = true;
+    this.raiseError(
+      error,
+      'OrbitLayer could not load its propagation worker and runs SGP4 on the main thread. ' +
+        "With the Vite dev server, add optimizeDeps: {exclude: ['@deck.gl-community/layers']} " +
+        "to the Vite config. Set propagation: 'main-thread' to skip the worker"
+    );
+    if (state.records) {
       this.reinit();
     }
   }

@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {gstime, json2satrec, propagate} from 'satellite.js';
-import {describe, expect, it} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {
   ORBIT_CLASSES,
@@ -14,6 +14,7 @@ import {
   propagateToLngLatAlt,
   type GpRecord
 } from '@deck.gl-community/layers/space-layers';
+import {isWorkerLoadError} from '../../../src/space-layers/orbit-layer/orbit-propagator';
 import fixture from './data/gp-fixture.omm.json';
 
 const records = await parseGpRecords(JSON.stringify(fixture), 'json');
@@ -107,6 +108,74 @@ describe('createOrbitPropagator (main thread)', () => {
     await expect(propagator.propagate(1, DATE.getTime())).rejects.toThrow(/not initialized/);
     await propagator.init(1, records);
     await expect(propagator.propagate(1, DATE.getTime())).resolves.toBeTruthy();
+    propagator.destroy();
+  });
+});
+
+/** A worker that fires `error` on the first message, or after `repliesBeforeError` replies. */
+function stubWorker(repliesBeforeError: number) {
+  class FakeWorker {
+    onmessage: ((event: {data: unknown}) => void) | null = null;
+    onerror: ((event: {message: string}) => void) | null = null;
+    onmessageerror: (() => void) | null = null;
+    private replies = 0;
+    postMessage(message: {type: string; requestId: number; generation?: number}) {
+      setTimeout(() => {
+        if (this.replies++ < repliesBeforeError) {
+          this.onmessage?.({
+            data: {
+              type: 'init',
+              requestId: message.requestId,
+              generation: message.generation,
+              recordIndices: new Int32Array(0),
+              orbitClasses: new Uint8Array(0),
+              periodsMinutes: new Float64Array(0)
+            }
+          });
+        } else {
+          this.onerror?.({message: 'Failed to fetch dynamically imported module'});
+        }
+      }, 0);
+    }
+    terminate() {}
+  }
+  vi.stubGlobal('Worker', FakeWorker);
+}
+
+describe('createOrbitPropagator (worker)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('rejects, and does not throw, when there is no Worker global', async () => {
+    expect(typeof Worker).toBe('undefined');
+    const propagator = createOrbitPropagator('worker');
+    let promise: Promise<unknown> | null = null;
+    expect(() => {
+      promise = propagator.init(1, records);
+    }).not.toThrow();
+    const error = await promise!.catch(caught => caught);
+    expect(isWorkerLoadError(error)).toBe(true);
+    await expect(propagator.propagate(1, DATE.getTime())).rejects.toSatisfy(isWorkerLoadError);
+    propagator.destroy();
+  });
+
+  it('marks a worker error before the first reply as a load error', async () => {
+    stubWorker(0);
+    const propagator = createOrbitPropagator('worker');
+    const error = await propagator.init(1, records).catch(caught => caught);
+    expect(isWorkerLoadError(error)).toBe(true);
+    expect(error.message).toMatch(/Failed to fetch/);
+    propagator.destroy();
+  });
+
+  it('does not mark a worker error after a reply as a load error', async () => {
+    stubWorker(1);
+    const propagator = createOrbitPropagator('worker');
+    await propagator.init(1, records);
+    const error = await propagator.propagate(1, DATE.getTime()).catch(caught => caught);
+    expect(error).toBeInstanceOf(Error);
+    expect(isWorkerLoadError(error)).toBe(false);
     propagator.destroy();
   });
 });

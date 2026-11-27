@@ -40,6 +40,22 @@ export function isCurrentGeneration(result: {generation: number}, generation: nu
 
 const DESTROYED_MESSAGE = 'OrbitPropagator was destroyed';
 
+const WORKER_LOAD_ERROR = Symbol('worker load error');
+
+/**
+ * Returns true when the worker could not start: `new Worker` threw (no `Worker` global, an
+ * invalid URL, a CSP error) or the worker failed before its first reply (a missing file).
+ */
+export function isWorkerLoadError(error: unknown): boolean {
+  return Boolean(error && (error as Record<symbol, unknown>)[WORKER_LOAD_ERROR]);
+}
+
+function toWorkerLoadError(cause: unknown): Error {
+  const error = cause instanceof Error ? cause : new Error(String(cause));
+  (error as unknown as Record<symbol, unknown>)[WORKER_LOAD_ERROR] = true;
+  return error;
+}
+
 /** Creates a propagator that runs in a Web Worker or on the main thread. */
 export function createOrbitPropagator(mode: 'worker' | 'main-thread'): OrbitPropagator {
   return mode === 'worker' ? new WorkerOrbitPropagator() : new MainThreadOrbitPropagator();
@@ -74,6 +90,8 @@ type PendingRequest = {resolve: (value: any) => void; reject: (error: Error) => 
 class WorkerOrbitPropagator implements OrbitPropagator {
   private worker: Worker | null = null;
   private destroyed = false;
+  /** False until the first worker reply. A worker error before it is a load error. */
+  private replied = false;
   private nextRequestId = 1;
   private readonly pending = new Map<number, PendingRequest>();
 
@@ -97,11 +115,22 @@ class WorkerOrbitPropagator implements OrbitPropagator {
     if (this.destroyed) {
       return Promise.reject(new Error(DESTROYED_MESSAGE));
     }
-    const worker = this.getWorker();
+    let worker: Worker;
+    try {
+      worker = this.getWorker();
+    } catch (error) {
+      // For example no `Worker` global, a CSP error, or an invalid `import.meta.url` (CJS).
+      return Promise.reject(toWorkerLoadError(error));
+    }
     const requestId = this.nextRequestId++;
     return new Promise<T>((resolve, reject) => {
       this.pending.set(requestId, {resolve, reject});
-      worker.postMessage(createMessage(requestId));
+      try {
+        worker.postMessage(createMessage(requestId));
+      } catch (error) {
+        this.pending.delete(requestId);
+        reject(error as Error);
+      }
     });
   }
 
@@ -118,7 +147,8 @@ class WorkerOrbitPropagator implements OrbitPropagator {
         if (this.worker === worker) {
           this.worker = null;
         }
-        this.rejectAll(new Error(event.message || 'Orbit worker failed'));
+        const error = new Error(event.message || 'Orbit worker failed');
+        this.rejectAll(this.replied ? error : toWorkerLoadError(error));
       };
       worker.onmessageerror = () => this.rejectAll(new Error('Orbit worker message failed'));
       this.worker = worker;
@@ -127,6 +157,7 @@ class WorkerOrbitPropagator implements OrbitPropagator {
   }
 
   private handleMessage(response: WorkerResponse): void {
+    this.replied = true;
     const request = this.pending.get(response.requestId);
     if (!request) {
       return;
