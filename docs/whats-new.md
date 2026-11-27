@@ -16,6 +16,10 @@ This page lists module additions and major changes in each release. For detailed
   shows targets as rings inside the viewport margins and docks arrows for targets outside the
   margins, behind the camera, or beyond the globe horizon. Import it from
   `@deck.gl-community/layers/common-layers`.
+- **layers:** experimental [OrbitLayer](./modules/layers/api-reference/orbit-layer.md) draws
+  satellites from OMM JSON or TLE element sets. SGP4 runs in a worker, and the layer
+  interpolates between samples. It draws the orbit and ground track of a selected satellite
+  on `GlobeView` and `MapView`. Import it from `@deck.gl-community/layers/space-layers`.
 - **layers:** [ZoomOpacityExtension](./modules/layers/api-reference/zoom-opacity-extension.md)
   fades layers by viewport zoom on WebGL2 and WebGPU.
 - **layers:** Moved the infovis primitives into the [common and timeline subpaths](./upgrade-guide.md#infovis-and-timeline-packages).

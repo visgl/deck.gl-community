@@ -32,17 +32,36 @@ npm install satellite.js@^7.2.0 @loaders.gl/scientific@5.0.1
 
 `satellite.js` 7 uses top-level await. Set the bundler output target to ES2022 or newer.
 
-The propagation worker is an ES module worker (`{type: 'module'}`). The layer loads it from `new URL('./orbit-propagation-worker.js', import.meta.url)`. The package ships the worker built, with `satellite.js` bundled in. Your bundler must resolve this URL and serve the file as a module. Set `propagation: 'main-thread'` to run without a worker.
+The propagation worker is an ES module worker (`{type: 'module'}`). The layer loads it from `new URL('./orbit-propagation-worker.js', import.meta.url)`. The package ships the worker built, with `satellite.js` bundled in. Your bundler must resolve this URL and serve the file as a module. Set `propagation: 'main-thread'` to run without a worker. See [Bundlers](#bundlers).
 
 If `satellite.js` is missing, the import of the subpath fails at build or load time.
+
+## Bundlers
+
+The worker is an ES2022 module worker. Set the bundler output target to ES2022 or newer.
+
+When the worker cannot load, the layer calls `onError` one time and runs SGP4 on the main thread. The satellites still show. The error message names the cause.
+
+- **Vite dev server.** The dev server pre-bundles dependencies into `node_modules/.vite/deps/`. The worker file is not copied there, so the worker URL gives a 404. Exclude the package from pre-bundling:
+
+  ```js
+  // vite.config.js
+  export default {
+    optimizeDeps: {exclude: ['@deck.gl-community/layers']}
+  };
+  ```
+
+- **Vite build.** `satellite.js` 7 contains its own module worker that uses top-level await. Vite builds workers as `iife` by default, and that build fails. Set `worker: {format: 'es'}` in the Vite config.
+- **webpack 5.** webpack 5 resolves `new Worker(new URL(..., import.meta.url))` and emits the worker file. No configuration is necessary.
+- **CommonJS.** Worker mode needs the ESM entry. The CJS entry (`require`) has no `import.meta.url`, so the layer falls back to the main thread and calls `onError` one time. Set `propagation: 'main-thread'` to skip the worker and the error.
 
 ## Data
 
 `data` accepts one of these values:
 
-- A URL string. A string that starts with `http`, `/` or `.` is a URL.
 - OMM JSON text. A string that starts with `[` or `{` (after leading white space) is OMM JSON.
-- TLE text. Any other string is TLE text.
+- TLE text. Another string with a line break is TLE text. TLE text always has two or more lines.
+- A URL string. Any other string is a URL, for example `https://…`, `/gp.json`, `data/gp.json` or `blob:…`.
 - An `OMMRow[]` array, from `OMMLoader`. Import the type with `import type {OMMRow} from '@loaders.gl/scientific/omm'`.
 
 `data` is not a deck.gl async data prop. The layer loads URLs itself. It uses the `fetch` prop, and the `OMMLoader` and `TLELoader` loaders from the `loaders` prop. Thus `dataTransform`, `onDataProgress` and a Promise as `data` do not apply.
@@ -63,7 +82,7 @@ The layer estimates the clock rate of your app from the last `currentTime` value
 | --- | --- | --- | --- |
 | `data` | `string \| OMMRow[]` | `[]` | GP element sets. See [Data](#data). |
 | `currentTime` | `number \| null` | `null` | Simulated time in Unix ms. When `null`, the layer uses its creation time. |
-| `propagation` | `'worker' \| 'main-thread'` | `'worker'` | Where SGP4 runs. Use `'main-thread'` for small groups and tests. |
+| `propagation` | `'worker' \| 'main-thread'` | `'worker'` | Where SGP4 runs. Use `'main-thread'` for small groups and tests. If the worker cannot load, the layer uses the main thread. See [Bundlers](#bundlers). |
 | `propagationRate` | `number` | `5` | Samples per second of wall time. The layer interpolates between samples. Minimum `0.01`. |
 | `selectedNoradId` | `number \| null` | `null` | Draws the orbit and ground track of this satellite. |
 | `showOrbit` | `boolean` | `true` | Draws the orbit of the selected satellite. |
@@ -92,7 +111,7 @@ Use `updateTriggers` to run an accessor again.
 | --- | --- |
 | `onDataLoad({satellites, rejected})` | Called after parsing and SGP4 initialization. `satellites` is the count of satellites drawn. `rejected` is the count of element sets that SGP4 rejected. |
 | `onSelectedPositionChange(position, satellite)` | Called after each interpolation while the selected satellite has a position. `position` is `[lng, lat, altitude m]`. Use it for "follow". |
-| `onError(error)` | Called for parse, network and propagation errors. |
+| `onError(error)` | Called for parse, network and propagation errors, for a worker that cannot load, and for errors that the layer callbacks and accessors throw. |
 
 The layer does not control the camera. To follow a satellite, move the camera in `onSelectedPositionChange`.
 
