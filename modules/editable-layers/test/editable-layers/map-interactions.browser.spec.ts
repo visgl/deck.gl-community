@@ -1,13 +1,11 @@
 import {expect, test, vi} from 'vitest';
-import 'maplibre-gl';
+import maplibre from 'maplibre-gl';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
 import {DrawPolygonMode} from '../../src/edit-modes/draw-polygon-mode';
 import {DrawRectangleMode} from '../../src/edit-modes/draw-rectangle-mode';
 import {ModifyMode} from '../../src/edit-modes/modify-mode';
 import {ViewMode} from '../../src/edit-modes/view-mode';
-
-const maplibre = (globalThis as any).maplibregl;
 
 test('interleaved editing preserves map controls, view navigation, and the application override', async () => {
   const container = document.createElement('div');
