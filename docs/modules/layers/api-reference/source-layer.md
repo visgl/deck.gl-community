@@ -33,6 +33,18 @@ Use `onSourceLoad` to inspect the resolved source, `onMetadataLoad` to read its 
 
 For image and vector services that expose multiple named layers, set `layers` to a name or a list of names. Pass explicit `sourceOptions.core.type` when a URL can represent more than one source type.
 
+## RasterSourceLayer
+
+`RasterSourceLayer` requests the active viewport through `RasterSet` and renders typed samples with `BitmapLayer`, or with `RasterBitmapLayer` when `rendering` is `'gpu'`. The default colorizer uses tagged RGB or grayscale bands when available, with sampled 2nd and 98th percentile scaling and a blue-to-yellow single-band ramp. It displays tagged 8-bit RGB values as stored. With no display tags, including with loaders.gl 5.0.0-rc.2 GeoTIFF sources, it stretches the first three bands for RGB or uses the first band for the single-band ramp.
+
+When a source supplies a tagged alpha band, the colorizer scales opacity using the full range for unsigned samples, 0–1 for floating-point samples, and clamped byte values for signed samples. It converts premultiplied colors to straight colors. For tagged RGB with no alpha band, a pixel is transparent when all three channels match their no-data values. Masks and non-finite samples also make pixels transparent.
+
+Bounds can be in EPSG:4326, EPSG:3857 or a projected CRS (see [Projected rasters](#projected-rasters)). CRS identifiers may be supplied as strings or authority-coded PROJJSON definitions. Rasters without geospatial bounds render in pixel coordinates in `OrthographicView`.
+
+Use `rasterParameters` for source-specific dimensions, `getRasterParameters` for custom requests, and `colorizeRaster` for application color maps.
+
+The default request preserves the viewport's aspect ratio when scaling to `maxTextureSize`. With inferred placement, `BitmapLayer` samples longitude and latitude per pixel for geographic rasters. EPSG:3857 rasters use the default Web Mercator sampling. A `colorizeRaster` result that supplies both `bounds` and `coordinateSystem` controls placement and uses the bitmap sublayer's default `_imageCoordinateSystem`. Set `bitmapLayerProps._imageCoordinateSystem` to override image sampling.
+
 ## Projected rasters
 
 `RasterSourceLayer` forwards `bitmapLayerProps` to `BitmapLayer`. With deck.gl 10.0.0-alpha.2, do not set `bitmapLayerProps._projectionTolerance` to a nonzero value for a projected raster (for example UTM) in `MapView` or `GlobeView`. These views pack the raster to WGS84, and `BitmapLayer` then throws `_projectionTolerance requires projected coordinates with linear units`. Keep the value unset or `0` in these views. [visgl/deck.gl#11343](https://github.com/visgl/deck.gl/pull/11343) adds support for these views.
