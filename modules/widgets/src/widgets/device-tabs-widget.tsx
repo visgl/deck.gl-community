@@ -48,7 +48,7 @@ const SELECT_WRAPPER_STYLE: JSX.CSSProperties = {
 
 const SELECT_STYLE: JSX.CSSProperties = {
   appearance: 'none',
-  minHeight: '44px',
+  minHeight: '46px',
   padding: '6px 30px 6px 26px',
   border: '1px solid var(--deck-device-border, rgba(148, 163, 184, 0.24))',
   borderRadius: '9px',
@@ -58,8 +58,9 @@ const SELECT_STYLE: JSX.CSSProperties = {
   boxShadow: '0 8px 22px rgba(0, 0, 0, 0.2)',
   cursor: 'pointer',
   fontFamily: 'var(--deck-device-font-family, system-ui, sans-serif)',
-  fontSize: '13px',
-  fontWeight: 650
+  fontSize: '15px',
+  fontWeight: 600,
+  lineHeight: 1.25
 };
 
 const INDICATOR_STYLE: JSX.CSSProperties = {
