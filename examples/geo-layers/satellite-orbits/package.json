@@ -12,6 +12,8 @@
   "dependencies": {
     "@deck.gl/core": "10.0.0-alpha.2",
     "@deck.gl/layers": "10.0.0-alpha.2",
+    "@loaders.gl/core": "5.0.0",
+    "@loaders.gl/scientific": "5.0.1",
     "satellite.js": "^7.2.0"
   },
   "devDependencies": {

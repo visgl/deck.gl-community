@@ -1,8 +1,12 @@
 # Satellite orbits on GlobeView (prototype)
 
 This example shows satellites from CelesTrak general perturbations (GP) data on a deck.gl
-`GlobeView`, at their altitude. It is a prototype for a possible OMM/TLE loader in loaders.gl and
-an `OrbitLayer` in deck.gl-community.
+`GlobeView`, at their altitude. It is a prototype for a possible `OrbitLayer` in
+deck.gl-community.
+
+- The `OMMLoader` and `TLELoader` of `@loaders.gl/scientific` parse the GP data. Both loaders
+  return the same OMM rows, so OMM JSON and TLE text reach SGP4 through one path
+  (`load-gp-records.ts`). The propagation worker imports only `satellite.js` (`gp-records.ts`).
 
 - A Web Worker propagates all satellites with SGP4 (`satellite.js`) at 5 Hz.
   The main thread interpolates the positions between two samples in each frame.
@@ -52,7 +56,7 @@ URL parameters:
 - CelesTrak TLE text does not include objects with a catalog number above 99999. OMM JSON
   includes them (`stations` has 16 objects in OMM JSON and 13 in TLE).
 - [`satellite.js`](https://github.com/shashwatak/satellite-js) 7.2.0 is MIT. The example
-  uses `json2satrec`, `twoline2satrec`, `propagate`, `gstime` and `eciToGeodetic`.
+  uses `json2satrec`, `propagate`, `gstime` and `eciToGeodetic`.
   The package entry also exports WASM builds that use top-level await. Thus
   `vite.config.ts` sets the ES2022 target and an ES module worker. The worker bundle is 22 KB
   because the bundler removes the unused WASM code.
