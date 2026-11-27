@@ -2,26 +2,30 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-// Components (originally from @deck.gl-community/graph-layers)
+import {createWidgetComponent} from '@deck.gl/react';
+import type {PanelComponent, PanelComponentProps} from '@deck.gl-community/panels';
+import {PanelWidget} from '@deck.gl-community/widgets';
+import type {ReactElement} from 'react';
 
-export {LongPressButton} from './components/long-press-button';
+export {DeckCanvas, type DeckCanvasProps} from './components/deck-canvas';
 
-// Components (originally from @nebula.gl/editor)
+const FiberPanelWidget = createWidgetComponent(PanelWidget);
 
-export {EditorModal as Modal} from './components/modal';
-export {Button} from './components/modal';
-export {Icon} from './components/icon';
-export {
-  Panel,
-  type PanelHostThemeMode,
-  type PanelProps
-} from './components/panel';
+export type PanelProps<PropsT extends PanelComponentProps> = {
+  /** Panel component class to mount in the deck.gl widget tree. */
+  type: new (
+    props: PropsT
+  ) => PanelComponent;
+  /** Restrict the widget to this Deck view. */
+  viewId?: string | null;
+} & NoInfer<PropsT>;
 
-// Overlays migrated to @deck.gl-community/widgets
-
-export {
-  ReactPanel,
-  useReactPanel,
-  type ReactPanelProps,
-  type ReactPanelContentProps
-} from './components/react-panel';
+/** Mounts a panel component inside the upstream deck.gl React Fiber renderer. */
+export function Panel<PropsT extends PanelComponentProps>({
+  type: PanelType,
+  viewId,
+  ...props
+}: PanelProps<PropsT>): ReactElement {
+  // The remaining props are the chosen constructor’s props, after removing the JSX type selector.
+  return FiberPanelWidget({component: new PanelType(props as unknown as PropsT), viewId});
+}

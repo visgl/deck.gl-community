@@ -1,21 +1,54 @@
 import PanelContentBridgeDemo from '@site/src/components/docs/panel-content-bridge-demo';
 import * as React from 'react';
-import {Panel as PanelHost} from '@deck.gl-community/react';
+import {Panel as PanelHost} from '@deck.gl-community/react/legacy';
 import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 
 # Panel
+
+## Fiber Panel
+
+Import the package root to add a panel widget to the upstream React
+Fiber renderer.
+
+```tsx
+import {DeckGL} from '@deck.gl/react';
+import {BoxPanelContainer as BoxPanel, SidebarPanelContainer} from '@deck.gl-community/panels';
+import {Panel} from '@deck.gl-community/react';
+
+// tools and details are panel definitions from @deck.gl-community/panels.
+<DeckGL initialViewState={initialViewState} controller>
+  <Panel type={BoxPanel} id="tools" title="Tools" widthPx={320} panel={tools} />
+  <Panel type={SidebarPanelContainer} id="details" side="right" panel={details} />
+</DeckGL>;
+```
+
+| Prop | Behavior |
+| --- | --- |
+| `type` | Panel component class such as `BoxPanelContainer` or `SidebarPanelContainer`. |
+| `id` | Stable panel identity. Use distinct IDs for multiple panels. |
+| `viewId` | Scope the widget to a Deck view. |
+| Other props | The selected class's constructor props, including `panel` for containers that accept one. |
+
+The component mounts through deck.gl's widget lifecycle. A stable ID lets
+deck.gl update the panel when its props change. Changing `type` swaps the
+panel component. Unmounting removes its widget.
+
+For React-owned controls, use [`useReactPanel`](#react-owned-content) to create
+a panel definition and render its portal in the application React tree.
+
+## Legacy Panel
 
 ![From v9.3](https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square)
 
 `Panel` renders a `@deck.gl-community/panels` panel definition inside a React tree.
 
-## Import
+### Import
 
 ```tsx
-import {Panel, type PanelProps} from '@deck.gl-community/react';
+import {Panel, type PanelProps} from '@deck.gl-community/react/legacy';
 ```
 
-## Props
+### Props
 
 ```ts
 type PanelProps = {
@@ -28,7 +61,7 @@ type PanelProps = {
 };
 ```
 
-## Demo
+### Demo
 
 The component is intended for React surfaces such as Docusaurus MDX. This page is rendering one directly:
 
@@ -43,7 +76,7 @@ panel={
         id: 'intro',
         title: 'React host',
         markdown:
-          'This panel is rendered in MDX through `@deck.gl-community/react`.'
+          'This panel is rendered in MDX through `@deck.gl-community/react/legacy`.'
       }),
       new MarkdownPanel({
         id: 'notes',
@@ -57,10 +90,10 @@ panel={
 style={{maxWidth: 720, marginBottom: 24}}
 />
 
-## Usage
+### Usage
 
 ```tsx
-import {Panel} from '@deck.gl-community/react';
+import {Panel} from '@deck.gl-community/react/legacy';
 import {MarkdownPanel} from '@deck.gl-community/panels';
 
 const summaryPanel = new MarkdownPanel({
@@ -74,13 +107,13 @@ export function DocsCallout() {
 }
 ```
 
-## Arrow panels in MDX
+### Arrow panels in MDX
 
 Create Arrow inspection panels from `@deck.gl-community/panels` and render them
 with `Panel` in MDX.
 
 ```tsx
-import {Panel} from '@deck.gl-community/react';
+import {Panel} from '@deck.gl-community/react/legacy';
 import {ArrowTablePanel} from '@deck.gl-community/panels';
 
 const tablePanel = new ArrowTablePanel({
@@ -96,14 +129,14 @@ export function ArrowTableDocsPanel() {
 }
 ```
 
-## Remarks
+### Remarks
 
 - Accepts one reusable panel definition from `@deck.gl-community/panels`.
 - Uses the panels module's existing Preact renderer internally, so existing panel implementations keep working unchanged.
 - Supports `light`, `dark`, and `inherit` theme modes using the panels module's theme variables.
 - `framed={false}` is useful when the surrounding React layout already provides the outer surface.
 
-## Presets and custom themes
+### Presets and custom themes
 
 The `theme` prop accepts the panel presets (`light`, `dark`, `sleek-light`, `sleek-dark`)
 or a `PanelThemeDefinition`. It takes precedence over the existing `themeMode` prop.
@@ -117,14 +150,14 @@ still apply within a composition. Frame padding and corner radius follow the pre
 }} />
 ```
 
-## React-owned content
+### React-owned content
 
 Use `ReactPanel` for a direct surface containing React children. Context, hooks, events,
 and state belong to the caller's React tree; the bridge does not create another React root.
 `title` is required, `id` is optional, and the host accepts the same theme/frame props as `Panel`.
 
 ```tsx
-import {ReactPanel} from '@deck.gl-community/react';
+import {ReactPanel} from '@deck.gl-community/react/legacy';
 
 <ReactPanel title="Controls" theme="sleek-light">
   <ApplicationControls />

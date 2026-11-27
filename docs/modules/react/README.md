@@ -5,13 +5,17 @@ introduced: "9.0"
 
 # Overview
 
-A collection of generic react components to use with deck.gl
+| Import | Exports | Use |
+| --- | --- | --- |
+| `@deck.gl-community/react` | [`Panel`](./api-reference/panel.md#fiber-panel), [`DeckCanvas`](./api-reference/deck-canvas.md) | Mount a panel widget in React Fiber or attach a canvas to an application-owned `Deck`. |
+| `@deck.gl-community/react/legacy` | [`Panel`, `ReactPanel`, `useReactPanel`](./api-reference/panel.md#legacy-panel), `Modal`, `Button`, `Icon`, `LongPressButton` | Render panel content and UI controls in a React DOM tree, including MDX. |
 
-> After the introduction of widgets in deck.gl 9.1, the general direction is to develop components as widgets (these work in all deck.gl environments, not just React) and phase out older React components.
-
-This package also includes `Panel`, a small React wrapper for rendering
-`@deck.gl-community/panels` content directly inside React and MDX trees. `ReactPanel` and `useReactPanel` also
-embed React-owned controls in panel surfaces and compositions while preserving context.
+The package root uses `@deck.gl/react` and its React 19.2+ peers. Apps using
+the classic DeckGL wrapper
+can combine `@deck.gl/react/legacy` with the DOM panel components from
+`@deck.gl-community/react/legacy`. The community DOM entry point supports
+React 18.3.1 and later React 18 releases, as well as React 19.
+See [Get Started](./developer-guide/get-started.md) for examples.
 
 :::caution
 The deck.gl-community repository is semi-maintained. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.

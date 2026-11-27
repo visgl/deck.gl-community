@@ -1,7 +1,7 @@
 /* eslint import/namespace: ['error', { allowComputed: true }] */
 import React, {useEffect, useRef} from 'react';
 import {BoxPanelContainer, PanelManager} from '@deck.gl-community/panels';
-import {useReactPanel} from '@deck.gl-community/react';
+import {useReactPanel} from '@deck.gl-community/react/legacy';
 import {EXAMPLE_PANEL_STYLE} from '../../../../examples/utils/panel-theme';
 import styles from './index.module.css';
 

@@ -17,7 +17,7 @@ so panel layers appear only in their panel and root layers stay in root views.
 
 ## Usage
 
-Construct the root Deck with deck.gl 9.4's experimental `_canvases` option. This mode
+Construct the root Deck with the experimental `_canvases` option. This mode
 must be selected at construction: an existing single-canvas Deck cannot be converted.
 Mount panels after `onLoad`, when Deck is initialized.
 

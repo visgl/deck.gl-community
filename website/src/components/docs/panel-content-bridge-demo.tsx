@@ -1,5 +1,5 @@
 import React, {createContext, useContext, useMemo, useState} from 'react';
-import {Panel, useReactPanel} from '@deck.gl-community/react';
+import {Panel, useReactPanel} from '@deck.gl-community/react/legacy';
 import {MarkdownPanel, TabbedPanel} from '@deck.gl-community/panels';
 
 const LabelContext = createContext('Scene');

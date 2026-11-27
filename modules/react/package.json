@@ -31,10 +31,10 @@
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
     },
-    "./deck-canvas": {
-      "types": "./dist/deck-canvas.d.ts",
-      "require": "./dist/deck-canvas.cjs",
-      "import": "./dist/deck-canvas.js"
+    "./legacy": {
+      "types": "./dist/legacy.d.ts",
+      "require": "./dist/legacy.cjs",
+      "import": "./dist/legacy.js"
     }
   },
   "files": [
@@ -49,7 +49,21 @@
     "react-dom": "^18.3.1 || ^19.0.0"
   },
   "peerDependencies": {
-    "@deck.gl-community/panels": "10.0.0-alpha.3"
+    "@deck.gl-community/panels": "10.0.0-alpha.3",
+    "@deck.gl-community/widgets": "10.0.0-alpha.3",
+    "@deck.gl/react": "10.0.0-alpha.2"
   },
-  "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35"
+  "gitHead": "8374ab0ac62a52ae8a6b14276694cabced43de35",
+  "peerDependenciesMeta": {
+    "@deck.gl-community/widgets": {
+      "optional": true
+    },
+    "@deck.gl/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@deck.gl-community/widgets": "workspace:*",
+    "@deck.gl/react": "10.0.0-alpha.2"
+  }
 }
