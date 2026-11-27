@@ -34,7 +34,7 @@ npm install satellite.js@^7.2.0 @loaders.gl/scientific@5.0.1
 
 The propagation worker is an ES module worker (`{type: 'module'}`). The layer loads it from `new URL('./orbit-propagation-worker.js', import.meta.url)`. The package ships the worker built, with `satellite.js` bundled in. Your bundler must resolve this URL and serve the file as a module. Set `propagation: 'main-thread'` to run without a worker.
 
-If `satellite.js` is missing, the layer calls `onError` with an install hint.
+If `satellite.js` is missing, the import of the subpath fails at build or load time.
 
 ## Data
 
@@ -43,7 +43,7 @@ If `satellite.js` is missing, the layer calls `onError` with an install hint.
 - A URL string. A string that starts with `http`, `/` or `.` is a URL.
 - OMM JSON text. A string that starts with `[` or `{` (after leading white space) is OMM JSON.
 - TLE text. Any other string is TLE text.
-- An `OMMRow[]` array, from `OMMLoader`.
+- An `OMMRow[]` array, from `OMMLoader`. Import the type with `import type {OMMRow} from '@loaders.gl/scientific/omm'`.
 
 `data` is not a deck.gl async data prop. The layer loads URLs itself. It uses the `fetch` prop, and the `OMMLoader` and `TLELoader` loaders from the `loaders` prop. Thus `dataTransform`, `onDataProgress` and a Promise as `data` do not apply.
 
@@ -78,7 +78,7 @@ The layer estimates the clock rate of your app from the last `currentTime` value
 
 The default `getColor` uses these colors: LEO `[80, 200, 255, 230]`, MEO `[120, 230, 120, 230]`, GEO `[255, 170, 60, 230]`, HEO `[240, 100, 220, 230]`.
 
-The layer also accepts the standard `CompositeLayer` props, such as `id`, `pickable` and `loaders`. The `fetch` and `loaders` props apply to URL loading.
+The layer also accepts the standard `CompositeLayer` props, such as `id`, `pickable`, `fetch` and `loaders`. The `fetch` and `loaders` props apply to URL loading. The default of `loaders` is `[OMMLoader, TLELoader]`.
 
 ### Accessors
 
@@ -139,7 +139,10 @@ async function loadGroup(group: string): Promise<string> {
   return text;
 }
 
-new OrbitLayer({id: 'satellites', data: await loadGroup('active'), currentTime});
+async function createLayer(currentTime: number): Promise<OrbitLayer> {
+  const data = await loadGroup('active');
+  return new OrbitLayer({id: 'satellites', data, currentTime});
+}
 ```
 
 ## Limits
