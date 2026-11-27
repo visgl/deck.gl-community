@@ -11,6 +11,7 @@
   "dependencies": {
     "@deck.gl-community/experimental": "workspace:*",
     "@deck.gl-community/layers": "workspace:*",
+    "@deck.gl-community/widgets": "workspace:*",
     "@deck.gl/core": "10.0.0-alpha.2",
     "@deck.gl/extensions": "10.0.0-alpha.2",
     "@deck.gl/geo-layers": "10.0.0-alpha.2",
