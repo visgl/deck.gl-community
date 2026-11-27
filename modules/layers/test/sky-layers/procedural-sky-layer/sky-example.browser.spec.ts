@@ -51,13 +51,16 @@ test('switches the hosted ProceduralSkyLayer from WebGL2 to WebGPU without reset
     expect(bearing).not.toBe(20);
     await vi.waitFor(() => expect(getBearing(webgl)).toBeCloseTo(bearing), {timeout: 5000});
 
-    await page.getByRole('tab', {name: 'WebGPU', exact: true}).click();
+    const backend = page.getByRole('combobox', {name: 'Graphics backend'});
+    await expect.element(backend).toHaveValue('webgl');
+    await backend.selectOptions('webgpu');
     await vi.waitFor(() => expect(mounts[1]?.isInitialized).toBe(true), {timeout: 10000});
     const webgpu = mounts[1];
     const webgpuCanvas = webgpu.getCanvas()!;
     expect(webgpuCanvas.parentElement).toBe(webgpu.props.parent);
     expect(webgpuCanvas.getContext('webgpu')).toBeTruthy();
     expect(getBearing(webgpu)).toBeCloseTo(bearing);
+    await expect.element(backend).toHaveValue('webgpu');
   } finally {
     cleanup?.();
     host.remove();
