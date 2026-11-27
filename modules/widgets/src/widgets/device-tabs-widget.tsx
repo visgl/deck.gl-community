@@ -22,6 +22,10 @@ export type DeviceTabsWidgetProps = WidgetProps & {
   placement?: WidgetPlacement;
   /** Shared device manager instance that drives the widget state. */
   manager?: DeviceManagerController;
+  /** Whether the widget should ensure an allowed device is selected. Defaults to true. */
+  autoInitialize?: boolean;
+  /** Handle a selection in the host when it coordinates other example state with the backend. */
+  onDeviceTypeChange?: (type: DeviceType) => void;
 };
 
 const DEFAULT_DEVICES: DeviceTabsWidgetDevice[] = ['webgl2', 'webgpu'];
@@ -166,12 +170,13 @@ function DeviceTabsWidgetView({
  * reusable manager that can also be consumed independently.
  */
 export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
-  static defaultProps: Required<DeviceTabsWidgetProps> = {
+  static defaultProps: Required<Omit<DeviceTabsWidgetProps, 'onDeviceTypeChange'>> = {
     ...Widget.defaultProps,
     id: 'device-tabs-widget',
     devices: DEFAULT_DEVICES,
     placement: 'top-right',
-    manager: DeviceManager
+    manager: DeviceManager,
+    autoInitialize: true
   };
 
   className = 'deck-widget-device-tabs';
@@ -206,10 +211,10 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
       this.#manager = props.manager;
     }
 
+    super.setProps(props);
     this.#subscribeToManager();
     this.#refreshAvailability().catch(() => {});
     this.#render();
-    super.setProps(props);
   }
 
   /** Starts listening to the shared manager when the widget is mounted. */
@@ -220,10 +225,12 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
 
   /** Removes manager subscriptions and unmounts the internal Preact view. */
   onRemove(): void {
+    this.#availabilityRequest++;
     this.#unsubscribe?.();
     this.#unsubscribe = null;
     if (this.#rootElement) {
       render(null, this.#rootElement);
+      this.#rootElement = null;
     }
   }
 
@@ -262,7 +269,9 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
 
     this.#availability = Object.fromEntries(availabilityEntries);
     this.#render();
-    await this.#manager.ensureDeviceType(allowedDeviceTypes);
+    if (this.props.autoInitialize) {
+      await this.#manager.ensureDeviceType(allowedDeviceTypes);
+    }
   }
 
   #handleSelectDeviceType = (deviceType: DeviceType) => {
@@ -270,7 +279,11 @@ export class DeviceTabsWidget extends Widget<DeviceTabsWidgetProps> {
       return;
     }
 
-    this.#manager.setDeviceType(deviceType).catch(() => {});
+    if (this.props.onDeviceTypeChange) {
+      this.props.onDeviceTypeChange(deviceType);
+    } else {
+      this.#manager.setDeviceType(deviceType).catch(() => {});
+    }
   };
 
   #render(): void {

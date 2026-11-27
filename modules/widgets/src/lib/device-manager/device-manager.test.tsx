@@ -126,6 +126,44 @@ describe('DeviceManagerController', () => {
     expect(manager.getState().isLoading).toBe(false);
   });
 
+  it('honors the allowlist before creating a device and forwards canvas requirements', async () => {
+    manager = new DeviceManagerController({
+      canvasContext: {colorFormat: 'rgba8unorm', useDevicePixels: false},
+      optionalFeatures: ['timestamp-query']
+    });
+    window.localStorage.setItem('deck.gl-community-device-type', 'webgpu');
+    createDeviceMock.mockResolvedValue(createMockDevice('webgl'));
+
+    await expect(manager.initialize(['webgl'])).resolves.toBe('webgl');
+    expect(createDeviceMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        type: 'webgl',
+        optionalFeatures: ['timestamp-query'],
+        createCanvasContext: expect.objectContaining({
+          colorFormat: 'rgba8unorm',
+          useDevicePixels: false
+        })
+      })
+    );
+  });
+
+  it('preserves the running backend and saved preference when a switch fails', async () => {
+    const webglDevice = createMockDevice('webgl');
+    createDeviceMock
+      .mockResolvedValueOnce(webglDevice)
+      .mockRejectedValueOnce(new Error('WebGPU unavailable'));
+    await manager.setDeviceType('webgl');
+
+    await expect(manager.setDeviceType('webgpu')).resolves.toBeUndefined();
+    expect(manager.getState()).toMatchObject({
+      device: webglDevice,
+      deviceType: 'webgl',
+      deviceError: 'WebGPU unavailable',
+      isLoading: false
+    });
+    expect(window.localStorage.getItem('deck.gl-community-device-type')).toBe('webgl');
+  });
+
   it('initializes WebGPU first when no backend preference is stored', async () => {
     const webgpuDevice = createMockDevice('webgpu');
     createDeviceMock.mockResolvedValue(webgpuDevice);
@@ -189,11 +227,16 @@ describe('DeviceManagerController', () => {
 
   it('clears managed state and its hidden canvas parent on reset', async () => {
     createDeviceMock.mockResolvedValue(createMockDevice('webgpu'));
+    const target = document.createElement('div');
+    document.body.append(target);
+    manager.reparentCanvas(target);
     await manager.setDeviceType('webgpu');
 
     expect(document.body.querySelector('[data-device-manager-canvas-parent]')).not.toBeNull();
 
+    expect(target.querySelector('canvas')).not.toBeNull();
     manager.reset();
+    expect(target.querySelector('canvas')).toBeNull();
 
     expect(manager.getState()).toEqual({
       deviceType: undefined,
