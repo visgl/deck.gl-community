@@ -13,8 +13,8 @@ import {RasterSourceLayer} from '../../src/source-layers/raster-source-layer';
 /** Row encodings that share the same geographic placement. */
 type RasterCRS = 'EPSG:4326' | 'EPSG:3857';
 
-/** Returns the same one-row stripe with bounds in the requested CRS. */
-function createStripeSource(crs: RasterCRS): RasterSource {
+/** Returns a one-row stripe with bounds in the requested CRS and optional shear. */
+function createStripeSource(crs: RasterCRS, sheared = false): RasterSource {
   const geographicBounds: RasterBoundingBox = [
     [-10, 20],
     [10, 70]
@@ -30,7 +30,11 @@ function createStripeSource(crs: RasterCRS): RasterSource {
   const middleRow = (height - 1) / 2;
   data.fill(1, middleRow * width, (middleRow + 1) * width);
   const metadata = {width, height, bandCount: 1, dtype: 'uint8', crs, boundingBox} as const;
-  const raster: RasterData = {...metadata, data};
+  const raster: RasterData = {
+    ...metadata,
+    data,
+    transform: sheared ? [20 / width, 0.01, -10, 0, -50 / height, 70] : undefined
+  };
   return {
     /** Returns the stripe fixture's metadata. */
     async getMetadata() {
@@ -50,18 +54,22 @@ test.each<[rendering: 'cpu' | 'gpu', crs: RasterCRS, expectedLatitude: number]>(
   ['cpu', 'EPSG:3857', 51.2794],
   ['gpu', 'EPSG:3857', 51.2794]
 ])('%s renders the %s stripe at %d°N', async (rendering, crs, expectedLatitude) => {
-  await expectStripeLatitude(rendering, crs, expectedLatitude);
+  await expectStripeDrawn(rendering, createStripeSource(crs), expectedLatitude);
 });
 
 test('cpu honors an explicit lnglat override for the EPSG:3857 stripe', async () => {
-  await expectStripeLatitude('cpu', 'EPSG:3857', 45, 'lnglat');
+  await expectStripeDrawn('cpu', createStripeSource('EPSG:3857'), 45, 'lnglat');
 });
 
-/** Renders the stripe and checks its latitude to within one screen pixel. */
-async function expectStripeLatitude(
+test.each(['cpu', 'gpu'] as const)('%s draws the sheared EPSG:4326 stripe', async rendering => {
+  await expectStripeDrawn(rendering, createStripeSource('EPSG:4326', true));
+});
+
+/** Checks that the stripe draws and verifies its latitude when provided. */
+async function expectStripeDrawn(
   rendering: 'cpu' | 'gpu',
-  crs: RasterCRS,
-  expectedLatitude: number,
+  source: RasterSource,
+  expectedLatitude?: number,
   imageCoordinateSystem?: 'lnglat'
 ): Promise<void> {
   const width = 64;
@@ -78,7 +86,7 @@ async function expectStripeLatitude(
   let rasterLoaded = false;
   const layer = new RasterSourceLayer({
     id: 'raster-stripe',
-    data: createStripeSource(crs),
+    data: source,
     rendering,
     bitmapLayerProps: imageCoordinateSystem ? {_imageCoordinateSystem: imageCoordinateSystem} : {},
     onRasterLoad: () => {
@@ -124,6 +132,8 @@ async function expectStripeLatitude(
       }
     }
     expect(stripeRows.length, 'visible stripe rows').toBeGreaterThan(0);
+    if (expectedLatitude === undefined) return;
+
     const stripeScreenY = (stripeRows[0] + stripeRows[stripeRows.length - 1]) / 2;
     const screenX = screenColumn + 0.5;
     const [viewport] = deck.getViewports();
