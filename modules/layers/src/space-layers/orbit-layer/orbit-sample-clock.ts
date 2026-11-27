@@ -5,6 +5,9 @@
 /** Weight of the newest rate measurement in the smoothed rate. */
 const SMOOTHING = 0.75;
 
+/** Share of the seeded rate that the next frame's rate may differ by before it is a jump. */
+const SEEDED_RATE_TOLERANCE = 0.5;
+
 /** Below this rate, a clock whose time did not change counts as stopped. */
 const STOPPED_RATE = 1e-6;
 
@@ -47,10 +50,14 @@ export class OrbitSampleClock {
     // On a jump the rate is seeded from the observed step with no smoothing, so it cannot
     // latch to a stale value. A backward step seeds the rate as 0 (paused).
     const expected = this.rate * wallDelta;
-    // The frame after a jump checks the seeded rate with a tight tolerance: a seed from a
-    // one-off step is wrong by a large factor, and a scaled tolerance would hide that.
-    const tolerance = this.sampleIntervalMs * (this.seeded ? 1 : Math.max(this.rate, 1));
-    const jumped = delta < 0 || Math.abs(delta - expected) > tolerance;
+    // The frame after a jump checks the seeded rate against the observed rate, relative to the
+    // seed: a seed from a one-off step is wrong by a large factor, and a tolerance in simulated
+    // time would hide that. A relative check also tolerates jitter in the wall time.
+    const jumped =
+      delta < 0 ||
+      (this.seeded
+        ? Math.abs(delta / wallDelta - this.rate) > SEEDED_RATE_TOLERANCE * Math.max(this.rate, 1)
+        : Math.abs(delta - expected) > this.sampleIntervalMs * Math.max(this.rate, 1));
     this.seeded = jumped;
     if (jumped) {
       this.rate = delta < 0 ? 0 : delta / wallDelta;

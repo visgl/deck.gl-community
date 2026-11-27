@@ -156,4 +156,70 @@ describe('OrbitSampleClock', () => {
       expect(clock.getNextSampleTime(T0)).toBe(T0);
     });
   });
+
+  describe.each([
+    {interval: 200, hz: 30},
+    {interval: 200, hz: 60},
+    {interval: 1000, hz: 30},
+    {interval: 1000, hz: 60}
+  ])('with wall jitter at $interval ms, $hz Hz', ({interval, hz}) => {
+    const step = 1000 / hz;
+
+    /** A clock fed with +-3 ms jitter on the wall time, while sim time follows the nominal step. */
+    function createJitteredRun() {
+      const clock = new OrbitSampleClock(interval);
+      let seed = 12345;
+      const random = () => {
+        seed = (seed * 1664525 + 1013904223) % 4294967296;
+        return seed / 4294967296;
+      };
+      let time = T0;
+      let frame = 0;
+      clock.update(time, 0);
+      return {
+        clock,
+        /** Advances one frame; `extra` is an extra step in simulated ms. */
+        next(speed: number, extra = 0) {
+          frame++;
+          time += speed * step + extra;
+          return clock.update(time, frame * step + (random() * 6 - 3));
+        },
+        run(speed: number, frames: number) {
+          let jumps = 0;
+          const rates: number[] = [];
+          for (let i = 0; i < frames; i++) {
+            const result = this.next(speed);
+            jumps += result.jumped ? 1 : 0;
+            rates.push(result.rate);
+          }
+          const tail = rates.slice(-20);
+          return {jumps, meanRate: tail.reduce((a, b) => a + b, 0) / tail.length};
+        }
+      };
+    }
+
+    it.each([1, 60])('a speed change from %dx to 3600x does not chain jumps', from => {
+      const run = createJitteredRun();
+      run.run(from, 30);
+      const {jumps, meanRate} = run.run(3600, 40);
+      expect(jumps).toBeLessThanOrEqual(2);
+      expect(Math.abs(meanRate - 3600) / 3600).toBeLessThan(0.05);
+    });
+
+    it.each([600000, -600000, 86400000])('detects a step of %d ms at 1x', extra => {
+      const run = createJitteredRun();
+      run.run(1, 30);
+      expect(run.next(1, extra).jumped).toBe(true);
+      const {jumps, meanRate} = run.run(1, 40);
+      expect(jumps).toBeLessThanOrEqual(2);
+      expect(Math.abs(meanRate - 1)).toBeLessThan(0.15);
+    });
+
+    it('a paused clock reports no jumps', () => {
+      const run = createJitteredRun();
+      const {jumps, meanRate} = run.run(0, 40);
+      expect(jumps).toBe(0);
+      expect(meanRate).toBe(0);
+    });
+  });
 });
