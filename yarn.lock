@@ -923,6 +923,7 @@ __metadata:
     "@loaders.gl/core": "npm:5.0.0"
     "@loaders.gl/images": "npm:5.0.0-rc.2"
     "@loaders.gl/raster": "npm:5.0.0-rc.2"
+    "@loaders.gl/splats": "npm:5.0.0-rc.2"
     "@loaders.gl/tiles": "npm:5.0.0-rc.2"
     "@loaders.gl/tiles-3d": "npm:5.0.0-rc.2"
     "@luma.gl/anari": "npm:10.0.0-beta.3"
@@ -947,6 +948,7 @@ __metadata:
     "@deck.gl/layers": 10.0.0-alpha.2
     "@deck.gl/mesh-layers": 10.0.0-alpha.2
     "@loaders.gl/core": 5.0.0
+    "@loaders.gl/splats": 5.0.0-rc.2
     "@luma.gl/anari": 10.0.0-beta.3
     "@luma.gl/core": 10.0.0-beta.3
     "@luma.gl/engine": 10.0.0-beta.3
@@ -957,6 +959,8 @@ __metadata:
     delaunator: ^5.1.0
     h3-js: ^4.2.1
   peerDependenciesMeta:
+    "@loaders.gl/splats":
+      optional: true
     "@luma.gl/anari":
       optional: true
     "@luma.gl/graph":
@@ -2558,6 +2562,19 @@ __metadata:
     "@loaders.gl/core": ~5.0.0-alpha.0
     apache-arrow: ">= 17.0.0"
   checksum: 10c0/7dbf40c39cf545fa444651b528efa462ec04cbed13ac85a94e647cd219ea96c1d51b6806e67d788c8fd2e789306a96a42006f4635dcbc6032b00f15465ff4a76
+  languageName: node
+  linkType: hard
+
+"@loaders.gl/splats@npm:5.0.0-rc.2":
+  version: 5.0.0-rc.2
+  resolution: "@loaders.gl/splats@npm:5.0.0-rc.2"
+  dependencies:
+    "@loaders.gl/compression": "npm:5.0.0-rc.2"
+    apache-arrow: "npm:>= 17.0.0"
+    zod: "npm:^4.1.12"
+  peerDependencies:
+    "@loaders.gl/core": ~5.0.0-alpha.0
+  checksum: 10c0/73767a3ddf3372dbf76bfd1292419b95b5641d7217af0f4d47ea58a639815d1744d4194fe05c84c86b5551dfd84953e400bd949837f5c5c6bc2524f6074a73d3
   languageName: node
   linkType: hard
 

@@ -158,6 +158,7 @@
     "@deck.gl/layers": "10.0.0-alpha.2",
     "@deck.gl/mesh-layers": "10.0.0-alpha.2",
     "@loaders.gl/core": "5.0.0",
+    "@loaders.gl/splats": "5.0.0-rc.2",
     "@luma.gl/anari": "10.0.0-beta.3",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
@@ -176,6 +177,7 @@
     "@deck.gl/mesh-layers": "10.0.0-alpha.2",
     "@deck.gl/test-utils": "10.0.0-alpha.2",
     "@loaders.gl/core": "5.0.0",
+    "@loaders.gl/splats": "5.0.0-rc.2",
     "@luma.gl/anari": "10.0.0-beta.3",
     "@luma.gl/core": "10.0.0-beta.3",
     "@luma.gl/engine": "10.0.0-beta.3",
@@ -188,6 +190,9 @@
     "probe.gl": "^5.0.0"
   },
   "peerDependenciesMeta": {
+    "@loaders.gl/splats": {
+      "optional": true
+    },
     "@luma.gl/anari": {
       "optional": true
     },

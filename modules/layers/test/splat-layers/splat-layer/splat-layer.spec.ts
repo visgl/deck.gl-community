@@ -838,3 +838,11 @@ it('invalidates coverage only for the supplied changed rows', () => {
   });
   expect(invalidate).not.toHaveBeenCalled();
 });
+
+it('keeps instanced file inputs loading until their decode settles', () => {
+  const layer = make([]);
+  Object.assign(layer, {internalState: {isAsyncPropLoading: () => false}});
+  expect(layer.isLoaded).toBe(true);
+  layer.state.input.pending.push({promise: new Promise(() => {})});
+  expect(layer.isLoaded).toBe(false);
+});
