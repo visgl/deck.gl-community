@@ -196,6 +196,69 @@ test('Tile2DSourceLayer#default render path creates BitmapLayer for raster tiles
   expect(renderedLayers[0].constructor.layerName).toBe('BitmapLayer');
 });
 
+test.each([
+  {
+    name: 'clips a tile that crosses the metadata bounds',
+    props: {
+      metadata: {
+        boundingBox: [
+          [0.25, 0.25],
+          [0.75, 0.75]
+        ]
+      }
+    },
+    expected: [0.25, 0.25, 0.75, 0.75]
+  },
+  {
+    name: 'prefers an explicit extent over the metadata bounds',
+    props: {
+      extent: [0.1, 0.2, 0.3, 0.4],
+      metadata: {
+        boundingBox: [
+          [0.25, 0.25],
+          [0.75, 0.75]
+        ]
+      }
+    },
+    expected: [0.1, 0.2, 0.3, 0.4]
+  },
+  {
+    name: 'does not clip a tile inside the bounds',
+    props: {
+      metadata: {
+        boundingBox: [
+          [-1, -1],
+          [2, 2]
+        ]
+      }
+    },
+    expected: null
+  },
+  {name: 'does not clip without bounds', props: {}, expected: null}
+])('Tile2DSourceLayer#default raster render $name', ({props, expected}) => {
+  const layer = createLayer(props as any);
+  const [bitmapLayer] = (layer.props as any).renderSubLayers({
+    ...layer.props,
+    id: 'raster-tile',
+    data: {} as any,
+    _offset: 0,
+    tile: {
+      index: {x: 0, y: 0, z: 0},
+      bbox: {west: 0, south: 0, east: 1, north: 1}
+    },
+    tileSource: TEST_TILE_SOURCE
+  });
+  const extensionNames = (bitmapLayer.props.extensions || []).map(
+    (extension: any) => extension.constructor.extensionName
+  );
+  if (expected) {
+    expect(extensionNames).toContain('ClipExtension');
+    expect(bitmapLayer.props.clipBounds).toEqual(expected);
+  } else {
+    expect(extensionNames).not.toContain('ClipExtension');
+  }
+});
+
 test('Tile2DSourceLayer initializes state and reports loaded tile sublayers', () => {
   const layer = createLayer();
   layer.context = {viewport: {id: 'main'}, device: createDevice()} as any;

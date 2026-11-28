@@ -12,6 +12,7 @@ import {
   type GetPickingInfoParams,
   _flatten as flatten
 } from '@deck.gl/core';
+import {ClipExtension} from '@deck.gl/extensions';
 import {MVTLayer, TileLayer, type TileLayerProps} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, PathLayer} from '@deck.gl/layers';
 import {createDataSourceSync} from '@loaders.gl/core';
@@ -739,6 +740,29 @@ function flattenTileBounds(
 }
 
 /**
+ * Returns the source bounds when a raster tile image extends past them.
+ *
+ * A tile always holds its full image. Low-zoom tiles are large, so they can show
+ * pixels outside the source bounds, where the high-zoom tiles do not exist. A clip
+ * to the source bounds keeps the visible area the same at all zoom levels.
+ */
+function getRasterTileClipBounds(
+  tileBounds: [number, number, number, number],
+  extent?: number[] | null
+): [number, number, number, number] | null {
+  if (!extent || extent.length < 4 || !extent.every(Number.isFinite)) {
+    return null;
+  }
+  const [west, south, east, north] = extent;
+  const isInside =
+    tileBounds[0] >= west &&
+    tileBounds[1] >= south &&
+    tileBounds[2] <= east &&
+    tileBounds[3] <= north;
+  return isInside ? null : [west, south, east, north];
+}
+
+/**
  * Default sublayer render callback for the shared raster/vector tile path.
  *
  * Renders vector tiles with `GeoJsonLayer`, image tiles with `BitmapLayer`, and
@@ -790,14 +814,28 @@ function defaultRenderSubLayers<DataT>(
     case 'image/webp':
     case 'image/avif':
       if ('west' in tile.bbox) {
+        const tileBounds: [number, number, number, number] = [
+          tile.bbox.west,
+          tile.bbox.south,
+          tile.bbox.east,
+          tile.bbox.north
+        ];
+        const clipBounds = getRasterTileClipBounds(
+          tileBounds,
+          props.extent ?? flattenTileBounds(props.metadata?.boundingBox)
+        );
         layers.push(
           new BitmapLayer(
             props as any,
             {
               data: null as any,
               image: props.data,
-              bounds: [tile.bbox.west, tile.bbox.south, tile.bbox.east, tile.bbox.north],
-              pickable: true
+              bounds: tileBounds,
+              pickable: true,
+              ...(clipBounds && {
+                extensions: [...(props.extensions || []), new ClipExtension()],
+                clipBounds
+              })
             } as any
           )
         );
