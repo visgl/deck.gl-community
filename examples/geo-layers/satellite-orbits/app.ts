@@ -7,7 +7,8 @@ import {GeoJsonLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer} from '@dec
 import {gstime, type SatRec} from 'satellite.js';
 
 import fixture from './data/gp-fixture.omm.json';
-import {createSatRec, parseOmmJson, parseTleText, type GpRecord} from './gp-records';
+import {createSatRec, type GpFormat, type GpRecord} from './gp-records';
+import {parseGpRecords} from './load-gp-records';
 import {
   getGroundTrack,
   getOrbitPath,
@@ -188,7 +189,7 @@ export function mountSatelliteOrbitsExample(
   animationFrame = requestAnimationFrame(renderFrame);
   props.onReady?.({deck, stats, getPosition, setPlaying: playing => clock.setPlaying(playing)});
 
-  async function loadGroup(group: string, format: 'json' | 'tle'): Promise<void> {
+  async function loadGroup(group: string, format: GpFormat): Promise<void> {
     const loadGeneration = ++generation;
     const isCurrent = () => !disposed && loadGeneration === generation;
     pendingDataset = null;
@@ -447,11 +448,11 @@ export function mountSatelliteOrbitsExample(
 
 async function loadRecords(
   group: string,
-  format: 'json' | 'tle',
+  format: GpFormat,
   isCurrent: () => boolean
 ): Promise<GpRecord[] | null> {
   if (group === 'fixture') {
-    return parseOmmJson(fixture as unknown[]);
+    return parseGpRecords(JSON.stringify(fixture), 'json');
   }
   const url = `https://celestrak.org/NORAD/elements/gp.php?GROUP=${encodeURIComponent(group)}&FORMAT=${format}`;
   // CelesTrak updates GP data every 2 hours and blocks repeated downloads, so cache the text.
@@ -467,7 +468,8 @@ async function loadRecords(
     writeCache(cacheKey, text);
     if (!isCurrent()) return null;
   }
-  return format === 'json' ? parseOmmJson(text) : parseTleText(text);
+  const records = await parseGpRecords(text, format);
+  return isCurrent() ? records : null;
 }
 
 function readCache(key: string): string | null {
@@ -518,7 +520,7 @@ function createClock(initialSpeed: number) {
 }
 
 type PanelCallbacks = {
-  onGroupChange: (group: string, format: 'json' | 'tle') => void;
+  onGroupChange: (group: string, format: GpFormat) => void;
   onSpeedChange: (speed: number) => void;
   onPlayingChange: (playing: boolean) => void;
   onSeek: (offsetHours: number) => void;

@@ -5,7 +5,7 @@ import {Deck, _GlobeView as GlobeView, type Layer} from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {describe, expect, it} from 'vitest';
 import {SplatLayer, TreeLayer, type SplatSource, type TreeSpec} from '../../../src';
-import {getTreeRenderTiers} from '../../tree-layers/tree-layer/tree-grove-test-utils';
+import {getTreeRenderTiers} from '../../vegetation-layers/tree-layer/tree-grove-test-utils';
 
 const EARTH_RADIUS = 6370972;
 const SCALE = 300000;

@@ -26,9 +26,9 @@ import {
   FlameTrailLayer,
   PathDirection,
   PathMarkerLayer,
-  PathOutlineLayer,
-  SkyboxLayer
+  PathOutlineLayer
 } from '../../src';
+import {SkyboxLayer} from '../../src/sky-layers';
 import {GeometryLayer} from '../../src/common-layers/dependency-arrow-layer/geometry-layer';
 
 type NativeGpuError = {error?: {message?: string}};

@@ -24,7 +24,7 @@ import {
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {CubeGeometry} from '@luma.gl/engine';
 import type {Device} from '@luma.gl/core';
-import {TreeLayer, type TreeSpec} from '@deck.gl-community/layers/tree-layers';
+import {TreeLayer, type TreeSpec} from '@deck.gl-community/layers/vegetation-layers';
 import {
   WindEffect,
   WindExtension,

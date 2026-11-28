@@ -1,4 +1,4 @@
-import {luma, type Device} from '@luma.gl/core';
+import {luma, type Device, type DeviceProps, type CanvasContextProps} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/core/webgl';
 import {webgpuAdapter} from '@luma.gl/core/webgpu';
 
@@ -8,6 +8,13 @@ const FALLBACK_DEVICE_TYPE_ORDER: DeviceType[] = ['webgpu', 'webgl'];
 
 /** Supported rendering backends managed by {@link DeviceManagerController}. */
 export type DeviceType = 'webgl' | 'webgpu';
+
+/** Creation options shared by every backend managed by this controller. */
+export type DeviceManagerOptions = Pick<DeviceProps, 'optionalFeatures'> & {
+  canvasContext?: Omit<CanvasContextProps, 'canvas' | 'container'>;
+  /** Whether to use the shared browser preference. Defaults to true. */
+  persistPreference?: boolean;
+};
 
 /**
  * Snapshot of the shared device manager state.
@@ -47,6 +54,8 @@ export class DeviceManagerController {
   #requestGeneration = 0;
   #canvasParent: HTMLElement | null = null;
   #hiddenCanvasParent: HTMLDivElement | null = null;
+
+  constructor(private readonly options: DeviceManagerOptions = {}) {}
 
   /** Returns a copy of the current manager state. */
   getState(): DeviceManagerState {
@@ -117,11 +126,13 @@ export class DeviceManagerController {
         adapters: [webgl2Adapter, webgpuAdapter],
         type,
         debugGPUTime: true,
+        optionalFeatures: this.options.optionalFeatures,
         createCanvasContext: {
           container: this.getHiddenCanvasParent(),
           width: 1,
           height: 1,
-          alphaMode: 'premultiplied'
+          alphaMode: 'premultiplied',
+          ...this.options.canvasContext
         }
       });
       this.#cachedDevices[type] = devicePromise;
@@ -190,8 +201,11 @@ export class DeviceManagerController {
    *
    * Falls back to WebGPU, then WebGL.
    */
-  async initialize(): Promise<DeviceType | undefined> {
-    return await this.ensureDeviceType(this.#getDefaultPreferredDeviceTypes());
+  async initialize(allowedTypes?: readonly DeviceType[]): Promise<DeviceType | undefined> {
+    const preferredTypes = this.#getDefaultPreferredDeviceTypes();
+    return await this.ensureDeviceType(
+      allowedTypes ? preferredTypes.filter(type => allowedTypes.includes(type)) : preferredTypes
+    );
   }
 
   /**
@@ -201,6 +215,7 @@ export class DeviceManagerController {
    * available backend in `preferredTypes`.
    */
   async ensureDeviceType(preferredTypes: readonly DeviceType[]): Promise<DeviceType | undefined> {
+    const generation = this.#requestGeneration;
     const currentDeviceType = this.#state.deviceType;
 
     if (
@@ -208,6 +223,9 @@ export class DeviceManagerController {
       preferredTypes.includes(currentDeviceType) &&
       (await this.canCreateDeviceType(currentDeviceType))
     ) {
+      if (generation !== this.#requestGeneration) {
+        return this.#state.deviceType;
+      }
       if (!this.#state.device) {
         await this.setDeviceType(currentDeviceType);
       }
@@ -215,6 +233,9 @@ export class DeviceManagerController {
     }
 
     const preferredDeviceType = await this.getPreferredAvailableDeviceType(preferredTypes);
+    if (generation !== this.#requestGeneration) {
+      return this.#state.deviceType;
+    }
     if (!preferredDeviceType) {
       return undefined;
     }
@@ -231,12 +252,8 @@ export class DeviceManagerController {
   async setDeviceType(type: DeviceType): Promise<Device | undefined> {
     const requestGeneration = ++this.#requestGeneration;
 
-    this.#setState({
-      deviceType: type,
-      device: undefined,
-      deviceError: undefined,
-      isLoading: true
-    });
+    const previousState = this.#state;
+    this.#setState({...previousState, deviceError: undefined, isLoading: true});
 
     let device: Device | undefined;
     let deviceError: string | undefined;
@@ -247,19 +264,18 @@ export class DeviceManagerController {
       deviceError = getErrorMessage(error);
     }
 
-    this.#storeDeviceType(type);
-
     if (requestGeneration !== this.#requestGeneration) {
-      return device;
+      return undefined;
     }
 
     if (device) {
       this.reparentCanvas(this.#canvasParent, device);
+      this.#storeDeviceType(type);
     }
 
     this.#setState({
-      deviceType: type,
-      device,
+      deviceType: device ? type : previousState.deviceType,
+      device: device ?? previousState.device,
       deviceError,
       isLoading: false
     });
@@ -308,6 +324,12 @@ export class DeviceManagerController {
    */
   reset(): void {
     const cachedDevices = Object.values(this.#cachedDevices);
+    for (const device of Object.values(this.#resolvedDevices)) {
+      const canvas = getDeviceCanvas(device);
+      if (typeof HTMLCanvasElement !== 'undefined' && canvas instanceof HTMLCanvasElement) {
+        canvas.remove();
+      }
+    }
     this.#requestGeneration++;
     this.#state = {
       deviceType: undefined,
@@ -381,7 +403,7 @@ export class DeviceManagerController {
   }
 
   #getStoredDeviceType(): DeviceType | undefined {
-    if (typeof window === 'undefined') {
+    if (typeof window === 'undefined' || this.options.persistPreference === false) {
       return undefined;
     }
 
@@ -392,7 +414,7 @@ export class DeviceManagerController {
   }
 
   #storeDeviceType(type: DeviceType): void {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && this.options.persistPreference !== false) {
       window.localStorage.setItem(DEVICE_TYPE_STORAGE_KEY, type);
     }
   }

@@ -3,24 +3,56 @@
 // Copyright (c) vis.gl contributors
 
 import {readFileSync} from 'fs';
+import {BoxPanelContainer, SidebarPanelContainer} from '@deck.gl-community/panels';
 import {describe, expect, it} from 'vitest';
-import * as deckCanvas from './deck-canvas';
+import {DeckCanvas, DeviceTabs, Panel} from './index';
+import * as legacy from './legacy';
 
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 describe('@deck.gl-community/react entry points', () => {
-  it('exports DeckCanvas only from the deck-canvas subpath', () => {
-    expect(Object.keys(deckCanvas)).toEqual(['DeckCanvas']);
-    expect(packageJson.exports['./deck-canvas']).toEqual({
-      types: './dist/deck-canvas.d.ts',
-      require: './dist/deck-canvas.cjs',
-      import: './dist/deck-canvas.js'
+  it('exports DeckCanvas from the package root', () => {
+    expect(DeckCanvas).toBeTypeOf('function');
+    expect(packageJson.exports['./deck-canvas']).toBeUndefined();
+  });
+
+  it('exports DeviceTabs from the package root', () => {
+    expect(DeviceTabs).toBeTypeOf('function');
+  });
+
+  it('provides the supported React DOM exports from the legacy subpath', () => {
+    expect(Object.keys(legacy).sort()).toEqual(['Panel', 'useReactPanel']);
+    expect(packageJson.exports['./legacy']).toEqual({
+      types: './dist/legacy.d.ts',
+      require: './dist/legacy.cjs',
+      import: './dist/legacy.js'
     });
   });
 
-  it('keeps @deck.gl/core out of the root entry point', () => {
-    const rootSource = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
-    expect(rootSource).not.toMatch(/deck-canvas/);
-    expect(packageJson.peerDependencies).not.toHaveProperty('@deck.gl/core');
+  it('wraps a chosen panel component as a native Fiber widget', () => {
+    const box = Panel({
+      type: BoxPanelContainer,
+      id: 'box',
+      viewId: 'main-map',
+      title: 'Tools',
+      widthPx: 320
+    });
+    expect(box).toMatchObject({
+      type: 'deckWidget',
+      props: {
+        widget: {
+          id: 'box',
+          viewId: 'main-map',
+          component: expect.any(BoxPanelContainer),
+          props: {title: 'Tools', widthPx: 320}
+        }
+      }
+    });
+
+    const sidebar = Panel({type: SidebarPanelContainer, id: 'sidebar', side: 'right'});
+    expect(sidebar).toMatchObject({
+      type: 'deckWidget',
+      props: {widget: {id: 'sidebar', component: expect.any(SidebarPanelContainer)}}
+    });
   });
 });

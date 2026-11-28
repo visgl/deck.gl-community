@@ -191,8 +191,11 @@ export function createWeatherScene(parent: HTMLDivElement, options: DeckExampleD
       puddles: surfaceSettings.puddles
     };
   }
+  function getCloudCover() {
+    return cloudsEnabled ? (preset === 'clear' ? 0.25 : 0.65) : 0;
+  }
   function getSkyLighting() {
-    return getRiverfrontSkyLighting(hour, cloudsEnabled ? (preset === 'clear' ? 0.25 : 0.65) : 0);
+    return getRiverfrontSkyLighting(hour, getCloudCover());
   }
   function getDaylight() {
     return getSkyLighting().sunlight;
@@ -200,9 +203,26 @@ export function createWeatherScene(parent: HTMLDivElement, options: DeckExampleD
   function getLighting(): LightingProps {
     return getSkyLighting().lights;
   }
+  /** Derives the pane tint and glare from the same cloud-adjusted sunlight as the sky. */
+  function getWindowLighting({sunlight, moonIntensity}: ReturnType<typeof getSkyLighting>) {
+    const brightness = Math.min(
+      1,
+      0.12 + sunlight.intensity + sunlight.diffuse.intensity * 2 + moonIntensity
+    );
+    const clouds = getCloudCover();
+    const [red, green, blue] = sunlight.diffuse.color;
+    const [sunRed, sunGreen, sunBlue] = sunlight.color;
+    const tint = (channel: number) => brightness * ((1 - clouds) * channel + clouds * 0.78);
+    const glare = sunlight.intensity * 2.6;
+    const sky: [number, number, number] = [tint(red), tint(green), tint(blue)];
+    const sun: [number, number, number] = [sunRed * glare, sunGreen * glare, sunBlue * glare];
+    return {sky, sun};
+  }
   function updateLayers(redraw = true) {
     if (!surfaceTexture) return;
-    const sun = getRiverfrontSun(hour);
+    const skyLighting = getSkyLighting();
+    const {sun} = skyLighting;
+    const windowLighting = getWindowLighting(skyLighting);
     diagnostics.hour = hour;
     diagnostics.sunAltitude = sun.altitude;
     deck.setProps({
@@ -217,7 +237,7 @@ export function createWeatherScene(parent: HTMLDivElement, options: DeckExampleD
           sun: {radiusPixels: 14, radiance: 8, color: [255, 220, 18, 255]},
           moon: {radiusPixels: 18},
           stars: sun.altitude < 0 ? {brightness: 2} : false,
-          clouds: cloudsEnabled && {cover: preset === 'clear' ? 0.25 : 0.65, velocity: [14, 4]},
+          clouds: cloudsEnabled && {cover: getCloudCover(), velocity: [14, 4]},
           atmosphere: {
             // Blend a little of the muted canvas background into the dark horizon.
             opacity: 0.78,
@@ -232,6 +252,8 @@ export function createWeatherScene(parent: HTMLDivElement, options: DeckExampleD
           lighting: getLighting,
           fog: getFog,
           surfaceWeather: getSurfaceWeather,
+          windowSky: windowLighting.sky,
+          windowSun: {direction: sun.direction, color: windowLighting.sun},
           coordinateSystem: 'meter-offsets',
           coordinateOrigin: CITY_ORIGIN
         }),
@@ -270,6 +292,28 @@ export function createWeatherScene(parent: HTMLDivElement, options: DeckExampleD
     centerView() {
       viewState = getSkyCameraState(initialViewState, parent.clientWidth, parent.clientHeight);
       deck.setProps({viewState});
+    },
+    /** Points across the river toward panes that can reflect the current sun. */
+    lookAtWindowGlare(): void {
+      let {direction} = getRiverfrontSun(hour);
+      if (direction[2] < 0.06 || direction[2] > 0.45) {
+        hour = 7.5;
+        ({direction} = getRiverfrontSun(hour));
+      }
+
+      const [east, north] = direction;
+      const eastFacingWall = Math.abs(east) > Math.abs(north);
+      // Looking toward the wall reverses the outgoing horizontal reflection ray.
+      const reflectedEast = eastFacingWall ? east : -east;
+      const reflectedNorth = eastFacingWall ? -north : north;
+      const bearing = (Math.atan2(-reflectedEast, -reflectedNorth) * 180) / Math.PI;
+      viewState = getSkyCameraState(
+        {...initialViewState, zoom: 16.1, pitch: 81, bearing},
+        parent.clientWidth,
+        parent.clientHeight
+      );
+      deck.setProps({viewState});
+      updateLayers();
     },
     lookAtBody(body: 'sun' | 'moon') {
       const getDirection = (value: number) => {

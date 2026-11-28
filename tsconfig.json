@@ -27,8 +27,10 @@
       "@deck.gl-community/widgets": ["./modules/widgets/src"],
       "@deck.gl-community/layers/*": ["./modules/layers/src/*"],
       "@deck.gl-community/layers": ["./modules/layers/src"],
+      "@deck.gl-community/layers/source-layers": ["./modules/layers/src/source-layers"],
       "@deck.gl-community/layers/common-layers": ["./modules/layers/src/common-layers"],
       "@deck.gl-community/react": ["./modules/react/src"],
+      "@deck.gl-community/react/legacy": ["./modules/react/src/legacy.ts"],
       "@deck.gl-community/template": ["./modules/template/src"],
       "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"],
       "@deck.gl-community/layers/timeline-layers": ["./modules/layers/src/timeline-layers"]

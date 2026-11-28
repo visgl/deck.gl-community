@@ -10,6 +10,7 @@ import * as mesh from '@deck.gl/mesh-layers';
 import * as editable from '@deck.gl-community/editable-layers';
 import * as experimental from '@deck.gl-community/experimental';
 import * as communityGeo from '@deck.gl-community/layers/geo-layers';
+import {SkyboxLayer, ProceduralSkyLayer} from '@deck.gl-community/layers/sky-layers';
 import * as communityWind from '@deck.gl-community/layers/wind-layers';
 import * as communityGrids from '@deck.gl-community/layers/global-grid-layers';
 import * as graph from '@deck.gl-community/graph-layers';
@@ -35,6 +36,7 @@ const PACKAGES = {
   '@deck.gl-community/layers/geo-layers': communityGeo,
   '@deck.gl-community/layers/global-grid-layers': communityGrids,
   '@deck.gl-community/layers/wind-layers': communityWind,
+  '@deck.gl-community/layers/sky-layers': {SkyboxLayer, ProceduralSkyLayer},
   '@deck.gl-community/graph-layers': graph,
   '@deck.gl-community/layers': communityLayers,
   '@deck.gl-community/layers/timeline-layers': timeline

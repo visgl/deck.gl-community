@@ -3,4 +3,4 @@
 // Copyright (c) vis.gl contributors
 
 export * from './common-layers/index';
-export * from './tree-layers/index';
+export * from './vegetation-layers/index';

@@ -15,7 +15,7 @@ while the selection pulses, no accessor reruns and no attribute is uploaded.
 
 ```ts
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {TreeLayer} from '@deck.gl-community/layers/tree-layers';
+import {TreeLayer} from '@deck.gl-community/layers/vegetation-layers';
 import {SelectionPulseExtension} from '@deck.gl-community/layers/extensions';
 
 const selectionPulse = new SelectionPulseExtension();

@@ -1,0 +1,1285 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright (c) vis.gl contributors
+
+import {
+  CompositeLayer,
+  type CompositeLayerProps,
+  type CoordinateSystem,
+  type DefaultProps,
+  type GetPickingInfoParams,
+  type Layer,
+  type LayerContext,
+  type UpdateParameters,
+  type Viewport
+} from '@deck.gl/core';
+import {
+  BitmapLayer,
+  type BitmapBoundingBox,
+  type BitmapLayerPickingInfo,
+  type BitmapLayerProps
+} from '@deck.gl/layers';
+import type {
+  DataSourceOptions,
+  GetRasterParameters,
+  Loader,
+  NumericRasterData,
+  RasterBandMetadata,
+  RasterBoundingBox,
+  RasterChannelDataType,
+  RasterData,
+  RasterSource,
+  RasterSourceMetadata,
+  RasterViewport
+} from '@loaders.gl/core/loader-utils';
+import {isRasterSampleValid, sampleRaster} from '@loaders.gl/core/loader-utils';
+// Switch to '@loaders.gl/tiles/raster-set' after the next loaders.gl release.
+import {RasterSet, type RasterSetRequest} from '@loaders.gl/tiles';
+import {projectionEngine, type CRSConverter} from '@math.gl/geospatial/projection';
+import {
+  projectWGS84ToPseudoMercator,
+  unprojectPseudoMercator,
+  unprojectPseudoMercatorBounds
+} from './image-source-layer/utils';
+import {
+  type RasterBitmapData,
+  RasterBitmapLayer,
+  type RasterBitmapLayerProps,
+  type RasterBitmapLayerPickingInfo,
+  type RasterColormap,
+  type RasterValueScale
+} from './raster-bitmap-layer';
+import {sampleColorRamp} from './raster-color-ramp';
+import {
+  finalizeOwnedSource,
+  getCoordinateReferenceSystemIdentifier,
+  resolveVisualSource,
+  type ResolvedVisualSource
+} from './source-layer-utils';
+
+/** Image payload accepted by deck.gl's {@link BitmapLayer}. */
+export type RasterBitmapImage = {
+  /** RGBA bytes. */
+  data: Uint8ClampedArray;
+  /** Image width in pixels. */
+  width: number;
+  /** Image height in pixels. */
+  height: number;
+};
+
+/** Context passed to custom raster colorizers. */
+export type RasterColorizerContext = {
+  /** Source metadata used for the request. */
+  metadata: RasterSourceMetadata;
+  /** Accepted raster request. */
+  request: RasterSetRequest;
+};
+
+/** Result returned by a custom raster colorizer. */
+export type RasterRenderResult = {
+  /** Bitmap-compatible image source. */
+  image: RasterBitmapImage | TexImageSource;
+  /** Deck bounds covered by the image. */
+  bounds?: BitmapBoundingBox;
+  /** Coordinate system used by the bitmap bounds. */
+  coordinateSystem?: CoordinateSystem;
+};
+
+/** Props passed to a custom sublayer for the active raster rendering mode. */
+export type RasterSourceSubLayerProps = Partial<BitmapLayerProps> | RasterBitmapLayerProps;
+
+/** A CRS definition that deck.gl and the projection engine accept, such as a PROJ string or WKT. */
+export type RasterCRSDefinition = Exclude<CoordinateSystem, 'lnglat' | 'cartesian' | 'default'>;
+
+/** Props for {@link RasterSourceLayer}. */
+export type RasterSourceLayerProps = Omit<CompositeLayerProps, 'data' | 'loaders'> & {
+  /** Raster source runtime, URL, or Blob. */
+  data: RasterSource | string | Blob;
+  /** Parser loaders and SourceLoaders used to resolve URL/Blob inputs. */
+  loaders?: ReadonlyArray<Loader>;
+  /** Options forwarded to source construction. */
+  sourceOptions?: DataSourceOptions;
+  /** Optional metadata already loaded by a parent SourceLayer. */
+  metadata?: RasterSourceMetadata | null;
+  /** Source-specific request fields merged over inferred viewport parameters. */
+  rasterParameters?: Record<string, unknown>;
+  /** Optional callback for complete request-parameter customization. */
+  getRasterParameters?: (
+    viewport: RasterViewport,
+    metadata: RasterSourceMetadata
+  ) => GetRasterParameters | Record<string, unknown>;
+  /**
+   * Returns a projected or geographic CRS definition (for example a PROJ string or WKT)
+   * for a source CRS identifier. Return `null` or `undefined` to use the identifier.
+   * Called once when metadata loads for a CRS outside the layer's built-in set.
+   */
+  resolveCRSDefinition?: (
+    identifier: string
+  ) => RasterCRSDefinition | null | undefined | Promise<RasterCRSDefinition | null | undefined>;
+  /** Optional raster-to-bitmap colorizer for the CPU path. */
+  colorizeRaster?: (raster: RasterData, context: RasterColorizerContext) => RasterRenderResult;
+  /**
+   * Props forwarded to either bitmap sublayer.
+   *
+   * With deck.gl 10.0.0-alpha.2, keep `_projectionTolerance` unset or `0` for a projected raster
+   * in `MapView` or `GlobeView`. Those views pack the raster to WGS84, and a nonzero value throws
+   * `requires projected coordinates with linear units`. visgl/deck.gl#11343 adds support.
+   */
+  bitmapLayerProps?: Partial<BitmapLayerProps>;
+  /** Uses GPU colorization for single-band rasters when set to `'gpu'`. Defaults to `'cpu'`. */
+  rendering?: 'cpu' | 'gpu';
+  /** GPU color scale endpoints. Defaults to the current raster's sampled 2nd and 98th percentiles. */
+  valueRange?: [number, number];
+  /** GPU colormap preset or custom 256-entry RGBA lookup table. Defaults to `'default'`. */
+  colormap?: RasterColormap;
+  /** Transform applied after normalizing a GPU raster sample. Defaults to `'sqrt'`. */
+  valueScale?: RasterValueScale;
+  /** Optional factory receiving the props of the default sublayer. */
+  renderSubLayer?: (props: RasterSourceSubLayerProps) => Layer;
+  /** Debounce interval applied to viewport requests. */
+  debounceTime?: number;
+  /** Maximum raster request dimension after device-pixel scaling. */
+  maxTextureSize?: number;
+  /** Called when metadata resolves. */
+  onMetadataLoad?: (metadata: RasterSourceMetadata) => void;
+  /** Called when metadata loading fails. */
+  onMetadataLoadError?: (error: Error) => void;
+  /** Called when a raster request starts. */
+  onRasterLoadStart?: (requestId: number) => void;
+  /** Called when a raster request becomes current. */
+  onRasterLoad?: (request: RasterSetRequest) => void;
+  /** Called when a raster request fails. */
+  onRasterLoadError?: (requestId: number, error: Error) => void;
+  /** Called when metadata/raster loading starts or stops. */
+  onLoadingStateChange?: (isLoading: boolean) => void;
+  /** Called when URL/Blob source resolution fails. */
+  onSourceError?: (error: Error) => void;
+};
+
+/** Placement fields shared by CPU and GPU bitmaps. */
+type RasterBitmapPlacement = Pick<RasterRenderResult, 'bounds' | 'coordinateSystem'>;
+
+/** A deck.gl CRS definition and its prepared conversion between source units and WGS84. */
+type ProjectedRasterCRS = {
+  /** CRS identifier passed to the source. */
+  identifier: string;
+  /** CRS definition used when the bitmap is placed in source coordinates. */
+  definition: RasterCRSDefinition;
+  /** Coordinate frame used by the source raster. */
+  coordinateFrame: 'projected' | 'geographic';
+  /** Synchronous conversions for viewport sampling and raster coordinates. */
+  converter: CRSConverter;
+};
+
+/** Optional display tags supplied by newer raster sources. */
+type RasterDisplayBandMetadata = RasterBandMetadata & {
+  colorInterpretation?: 'gray' | 'red' | 'green' | 'blue' | 'alpha' | 'palette' | 'undefined';
+  alphaMode?: 'straight' | 'premultiplied';
+};
+
+/** CPU bitmap and the placement decision that applies to its image. */
+type RasterSourceCPUResult = {
+  /** Bitmap image and placement returned for the accepted raster. */
+  renderResult: RasterRenderResult;
+  /** True when the layer supplied at least part of the placement. */
+  usesDefaultPlacement: boolean;
+};
+
+/** GPU sublayer inputs for the accepted raster and its placement. */
+type RasterSourceGPUResult = RasterBitmapPlacement &
+  Pick<RasterBitmapLayerProps, 'noData'> & {
+    /** Single-band samples prepared for the GPU sublayer. */
+    raster: RasterBitmapData;
+    /** Computed percentile endpoints, or null when the sampled raster had no valid values. */
+    percentileRange?: [number, number] | null;
+  };
+
+/** Source and rendering state shared across layer instances. */
+type RasterSourceLayerState = {
+  /** Identifies the current source resolution. */
+  resolutionId: number;
+  /** Current source runtime and ownership information. */
+  resolvedSource: ResolvedVisualSource | null;
+  /** Viewport request manager. */
+  rasterSet: RasterSet | null;
+  /** Removes listeners from the request manager. */
+  unsubscribeRasterSetEvents: (() => void) | null;
+  /** Current source metadata. */
+  metadata: RasterSourceMetadata | null;
+  /** Prepared projected or geographic source CRS, null when unavailable, or undefined while resolving. */
+  projectedCRS: ProjectedRasterCRS | null | undefined;
+  /** True when the current viewport has no overlap with the source in its resolved CRS. */
+  projectedSourceOffscreen?: boolean;
+  /** Latest accepted raster request. */
+  rasterRequest: RasterSetRequest | null;
+  /** Cached CPU bitmap. */
+  cpuResult: RasterSourceCPUResult | null;
+  /** Cached GPU raster and placement. */
+  gpuResult: RasterSourceGPUResult | null;
+};
+
+/** Default raster request and rendering props. */
+const defaultProps: DefaultProps<RasterSourceLayerProps> = {
+  id: 'raster-source-layer',
+  data: null as never,
+  loaders: {type: 'array', compare: false, value: []},
+  sourceOptions: {type: 'object', compare: false, value: {}},
+  rasterParameters: {type: 'object', compare: false, value: {}},
+  bitmapLayerProps: {type: 'object', compare: false, value: {}},
+  rendering: 'cpu',
+  colormap: 'default',
+  valueScale: 'sqrt',
+  debounceTime: 100,
+  maxTextureSize: 1024,
+  onMetadataLoad: {type: 'function', value: () => {}},
+  onMetadataLoadError: {type: 'function', value: () => {}},
+  onRasterLoadStart: {type: 'function', value: () => {}},
+  onRasterLoad: {type: 'function', value: () => {}},
+  onRasterLoadError: {type: 'function', value: () => {}},
+  onLoadingStateChange: {type: 'function', value: () => {}},
+  onSourceError: {type: 'function', value: () => {}}
+};
+
+/** Full opacity on the native scale for unsigned and floating-point alpha samples. */
+const ALPHA_MAXIMUM: Partial<Record<NumericRasterData['dtype'], number>> = {
+  uint16: 65535,
+  uint32: 4294967295,
+  float32: 1,
+  float64: 1
+};
+
+/** Finite native color ranges, including floating-point colors outside the opacity range. */
+const COLOR_SAMPLE_RANGES: Record<RasterChannelDataType, readonly [number, number]> = {
+  uint8: [0, 255],
+  uint16: [0, 65535],
+  uint32: [0, 4294967295],
+  int8: [-128, 127],
+  int16: [-32768, 32767],
+  int32: [-2147483648, 2147483647],
+  float32: [-3.4028234663852886e38, 3.4028234663852886e38],
+  float64: [-Number.MAX_VALUE, Number.MAX_VALUE]
+};
+
+/**
+ * Viewport-driven deck.gl adapter for loaders.gl {@link RasterSource} runtimes.
+ *
+ * Geospatial rasters render in MapView or GlobeView, including sources with a supported projected
+ * CRS. Sources without geospatial bounds render as a pixel-coordinate plane in OrthographicView.
+ */
+export class RasterSourceLayer extends CompositeLayer<RasterSourceLayerProps> {
+  /** deck.gl layer name used in debugging output. */
+  static layerName = 'RasterSourceLayer';
+
+  /** Default raster request and rendering props. */
+  static defaultProps: DefaultProps = defaultProps;
+
+  /** Typed raster runtime state. */
+  state = null as unknown as RasterSourceLayerState;
+
+  /** Creates a raster source layer with mixed parser and source loader support. */
+  constructor(props: RasterSourceLayerProps) {
+    super(props as any);
+  }
+
+  /** Raster layers update when props or the active viewport changes. */
+  shouldUpdateState(): boolean {
+    return true;
+  }
+
+  /** Initializes source and request-manager state. */
+  initializeState(): void {
+    this.state = {
+      resolutionId: 0,
+      resolvedSource: null,
+      rasterSet: null,
+      unsubscribeRasterSetEvents: null,
+      metadata: null,
+      projectedCRS: null,
+      rasterRequest: null,
+      cpuResult: null,
+      gpuResult: null
+    };
+  }
+
+  /** Releases pending requests and layer-owned sources. */
+  finalizeState(context: LayerContext): void {
+    this.state.resolutionId++;
+    this.releaseRasterSet();
+    if (this.state.resolvedSource?.owned) {
+      void finalizeOwnedSource(this.state.resolvedSource.source);
+    }
+    super.finalizeState(context);
+  }
+
+  /** Returns true when the current raster request has settled. */
+  get isLoaded(): boolean {
+    return (
+      Boolean(this.state?.projectedSourceOffscreen || this.state?.rasterSet?.isLoaded) &&
+      super.isLoaded
+    );
+  }
+
+  /** Resolves sources and issues viewport-driven raster requests. */
+  updateState({props, oldProps, changeFlags}: UpdateParameters<this>): void {
+    const sourceChanged =
+      changeFlags.dataChanged ||
+      props.loaders !== oldProps.loaders ||
+      props.sourceOptions !== oldProps.sourceOptions;
+
+    if (sourceChanged) {
+      void this.resolveSource(props);
+      return;
+    }
+
+    const {rasterRequest, metadata, gpuResult} = this.state;
+    if (rasterRequest && metadata) {
+      const useGPU = props.rendering === 'gpu' && rasterRequest.raster.bandCount === 1;
+      if (
+        useGPU !== Boolean(gpuResult) ||
+        (useGPU &&
+          (props.bitmapLayerProps !== oldProps.bitmapLayerProps ||
+            (!props.valueRange && gpuResult?.percentileRange === undefined)))
+      ) {
+        this.updateRasterRendering(rasterRequest, metadata);
+      }
+    }
+
+    if (
+      props.rasterParameters !== oldProps.rasterParameters ||
+      props.getRasterParameters !== oldProps.getRasterParameters ||
+      props.debounceTime !== oldProps.debounceTime ||
+      changeFlags.viewportChanged
+    ) {
+      this.requestRaster(this.context.viewport);
+    }
+  }
+
+  /** Renders the current raster with the selected bitmap sublayer. */
+  renderLayers(): Layer | null {
+    const {cpuResult, gpuResult} = this.state;
+    const {
+      bitmapLayerProps,
+      colormap = 'default',
+      valueRange,
+      valueScale = 'sqrt',
+      renderSubLayer
+    } = this.props;
+    const rasterCRS = getCoordinateReferenceSystemIdentifier(
+      this.state.rasterRequest?.raster.crs || this.state.metadata?.crs
+    );
+    if (gpuResult) {
+      const {percentileRange, raster, ...placement} = gpuResult;
+      const props: RasterBitmapLayerProps = {
+        ...this.getSubLayerProps({id: 'raster-bitmap'}),
+        ...placement,
+        _imageCoordinateSystem: getImageCoordinateSystem(
+          placement.coordinateSystem,
+          rasterCRS,
+          placement.bounds
+        ),
+        ...bitmapLayerProps,
+        raster: !valueRange && percentileRange === null ? null : raster,
+        valueRange: valueRange ?? percentileRange ?? [0, 1],
+        colormap,
+        valueScale
+      };
+      return renderSubLayer ? renderSubLayer(props) : new RasterBitmapLayer(props);
+    }
+    if (!cpuResult) {
+      return null;
+    }
+
+    const {renderResult, usesDefaultPlacement} = cpuResult;
+    const props: Partial<BitmapLayerProps> = {
+      ...this.getSubLayerProps({id: 'bitmap'}),
+      coordinateSystem: renderResult.coordinateSystem,
+      image: renderResult.image as any,
+      bounds: renderResult.bounds,
+      ...(usesDefaultPlacement && {
+        _imageCoordinateSystem: getImageCoordinateSystem(
+          renderResult.coordinateSystem,
+          rasterCRS,
+          renderResult.bounds
+        )
+      }),
+      ...bitmapLayerProps
+    };
+    return renderSubLayer ? renderSubLayer(props) : new BitmapLayer(props);
+  }
+
+  /** Preserves the GPU sublayer's value and samples same-size CPU bitmaps. */
+  override getPickingInfo(parameters: GetPickingInfoParams) {
+    const info = super.getPickingInfo(parameters) as Partial<RasterBitmapLayerPickingInfo> &
+      BitmapLayerPickingInfo;
+    const raster = this.state.rasterRequest?.raster;
+    if (
+      info.value === undefined &&
+      info.bitmap &&
+      raster?.bandCount === 1 &&
+      raster.width === info.bitmap.size.width &&
+      raster.height === info.bitmap.size.height &&
+      this.state.metadata
+    ) {
+      const rasterWithNoData = applyMetadataNoData(raster, this.state.metadata);
+      const sample = sampleRaster(rasterWithNoData, info.bitmap.pixel);
+      info.value = sample.valid[0] ? (sample.values[0] ?? null) : null;
+    }
+    return info;
+  }
+
+  /** Resolves a runtime and attaches its request manager to the latest layer instance. */
+  private async resolveSource(props: RasterSourceLayerProps): Promise<void> {
+    const resolutionId = ++this.state.resolutionId;
+    const getLayer = () => (this.getCurrentLayer() as this | null) ?? this;
+    const previousSource = this.state.resolvedSource;
+    let reportsMetadataProjectionError = false;
+    try {
+      const resolvedSource = await resolveVisualSource(props);
+      if (resolvedSource.sourceType !== 'raster') {
+        if (resolvedSource.owned) {
+          await finalizeOwnedSource(resolvedSource.source);
+        }
+        throw new Error(
+          `RasterSourceLayer expected a raster source but resolved ${resolvedSource.sourceType}.`
+        );
+      }
+      if (resolutionId !== this.state.resolutionId) {
+        if (resolvedSource.owned) {
+          await finalizeOwnedSource(resolvedSource.source);
+        }
+        return;
+      }
+      const layer = getLayer();
+      layer.releaseRasterSet();
+      const rasterSet = RasterSet.fromRasterSource(resolvedSource.source as RasterSource, {
+        debounceTime: layer.props.debounceTime
+      });
+      let metadataProjection: Promise<void> | undefined;
+      const unsubscribeRasterSetEvents = rasterSet.subscribe({
+        onLoadingStateChange: isLoading => getLayer().props.onLoadingStateChange?.(isLoading),
+        onMetadataLoad: metadata => {
+          metadataProjection = getLayer().handleMetadataLoad(metadata);
+        },
+        onMetadataLoadError: error => getLayer().props.onMetadataLoadError?.(error),
+        onRasterLoadStart: requestId => getLayer().props.onRasterLoadStart?.(requestId),
+        onRasterLoad: request => getLayer().handleRasterLoad(request),
+        onRasterLoadError: (requestId, error) =>
+          getLayer().props.onRasterLoadError?.(requestId, error),
+        onUpdate: () => getLayer().setNeedsUpdate()
+      });
+      layer.setState({resolvedSource, rasterSet, unsubscribeRasterSetEvents});
+
+      if (previousSource?.owned && previousSource.source !== resolvedSource.source) {
+        await finalizeOwnedSource(previousSource.source);
+      }
+      if (resolutionId !== this.state.resolutionId) {
+        return;
+      }
+      const metadata = getLayer().props.metadata;
+      if (metadata) {
+        rasterSet.metadata = metadata;
+        await getLayer().handleMetadataLoad(metadata);
+      } else {
+        await rasterSet.loadMetadata();
+        reportsMetadataProjectionError = Boolean(metadataProjection);
+        await metadataProjection;
+      }
+    } catch (error) {
+      if (resolutionId === this.state.resolutionId) {
+        const normalizedError = error instanceof Error ? error : new Error(String(error));
+        const layer = getLayer();
+        if (reportsMetadataProjectionError) {
+          layer.props.onMetadataLoadError?.(normalizedError);
+        }
+        layer.props.onSourceError?.(normalizedError);
+        layer.raiseError(normalizedError, 'resolving raster source');
+      }
+    }
+  }
+
+  /** Stores metadata and starts the first viewport request once projection is available. */
+  private handleMetadataLoad(metadata: RasterSourceMetadata): Promise<void> | undefined {
+    const {resolutionId} = this.state;
+    const identifier = getCoordinateReferenceSystemIdentifier(metadata.crs);
+    const needsProjection = identifier && !isBuiltInRasterCRS(identifier);
+    this.setState({metadata, projectedCRS: needsProjection ? undefined : null});
+    this.props.onMetadataLoad?.(metadata);
+    if (resolutionId !== this.state.resolutionId) {
+      return undefined;
+    }
+    if (needsProjection) {
+      return this.resolveProjectedCRS(identifier);
+    }
+    this.requestRaster(this.context.viewport, 0, metadata);
+    return undefined;
+  }
+
+  /** Prepares the source CRS once and resumes requests on the latest layer and viewport. */
+  private async resolveProjectedCRS(identifier: string): Promise<void> {
+    const {resolutionId, rasterSet} = this.state;
+    const projectedCRS = await resolveRasterCRS(identifier, this.props.resolveCRSDefinition);
+    const layer = (this.getCurrentLayer() as this | null) ?? this;
+    if (resolutionId !== layer.state.resolutionId || rasterSet !== layer.state.rasterSet) {
+      return;
+    }
+    layer.setState({projectedCRS});
+    layer.requestRaster(layer.context.viewport, 0);
+  }
+
+  /** Stores an accepted request and prepares its selected rendering path. */
+  private handleRasterLoad(request: RasterSetRequest): void {
+    const metadata = this.state.metadata;
+    if (!metadata) {
+      return;
+    }
+    this.updateRasterRendering(request, metadata);
+    this.setState({rasterRequest: request});
+    this.props.onRasterLoad?.(request);
+  }
+
+  /** Prepares GPU inputs for a single band or caches the existing CPU colorization. */
+  private updateRasterRendering(request: RasterSetRequest, metadata: RasterSourceMetadata): void {
+    const {raster, parameters} = request;
+    const {rendering, valueRange, bitmapLayerProps, colorizeRaster} = this.props;
+    const {projectedCRS} = this.state;
+    if (rendering === 'gpu' && raster.bandCount === 1) {
+      const placement =
+        bitmapLayerProps?.bounds && bitmapLayerProps.coordinateSystem !== undefined
+          ? {bounds: bitmapLayerProps.bounds, coordinateSystem: bitmapLayerProps.coordinateSystem}
+          : getRasterBitmapPlacement(raster, parameters, metadata, projectedCRS);
+      const rasterWithNoData = applyMetadataNoData(raster, metadata);
+      const previousGPUResult = this.state.rasterRequest === request ? this.state.gpuResult : null;
+      const percentileRange = previousGPUResult?.percentileRange;
+      const gpuResult: RasterSourceGPUResult = {
+        ...placement,
+        raster: previousGPUResult?.raster ?? createRasterBitmapData(rasterWithNoData),
+        noData:
+          raster.bands?.[0]?.noData === undefined
+            ? rasterWithNoData.noData
+            : raster.bands[0].noData,
+        percentileRange:
+          !valueRange && percentileRange === undefined
+            ? getRasterStretchRange(rasterWithNoData, 0)
+            : percentileRange
+      };
+      this.setState({gpuResult, cpuResult: null});
+    } else {
+      const cpuResult = createRasterRenderResult(request, metadata, colorizeRaster, projectedCRS);
+      this.setState({cpuResult, gpuResult: null});
+    }
+  }
+
+  /** Requests the current viewport with source-specific parameter overrides. */
+  private requestRaster(
+    viewport: Viewport,
+    debounceTime = this.props.debounceTime,
+    metadata = this.state.metadata
+  ): void {
+    const {rasterSet, projectedCRS} = this.state;
+    if (!rasterSet || !metadata || !viewport || projectedCRS === undefined) {
+      return;
+    }
+    const {getRasterParameters, maxTextureSize} = this.props;
+    const rasterViewport =
+      projectedCRS && viewport.isGeospatial && !getRasterParameters
+        ? createProjectedRasterViewport(viewport, metadata, projectedCRS, maxTextureSize)
+        : createRasterViewport(viewport, metadata, maxTextureSize, Boolean(getRasterParameters));
+    if (!rasterViewport) {
+      // Nothing visible to request: report the layer as loaded instead of waiting forever.
+      if (!this.state.projectedSourceOffscreen) {
+        this.setState({projectedSourceOffscreen: true});
+      }
+      return;
+    }
+    if (this.state.projectedSourceOffscreen) {
+      this.setState({projectedSourceOffscreen: false});
+    }
+    const {colorBands, alphaBand} = getDisplayBands(metadata);
+    const inferredParameters: GetRasterParameters = {
+      viewport: rasterViewport,
+      bands:
+        this.props.rendering === 'gpu' && metadata.bandCount === 1
+          ? [0]
+          : alphaBand < 0
+            ? colorBands
+            : [...colorBands, alphaBand]
+    };
+    const customParameters = this.props.getRasterParameters?.(rasterViewport, metadata);
+    rasterSet.requestRaster(
+      {
+        ...inferredParameters,
+        ...this.props.rasterParameters,
+        ...customParameters,
+        viewport: (customParameters as GetRasterParameters | undefined)?.viewport || rasterViewport
+      } as GetRasterParameters,
+      debounceTime
+    );
+  }
+
+  /** Releases the manager and clears rendering state for its source. */
+  private releaseRasterSet(): void {
+    this.state?.unsubscribeRasterSetEvents?.();
+    this.state?.rasterSet?.finalize();
+    this.setState?.({
+      rasterSet: null,
+      unsubscribeRasterSetEvents: null,
+      metadata: null,
+      projectedCRS: null,
+      projectedSourceOffscreen: false,
+      rasterRequest: null,
+      cpuResult: null,
+      gpuResult: null
+    });
+  }
+}
+
+/** Marks masked samples as NaN while preserving the original values of valid texels for picking. */
+function createRasterBitmapData(raster: RasterData): RasterBitmapData {
+  const {data, width, height, validityMasks} = raster;
+  const samples = Array.isArray(data) ? data[0] : data;
+  return {
+    width,
+    height,
+    data: validityMasks?.some(mask => mask.band === undefined || mask.band === 0)
+      ? Float64Array.from(samples, (value, index) =>
+          isRasterSampleValid(raster, index % width, Math.floor(index / width), 0) ? value : NaN
+        )
+      : samples
+  };
+}
+
+/** Computes the display stretch from up to 4,096 evenly spaced raster samples. */
+function getRasterStretchRange(
+  raster: NumericRasterData,
+  band: number,
+  stretch: 'range' | 'percentile' = 'percentile',
+  transform?: (value: number, pixel: [number, number]) => number | undefined
+): [number, number] | null {
+  const samples: number[] = [];
+  const sampleOptions = {bands: [band]};
+  const pixelCount = raster.width * raster.height;
+  const count = Math.min(pixelCount, 4096);
+  for (let sampleIndex = 0; sampleIndex < count; sampleIndex++) {
+    const index = Math.floor((sampleIndex * pixelCount) / count);
+    const pixel: [number, number] = [index % raster.width, Math.floor(index / raster.width)];
+    const value = sampleRaster(raster, pixel, sampleOptions).values[0];
+    if (value === undefined) continue;
+    const displayValue = transform ? transform(value, pixel) : value;
+    if (displayValue !== undefined) samples.push(displayValue);
+  }
+  if (!samples.length) return null;
+  if (stretch === 'percentile') samples.sort((left, right) => left - right);
+  const lowerBound =
+    stretch === 'range' ? Math.min(...samples) : samples[Math.floor((samples.length - 1) * 0.02)];
+  const upperBound =
+    stretch === 'range' ? Math.max(...samples) : samples[Math.floor((samples.length - 1) * 0.98)];
+  return [lowerBound, upperBound === lowerBound ? upperBound + 1 : upperBound];
+}
+
+/** Selects display bands by role, with positional defaults for rasters without color roles. */
+function getDisplayBands(raster: {bandCount: number; bands?: RasterDisplayBandMetadata[]}): {
+  /** Payload band indices in display order. */
+  colorBands: number[];
+  /** Payload index of the alpha band, or -1 when absent. */
+  alphaBand: number;
+} {
+  if (!raster.bands) return {colorBands: raster.bandCount >= 3 ? [0, 1, 2] : [0], alphaBand: -1};
+  const indices = Array.from({length: raster.bandCount}, (_, index) => index);
+  /** Finds the first payload band with the requested role. */
+  const findBand = (role: RasterDisplayBandMetadata['colorInterpretation']) =>
+    indices.find(index => raster.bands?.[index]?.colorInterpretation === role) ?? -1;
+  const alphaBand = findBand('alpha');
+  const rgb = [findBand('red'), findBand('green'), findBand('blue')];
+  if (rgb.every(index => index >= 0)) return {colorBands: rgb, alphaBand};
+  const available = indices.filter(index => raster.bands?.[index]?.colorInterpretation !== 'alpha');
+  // GeoTIFF tags band 0 of any MinIsBlack image as gray, including multispectral stacks.
+  // Use the gray role only when there are too few bands for the positional RGB composite.
+  const gray = findBand('gray');
+  if (gray >= 0 && available.length < 3) return {colorBands: [gray], alphaBand};
+
+  return {colorBands: available.slice(0, available.length >= 3 ? 3 : 1), alphaBand};
+}
+
+/** Converts a native alpha sample to fractional opacity before rounding to a byte. */
+function getAlphaFraction(value: number | undefined, maximum: number): number {
+  return clamp((value ?? 0) / maximum);
+}
+
+/** Recovers straight color for a visible pixel when the premultiplied color range is supplied. */
+function getStraightColor(
+  value: number,
+  alphaFraction: number,
+  colorRange: readonly [number, number] | undefined
+): number {
+  if (!colorRange) return value;
+  return Math.max(colorRange[0], Math.min(colorRange[1], value / alphaFraction));
+}
+
+/** Converts a typed raster into a deck.gl-compatible RGBA bitmap image. */
+export function colorizeRasterData(
+  raster: NumericRasterData,
+  options: {
+    /**
+     * Opt in to min/max or percentile stretch. By default, tagged 8-bit RGB uses straight bytes and
+     * other bands use the historical percentile stretch.
+     */
+    stretch?: 'range' | 'percentile';
+  } = {}
+): RasterBitmapImage {
+  const pixelCount = raster.width * raster.height;
+  const target = new Uint8ClampedArray(pixelCount * 4);
+  const bands: RasterDisplayBandMetadata[] | undefined = raster.bands;
+  const {colorBands, alphaBand} = getDisplayBands(raster);
+  const hasAlpha = alphaBand >= 0;
+  const sampleBands = hasAlpha ? [...colorBands, alphaBand] : colorBands;
+  const useAllColorNoData =
+    !hasAlpha &&
+    colorBands.length === 3 &&
+    ['red', 'green', 'blue'].every(
+      (role, channel) => bands?.[colorBands[channel]]?.colorInterpretation === role
+    );
+  const hasNoData =
+    Number.isFinite(raster.noData) ||
+    sampleBands.some(band => Number.isFinite(bands?.[band]?.noData));
+  // Keep masks and non-finite checks in the display sample, independently of nodata inference.
+  const displayRaster =
+    raster.bands && hasNoData && (hasAlpha || useAllColorNoData)
+      ? {...raster, noData: null, bands: raster.bands.map(band => ({...band, noData: null}))}
+      : raster;
+  const alphaDtype = raster.bands?.[alphaBand]?.dtype ?? raster.dtype;
+  const alphaMaximum = ALPHA_MAXIMUM[alphaDtype] ?? 255;
+  const alphaSampleOptions = {bands: [alphaBand]};
+  const colorRanges =
+    bands?.[alphaBand]?.alphaMode === 'premultiplied'
+      ? colorBands.map(band => {
+          const dtype =
+            raster.dtype === 'mixed'
+              ? raster.bands[band].dtype
+              : (raster.bands?.[band]?.dtype ?? raster.dtype);
+          return COLOR_SAMPLE_RANGES[dtype];
+        })
+      : undefined;
+  // Like the common GIS default, use tagged 8-bit RGB directly unless a stretch is requested.
+  const isByteColor =
+    options.stretch === undefined &&
+    colorBands.length === 3 &&
+    colorBands.every(
+      (band, channel) =>
+        bands?.[band]?.colorInterpretation === ['red', 'green', 'blue'][channel] &&
+        (bands?.[band]?.dtype ?? raster.dtype) === 'uint8'
+    );
+  const stretch = options.stretch ?? 'percentile';
+  const statistics = colorBands.map((band, channel) => {
+    if (isByteColor) return null;
+    const colorRange = colorRanges?.[channel];
+    // With alpha, opacity decides visibility: colors equal to noData count, transparent fill does not.
+    return getRasterStretchRange(
+      hasAlpha ? displayRaster : raster,
+      band,
+      stretch,
+      hasAlpha
+        ? (value, pixel) => {
+            const alphaSample = sampleRaster(displayRaster, pixel, alphaSampleOptions).values[0];
+            const alphaFraction = getAlphaFraction(alphaSample, alphaMaximum);
+            return Math.round(alphaFraction * 255) > 0
+              ? getStraightColor(value, alphaFraction, colorRange)
+              : undefined;
+          }
+        : undefined
+    );
+  });
+  for (let index = 0; index < pixelCount; index++) {
+    const pixel: [number, number] = [index % raster.width, Math.floor(index / raster.width)];
+    const sample = sampleRaster(displayRaster, pixel, {bands: sampleBands});
+    if (!sample.valid.every(Boolean)) continue;
+    if (
+      useAllColorNoData &&
+      displayRaster !== raster &&
+      !colorBands.some(band => isRasterSampleValid(raster, pixel[0], pixel[1], band))
+    )
+      continue;
+
+    const outputIndex = index * 4;
+    const alphaFraction = hasAlpha
+      ? getAlphaFraction(sample.values[colorBands.length], alphaMaximum)
+      : 1;
+    const alpha = Math.round(alphaFraction * 255);
+    if (alpha === 0) continue;
+    if (colorBands.length === 3) {
+      for (let channel = 0; channel < 3; channel++) {
+        const value = getStraightColor(
+          sample.values[channel]!,
+          alphaFraction,
+          colorRanges?.[channel]
+        );
+        target[outputIndex + channel] = scaleToByte(value, statistics[channel]);
+      }
+    } else {
+      const range = statistics[0];
+      if (range) {
+        const value = getStraightColor(sample.values[0]!, alphaFraction, colorRanges?.[0]);
+        const normalized = clamp((value - range[0]) / (range[1] - range[0]));
+        const color = sampleColorRamp(Math.sqrt(normalized));
+        target.set(color, outputIndex);
+      } else if (!hasAlpha) {
+        continue;
+      }
+    }
+    target[outputIndex + 3] = alpha;
+  }
+  return {data: target, width: raster.width, height: raster.height};
+}
+
+/** Creates default bitmap props for a typed raster response. */
+export function createDefaultRasterRenderResult(
+  raster: RasterData,
+  parameters: GetRasterParameters,
+  metadata: RasterSourceMetadata,
+  projectedCRS?: ProjectedRasterCRS | null
+): RasterRenderResult {
+  const rasterWithMetadataNoData = applyMetadataNoData(raster, metadata);
+  const sourceBands: RasterDisplayBandMetadata[] | undefined = metadata.bands;
+  const payloadBands: RasterDisplayBandMetadata[] | undefined = raster.bands;
+  const rasterWithBandMetadata = sourceBands?.some(band => band.colorInterpretation !== undefined)
+    ? {
+        ...rasterWithMetadataNoData,
+        bands: payloadBands
+          ? payloadBands.map((band, index) => ({
+              ...band,
+              colorInterpretation:
+                band.colorInterpretation ??
+                sourceBands[parameters.bands?.[index] ?? index]?.colorInterpretation
+            }))
+          : Array.from({length: raster.bandCount}, (_, index) => {
+              const sourceBand = parameters.bands?.[index] ?? index;
+              return sourceBands[sourceBand] ?? {index: sourceBand, dtype: raster.dtype};
+            })
+      }
+    : rasterWithMetadataNoData;
+  const placement = getRasterBitmapPlacement(raster, parameters, metadata, projectedCRS);
+  const image = colorizeRasterData(rasterWithBandMetadata);
+  return {
+    ...placement,
+    // deck.gl v10 draws a plain `{data, width, height}` image as black, so the bitmap gets an
+    // `ImageData` wherever the platform has it. It also reads the texture dimensions from it.
+    image:
+      typeof ImageData !== 'undefined'
+        ? new ImageData(image.data as Uint8ClampedArray<ArrayBuffer>, image.width, image.height)
+        : image
+  };
+}
+
+/** Supplies source-level no-data when the payload does not declare a value. */
+function applyMetadataNoData(raster: RasterData, metadata: RasterSourceMetadata): RasterData {
+  return raster.noData === undefined && metadata.noData !== undefined
+    ? {...raster, noData: metadata.noData}
+    : raster;
+}
+
+/** Calculates bitmap bounds and deck coordinates without touching sample data. */
+function getRasterBitmapPlacement(
+  raster: RasterData,
+  parameters: GetRasterParameters,
+  metadata: RasterSourceMetadata,
+  projectedCRS?: ProjectedRasterCRS | null
+): RasterBitmapPlacement {
+  if (
+    !raster.boundingBox &&
+    !metadata.boundingBox &&
+    !metadata.crs &&
+    !raster.crs &&
+    !raster.transform
+  ) {
+    return {
+      bounds: [0, metadata.height, metadata.width, 0],
+      coordinateSystem: 'cartesian'
+    };
+  }
+  const rasterBounds = raster.boundingBox || parameters.viewport.bounds || metadata.boundingBox;
+  if (!rasterBounds && !raster.transform) {
+    return {
+      bounds: [0, raster.height, raster.width, 0],
+      coordinateSystem: 'cartesian'
+    };
+  }
+  const rasterCoordinateReferenceSystem = getCoordinateReferenceSystemIdentifier(
+    raster.crs || metadata.crs
+  );
+  const resolvedCRS =
+    rasterCoordinateReferenceSystem === projectedCRS?.identifier ? projectedCRS : null;
+  let coordinateSystem: CoordinateSystem = rasterCoordinateReferenceSystem ? 'lnglat' : 'cartesian';
+  if (rasterCoordinateReferenceSystem && !isBuiltInRasterCRS(rasterCoordinateReferenceSystem)) {
+    if (!resolvedCRS) {
+      throw new Error(
+        `RasterSourceLayer requires explicit bounds and coordinateSystem for an unsupported source CRS (${rasterCoordinateReferenceSystem}).`
+      );
+    }
+    coordinateSystem = resolvedCRS.definition;
+  }
+  const mercator = rasterCoordinateReferenceSystem === 'EPSG:3857';
+  const bounds = raster.transform
+    ? getAffineBitmapBounds(raster, mercator)
+    : mercator
+      ? unprojectPseudoMercatorBounds(rasterBounds!)
+      : flattenBounds(rasterBounds!);
+  if (resolvedCRS?.coordinateFrame === 'geographic' && isRectangularBitmapBounds(bounds)) {
+    // BitmapLayer disables fragment coordinate conversion for preprojected meshes.
+    const [west, south] = resolvedCRS.converter.to([bounds[0], bounds[1]]);
+    const [east, north] = resolvedCRS.converter.to([bounds[2], bounds[3]]);
+    return {bounds: [west, south, east, north], coordinateSystem: 'lnglat'};
+  }
+  return {bounds, coordinateSystem};
+}
+
+/** Applies custom raster colorization while retaining inferred placement defaults. */
+export function createRasterRenderResult(
+  request: RasterSetRequest,
+  metadata: RasterSourceMetadata,
+  colorizeRaster?: RasterSourceLayerProps['colorizeRaster'],
+  projectedCRS?: ProjectedRasterCRS | null
+): RasterSourceCPUResult {
+  const customRenderResult = colorizeRaster?.(request.raster, {metadata, request});
+  if (customRenderResult?.bounds && customRenderResult.coordinateSystem !== undefined) {
+    return {renderResult: customRenderResult, usesDefaultPlacement: false};
+  }
+  const defaultRenderResult = createDefaultRasterRenderResult(
+    request.raster,
+    request.parameters,
+    metadata,
+    projectedCRS
+  );
+  return {
+    renderResult: customRenderResult
+      ? {...defaultRenderResult, ...customRenderResult}
+      : defaultRenderResult,
+    usesDefaultPlacement: true
+  };
+}
+
+/**
+ * Samples longitude/latitude rasters per fragment. Without this, deck.gl stretches the image
+ * linearly between its corners in Web Mercator, so rows land at the wrong latitude and move
+ * when the requested window changes. EPSG:3857 rasters also get `lnglat` bounds, but their rows
+ * are linear in Web Mercator, so they keep the default. deck.gl samples longitude/latitude only
+ * for rectangular bounds, so a rotated or sheared raster with four corners keeps the default.
+ */
+function getImageCoordinateSystem(
+  coordinateSystem: CoordinateSystem | undefined,
+  rasterCRS: string | undefined,
+  bounds: BitmapBoundingBox | undefined
+): BitmapLayerProps['_imageCoordinateSystem'] {
+  return coordinateSystem === 'lnglat' &&
+    rasterCRS !== 'EPSG:3857' &&
+    isRectangularBitmapBounds(bounds)
+    ? 'lnglat'
+    : 'default';
+}
+
+/** Identifies rectangular bitmap bounds with four finite coordinates. */
+function isRectangularBitmapBounds(
+  bounds: BitmapBoundingBox | undefined
+): bounds is [number, number, number, number] {
+  return bounds?.length === 4 && bounds.every(Number.isFinite);
+}
+
+/** Converts a deck.gl viewport into the normalized viewport accepted by RasterSource. */
+export function createRasterViewport(
+  viewport: Viewport,
+  metadata: RasterSourceMetadata,
+  maxTextureSize = 1024,
+  allowCustomProjection = false
+): RasterViewport {
+  const viewportBounds = viewport.getBounds?.();
+  const coordinateReferenceSystem = getCoordinateReferenceSystemIdentifier(metadata.crs);
+  let bounds: RasterBoundingBox | undefined;
+  if (!metadata.crs) {
+    bounds = metadata.boundingBox ?? [
+      [0, 0],
+      [metadata.width, metadata.height]
+    ];
+  } else if (viewportBounds) {
+    bounds = [
+      [viewportBounds[0], viewportBounds[1]],
+      [viewportBounds[2], viewportBounds[3]]
+    ];
+    if (coordinateReferenceSystem === 'EPSG:3857') {
+      bounds = [projectWGS84ToPseudoMercator(bounds[0]), projectWGS84ToPseudoMercator(bounds[1])];
+    } else if (
+      (!coordinateReferenceSystem || !isBuiltInRasterCRS(coordinateReferenceSystem)) &&
+      !allowCustomProjection
+    ) {
+      throw new Error(
+        `RasterSourceLayer cannot infer viewport reprojection for ${
+          coordinateReferenceSystem || 'the declared CRS'
+        }. Provide getRasterParameters() to request bounds in the source CRS.`
+      );
+    }
+  }
+
+  return createRasterViewportForBounds(viewport, bounds, coordinateReferenceSystem, maxTextureSize);
+}
+
+/** Prepares projected CRSs and geographic CRSs explicitly supplied by the app. */
+async function resolveRasterCRS(
+  identifier: string,
+  resolveCRSDefinition: RasterSourceLayerProps['resolveCRSDefinition']
+): Promise<ProjectedRasterCRS | null> {
+  const suppliedDefinition = await resolveCRSDefinition?.(identifier);
+  const definition = suppliedDefinition ?? identifier;
+  const descriptor = await projectionEngine.getCRS(definition).catch(() => null);
+  if (
+    descriptor &&
+    (descriptor.coordinateFrame === 'projected' ||
+      (suppliedDefinition != null && descriptor.coordinateFrame === 'geographic'))
+  ) {
+    return {
+      identifier,
+      definition,
+      coordinateFrame: descriptor.coordinateFrame,
+      converter: descriptor.converter.WGS84
+    };
+  }
+  return null;
+}
+
+/** Maps screen samples into the source CRS and fits square pixels within the texture budget. */
+function createProjectedRasterViewport(
+  viewport: Viewport,
+  metadata: RasterSourceMetadata,
+  {identifier, converter}: ProjectedRasterCRS,
+  maxTextureSize = 1024
+): RasterViewport | null {
+  const bounds = getProjectedViewportBounds(viewport, converter, metadata.boundingBox);
+  if (!bounds) {
+    return null;
+  }
+
+  const rasterViewport = createRasterViewportForBounds(
+    viewport,
+    bounds,
+    identifier,
+    maxTextureSize
+  );
+  const width = bounds[1][0] - bounds[0][0];
+  const height = bounds[1][1] - bounds[0][1];
+  const unitsPerPixel = Math.max(width / rasterViewport.width, height / rasterViewport.height);
+  return {
+    ...rasterViewport,
+    width: Math.max(1, Math.round(width / unitsPerPixel)),
+    height: Math.max(1, Math.round(height / unitsPerPixel)),
+    project: coordinates => viewport.project(converter.to(coordinates)),
+    unprojectPosition: position => {
+      const [sourceX, sourceY, elevation] = converter.from(viewport.unprojectPosition(position));
+      return [sourceX, sourceY, elevation];
+    }
+  };
+}
+
+/** A screen position and its source coordinates when it maps to visible ground. */
+type ProjectedViewportSample = {
+  /** Position in viewport pixels. */
+  screenPosition: [number, number];
+  /** Position in the source CRS, or null for a rejected sample. */
+  sourcePosition: [number, number] | null;
+};
+
+/** Samples a 9×9 screen grid, refines validity boundaries, and clips to the source extent. */
+function getProjectedViewportBounds(
+  viewport: Viewport,
+  converter: CRSConverter,
+  sourceBounds?: RasterBoundingBox
+): RasterBoundingBox | null {
+  let minimumX = Infinity;
+  let minimumY = Infinity;
+  let maximumX = -Infinity;
+  let maximumY = -Infinity;
+  const steps = 8;
+  const screenTolerance = 0.5;
+
+  /** Maps a screen sample to the source CRS when it round-trips in front of the camera. */
+  function sampleScreenPosition(screenPosition: [number, number]): [number, number] | null {
+    const [longitude, latitude] = viewport.unproject(screenPosition);
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+      return null;
+    }
+    const groundPosition = [longitude, latitude];
+    const [commonX, commonY, commonZ] = viewport.projectPosition(groundPosition);
+    const matrix = viewport.viewProjectionMatrix;
+    // Perspective division can map a behind-camera point back to the same pixel.
+    const clipSpaceW =
+      matrix[3] * commonX + matrix[7] * commonY + matrix[11] * commonZ + matrix[15];
+    if (!Number.isFinite(clipSpaceW) || clipSpaceW <= 0) {
+      return null;
+    }
+    const [projectedX, projectedY] = viewport.project(groundPosition);
+    const screenError = Math.hypot(projectedX - screenPosition[0], projectedY - screenPosition[1]);
+    if (!Number.isFinite(screenError) || screenError > screenTolerance) {
+      return null;
+    }
+    try {
+      const [sourceX, sourceY] = converter.from(groundPosition);
+      return Number.isFinite(sourceX) && Number.isFinite(sourceY) ? [sourceX, sourceY] : null;
+    } catch {
+      // Some projection kernels throw for points outside their domain.
+      return null;
+    }
+  }
+
+  /** Expands the bounds to include a source position. */
+  function includeSourcePosition([sourceX, sourceY]: [number, number]): void {
+    minimumX = Math.min(minimumX, sourceX);
+    minimumY = Math.min(minimumY, sourceY);
+    maximumX = Math.max(maximumX, sourceX);
+    maximumY = Math.max(maximumY, sourceY);
+  }
+
+  /** Bisects a mixed-validity interval and includes the valid endpoint nearest the boundary. */
+  function refineBoundary(first: ProjectedViewportSample, second: ProjectedViewportSample): void {
+    const validSample = first.sourcePosition ? first : second;
+    const rejectedSample = validSample === first ? second : first;
+    let sourcePosition = validSample.sourcePosition;
+    if (!sourcePosition || rejectedSample.sourcePosition) {
+      return;
+    }
+
+    let validPosition = validSample.screenPosition;
+    let rejectedPosition = rejectedSample.screenPosition;
+    for (let iteration = 0; iteration < 12; iteration++) {
+      const deltaX = rejectedPosition[0] - validPosition[0];
+      const deltaY = rejectedPosition[1] - validPosition[1];
+      if (Math.hypot(deltaX, deltaY) < screenTolerance) {
+        break;
+      }
+      const midpoint: [number, number] = [
+        validPosition[0] + deltaX / 2,
+        validPosition[1] + deltaY / 2
+      ];
+      const midpointSourcePosition = sampleScreenPosition(midpoint);
+      if (midpointSourcePosition) {
+        validPosition = midpoint;
+        sourcePosition = midpointSourcePosition;
+      } else {
+        rejectedPosition = midpoint;
+      }
+    }
+    includeSourcePosition(sourcePosition);
+  }
+
+  let previousRow: ProjectedViewportSample[] = [];
+  for (let row = 0; row <= steps; row++) {
+    const currentRow: ProjectedViewportSample[] = [];
+    for (let column = 0; column <= steps; column++) {
+      const screenPosition: [number, number] = [
+        (viewport.width * column) / steps,
+        (viewport.height * row) / steps
+      ];
+      const sourcePosition = sampleScreenPosition(screenPosition);
+      const sample = {screenPosition, sourcePosition};
+      if (sourcePosition) {
+        includeSourcePosition(sourcePosition);
+      }
+      if (column > 0) {
+        refineBoundary(currentRow[column - 1], sample);
+      }
+      if (row > 0) {
+        refineBoundary(previousRow[column], sample);
+      }
+      currentRow.push(sample);
+    }
+    previousRow = currentRow;
+  }
+  if (sourceBounds) {
+    minimumX = Math.max(minimumX, sourceBounds[0][0]);
+    minimumY = Math.max(minimumY, sourceBounds[0][1]);
+    maximumX = Math.min(maximumX, sourceBounds[1][0]);
+    maximumY = Math.min(maximumY, sourceBounds[1][1]);
+  }
+  return minimumX < maximumX && minimumY < maximumY
+    ? [
+        [minimumX, minimumY],
+        [maximumX, maximumY]
+      ]
+    : null;
+}
+
+/** Identifies the CRS values with established request and placement paths. */
+function isBuiltInRasterCRS(identifier: string): boolean {
+  return identifier === 'EPSG:3857' || /^(EPSG:4326|CRS:84|OGC:CRS84)$/i.test(identifier);
+}
+
+/** Builds a source viewport using computed bounds and the device pixel budget. */
+function createRasterViewportForBounds(
+  viewport: Viewport,
+  bounds: RasterBoundingBox | undefined,
+  coordinateReferenceSystem: string | undefined,
+  maxTextureSize: number
+): RasterViewport {
+  const devicePixelRatio = globalThis.devicePixelRatio || 1;
+  const deviceWidth = viewport.width * devicePixelRatio;
+  const deviceHeight = viewport.height * devicePixelRatio;
+  // Scale both sides by one factor, so the request keeps the viewport's shape. Separate caps
+  // would make a wide viewport square, and sources would select a finer level than needed.
+  const scale = Math.min(1, maxTextureSize / deviceWidth, maxTextureSize / deviceHeight);
+  const width = Math.max(1, Math.min(maxTextureSize, Math.round(deviceWidth * scale)));
+  const height = Math.max(1, Math.min(maxTextureSize, Math.round(deviceHeight * scale)));
+  const center = bounds
+    ? [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2]
+    : [0, 0];
+  return {
+    id: viewport.id || 'raster-source-layer',
+    width,
+    height,
+    zoom: 'zoom' in viewport ? Number((viewport as any).zoom) : 0,
+    center,
+    crs: coordinateReferenceSystem,
+    bounds,
+    getBounds: bounds ? () => flattenBounds(bounds) : undefined,
+    project: coordinates => viewport.project(coordinates as any) as number[],
+    unprojectPosition: position =>
+      viewport.unprojectPosition(position as any) as [number, number, number]
+  };
+}
+
+/** Normalizes one RGB channel using its raster stretch. */
+function scaleToByte(value: number, statistics: [number, number] | null): number {
+  if (!statistics) {
+    return Math.round(clamp(value / 255) * 255);
+  }
+  const [lowerBound, upperBound] = statistics;
+  return Math.round(clamp((value - lowerBound) / (upperBound - lowerBound)) * 255);
+}
+
+function flattenBounds(bounds: RasterBoundingBox): [number, number, number, number] {
+  return [bounds[0][0], bounds[0][1], bounds[1][0], bounds[1][1]];
+}
+
+function clamp(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+/** Places texture-grid corners using the signed affine, preserving shear and reversed rows. */
+function getAffineBitmapBounds(raster: RasterData, mercator: boolean): BitmapBoundingBox {
+  const [columnScale, rowShear, originX, columnShear, rowScale, originY] = raster.transform!;
+  if (
+    !raster.transform!.every(Number.isFinite) ||
+    columnScale * rowScale - rowShear * columnShear === 0
+  )
+    throw new Error('Invalid raster placement affine');
+  const shift = raster.pixelRegistration === 'point' ? 0.5 : 0;
+  const grid = [
+    [-shift, raster.height - shift],
+    [-shift, -shift],
+    [raster.width - shift, -shift],
+    [raster.width - shift, raster.height - shift]
+  ];
+  const corners = grid.map(([column, row]) => {
+    const point: [number, number] = [
+      columnScale * column + rowShear * row + originX,
+      columnShear * column + rowScale * row + originY
+    ];
+    return mercator ? unprojectPseudoMercator(point) : point;
+  });
+  if (rowShear === 0 && columnShear === 0 && columnScale > 0 && rowScale < 0)
+    return [corners[0][0], corners[0][1], corners[2][0], corners[2][1]];
+  return corners as [[number, number], [number, number], [number, number], [number, number]];
+}

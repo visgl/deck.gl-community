@@ -35,9 +35,7 @@ const sidebars = {
         'layers/path-outline-and-markers',
         'layers/flame-trail',
         'layers/edge-markers',
-        'layers/skybox-map-view',
-        'layers/skybox-globe',
-        'layers/skybox-first-person',
+        'layers/source-layers',
         'layers/volumetric-video'
       ]
     },
@@ -64,7 +62,7 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/layers/sky-layers',
-      items: ['layers/globe-clouds', 'layers/sky-layers']
+      items: ['layers/globe-clouds', 'layers/sky-layers', 'sky-layers/procedural-sky', 'sky-layers/skybox-map-view', 'sky-layers/skybox-globe', 'sky-layers/skybox-first-person']
     },
     {
       type: 'category',
@@ -91,8 +89,8 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '@deck.gl-community/layers/tree-layers',
-      items: ['layers/seasonal-farm']
+      label: '@deck.gl-community/layers/vegetation-layers',
+      items: ['vegetation-layers/seasonal-farm', 'vegetation-layers/grass-layer']
     },
     {
       type: 'category',
@@ -100,8 +98,7 @@ const sidebars = {
       items: [
         'geo-layers/wind',
         'layers/wind-garden',
-        'layers/grass-layer',
-        'layers/sky'
+        'layers/wind-atlas'
       ]
     },
     {
@@ -142,16 +139,18 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/playground',
-      items: ['playground']
-    },
-    {
-      type: 'category',
-      label: '@deck.gl-community/vega (private)',
       items: [
-        'vega/geospatial',
-        'vega/map-to-stacks',
-        'vega/mark-transitions',
-        'vega/unit-layouts'
+        'playground',
+        {
+          type: 'category',
+          label: 'Vega layers',
+          items: [
+            'vega/geospatial',
+            'vega/map-to-stacks',
+            'vega/mark-transitions',
+            'vega/unit-layouts'
+          ]
+        }
       ]
     }
   ]

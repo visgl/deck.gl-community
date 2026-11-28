@@ -16,14 +16,19 @@ const TERRAIN_ALIASES = DECK_GL_SOURCE
 
 const ALIASES = [
   ...TERRAIN_ALIASES,
+  {find: '@deck.gl-community/playground/vega-layers', replacement: fileURLToPath(new URL('./modules/playground/src/vega-layers/index.ts', import.meta.url))},
   {find: 'crypto', replacement: 'node:crypto'}, // ensure Vite/Vitest get Node's crypto
   {
     find: /^@deck\.gl-community\/playground$/,
     replacement: fileURLToPath(new URL('./modules/playground/src/index.ts', import.meta.url))
   },
   {
-    find: '@deck.gl-community/react',
+    find: /^@deck\.gl-community\/react$/,
     replacement: fileURLToPath(new URL('./modules/react/src/index.ts', import.meta.url))
+  },
+  {
+    find: '@deck.gl-community/react/legacy',
+    replacement: fileURLToPath(new URL('./modules/react/src/legacy.ts', import.meta.url))
   },
   {
     find: '@deck.gl-community/panels',
@@ -63,16 +68,15 @@ const BROWSER_RESOLVE_CONFIG = {
 };
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
-  // Preserve each importer's MapLibre worker version.
-  exclude: ['maplibre-gl'],
   include: [
+    // The workspace uses MapLibre 4, whose UMD entry needs browser interop.
+    'maplibre-gl',
     '@deck.gl/mesh-layers',
     '@deck.gl/widgets',
     '@loaders.gl/raster',
     '@turf/helpers',
     'delaunator',
     'supercluster',
-    '@deck.gl/react/legacy',
     '@loaders.gl/tables',
     '@loaders.gl/core/query',
     '@math.gl/sql/parser',
@@ -88,7 +92,6 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     'preact/test-utils',
     'probe.gl/stats',
     'preact/jsx-dev-runtime',
-    'boxicons',
     'zod',
     'vega',
     '@deck.gl/core',
@@ -97,7 +100,7 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@luma.gl/engine',
     '@luma.gl/core/webgl',
     '@luma.gl/core/webgpu',
-    '@deck.gl-community/vega > tsx-create-element',
+    '@deck.gl-community/playground > tsx-create-element',
     'deepmerge',
     'd3-color',
     'd3-ease',

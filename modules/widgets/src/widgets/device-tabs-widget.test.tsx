@@ -88,20 +88,14 @@ describe('DeviceTabsWidget', () => {
 
     widget.onRenderHTML(root);
     await vi.waitFor(() => {
-      expect(
-        root
-          .querySelector<HTMLButtonElement>('[data-device-tab-id="webgl"]')
-          ?.getAttribute('aria-selected')
-      ).toBe('true');
+      expect(root.querySelector<HTMLSelectElement>('select')?.value).toBe('webgl');
     });
 
-    expect(root.querySelector<HTMLButtonElement>('[data-device-tab-id="webgl"]')).toBeTruthy();
-    expect(root.querySelector<HTMLButtonElement>('[data-device-tab-id="webgpu"]')?.disabled).toBe(
-      true
-    );
+    expect(root.querySelector<HTMLOptionElement>('option[value="webgl"]')).toBeTruthy();
+    expect(root.querySelector<HTMLOptionElement>('option[value="webgpu"]')?.disabled).toBe(true);
   });
 
-  it('switches device types when a tab is clicked', async () => {
+  it('switches device types from the dropdown', async () => {
     const root = document.createElement('div');
     document.body.append(root);
     const manager = new MockDeviceManager();
@@ -114,13 +108,11 @@ describe('DeviceTabsWidget', () => {
 
     widget.onRenderHTML(root);
     await vi.waitFor(() => {
-      expect(
-        root
-          .querySelector<HTMLButtonElement>('[data-device-tab-id="webgpu"]')
-          ?.getAttribute('aria-selected')
-      ).toBe('true');
+      expect(root.querySelector<HTMLSelectElement>('select')?.value).toBe('webgpu');
     });
-    root.querySelector<HTMLButtonElement>('[data-device-tab-id="webgl"]')?.click();
+    const select = root.querySelector<HTMLSelectElement>('select')!;
+    select.value = 'webgl';
+    select.dispatchEvent(new Event('change'));
 
     expect(setDeviceTypeSpy).toHaveBeenCalledWith('webgl');
   });
@@ -143,12 +135,8 @@ describe('DeviceTabsWidget', () => {
         'No supported graphics backend is available.'
       );
     });
-    expect(root.querySelector<HTMLButtonElement>('[data-device-tab-id="webgpu"]')?.disabled).toBe(
-      true
-    );
-    expect(root.querySelector<HTMLButtonElement>('[data-device-tab-id="webgl"]')?.disabled).toBe(
-      true
-    );
+    expect(root.querySelector<HTMLOptionElement>('option[value="webgpu"]')?.disabled).toBe(true);
+    expect(root.querySelector<HTMLOptionElement>('option[value="webgl"]')?.disabled).toBe(true);
   });
 
   it('displays device creation errors', async () => {
@@ -192,7 +180,9 @@ describe('DeviceTabsWidget', () => {
       expect(secondManager.getState().deviceType).toBe('webgpu');
     });
 
-    firstRoot.querySelector<HTMLButtonElement>('[data-device-tab-id="webgl"]')?.click();
+    const select = firstRoot.querySelector<HTMLSelectElement>('select')!;
+    select.value = 'webgl';
+    select.dispatchEvent(new Event('change'));
 
     expect(firstManager.getState().deviceType).toBe('webgl');
     expect(secondManager.getState().deviceType).toBe('webgpu');

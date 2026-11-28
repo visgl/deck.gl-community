@@ -22,12 +22,15 @@ This page lists module additions and major changes in each release. For detailed
 
 - **layers:** Import [SelectionPulseExtension](./modules/layers/api-reference/selection-pulse-extension.md)
   from `@deck.gl-community/layers/extensions`. The existing imports remain available.
+- **layers:** [RasterSourceLayer](./modules/layers/api-reference/source-layer.md#projected-rasters)
+  accepts `resolveCRSDefinition` for source identifiers that need a projected or geographic CRS
+  definition. Both CPU and GPU bitmap placement use the resolved definition.
 
 - **react-fiber:** removed. The renderer moved to deck.gl, where it is `@deck.gl/react` from v10.
   See the [upgrade guide](./upgrade-guide.md#react-fiber).
 - **react:** [`DeckCanvas`](./modules/react/api-reference/deck-canvas.md) attaches several
   React presentation canvases to one application-owned Deck, each with its own views, layers
-  and widgets. Import it from `@deck.gl-community/react/deck-canvas`.
+  and widgets. Import it from `@deck.gl-community/react`.
 
 ## v10.0.0-alpha.3
 
@@ -110,7 +113,7 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
 
 - Shorter [`TreeLayer`](/docs/modules/layers/api-reference/tree-layer) and
   [`SplatLayer`](/docs/modules/layers/api-reference/splat-layer) reference pages. The
-  [Seasonal Farm](/examples/layers/seasonal-farm) TreeLayer demo uses a settings panel for season,
+  [Seasonal Farm](/examples/vegetation-layers/seasonal-farm) TreeLayer demo uses a settings panel for season,
   crops, wind, size, crown characteristics and canopy budgets, with no text drawn over the canvas.
   The Tree Lab example is removed.
 
@@ -261,7 +264,7 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
 
 - The playground adds a **Vega** tab with live JSON editing and shared declarative unit-layout and bar-chart examples.
 
-- A private, unpublished [Vega renderer experiment](./modules/vega/README.md) ports SandDance’s MIT-licensed Vega/deck.gl renderer to vis.gl 9.4, with animated unit-layout examples and upstream attribution.
+- A private, unpublished [Vega renderer experiment](./modules/playground/vega-layers.md) ports SandDance’s MIT-licensed Vega/deck.gl renderer to vis.gl 9.4, with animated unit-layout examples and upstream attribution.
 
 - The BasemapLayers overview includes a synchronized comparison with MapLibre, with map, globe, and first-person views.
 

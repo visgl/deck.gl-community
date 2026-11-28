@@ -8,5 +8,5 @@
     "outDir": "dist",
     "noEmit": false
   },
-  "references": [{"path": "../panels"}]
+  "references": [{"path": "../panels"}, {"path": "../widgets"}]
 }

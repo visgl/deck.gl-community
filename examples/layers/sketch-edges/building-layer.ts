@@ -20,8 +20,8 @@ import {
   BUILDING_VERTEX_GLSL,
   createPBRBuildingMesh,
   drawPBRBuildingMesh
-} from './pbr-buildings';
-import {riverfrontWindows} from './riverfront-windows';
+} from '../riverfront-shared/pbr-buildings';
+import {riverfrontWindows} from '../riverfront-shared/riverfront-windows';
 import {makeCityMesh, type CityFeature} from './river-district-data';
 
 type BuildingMeshLayerProps = LayerProps & {features: readonly CityFeature[]};

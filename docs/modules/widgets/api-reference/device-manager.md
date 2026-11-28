@@ -12,6 +12,7 @@
 import {
   DeviceManager,
   DeviceManagerController,
+  type DeviceManagerOptions,
   type DeviceManagerState,
   type DeviceType
 } from '@deck.gl-community/widgets';
@@ -21,6 +22,11 @@ import {
 
 ```ts
 type DeviceType = 'webgl' | 'webgpu';
+
+type DeviceManagerOptions = Pick<DeviceProps, 'optionalFeatures'> & {
+  canvasContext?: Omit<CanvasContextProps, 'canvas' | 'container'>;
+  persistPreference?: boolean;
+};
 
 type DeviceManagerState = {
   deviceType?: DeviceType;
@@ -34,6 +40,7 @@ type DeviceManagerState = {
 
 ```ts
 class DeviceManagerController {
+  constructor(options?: DeviceManagerOptions);
   getState(): DeviceManagerState;
   subscribe(listener: (state: DeviceManagerState) => void): () => void;
   getCanvasParent(): HTMLElement;
@@ -44,13 +51,14 @@ class DeviceManagerController {
   getPreferredAvailableDeviceType(
     preferredTypes: readonly DeviceType[]
   ): Promise<DeviceType | undefined>;
-  initialize(): Promise<DeviceType | undefined>;
+  initialize(allowedTypes?: readonly DeviceType[]): Promise<DeviceType | undefined>;
   ensureDeviceType(preferredTypes: readonly DeviceType[]): Promise<DeviceType | undefined>;
   setDeviceType(type: DeviceType): Promise<Device | undefined>;
   reparentCanvas(
     parentElement: HTMLElement | null,
     deviceOrType?: Device | DeviceType
   ): HTMLCanvasElement | OffscreenCanvas | undefined;
+  reset(): void;
 }
 ```
 
@@ -77,7 +85,9 @@ const {device} = DeviceManager.getState();
 ## Remarks
 
 - Caches one reusable device per backend, so switching does not recreate devices after the first successful initialization.
-- Persists the selected backend in local storage and restores it on `initialize()`.
+- Restores the saved backend on `initialize()` when it is available and allowed. Set `persistPreference: false` to make selection local to the controller.
+- Keeps the current device and reports `deviceError` if a requested switch fails.
+- Accepts canvas settings and optional feature requests for the devices it creates. Call `reset()` after finalizing the renderer to release all managed devices and canvases.
 - Uses a hidden DOM container to hold cached canvases until they are attached to a visible parent.
 - Exposes an imperative subscription API instead of a state-library dependency.
 - Can be used without `DeviceTabsWidget` when the application wants its own backend-selection UI.

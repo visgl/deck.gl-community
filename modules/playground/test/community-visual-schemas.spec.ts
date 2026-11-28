@@ -79,10 +79,13 @@ describe('community visual layer schemas', () => {
     }
   });
 
-  it('validates SkyLayer directions, haze and exposure', () => {
+  it('validates ProceduralSkyLayer directions, haze and exposure', () => {
     expect(
-      parseLayer('SkyLayer', {sunDirection: [0, 1, 0.35], aerosolOpticalDepth: 0.12, exposure: 1})
-        .success
+      parseLayer('ProceduralSkyLayer', {
+        sunDirection: [0, 1, 0.35],
+        aerosolOpticalDepth: 0.12,
+        exposure: 1
+      }).success
     ).toBe(true);
     for (const props of [
       {sunDirection: [0, 1]},
@@ -91,7 +94,7 @@ describe('community visual layer schemas', () => {
       {exposure: -1},
       {exposure: 33}
     ]) {
-      expect(parseLayer('SkyLayer', props).success).toBe(false);
+      expect(parseLayer('ProceduralSkyLayer', props).success).toBe(false);
     }
   });
 

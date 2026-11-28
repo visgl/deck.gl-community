@@ -18,7 +18,9 @@ const options = {
 };
 await build(options);
 const server = await preview(options);
-const browser = await (engine === 'webkit' ? webkit : chromium).launch({headless: true});
+const browser = engine === 'webkit'
+  ? await webkit.launch({headless: true})
+  : await chromium.launch({headless: true, channel: process.env.PANEL_FULLSCREEN_CHROMIUM_CHANNEL});
 const sizes = [{width: 390, height: 844}, {width: 844, height: 390}];
 try {
   for (const mode of ['missing', 'rejected', 'native']) {

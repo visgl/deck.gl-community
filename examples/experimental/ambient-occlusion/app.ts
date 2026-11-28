@@ -4,6 +4,11 @@
 
 import {Deck, MapView, type Effect, type MapViewState} from '@deck.gl/core';
 import {CORTAOEffect, type CORTAOEffectProps} from '@deck.gl-community/experimental';
+import {
+  DeviceManagerController,
+  DeviceTabsWidget,
+  type DeviceType
+} from '@deck.gl-community/widgets';
 import type {Device} from '@luma.gl/core';
 import {LumaAmbientOcclusionEffect} from './luma-ambient-occlusion-effect';
 import {getScene, SCENES, type Scene, type SceneId} from './scenes';
@@ -76,7 +81,8 @@ export type AmbientOcclusionExampleOptions = {
   onSceneChange?: (scene: SceneId) => void;
   /** Called when the user changes an effect prop in the panel. */
   onEffectPropsChange?: (props: ExampleEffectProps) => void;
-  /** Called when the user selects another method or device. The page reloads with these values. */
+  /** Called when the user selects another method. */
+  onAmbientOcclusionChange?: (enabled: boolean) => void;
   onMethodChange?: (method: MethodId, device: 'webgl' | 'webgpu') => void;
 };
 
@@ -98,6 +104,8 @@ export type AmbientOcclusionExample = {
   setEffectProps: (props: ExampleEffectProps) => void;
   /** Moves the camera. */
   setViewState: (viewState: MapViewState) => void;
+  /** Sets the method selector back to the running method. */
+  resetControls: () => void;
   /** Removes the example. */
   finalize: () => void;
   /** True when the data of the current scene is loaded and drawn. */
@@ -139,6 +147,9 @@ export function mountAmbientOcclusionExample(
   container: HTMLElement,
   options: AmbientOcclusionExampleOptions = {}
 ): AmbientOcclusionExample {
+  if (getComputedStyle(container).position === 'static') {
+    container.style.position = 'relative';
+  }
   const deviceType = options.device?.type === 'webgpu' ? 'webgpu' : 'webgl';
   const method = getMethod(options.method, deviceType);
   let scene: Scene = getScene(options.scene);
@@ -188,7 +199,11 @@ export function mountAmbientOcclusionExample(
   const updateEffects = () => deck.setProps({effects: getEffects()});
   const setAmbientOcclusion = (enabled: boolean) => {
     ambientOcclusion = enabled;
+    if (panel) {
+      panel.ambientOcclusion.checked = enabled;
+    }
     updateEffects();
+    options.onAmbientOcclusionChange?.(enabled);
   };
   const setEffectProps = (props: ExampleEffectProps) => {
     Object.assign(effectProps, props);
@@ -236,15 +251,14 @@ export function mountAmbientOcclusionExample(
   const attribution = document.createElement('div');
   attribution.style.cssText =
     'position:absolute;right:0;bottom:0;z-index:1;padding:2px 6px;max-width:60%;' +
-    'background:rgba(255,255,255,0.8);font:11px sans-serif';
+    'background:rgba(255,255,255,0.8);color:#1f2328;font:11px sans-serif';
   attribution.textContent = scene.attribution;
-  container.style.position = 'relative';
   container.append(attribution);
 
   const panel =
     options.controls === false
       ? null
-      : createControls(container, method, deviceType, {
+      : createControls(container, method, {
           ...(effect instanceof CORTAOEffect ? effect.props : {}),
           ...effectProps
         });
@@ -262,18 +276,6 @@ export function mountAmbientOcclusionExample(
     panel.method.onchange = () => {
       const next = getMethod(panel.method.value, deviceType);
       options.onMethodChange?.(next.id, next.device ?? deviceType);
-    };
-    panel.device.onchange = () => {
-      const nextDevice = panel.device.value as 'webgl' | 'webgpu';
-      // CORTAO follows the device. The luma.gl methods need WebGPU.
-      const nextMethod: MethodId = method.id.startsWith('cortao')
-        ? nextDevice === 'webgpu'
-          ? 'cortao-webgpu'
-          : 'cortao-webgl2'
-        : method.device && method.device !== nextDevice
-          ? 'none'
-          : method.id;
-      options.onMethodChange?.(nextMethod, nextDevice);
     };
     panel.ambientOcclusion.checked = ambientOcclusion;
     panel.ambientOcclusion.onchange = () => setAmbientOcclusion(panel.ambientOcclusion.checked);
@@ -307,6 +309,11 @@ export function mountAmbientOcclusionExample(
     setAmbientOcclusion,
     setEffectProps,
     setViewState: viewState => deck.setProps({initialViewState: {...viewState}}),
+    resetControls: () => {
+      if (panel) {
+        panel.method.value = method.id;
+      }
+    },
     finalize: () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
@@ -330,16 +337,13 @@ function isFormControl(target: EventTarget | null): boolean {
 const RADIUS_CHOICES = [Number.POSITIVE_INFINITY, 1000, 500, 300, 200, 100, 30, 10, 4, 3];
 
 /** Creates the settings panel. */
-function createControls(
-  container: HTMLElement,
-  method: Method,
-  deviceType: 'webgl' | 'webgpu',
-  props: ExampleEffectProps
-) {
+function createControls(container: HTMLElement, method: Method, props: ExampleEffectProps) {
   const root = document.createElement('div');
   root.style.cssText =
     'position:absolute;top:12px;left:12px;z-index:2;padding:8px 12px;border-radius:6px;' +
-    'background:rgba(255,255,255,0.9);font:13px sans-serif;line-height:1.8;max-width:300px';
+    'background:rgba(255,255,255,0.9);font:13px sans-serif;line-height:1.8;max-width:300px;' +
+    // Set the text color, because a page with a dark theme would otherwise give light text.
+    'color:#1f2328;color-scheme:light';
   const sceneOptions = SCENES.map(scene => `<option value="${scene.id}">${scene.label}</option>`);
   const methodOptions = METHODS.map(
     item =>
@@ -359,10 +363,6 @@ function createControls(
   const intensity = props.intensity ?? 1;
   root.innerHTML = `
     <label>Method <select name="method">${methodOptions.join('')}</select></label><br>
-    <label>Backend <select name="device">
-      <option value="webgl"${deviceType === 'webgl' ? ' selected' : ''}>WebGL2</option>
-      <option value="webgpu"${deviceType === 'webgpu' ? ' selected' : ''}>WebGPU</option>
-    </select></label><br>
     <label>Scene <select name="scene">${sceneOptions.join('')}</select></label><br>
     <div name="description" style="color:#555;line-height:1.3;margin-bottom:4px"></div>
     <label><input type="checkbox" name="ambientOcclusion"> Ambient occlusion</label><br>
@@ -377,13 +377,11 @@ function createControls(
     <label>Intensity <input type="range" name="intensity" min="0.25" max="4" step="0.05"
       value="${intensity}"${cortaoOnly}> <span name="intensityValue">${intensity}</span></label><br>
     <div style="color:#555">Hold <kbd>Space</kbd> to see the scene without the effect.</div>`;
-  container.style.position = 'relative';
   container.append(root);
   const get = <T extends Element>(name: string) => root.querySelector(`[name="${name}"]`) as T;
   return {
     root,
     method: get<HTMLSelectElement>('method'),
-    device: get<HTMLSelectElement>('device'),
     scene: get<HTMLSelectElement>('scene'),
     description: get<HTMLDivElement>('description'),
     ambientOcclusion: get<HTMLInputElement>('ambientOcclusion'),
@@ -395,5 +393,122 @@ function createControls(
     screenRadiusValue: get<HTMLSpanElement>('screenRadiusValue'),
     intensity: get<HTMLInputElement>('intensity'),
     intensityValue: get<HTMLSpanElement>('intensityValue')
+  };
+}
+
+/** Mounts AO with the community device controller and backend tabs. */
+export async function mountSwitchableAmbientOcclusionExample(
+  container: HTMLElement,
+  options: Omit<AmbientOcclusionExampleOptions, 'device' | 'onMethodChange'> & {
+    deviceType?: DeviceType;
+    onSelectionChange?: (method: MethodId, type: DeviceType) => void;
+  } = {}
+) {
+  const manager = new DeviceManagerController({
+    persistPreference: false,
+    // Deck's postprocessing buffers use rgba8unorm. Match them on WebGPU.
+    canvasContext: {useDevicePixels: false, colorFormat: 'rgba8unorm'},
+    optionalFeatures: ['timestamp-query']
+  });
+  let scene = options.scene;
+  let viewState = options.initialViewState;
+  let ambientOcclusion = options.ambientOcclusion;
+  const effectProps = {...options.effectProps};
+  let example: AmbientOcclusionExample | undefined;
+  let mountedDevice: Device | undefined;
+
+  const mount = (device: Device, method: Method) => {
+    example?.finalize();
+    manager.reparentCanvas(container, device);
+    mountedDevice = device;
+    example = mountAmbientOcclusionExample(container, {
+      ...options,
+      scene,
+      initialViewState: viewState,
+      ambientOcclusion,
+      effectProps,
+      device,
+      method: method.id,
+      onSceneChange: nextScene => {
+        scene = nextScene;
+        viewState = undefined;
+        options.onSceneChange?.(nextScene);
+      },
+      onViewStateChange: nextViewState => {
+        viewState = nextViewState;
+        options.onViewStateChange?.(nextViewState);
+      },
+      onEffectPropsChange: props => {
+        Object.assign(effectProps, props);
+        options.onEffectPropsChange?.(props);
+      },
+      onAmbientOcclusionChange: enabled => {
+        ambientOcclusion = enabled;
+        options.onAmbientOcclusionChange?.(enabled);
+      },
+      onMethodChange: (nextMethod, type) => void select(getMethod(nextMethod, type), type)
+    });
+  };
+
+  const select = async (method: Method, type: DeviceType) => {
+    example?.resetControls();
+    // Even a same-backend selection supersedes an in-flight switch to another backend.
+    const device = await manager.setDeviceType(type);
+    if (device && example && (example.method.id !== method.id || mountedDevice !== device)) {
+      mount(device, method);
+    }
+    if (device) {
+      options.onSelectionChange?.(method.id, type);
+    }
+  };
+
+  const tabsHost = document.createElement('div');
+  tabsHost.style.cssText = 'position:absolute;top:12px;right:12px;z-index:4';
+  let tabs: DeviceTabsWidget | undefined;
+  const finalize = () => {
+    tabs?.onRemove();
+    tabsHost.remove();
+    example?.finalize();
+    example = undefined;
+    manager.reset();
+  };
+
+  try {
+    const requestedType = options.deviceType ?? 'webgl';
+    const method = getMethod(options.method, requestedType);
+    const type = method.device ?? requestedType;
+    const device = await manager.setDeviceType(type);
+    if (!device) {
+      throw new Error(manager.getState().deviceError ?? 'No graphics device available');
+    }
+    mount(device, method);
+    if (options.controls !== false) {
+      tabs = new DeviceTabsWidget({
+        manager,
+        autoInitialize: false,
+        onDeviceTypeChange: type => {
+          const currentMethod = example?.method;
+          const nextMethod = currentMethod?.id.startsWith('cortao')
+            ? getMethod(undefined, type)
+            : getMethod(
+                currentMethod?.device && currentMethod.device !== type ? 'none' : currentMethod?.id,
+                type
+              );
+          void select(nextMethod, type);
+        }
+      });
+      container.append(tabsHost);
+      tabs.onRenderHTML(tabsHost);
+    }
+  } catch (error) {
+    finalize();
+    throw error;
+  }
+
+  return {
+    get example() {
+      return example!;
+    },
+    finalize
   };
 }

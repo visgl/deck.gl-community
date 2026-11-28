@@ -6,7 +6,7 @@ import {Deck, Layer} from '@deck.gl/core';
 import {GraphLayer} from '@deck.gl-community/graph-layers';
 import karateDot from '../../modules/graph-layers/test/data/__fixtures__/dot/karate.dot?raw';
 import graphUrlExample from './examples/16-graph-url.json';
-import {SkyboxLayer} from '@deck.gl-community/layers';
+import {SkyboxLayer} from '@deck.gl-community/layers/sky-layers';
 import {page} from 'vitest/browser';
 import {afterEach, expect, test, vi} from 'vitest';
 import {mountStandalonePlayground} from './standalone';

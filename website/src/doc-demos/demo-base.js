@@ -1,6 +1,6 @@
-import React from 'react';
-import DeckGL from '@deck.gl/react/legacy';
-import {Map} from 'react-map-gl/maplibre';
+import React, {useEffect, useMemo, useRef} from 'react';
+import {Deck} from '@deck.gl/core';
+import {Map} from 'maplibre-gl';
 import {useColorMode} from '@docusaurus/theme-common';
 import {MAPBOX_STYLES} from '../constants/defaults';
 import {gotoLayerSource} from './codepen-automation';
@@ -64,29 +64,54 @@ export function makeLayerDemo(config) {
   function Demo() {
     const {colorMode} = useColorMode();
 
-    const layer = new Layer(layerProps);
+    const layer = useMemo(() => new Layer(layerProps), []);
+    const deckHost = useRef(null);
+    const mapHost = useRef(null);
+    const mapRef = useRef(null);
 
-    const mapStyleSheet = colorMode === 'dark' ? MAPBOX_STYLES.DARK : MAPBOX_STYLES.LIGHT;
+    useEffect(() => {
+      const {longitude, latitude, zoom, bearing, pitch} = initialViewState;
+      const map = mapHost.current
+        ? new Map({
+            container: mapHost.current,
+            center: [longitude, latitude],
+            zoom,
+            bearing,
+            pitch,
+            interactive: false
+          })
+        : null;
+      mapRef.current = map;
+      const deck = new Deck({
+        parent: deckHost.current,
+        pickingRadius: 5,
+        initialViewState,
+        getTooltip: styledGetTooltip,
+        controller: true,
+        layers: [layer],
+        onResize: () => {
+          map?.resize();
+        },
+        onViewStateChange: ({viewState}) => {
+          const {longitude, latitude, zoom, bearing, pitch} = viewState;
+          map?.jumpTo({center: [longitude, latitude], zoom, bearing, pitch});
+        }
+      });
+      return () => {
+        mapRef.current = null;
+        deck.finalize();
+        map?.remove();
+      };
+    }, [layer]);
+
+    useEffect(() => {
+      mapRef.current?.setStyle(colorMode === 'dark' ? MAPBOX_STYLES.DARK : MAPBOX_STYLES.LIGHT);
+    }, [colorMode]);
 
     return (
       <div className={styles.demoPlaceholder}>
-        <div className={styles.demoContainer}>
-          <DeckGL
-            pickingRadius={5}
-            initialViewState={initialViewState}
-            getTooltip={styledGetTooltip}
-            controller={true}
-            layers={[layer]}
-          >
-            {mapStyle && (
-              <Map
-                reuseMaps
-                mapStyle={mapStyleSheet}
-                preventStyleDiffing={true}
-              />
-            )}
-          </DeckGL>
-        </div>
+        {mapStyle && <div ref={mapHost} className={styles.demoContainer} />}
+        <div ref={deckHost} className={styles.demoContainer} />
         <div className={styles.demoSourceLink} onClick={() => gotoLayerSource(config, layer)}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M0 0h24v24H0V0z" fill="none" />
